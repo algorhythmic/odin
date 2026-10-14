@@ -1,0 +1,14 @@
+{
+  "snapshot_id": "2026-10-14-14fdab3",
+  "producer_repository": "saga",
+  "producer_path": "docs/contracts/SAGA-SERVICE.md",
+  "producer_base_commit": "14fdab3bce1a5a565176cec9db5d7dc8d1c15ada",
+  "producer_commit": "a84f9ac28a6b4de651fccc057d33a335472f9773",
+  "sha256": "5ad4871d27e47a0842479c5e6e4335f7a68b8435676b8da97a949ed6afc9511e",
+  "status": "0.1.1-draft; bootstrap reference; final review pending; target API unimplemented",
+  "captured_at": "2026-10-14T18:05:27.375557+00:00",
+  "notes": [
+    "The producer document was newly extracted after the source checkpoint. The snapshot name identifies the extraction handoff, not the commit that first contains SAGA-SERVICE.md.",
+    "Producer commit records the exact canonical draft; no API release or runtime conformance is implied."
+  ]
+}

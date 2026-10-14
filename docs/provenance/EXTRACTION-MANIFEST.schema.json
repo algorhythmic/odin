@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Odin documentation extraction manifest",
+  "type": "object",
+  "required": ["schema_version", "snapshot_id", "source_repository", "source_commit", "base_head", "captured_at", "files"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "snapshot_id": {"type": "string", "minLength": 1},
+    "source_repository": {"const": "saga"},
+    "source_local_path": {"type": "string"},
+    "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "base_head": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "captured_at": {"type": "string", "format": "date-time"},
+    "notes": {"type": "array", "items": {"type": "string"}},
+    "files": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["source_path", "source_sha256", "snapshot_path", "source_status", "dirty", "untracked", "destination_path", "treatment", "transformation", "adapted_output_sha256"],
+        "properties": {
+          "source_path": {"type": "string", "minLength": 1},
+          "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "snapshot_path": {"type": "string", "minLength": 1},
+          "source_status": {"const": "clean"},
+          "dirty": {"const": false},
+          "untracked": {"const": false},
+          "destination_path": {"type": "string", "minLength": 1},
+          "treatment": {"enum": ["exact", "adapted", "split", "reference"]},
+          "transformation": {"type": "string", "minLength": 1},
+          "adapted_output_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

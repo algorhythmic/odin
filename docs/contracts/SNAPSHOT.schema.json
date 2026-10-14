@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pinned producer contract snapshot metadata",
+  "type": "object",
+  "required": ["snapshot_id", "producer_repository", "producer_path", "producer_base_commit", "sha256", "status", "captured_at"],
+  "properties": {
+    "snapshot_id": {"type": "string"},
+    "producer_repository": {"const": "saga"},
+    "producer_path": {"const": "docs/contracts/SAGA-SERVICE.md"},
+    "producer_base_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "producer_commit": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"type": "string"},
+    "captured_at": {"type": "string", "format": "date-time"},
+    "notes": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}
