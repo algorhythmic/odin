@@ -18,9 +18,20 @@ personas in `docs/history/` are evidence, not instructions for you.
   agree with the frozen copy except for explicitly recorded operator
   decisions in Odin's ADRs. Those do not amend Saga-owned interfaces
   or close the cross-repository handoff.
-- The first implementation work is **I0** (contracts and fixtures),
-  then **I1** and **I2** against a fake Saga backend. **I3** and every
-  live delegated run require Saga Phase B ([roadmap](docs/ROADMAP.md)).
+- ODIN-ADR-006 to 015, recorded on 2026-10-16, supersede or amend
+  inherited clauses Odin owns. The consolidation plan
+  ([`docs/design/CONSOLIDATION-PLAN.md`](docs/design/CONSOLIDATION-PLAN.md))
+  is a proposal: its Saga-side parts, a shared repository among them,
+  wait on Saga's record (issue X-14). Don't build or describe them as
+  decided.
+- The first implementation work is **I0** (the event envelope,
+  namespaces and record schemas, validated in Go and Python against one
+  fixture set; ODIN-ADR-008), then **I1** (capability matrix, fake Saga
+  backend, three-document fixture, ownership mapping, then the service
+  foundation) and **I2** (first harness, workstation daemon v0), both
+  against the fake backend. A fixture-only Pi RPC control follows I2
+  (ODIN-ADR-015). **I3** and every live delegated run require Saga
+  Phase B ([roadmap](docs/ROADMAP.md)).
   Allowing I0–I2 alongside Phase B is an Odin-side interpretation;
   reconciliation with Saga's phase wording remains open (issue X-1).
 
@@ -59,6 +70,8 @@ rewording a document does not close them.
   together.
 - `docs/research/harness-research-2026-10/*.md` other than its README:
   exact copies of dated evidence.
+- `docs/research/consolidation-2026-10/*.md` other than its README:
+  dated evidence.
 
 Never edit Saga or any peer repository from this one.
 
@@ -68,11 +81,31 @@ Never edit Saga or any peer repository from this one.
   routing, scheduling, outbox, budgets, session lifecycle. The harness
   loop is a Claude Code session started through the Agent SDK. Most
   events never reach a model (I/O contract §4).
-- **One transactional core.** SQLite (WAL) holds records, inbox, outbox,
-  cursors, messages and tree nodes. JSONL files and `view.json` are
-  regenerated projections (§9).
+- **One event substrate.** The transactional core (SQLite, WAL) becomes
+  an append-only event substrate with namespaces: Odin history,
+  transcript archive, workstation surface events. Each namespace has
+  exactly one writer. Records, inbox, outbox, cursors, messages and tree
+  nodes commit in the same transaction as their history. The
+  execution-ledger namespace is a read-only mirror of Saga's store, fed
+  only through Saga's API and cursor; never author or amend a mirrored
+  record, and never write Saga's store. JSONL files and
+  `view.json` are regenerated projections (§9, ODIN-ADR-006). The
+  physical layout is open (X-11).
 - **Commitments are records, not memory.** Summaries serve recall; open
-  obligations live in commitment records (D7).
+  obligations live in commitment records (D7). The commitment record is
+  the only editable task record: heimdall's task layer is imported once
+  and retired, with no bridge (ODIN-ADR-007).
+- **Service and workstation daemon.** The service runs on the homelab.
+  A workstation daemon hosts the session host, sensors, transcript
+  capture and local surface adapters. The session host starts, resumes,
+  interrupts and retires sessions only on the service's command;
+  session records, ownership and budgets stay in the service. An
+  unreachable host makes its bindings `host_offline`, not failed
+  (ODIN-ADR-009).
+- **Operator surfaces** are adapters on one service API, and every one
+  enters the same recorded command path. An attention prompt is a typed,
+  capped outbound effect whose response is a record; never a
+  synthesized keystroke (ODIN-ADR-010).
 - **Saga boundary.** Odin reaches Saga only through its API (D1.3).
   Saga's ledger decides whether a run was approved or completed (D4);
   Odin's history never does. Odin requires the capabilities in the I/O
@@ -81,13 +114,25 @@ Never edit Saga or any peer repository from this one.
   (start, resume, inject mid-turn, interrupt, budget, model and effort,
   transcript, hooks, profile enforcement, attachable view,
   permission-prompt relay). The service refuses a session class whose
-  required capabilities are missing. The adapter translates assignments,
+  required capabilities are missing. Record each code-made class choice
+  with its rejected alternatives; the record never changes routing
+  (ODIN-ADR-014). The adapter translates assignments,
   events and results; it does not reimplement the harness. Claude Code
-  through the Agent SDK comes first. Build no universal adapter framework
+  through the Agent SDK comes first; a fixture-only Pi RPC control
+  follows I2 (ODIN-ADR-015). Build no universal adapter framework
   before a second adapter exists (D19). Don't rely on interactive-only
   behaviours: channels, plugin monitors, teammates (D7).
 - **Capability profiles** (planner, reviewer, worker, desktop worker,
   subagent) are enforced before tool execution, not by prompt (§7).
+- **Review.** Required review uses two reviewer positions, on different
+  model families where adapters allow, given the same evidence pack;
+  service code combines their verdicts and sends disagreement to the
+  operator. This is a hypothesis, not a settled design (ODIN-ADR-013).
+- **Desktop input** is a gated process of the workstation daemon, under
+  its own Unix user, disabled until desktop authority is decided; never
+  reachable from a planning session (ODIN-ADR-011).
+- **Preservation.** Odin writes and commits its own package; dotprivate
+  is off its dependency path (ODIN-ADR-012).
 - **Effects** are at-least-once with stable operation ids, explicit
   `unknown`, and reconciliation before retry; nothing claims
   exactly-once (D6, §9).
@@ -95,7 +140,7 @@ Never edit Saga or any peer repository from this one.
 ## 5. Fake backend versus live Saga
 
 - The fake Saga backend implements Appendix B for development and the
-  acceptance scenarios (I0 to I2). Label every result obtained with it
+  acceptance scenarios (I1 to I2; I0 has fixtures only). Label every result obtained with it
   as fake-backend evidence.
 - Never present the fake backend, or any backend other than Saga, as
   providing Saga's guarantees (isolation, enforced limits, durable run
@@ -115,6 +160,10 @@ Never edit Saga or any peer repository from this one.
 - Keep three credential domains separate: your development login, the
   managed agents' credentials (Saga's), and Odin's harness credentials.
   Auth failures must be attributable to one of them.
+- A workstation session host holds Odin's local model credential in a
+  protected store that the service references, with one refresher per
+  lineage. It is a separate lineage within Odin's harness credentials, never your
+  development login (X-12).
 - A session process holds only its model credential. The Saga token, the
   reviewer identity key and the Telegram token stay in the service.
   Secrets never appear in prompts, history, briefings or exports (D24).
@@ -139,11 +188,18 @@ Never edit Saga or any peer repository from this one.
   and make judgments: Odin, Mimir (and Saga's Eir and Bragi). Everything
   deterministic gets a plain functional name. Never reuse a name from
   the operator's standalone repositories (heimdall, braid, skald,
-  muninn, wayland-computer-use). No Odin deliverable prefix is defined
-  yet (issue X-5).
+  muninn, wayland-computer-use, dotprivate) or the third-party Herdr.
+  No Odin deliverable prefix is defined yet (issue X-5); don't invent
+  deployable names.
 - **Terms.** Use worker, run, stream, delegation, commitment,
   assignment, planning session, evaluator, Saga launcher, Saga events,
-  and the Saga adapter (Odin's side). Don't use overseer, navigator,
+  the Saga adapter (Odin's side), reviewer position (never "seat" for
+  reviewers), attention prompt (never bare "nudge"), workstation daemon,
+  session host, event substrate and human view. Use "execution backend"
+  only as a synonym for Saga, and attribute its guarantees to Saga.
+  Mimir names the reviewer role; whether the two reviewer positions are
+  one persona or two is open with X-5 (ODIN-ADR-013).
+  Don't use overseer, navigator,
   critic, judge or master as agent names. Legacy names (dvergr,
   instance, Heimdall for the launcher, Ratatoskr) stay only in history
   and in code until each rename lands. In prose, say "Saga's launcher",

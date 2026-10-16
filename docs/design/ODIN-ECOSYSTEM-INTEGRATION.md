@@ -9,9 +9,21 @@ Adapted for the Odin repository from extraction snapshot `2026-10-14-14fdab3`
 the adaptation changes links and provenance, not proposals. The source review's
 corrections added the archive-scope reading (§7) and increment placement to
 EC-03 and EC-04 ([`REVIEW-RESOLUTIONS.md`](../provenance/REVIEW-RESOLUTIONS.md)).
+Updated 2026-10-16 for ODIN-ADR-006 to 015 ([decision record](../DECISIONS.md)
+§4): the preamble, §1 and §4 to §10 carry dated notes, and §11 holds the
+Saga-owned parts of the [consolidation plan](CONSOLIDATION-PLAN.md) as
+proposals.
 
 The tools remain independent products. Odin consumes versioned interfaces;
 it does not merge their databases or make them all prerequisites for startup.
+**Superseded in part (2026-10-16):** ODIN-ADR-006 supersedes "does not merge
+their databases" for the transcript-archive and workstation surface-event
+namespaces, which become namespaces of Odin's one event substrate, each with
+one writing component. The execution ledger stays Saga's separate store; Odin
+holds at most a read-only mirror filled through Saga's API and event cursor.
+Each peer remains a separate product, and each item below remains a request to
+that peer, until the Saga-side decisions in issue X-14 and the peers' own
+recorded notes exist. The repository consolidation is a proposal (§11).
 The changes here are implementation proposals, not claims that adapters exist.
 No sibling repository was modified to produce this reference. Each peer owns
 its interface; Odin pins a peer's contract under [`../contracts/`](../contracts/README.md)
@@ -21,22 +33,26 @@ unavailable.
 
 Peer sources are cited as `repository:path` in the operator's local checkouts
 as observed on 2026-10-14. They are not vendored here, are not required to read
-this plan, and may have changed since.
+this plan, and may have changed since. The 2026-10-16 notes rest on the
+read-only inventories in
+[`../research/consolidation-2026-10/`](../research/consolidation-2026-10/README.md).
 
 ## 1. Local baseline and evidence limits
 
 The working trees, not remote Saga, were inspected. These are source/document
 observations; the applications were not deployed or acceptance-tested in this task.
 The rows are dated observations and were not re-verified during extraction.
+The peer rows were re-inspected read-only on 2026-10-16; the 2026-10-14 HEAD
+follows "was" in each.
 
 | Repository / installed tool | Baseline | Observed capability and gap |
 |---|---|---|
-| Saga | HEAD `9e02823`; substantial uncommitted October docs (since committed; this repository's design inputs were captured clean at `14fdab3`) | April implementation plus new supervisory-layer design; service extraction is future work |
-| Skald | HEAD `d364f8f` | Source collection, independent archive, CLI/TUI and backup; Braid, peer integrations, Odin provider and portable export workflow need work |
-| Heimdall | HEAD `c7fee4b` | Task/checkpoint/review/TUI and Herdr binding facilities; retrieval foundation code exists, while README/status still describe broader integration as planned |
-| Braid | HEAD `41bc392` | Retrieval library, CLI and subprocess contracts; Odin/Skald consumers and workload calibration remain work |
-| WCU | HEAD `c618243`; modified evaluation/config files | Two MCP servers, skill and Codex packaging, guarded execution/readback; shared desktop lease and Jev workflow are proposals |
-| dotprivate | HEAD `51d0fce`; untracked contract docs | Ingest/sync tooling; selected-files preservation contract is explicitly unimplemented |
+| Saga | HEAD `9e02823`; substantial uncommitted October docs (since committed; this repository's design inputs were captured clean at `14fdab3`). 2026-10-16: HEAD `a84f9ac`, clean | April implementation plus new supervisory-layer design; service extraction is future work. 2026-10-16: no ledger, run lifecycle, approvals, reviewer key, cancellation or kill switch exists in code |
+| Skald | HEAD `22114dd` (2026-10-16; was `d364f8f`); Apache-2.0 license added 2026-10-14; no CI | Source collection, independent archive, CLI/TUI and backup; Braid, peer integrations, Odin provider and portable export workflow need work. The `changes` table has a writer but no reader |
+| Heimdall | HEAD `3ca80b5` (2026-10-16; was `c7fee4b`); Apache-2.0 license added 2026-10-14; CI red | Task/checkpoint/review/TUI and Herdr binding facilities; retrieval foundation code exists, while README/status still describe broader integration as planned. The ranked planner, SSE and change feed do not exist; sensors are coupled to task records |
+| Braid | HEAD `7e24af3` (2026-10-16; was `41bc392`); Apache-2.0 license added 2026-10-14; CI green | Retrieval library, CLI and subprocess contracts; Odin/Skald consumers and workload calibration remain work. Opens its own SQLite file per dataset and recomputes a whole-dataset digest on every write |
+| WCU | HEAD `e61f8ed` (2026-10-16; was `c618243`), 12 commits ahead of `origin/main`; Apache-2.0 license added 2026-10-14; modified evaluation/config files | Two MCP servers, skill and Codex packaging, guarded execution/readback; shared desktop lease and Jev workflow are proposals. No lease, grant or caller identity exists in code |
+| dotprivate | HEAD `51d0fce` (unchanged 2026-10-16); untracked contract docs | Ingest/sync tooling; selected-files preservation contract is explicitly unimplemented and names heimdall and skald as consumers, not Odin |
 | Herdr | Installed `0.8.2` | Local Heimdall bindings target protocol 20; latest web capabilities must not be assumed available in this binary |
 
 Before implementation, record full commits, dirty-file digests, adapter versions,
@@ -100,7 +116,15 @@ where the harness can cooperate. Use API operations for layout and launch, not
 WCU keystrokes. Keep native SDK sessions distinct from interactive PTY sessions;
 an SDK transcript view is not an attachable native TUI.
 
-Launching `skald tui` or `heimdall tui` in panes is feasible as workspace setup.
+**Update under ODIN-ADR-009 (2026-10-16).** Herdr is to be driven through its
+CLI: locally by the workstation daemon where one runs, or over SSH with
+`herdr --machine` from the service, with the SSH key and the Herdr target held
+by the service and never by a session. The automation API remains unreviewed
+(decision record §3 item 8) until the adapter is built against the installed
+version.
+
+Launching `skald tui` in a pane remains feasible as workspace setup; heimdall's
+TUI is to be replaced by the human view (§5).
 Automatic project selection or linked navigation requires each application's
 supported interface; opening a TUI does not implement the data integration.
 
@@ -112,6 +136,40 @@ References: [Herdr automation](https://herdr.dev/docs/agent-automation/) and
 local Heimdall Herdr contract (`heimdall:docs/guides/HERDR-SETUP.md`).
 
 ## 5. Heimdall: workstream visibility without competing ownership
+
+**Superseded by ODIN-ADR-007 (2026-10-16).** The ownership bridge proposed
+below is not planned. Odin's commitment record is the only editable record of
+task state, checkpoints and task decisions for work run through these tools.
+Instead:
+
+- **Import, not bridge.** Heimdall's tasks, checkpoints and decisions are
+  imported once into commitments, each with its original identity and revision
+  as provenance, and the import writes a receipt; a second run on the same
+  database adds nothing (AC-38). After the import, heimdall-side edits are
+  refused, or ignored with a visible record. The mapping from heimdall's record
+  types is kept with the record schemas. Delegations, approvals, verdicts and
+  run states stay Saga's records.
+- **Sensors are to move to the workstation daemon.** Heimdall's surface sensors
+  (compositor, Herdr agents, browser, file trees) become workstation-daemon
+  sensors (ODIN-ADR-009) with explicit configuration instead of discovery
+  through task-bound session bindings and task resources. Their observations
+  are state-only or log-only inbound sources, never authority (ODIN-ADR-010).
+  The 2026-10-16 inventory found them coupled to task records, so extracting
+  them is a refactor, not a move.
+- **One human view.** Heimdall's TUI and bar are to be replaced by one human view,
+  which shows commitments, runs and transcripts with their owners attributed,
+  and by a bar adapter on the service API.
+- **Peer record.** Retiring heimdall's task authority and the skald–heimdall
+  amendment is heimdall's decision to record in its own repository (EC-13).
+  Until then, heimdall's record and the amendment stand unchanged there.
+  EC-05 is withdrawn from Odin's plan.
+
+**Acceptance:** a repeated import yields one set of commitments and one
+receipt; a later heimdall-side edit never changes a commitment and leaves a
+visible record; heimdall's absence hides no task state.
+
+The 2026-10-14 proposal follows, kept for traceability. Where it conflicts
+with the paragraphs above, they win.
 
 **Reuse:** task/contract/decision records, checkpoints, dependency views, needs-you
 TUI, explicit session bindings, and scoped client access. The existing MCP
@@ -154,6 +212,28 @@ Skald amendment (`skald:SKALD-HEIMDALL-AMENDMENT.md`).
 contracts, immutable source revisions, capture gaps, archive reads, project
 grouping, native recaps, TUI, and consistent full-archive backup/restore.
 Skald remains useful without Odin, Heimdall, Braid, or an inference provider.
+
+**Update under ODIN-ADR-006 (2026-10-16).** Skald's capture library is to run as
+the capture module of the workstation daemon and write the transcript-archive
+namespace of Odin's substrate. Requests to skald (EC-14):
+
+- the capture library behind a `Sink` interface, with the collector and
+  discovery moved to a public package;
+- a local durable spool on the workstation, because capture runs there and
+  the substrate on the homelab: records, gaps and the checkpoint are appended
+  as one atomic batch per checkpoint, and redelivered records are deduplicated
+  by record key and source revision (AC-41);
+- one namespace key, derived from machine-id (heimdall's embedded capture
+  derives it from the hostname today, so one transcript gets two keys);
+- a reader for the `changes` table, which today has a writer and no reader,
+  so the existing archive can be ingested incrementally instead of in one step.
+
+Skald's own archive stays a standalone sink, so the skald binary stays useful
+without Odin, and it remains the owner of consistent full-archive backup
+(ODIN-ADR-012). Runtime enrollment stays I6; before that the module is
+exercised on synthetic fixtures. Item 2 below is moot: Odin history is a
+namespace of the same substrate, so no Odin provider is needed. Its rule that
+Odin's references never become a second native event stands.
 
 **Changes needed:**
 
@@ -218,6 +298,16 @@ current; inspect source revision and supersession. Purges remove published nodes
 and derived vectors. A stale dataset is labeled and cannot override current
 accepted state.
 
+**Update under ODIN-ADR-006 (2026-10-16).** Braid runs as an in-process
+library, not a child process over its stdio protocol, over published, scoped
+namespace data held in its own per-dataset files; it does not share the
+substrate's database. Because every write recomputes a digest over the whole
+dataset, publication is batched, never per event. It still never indexes
+Odin's active chat (X-4), and runtime retrieval stays I6. Requests to braid
+(EC-15): supported library embedding, and the stdio protocol layer movable
+out of `package main` into a package, so child-process isolation stays
+available where it is wanted.
+
 **Likely change location:** mostly Odin/Skald/Heimdall consumer adapters, not a
 new Braid core architecture. Add core capabilities only after a concrete gap is
 demonstrated. Heimdall has `internal/retrieval` foundation code despite older
@@ -247,6 +337,23 @@ cooperating clients; one prompt or one MCP process's lock is insufficient when
 several hosts can control the same seat. Stop/expiry/restart invalidates ownership;
 human takeover suspends automation. Unmanaged input and focus races remain limits.
 
+**Update under ODIN-ADR-011 (2026-10-16).** The shared boundary becomes a
+gated process of the workstation daemon. WCU's guarded input runs there under
+a dedicated Unix user that alone owns the input socket. That process is the
+only holder of the seat lease for every cooperating client and checks lease,
+grant scope, target and expiry on admission and again before every input
+segment, so inside it the lease is complete. It is not device-wide: other
+processes of the operator's user can still reach the compositor's
+virtual-keyboard protocol and dispatcher IPC, and whether the compositor can
+deny them is unverified. Until that is verified, the lease binds cooperating
+clients only. The observation and input MCP servers become thin shims that
+forward to the process and carry the caller's session identity. The Codex
+plugin, evaluations and reports stay standalone in WCU. WCU's 12 local
+commits ahead of `origin/main` are pushed before any import, so the public
+copy and the daemon's contract hash agree. The process stays disabled until a
+delegation naming desktop authority exists and the operator decides §3 item 9,
+and then serves only a dedicated desktop worker. Requests to WCU: EC-16.
+
 **Optional workflow component:** classify bounded textual observations or rank
 already eligible procedures with a decision model. Keep this outside WCU's input
 primitives. Exact checks remain code. Jev's currently documented text-only input
@@ -273,10 +380,25 @@ execution contract (`wayland-computer-use:skills/wayland-computer-use/references
 
 ## 9. Dotprivate: selected preservation, not the runtime store
 
+**Update under ODIN-ADR-012 (2026-10-16).** dotprivate is off Odin's
+dependency path. Odin writes the selected project package (D22.1) atomically
+to its own export directory, stages only the package path, applies its own
+secret and personal-data screen, runs git itself, and records receipts that
+distinguish "copied locally", "committed" and "confirmed on the remote"; an
+uncertain push is reconciled by observing the ref before any retry (AC-24,
+AC-25). The export directory never sits inside a dotprivate-managed
+`.private` clone, whose background sync would race Odin's writes. The
+selected-files contract remains dotprivate's own, with heimdall and skald as
+its named consumers. The operator may still ingest Odin's export with
+dotprivate by hand; that is dotprivate's feature, not an Odin interface.
+EC-08 and EC-09 are withdrawn from Odin's plan (identifiers kept in §10). The
+rest of this section still describes what an export contains and excludes;
+the prerequisite below is withdrawn and kept for traceability.
+
 **Reuse:** explicit project/environment scopes, copying selected private material,
 local Git storage and remote publication. This is independent of task completion.
 
-**Prerequisite:** implement and release dotprivate's own
+**Prerequisite (withdrawn by ODIN-ADR-012):** implement and release dotprivate's own
 selected-files contract (`dotprivate:docs/SELECTED-FILES-CONTRACT.md`).
 It is currently a proposal. Its manifest-bound requests, checkout serialization,
 unrelated-change preservation, durable receipts, and reconciliation are required
@@ -310,16 +432,47 @@ These are proposed work items, not created issues or existing callable APIs.
 | EC-01 | Odin | Version the identity/event/assignment envelope and adapter capabilities |
 | EC-02 | Odin + Saga | Implement governed submission, cursor replay, evidence and stop; first live-project prerequisite |
 | EC-03 | Odin | Herdr workspace adapter and explicit session bindings; validate installed API. Read-only inspection in I3; adapter, bindings, adopt and takeover in I4 |
-| EC-04 | Skald + Odin | Native source enrollment and Odin provider; define remote-source coverage. Runtime enrollment in I6; fixtures only before |
-| EC-05 | Heimdall + Odin | Adopt external-work projection semantics and revisioned owner command relay |
+| EC-04 | Skald + Odin | Native source enrollment and Odin provider; define remote-source coverage. Runtime enrollment in I6; fixtures only before. **Re-scoped by ODIN-ADR-006:** the Odin provider is moot (Odin history is a substrate namespace); enrollment becomes capture-module work over skald's library (EC-14) |
+| EC-05 | Heimdall + Odin | Adopt external-work projection semantics and revisioned owner command relay. **Withdrawn by ODIN-ADR-007; identifier retained; replaced by EC-13** |
 | EC-06 | Skald + Odin | Exact evidence navigation and archive scope; depends on EC-01/04 |
-| EC-07 | Consumers + Braid | Published scoped datasets and exact expansion; archived conversations only, never the active chat (§7) |
-| EC-08 | dotprivate | Release selected-files contract and conformance tests |
-| EC-09 | Skald / Heimdall / Odin | Selected export consumers; depend on EC-08, no substitute Git interface |
-| EC-10 | Odin + WCU boundary | Shared seat broker, takeover and reconciliation; desktop authority prerequisite |
+| EC-07 | Consumers + Braid | Published scoped datasets and exact expansion; archived conversations only, never the active chat (§7). **Re-scoped by ODIN-ADR-006:** braid as an in-process library over published scoped data in its own per-dataset files, with batched publication (EC-15) |
+| EC-08 | dotprivate | Release selected-files contract and conformance tests. **Withdrawn from Odin's plan by ODIN-ADR-012; identifier retained;** remains dotprivate's own work |
+| EC-09 | Skald / Heimdall / Odin | Selected export consumers; depend on EC-08, no substitute Git interface. **Withdrawn by ODIN-ADR-012; identifier retained;** Odin's own package export with three-state receipts replaces Odin's part (§9; AC-24, AC-25) |
+| EC-10 | Odin + WCU boundary | Shared seat broker, takeover and reconciliation; desktop authority prerequisite. **Becomes the gated desktop-input process of the workstation daemon (ODIN-ADR-011);** it binds cooperating clients only until the compositor restriction is verified; WCU's part is EC-16 |
 | EC-11 | Odin workflow package | Shadow textual evaluator; depends on measured baseline and EC-10 for input effects |
 | EC-12 | All data-owning consumers | Source-identity deletion propagation, pending receipts, and documented backup/export limits |
+| EC-13 | Heimdall | Record retirement of task authority and the skald–heimdall amendment; review the import mapping Odin authors with its record schemas (§5; ODIN-ADR-007). Feeds gate G-10 |
+| EC-14 | Skald | Sink interface, public collector, changes-table reader (§6; ODIN-ADR-006). Feeds gate G-10 |
+| EC-15 | Braid | Library embedding, protocol layer movable to a package (§7; ODIN-ADR-006). Feeds gate G-10 |
+| EC-16 | WCU | Input capability move, caller-identity shim, dedicated uid (§8; ODIN-ADR-011). Feeds gate G-10 |
+
+EC-13 to EC-16 are requests that the operator records in each peer's own
+repository; together they feed the roadmap gate G-10 (peer-repository
+records). None exists yet, and no Odin code calls a peer capability before it
+is published and pinned.
 
 Freeze only the contracts needed for the next increment. Preserve each product's
 standalone operation, version negotiation, and unavailable-peer behavior. Run
 the [acceptance scenarios](ODIN-ACCEPTANCE-SCENARIOS.md) as integrations land.
+
+## 11. Proposals pending Saga's record (not decisions)
+
+Nothing in this section is recorded. It holds the Saga-owned parts of the
+[consolidation plan](CONSOLIDATION-PLAN.md) until Saga's own record decides
+them (issue X-14 in the [decision record](../DECISIONS.md)). The drafts
+ODIN-ADR-016 to 019 named here are not recorded and not in effect, and D10.6,
+D14.1 and D14.7 stand as carried. Saga's guarantees (isolation, enforced
+limits, durable run records, recovery) are Saga's and are claimed for no
+other backend, fake or real (D23.3).
+
+| Proposal | Saga-owned clauses | Draft | What would make it a decision |
+|---|---|---|---|
+| The execution backend (Saga) runs as a separate, independently restartable process with its own store, record, contract and conformance checks, and may share a repository and release train with Odin | D1.2, D14.1, D14.7 | ODIN-ADR-016 | Saga's record decides it; Saga publishes a new contract version; Odin repins it and rechecks Appendix B (X-3) |
+| Workers report to the backend's own intake, replacing MQTT for Saga's worker transport; the broker stays, because other homelab systems use it; Odin reads the backend's event cursor and never receives worker transport (B-17) | D3.3, D13.4a, D15.B, contract MQ-1 | ODIN-ADR-016 | As above |
+| Bragi becomes a scheduled Odin session class and Eir an Odin assignment class; Eir keeps an operator-invoked path that needs neither Odin nor the backend, outside both failure domains | D11, D12.1, D17.4b | ODIN-ADR-017 | Saga's record transfers them |
+| One repository with imported histories and archived originals, and the names of the repository, the deliverable prefix and the deployables | D13.1, D14.1, D14.6 | ODIN-ADR-018, 019 | Saga's record, the peers' notes (EC-13 to EC-16) and a naming decision within D13 (X-5) |
+
+Until these exist, §3 holds as written: Odin reaches Saga only through its
+pinned API, Saga's ledger alone decides approval and completion, and results
+against the fake backend are labelled fake-backend evidence. No deployable or
+product name is chosen here.

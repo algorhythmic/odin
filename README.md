@@ -13,7 +13,11 @@ budgets, session records, the scheduler and the outbox alive between
 sessions. A **harness integration package** (tools, hooks, skills,
 instructions) makes a Claude Code session, driven through the Agent SDK,
 operate as Odin. Reasoning and tool use within a session belong to the
-harness.
+harness. The service runs on the homelab; a **workstation daemon** on the
+operator's machine hosts local sessions, sensors, transcript capture and
+the local operator surfaces, acting only on the service's command
+([ODIN-ADR-009](docs/DECISIONS.md#odin-adr-009--workstation-daemon-and-session-host),
+ODIN-ADR-010).
 
 Execution with external effects goes through
 [Saga](docs/contracts/README.md), a separate governed execution service
@@ -36,6 +40,13 @@ pinned draft Saga contract are present. Run `python3 scripts/validate_docs.py`
 to check documentation integrity. No Odin service implementation or runtime
 test exists yet.
 
+On 2026-10-16, ODIN-ADR-006 to 015 recorded the operator's consolidation
+direction for the inherited clauses Odin owns
+([decisions §4](docs/DECISIONS.md#4-odin-decisions-odin-adr)). A
+[consolidation plan](docs/design/CONSOLIDATION-PLAN.md) exists as a
+proposal, not a decision; its Saga-side parts wait on decisions in
+Saga's repository ([X-14](docs/DECISIONS.md#5-issues-raised-by-the-extraction)).
+
 Saga retains formal document authority while D14's ownership-transfer
 review remains pending. The adapted specifications here are development
 drafts; unresolved design questions remain explicit. See the
@@ -44,11 +55,16 @@ or change the existing deployment.
 
 ## First implementation milestone
 
-1. **I0, contracts and fixtures:** versioned record schemas, the event
-   envelope, the adapter capability matrix, a fake Saga backend, and a
-   synthetic three-document fixture.
-2. **I1, service foundation**, then **I2, first harness**, both against
-   the fake backend.
+1. **I0, event log and record schemas:** the versioned event envelope,
+   its namespaces and the record schemas, validated by both the Go and
+   the Python implementation against one fixture set
+   ([ODIN-ADR-008](docs/DECISIONS.md#odin-adr-008--i0-narrowed-to-the-event-log-and-record-schemas)).
+2. **I1, service foundation:** the adapter capability matrix, a fake
+   Saga backend, the synthetic three-document fixture and the ownership
+   mapping, then the service foundation. **I2, first harness**, adds the
+   workstation daemon v0. Both run against the fake backend. A
+   fixture-only Pi RPC control follows I2
+   ([ODIN-ADR-015](docs/DECISIONS.md#odin-adr-015--early-pi-rpc-adapter-as-a-fixture-only-control)).
 3. **I3, governed project.** The first live delegated run waits for Saga
    Phase B (its API and minimum enforcement). Fake-backend results do
    not establish production readiness.

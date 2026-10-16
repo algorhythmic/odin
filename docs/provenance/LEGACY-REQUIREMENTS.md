@@ -32,7 +32,7 @@ re-verified.
 
 | ID | Legacy requirement | Legacy status | Disposition | Odin location / next step |
 |---|---|---|---|---|
-| L-PU-1 | Odin tells the operator about milestone events (worker completed, errored, test regression, convergence) without being polled | Tier 1 implemented (tmux nudges) | Carried; mechanism superseded | I/O contract §4 (status transitions incl. test regression wake the planner; alerts; `notify_operator`); `send-keys` nudges are replaced by event intake (D7.7) |
+| L-PU-1 | Odin tells the operator about milestone events (worker completed, errored, test regression, convergence) without being polled | Tier 1 implemented (tmux nudges) | Carried as the attention prompt (ODIN-ADR-010); legacy send-keys mechanism superseded | I/O contract §4 (status transitions incl. test regression wake the planner; alerts; `notify_operator`); `send-keys` nudges are replaced by event intake (D7.7). An operator-facing prompt is an attention prompt: a typed, capped outbound effect whose mandatory response is a record (ODIN-ADR-010; proposed AC-39). The bare word "nudge" is retired in Odin documents and names only the legacy mechanism |
 | L-PU-2a | Structured session status tool | Tier 2 scoped | Carried | `fleet_status` (I/O contract §6) |
 | L-PU-2b | Project timeline (per-iteration history: test trends, guidance adoption, time per iteration) and progress chart tools | Tier 2 scoped | Backlog | Unscheduled; data from Saga evidence (B-03, B-06); guidance adoption overlaps Bragi's guidance-effectiveness table (D12, Saga) |
 | L-PU-3 | Periodic session digest to Telegram | Tier 3 scoped | Backlog | Building blocks carried (`set_timer`, `notify_operator`, digests of deferred entries in I/O contract §4); a scheduled operator digest and its cadence need an operator choice |
@@ -50,8 +50,8 @@ re-verified.
 
 | ID | Legacy requirement | Legacy status | Disposition | Odin location / next step |
 |---|---|---|---|---|
-| L-VT-1 | Operator sends voice notes and may receive voice replies | Scoped, not implemented; unscheduled | Backlog | Unscheduled (Saga roadmap carry-over). If built, it is a feature of Odin's own Telegram adapter (D7.7), not a tmux or file-queue sidecar |
-| L-VT-2 | Hosted speech-to-text and text-to-speech (OpenAI proposed), key stored as a secret | Proposal | Needs decision | Voice notes are operator message content; D9 restricts operator-derived content to the local provider for decision models, and the same sensitivity question applies to a hosted transcription provider. Any key is a credential reference (D24.3) |
+| L-VT-1 | Operator sends voice notes and may receive voice replies | Scoped, not implemented; unscheduled | Backlog until the data-policy decision (X-13) | Unscheduled (Saga roadmap carry-over). Voice is a surface adapter on the service API and enters the same recorded command path as every other surface (ODIN-ADR-010); it carries no approvals until a hash-binding mechanism exists. If built over Telegram, it is a feature of Odin's own Telegram adapter (D7.7), not a tmux or file-queue sidecar. Hosted transcription is not assumed (L-VT-2) |
+| L-VT-2 | Hosted speech-to-text and text-to-speech (OpenAI proposed), key stored as a secret | Proposal | Needs decision (X-13) | Voice notes are operator message content; D9 restricts operator-derived content to the local provider for decision models, and the same sensitivity question applies to a hosted transcription provider. Any key is a credential reference (D24.3). Hosted transcription is not assumed; voice, a surface adapter that carries no approvals (ODIN-ADR-010), stays backlog until X-13 decides the data policy |
 
 ## Odin's legacy persona — [`odin/CLAUDE.md`](../history/saga-extraction/2026-10-14-14fdab3/odin/CLAUDE.md)
 

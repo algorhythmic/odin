@@ -14,6 +14,14 @@ release scopes in §4 were corrected for the source review (B2, B5;
 [`REVIEW-RESOLUTIONS.md`](../provenance/REVIEW-RESOLUTIONS.md)).
 AC-33 to AC-36 specify ODIN-ADR-004–005; they are not executed tests.
 
+**Update of 2026-10-16.** ODIN-ADR-006 to 015 apply
+([decision record](../DECISIONS.md) §4). The live range is AC-01 to
+AC-41; AC-37 to AC-41 are proposed runtime scenarios for ODIN-ADR-006,
+007, 009, 010 and 013, not implemented or executed. DC-01 to DC-08 are
+unchanged. AC-20 is withdrawn and keeps its identifier; AC-19, AC-22,
+AC-24 and AC-25 are re-scoped in place. The §1 review and visibility
+rows, the §3 comparisons and the §4 release scopes follow the same ADRs.
+
 **Where each check runs.** Odin owns these scenarios except AC-29, which is a
 producer-side check at Saga: Odin's acceptance report cites Saga's result
 against the pinned Saga contract and does not test Saga's internals. AC-28 is
@@ -23,9 +31,10 @@ only. Scenarios
 that touch Saga (for example AC-01, AC-02, AC-03, AC-10, AC-27, AC-28, AC-30)
 run first against the fake Saga backend (the I/O contract's Appendix B) and
 count for a live deployment only when repeated against Saga after Phase B.
-Peer scenarios (AC-12, AC-13, AC-17 to AC-21, AC-24, AC-25, DC-01 to DC-08)
-need the peer's interface; until it exists, run them against fakes and label
-the missing integration.
+Peer scenarios (AC-12, AC-13, AC-17 to AC-19, AC-21, AC-38, AC-41, DC-01 to
+DC-08) need the peer's interface; until it exists, run them against fakes and
+label the missing integration. AC-20 is withdrawn; AC-24 and AC-25 now check
+Odin's own package export (ODIN-ADR-012) and need no peer.
 
 ## 1. Demonstration: three documents to supervised work
 
@@ -52,19 +61,20 @@ operations without WCU.
 | Intake | Register exact source versions; establish projects/commitments and ambiguities | Document digests, source refs, commitment revisions |
 | Context | Supply mandatory current requirements; retrieve supplementary material if available | Briefing provenance, retrieval scope/source/index revisions |
 | Plan | Propose bounded assignments, dependencies, owners and acceptance criteria | Versioned plan and artifact manifest |
-| Review | Mechanical checks precede independent Mimir critique where required | Evidence packet, authenticated verdict, any bounded re-review |
+| Review | Mechanical checks precede independent critique by two reviewer positions where required (ODIN-ADR-013) | Evidence packet, each position's verdict, the service-combined authenticated verdict, any bounded re-review |
 | Authorization | Operator approves the exact proposal through the shared command path | Request, principal, proposal digest, expiry and authority receipt |
 | Execution | Saga admits runs within the delegation; waiting dependencies remain queued | Run IDs, event sequences, refusal/acceptance and limit evidence |
 | Workspace | Herdr exposes supported sessions by workstream; overview remains available | Explicit identity bindings and capability labels |
-| Visibility | Skald shows configured source conversations; Heimdall shows native work and, once implemented, attributed external projections | Source coverage, project associations, imported revision/freshness |
+| Visibility | One human view shows commitments (Odin), runs (Saga) and transcripts (capture module), each attributed to its owner; no heimdall projection (ODIN-ADR-007) | Source coverage, owner attribution, project associations, source revision/freshness |
 | Human decision | B's explicit request reaches the operator without an unnecessary planning turn | Request/correlation IDs, delivery and response receipts |
 | Reconciliation | Apply the answer to the correct assignment; wake the planner only if it changes the larger plan | Revision change and routing explanation |
 | Verification | Individual run evidence and the final integration criteria determine completion | Exact artifacts, test/evaluator results and closure record |
-| Preservation | Export selected material and distinguish local retention from confirmed publication | Manifest, local/commit/remote receipts or explicit pending state |
+| Preservation | Export the selected package, preserved by the chosen carrier (ODIN-ADR-012), and distinguish local retention from confirmed publication | Manifest, local/commit/remote receipts or explicit pending state |
 
 Display existing work alongside new work without reassigning it by cwd or title.
-Opening Skald/Heimdall is not enough: demonstrate actual source enrollment,
-bindings, and attributed state, or visibly label the missing integration.
+Opening a view or a legacy TUI is not enough: demonstrate actual capture
+enrollment, bindings, and attributed state, or visibly label the missing
+integration. Native heimdall work appears only as imported commitments (AC-38).
 
 ## 2. Fault and interaction scenarios
 
@@ -93,13 +103,13 @@ adapter before claiming its capability.
 | AC-16 | Two projects share a repository and similar titles | Separate identities, context scopes and bindings; no accidental cross-project reassignment |
 | AC-17 | Native transcript and private export contain the same event | One origin/revision lineage; not two independent supporting sources |
 | AC-18 | Source transcript disappears or has malformed/partial records | Archive retains captured bytes; coverage gap is visible; no claim of complete history |
-| AC-19 | Skald, Heimdall, or Braid is unavailable | Core work continues with explicit visibility/retrieval limits; mandatory context remains available |
-| AC-20 | Imported Heimdall projection is stale | Display source revision/age; commands revalidate at owner; native tasks remain usable |
+| AC-19 | Skald, Heimdall, or Braid is unavailable. Re-scoped by ODIN-ADR-006 and 007: the capture module, a workstation-daemon sensor or the retrieval library is unavailable | Core work continues with explicit visibility/retrieval limits; mandatory context remains available. No task state is lost or hidden, because commitments never live in a sensor or in heimdall; the human view labels the missing source as unavailable |
+| AC-20 | Imported Heimdall projection is stale | **Withdrawn by ODIN-ADR-007; identifier retained; replaced by AC-38.** No projection exists to check. Former result, kept for traceability: Display source revision/age; commands revalidate at owner; native tasks remain usable |
 | AC-21 | Braid returns a superseded or forbidden-workstream candidate | Scope excludes unauthorized content; supersession is honored; accepted current state wins |
-| AC-22 | Mimir unavailable for a required review | Work waits/escalates according to policy; optional-feature flag does not waive the requirement |
+| AC-22 | Mimir unavailable for a required review. Re-scoped by ODIN-ADR-013: one or both required reviewer positions are unavailable | Work waits/escalates according to policy; neither an unavailable reviewer position nor an optional-feature flag waives the requirement. Approval needs both positions to approve, so one position's approval alone never yields an approved verdict |
 | AC-23 | API/model budget reaches its limit | No new disallowed turns; interrupts/reviews respect their own hard caps; direct stop remains available |
-| AC-24 | Push acknowledgement is lost | Reconcile intended commit on intended remote/ref; no false remote-confirmed state or duplicate commit |
-| AC-25 | Preservation runs beside unrelated staged edits | Only selected files are committed; unrelated index/worktree state is retained |
+| AC-24 | Push acknowledgement is lost. Retargeted by ODIN-ADR-012 from dotprivate to Odin's own package export | Reconcile intended commit on intended remote/ref by observing the ref before any retry; the receipt stays "committed" until then; no false "confirmed on the remote" state or duplicate commit |
+| AC-25 | Preservation runs beside unrelated staged edits. Retargeted by ODIN-ADR-012 to Odin's own package export | Only the package path is staged and committed; unrelated index/worktree state is retained; receipts distinguish "copied locally", "committed" and "confirmed on the remote"; an export directory inside a dotprivate-managed `.private` clone is refused |
 | AC-26 | Redaction affects a record used in summaries and exports | Rebuild/purge derived state; track each destination; incomplete historical deletion is reported honestly |
 | AC-27 | A stop, revocation or take-control arrives, then Odin crashes before processing it, with effects queued or unknown | On recovery, dispatch stays disabled; the control message is applied first; the queued effects are revalidated and cancelled or held; nothing is sent under the old authority |
 | AC-28 | Guidance A's receipt is lost, guidance B is later delivered to the same run, then Odin reconciles A | Odin reconciles A only through Saga's operation lookup and event cursor, never by reading the broker; Saga reports A `superseded` because B's newer `guidance_rev` was delivered first; Odin marks A `superseded` and never resends it; B remains in place. Saga never replacing a newer revision with an older one is the Saga-side check (pinned contract CT-18) |
@@ -111,6 +121,15 @@ adapter before claiming its capability.
 | AC-34 | Compactor returns only thinking, empty text, refusal, truncated text, or a multibyte summary over 512 UTF-8 bytes; repeat until retry budget ends | No failed candidate becomes a valid node; original source and last valid view remain accessible; bounded retries stop and expose backlog/coverage limits. Validate both initial leaf summaries and merged nodes, with output allowance including thinking |
 | AC-35 | Whole Haiku request crosses the configured headroom or 100,000-token boundary through tool history, cached input or an oversized raw leaf; repeat without adapter token telemetry | Direct-call preflight splits/defer inputs or applies a recorded configured exception; safe harness rotation preserves commitments. All observed threshold crossings are flagged; cached inputs count. Missing telemetry is explicit, never reported as zero usage or a proven hard limit; mandatory context is not silently discarded |
 | AC-36 | Operator message lacks a project binding; a wake has conflicting session-class requirements; classifier suggests an approval, stop, model switch or new target | Operator target ambiguity returns to the shared command path without semantic routing. Code selects the configured capable class within budget or queues/escalates; no silent downshift or mid-session model change. Classifier output grants no authority; identity/request binding and direct stop checks still apply |
+| AC-37 | The workstation daemon disconnects while one of its sessions holds an assignment; the operator issues a direct stop before it returns; then it reconnects | The host's bindings become `host_offline`; their sessions count as unavailable, not failed; nothing is retried while the host is away. Direct stop still works and reports the local outcome as uncertain. On return, reconciliation precedes any new turn. *Checks:* ODIN-ADR-009, with AC-10. *First exercised:* I2, fake backend |
+| AC-38 | The one-time heimdall import runs twice on the same heimdall database; afterwards a task is edited on the heimdall side | One set of commitments, each carrying its heimdall identity and revision as provenance, and one import receipt; the second run adds nothing. The later heimdall-side edit is refused, or, where heimdall cannot refuse, ignored with a visible record; it never changes a commitment. *Checks:* ODIN-ADR-007; replaces AC-20. *First exercised:* I4, on a synthetic heimdall database; real data enters only through the scoped migration (I/O contract §14) |
+| AC-39 | Attention prompts exceed a per-surface or per-day cap, overlap in subject, fall in quiet hours and repeat within the cooldown; the operator overrides one; repeat in shadow mode | Caps, coalescing, quiet hours and cooldown are enforced in code, not by prompt. Every prompt has a response record (done, snooze, dismiss, override with reason; expiry is recorded too); an override without a reason is not accepted. In shadow mode prompts are logged and never sent. *Checks:* ODIN-ADR-010, with AC-23. *First exercised:* shadow logging from I4 with the human view; exit from shadow in I6 |
+| AC-40 | A required review goes to two reviewer positions; replay with one `REJECT`, with one `INSUFFICIENT_EVIDENCE`, with a disagreement that survives the single corrective re-review, and with one position unavailable | Both positions receive the same deterministic evidence pack and see neither Odin's reasoning nor each other's findings. Service code combines the verdicts: approval only when both approve; any `REJECT` or `INSUFFICIENT_EVIDENCE`, or disagreement after the single re-review, escalates to the operator with both positions and their evidence; agreement is logged without an operator message. An unavailable position never waives required review (AC-22). The combined verdict uses the format Saga already verifies; Saga accepting per-position verdicts would be a contract change (B-10) and is not checked here. *Checks:* ODIN-ADR-013. *First exercised:* I3 |
+| AC-41 | Capture runs while the workstation cannot reach the service; the link returns; the same records are delivered again | Records, gaps and the checkpoint wait in the local spool and are appended to the transcript namespace as one atomic batch on reconnect; duplicates are deduplicated by (record key, source revision); gaps remain visible (AC-18). *Checks:* ODIN-ADR-006. *First exercised:* I2, on synthetic capture fixtures; live capture remains I6 |
+
+AC-37 to AC-41 are proposed runtime scenarios; none is implemented or
+executed. *Checks* names the rule a scenario enforces and *First exercised*
+the increment where it first runs, against fakes unless stated.
 
 ### Optional desktop cases
 
@@ -152,6 +171,8 @@ charges from serialized bytes or WCU screenshot dimensions.
 | Native harness with equal extra budget vs Odin | Is the benefit more than additional inference spend? |
 | Odin memory baseline vs OptChat/UniiChat | Does hierarchical memory improve recall, supersession and unresolved-commitment handling at comparable cost? |
 | Odin without Mimir vs equivalent verification budget vs Mimir | Which defects are prevented, and which good plans are degraded? |
+| Single review vs two-position consensus vs single review with an equal extra verification budget (ODIN-ADR-013) | Does consensus prevent more defects than one reviewer or the same budget spent on verification, without degrading good plans or flooding the operator with escalations? |
+| Code-selected session classes vs the best and the cheapest single-class baselines, with a task-level oracle as reference (ODIN-ADR-014) | Do the class defaults earn their cost against always using one class? |
 | Baseline routing vs shadow evaluator vs activated evaluator | Does attention cost fall without unacceptable missed requests or delay? |
 | Existing WCU workflow vs textual decision-model workflow | Does verified task completion improve after model, approval and recovery costs? |
 | Odin on first and second harness | Which outcomes depend on the adapter's missing capabilities? |
@@ -195,6 +216,21 @@ has its own workload and effort evaluation. Check a pinned gist revision
 and its reported cache fix before code reuse; do not claim transferred
 cache performance from the original replay.
 
+**Reviewer-position and session-class evaluations (ODIN-ADR-013–014).**
+Both belong to the D18 comparison. The consensus arm, single review and the
+equal-budget baseline review the same frozen pre-review artifacts with the
+same evidence packs and independent outcome assessment, on D8.7's measures.
+ODIN-ADR-013 is a hypothesis: it stays only if the consensus arm beats both
+alternatives. Report disagreements, escalations and per-position cost
+separately, and do not assume independent errors before they are measured.
+For session classes, use the same harness, fixed prompts, tools and graders,
+the best and the cheapest single-class baselines, and a task-level oracle as
+a reference, judged from the recorded class decisions and their rejected
+alternatives. The records never change routing at run time; changing a
+default on their basis needs D9.4's review, replay and shadow period, and a
+learned model-tier router stays off. Neither the oracle nor this evaluation
+exists yet.
+
 ### Primary measures
 
 Verified outcomes per operator hour; missed commitments; false completion;
@@ -213,16 +249,29 @@ count, confidence threshold, or claimed performance gain is established here.
 
 ## 4. Release evidence by scope
 
-- **Core proof:** I1–I3 in the blueprint, one project, lifecycle/restart/approval/
-  verification scenarios, including direct stop. Peer TUIs and Jev are optional.
+- **Core proof:** I1–I3 in the blueprint (I0 supplies fixture evidence only), one project, lifecycle/restart/approval/
+  verification scenarios, including direct stop. I0 delivers only the event log
+  and record schemas with their duplicate, stale and unknown fixtures; the
+  capability matrix, fake backend, three-document fixture and ownership mapping
+  arrive in I1 (ODIN-ADR-008). Workstation sessions add AC-37 and AC-41 in I2;
+  required review adds AC-40 in I3.
+  Peer TUIs and Jev are optional.
   Results against the fake backend (I1–I2) are development evidence; the core
   proof requires I3 against Saga after Phase B.
+- **Adapter control:** after I2's exit, the fixture-only Pi RPC control runs the
+  same bounded assignment and session replacement against the fake backend and
+  publishes its capability matrix and gaps (ODIN-ADR-015). Its results are
+  fake-backend evidence and count toward neither the core proof nor Phase E's
+  exit, which stays with the full second adapter in I5.
 - **Parallel work proof:** I4, two or more projects, binding/takeover/ownership
-  scenarios, one unresolved operator decision. Scoped archive capture joins
+  scenarios, one unresolved operator decision. The one-time heimdall import
+  (AC-38) runs here on a synthetic database. Scoped archive capture joins
   with skald enrollment in I6; before that it is fixture work.
-- **Ecosystem demonstration:** the full three-document walkthrough with actual
-  attributed views and history retrieval; selection-based preservation only after
-  dotprivate's release contract exists.
+- **Ecosystem demonstration:** the full three-document walkthrough with one
+  human view attributing commitments, runs and transcripts to their owners, and
+  history retrieval; selection-based preservation through Odin's own package
+  export with three-state receipts (ODIN-ADR-012; AC-24, AC-25), with no
+  dotprivate prerequisite.
 - **Memory evidence:** distinguish the I5 controlled fixture comparison from
   the repeated live-retrieval comparison after I6 and the final Phase G
   evaluation. Report each configuration and its limitations separately.

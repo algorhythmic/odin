@@ -14,6 +14,14 @@
 > operator decisions recorded in Odin's ADRs. These apply to Odin only;
 > they do not amend Saga-owned interfaces or close the handoff.
 >
+> **2026-10-16.** §4 now records ODIN-ADR-006 to 015, the first Odin
+> ADRs that supersede or amend inherited clauses Odin owns (D8, D10,
+> D20, D22, and Odin-side clauses of D7, D15, D24). Each names the
+> clause it changes; the carried text stays verbatim with an ownership
+> note. Saga-owned clauses are not touched; the consolidation's
+> Saga-side parts are tracked as issue X-14 and remain proposals in
+> [`design/CONSOLIDATION-PLAN.md`](design/CONSOLIDATION-PLAN.md).
+>
 > **Authority within Odin.** This record wins over the
 > [I/O contract](design/ODIN-IO-CONTRACT.md), which wins over the
 > [implementation blueprint](design/ODIN-IMPLEMENTATION-BLUEPRINT.md),
@@ -284,6 +292,8 @@ ODIN-ADR-001 settles Odin's own license, not third-party reuse rights.
 ODIN-ADR-003 supplies the baseline and staged evaluation protocol for D7.10;
 production retention defaults remain open.
 
+Ownership notes (2026-10-16): ODIN-ADR-009 clarifies D7.2 (the service may start a session through a workstation session host it commands; the SDK call still originates from Odin-controlled code); ODIN-ADR-015 honours D7.6 by starting its fixture-only Pi RPC control only after the Claude Code adapter is validated at I2. D7.1, D7.4 to D7.5 and D7.7 to D7.12 are unchanged.
+
 ### SAGA-2026-10-D8 — Mimir: selective, evidence-based, measured (default)
 
 - **When.** Review where mistakes multiply: a decomposition before
@@ -323,6 +333,8 @@ production retention defaults remain open.
 
 Ownership notes: Saga verifies the reviewer key and records verdicts
 (D2.4a). The model per review type is open (§5.2).
+
+Ownership notes (2026-10-16): ODIN-ADR-013 supersedes D8.5 and the single-reviewer reading of D8.3 to D8.4 with two reviewer positions and a service-run consensus, as a hypothesis judged on D8.7's measures. The bounded rounds, evidence rule, caps and measurement stand. Saga's verdict format and reviewer-key verification (D2.4a, B-10) are unchanged.
 
 ### SAGA-2026-10-D9 — Decision models: bounded judgments, never authority (locked)
 
@@ -402,6 +414,8 @@ conversations (issue X-4, review finding N7). The reading approves no
 peer capability: skald retrieval is open (§5.11) and the braid and
 skald work is proposed (EC-06, EC-07).
 
+Ownership notes (2026-10-16): ODIN-ADR-006 amends the delivery modes in D10.1 (braid as a library over published, scoped data) and D10.2 (capture as a module writing to Odin's transcript namespace, with skald's archive kept as a standalone sink); ODIN-ADR-007 amends D10.5 (heimdall's task layer is retired by import instead of bridged); ODIN-ADR-011 amends the placement in D10.4 (guarded input as a gated process of the workstation daemon under D21). The exclusion rules in each row stand. D10's title and D10.6 are unchanged until the Saga-side decisions in X-14 exist; the repository consolidation is a proposal (ODIN-ADR-018, not recorded). The capture, sensor and input code reaches Odin's deployables only after the peer-side decisions (G-10) and, for any shared repository, the Saga-side ones (G-9).
+
 ### SAGA-2026-10-D11 — Eir: controlled improvement, loop closed (locked; Saga)
 
 Owner: Saga (D11.1a, D11.2, D11.3). Odin's parts: Odin owns the loop
@@ -439,6 +453,8 @@ The removed metaphors (D13.7), the reduced banned-synonym list (D13.9)
 and the rule that legacy names remain in history and code until each
 rename lands (D13.10) apply to Odin. Saga's renames (D13.2b, D13.5) are
 Saga's.
+
+Ownership notes (2026-10-16): under D13.2a the Mimir name continues to designate the reviewer role; whether the two reviewer positions of ODIN-ADR-013 are one persona or two is open with X-5. The repository and deliverable names the consolidation plan would need are Saga-side and operator questions (X-14, X-5); nothing here reuses a standalone repository's name for a new component.
 
 ### SAGA-2026-10-D14 — Repositories (locked; split)
 
@@ -519,6 +535,8 @@ interpretation remains open at X-1 until reconciled in the two repositories.
 
 Saga's phases A, B and its parts of D, E and F (D15.A, D15.B, D15.Da,
 D15.Ea, D15.Fb) are Saga's and appear in Odin's roadmap as dependencies.
+
+Ownership notes (2026-10-16): ODIN-ADR-008 reorders work within I0 and I1 under D14.4 without changing a phase or gate; ODIN-ADR-015 places a fixture-only Pi RPC control after I2 without moving D15.Eb's full second adapter from Phase E. The phases, gates and D15.8 are unchanged; X-1 stays open.
 
 ### SAGA-2026-10-D16 — Documentation (locked; mostly historical)
 
@@ -617,6 +635,8 @@ Ownership notes: "Saga remains valuable if another agent wins the
 comparison" is Saga's (D18.3). Saga supplies the runs and ledger
 evidence the comparison measures. The first delegation is open (§5.7).
 
+Ownership notes (2026-10-16): ODIN-ADR-012 reads D18.5's step 7 as "preserved by the chosen carrier"; ODIN-ADR-013 adds the reviewer-position arm (against single review and an equal extra verification budget) and ODIN-ADR-014 the session-class oracle evaluation to the measurements under D18.2 and D18.4.
+
 ### SAGA-2026-10-D19 — Odin as a supervisory layer over a chosen harness (locked)
 
 > Odin turns agent sessions into persistent, supervised work across
@@ -663,6 +683,8 @@ live project (D15), because that is where the D0 promise is kept.
 
 Note: "contract §3" in the carried table refers to an earlier contract
 numbering; routing is now I/O contract §4 (review finding N4, §6).
+
+Ownership notes (2026-10-16): ODIN-ADR-015 satisfies D19.5's "early enough" with a fixture-only Pi RPC control after I2; ODIN-ADR-013 keeps D19.3 (review stays switchable and a disabled position never waives required review).
 
 ### SAGA-2026-10-D20 — Topology and operator interfaces (locked)
 
@@ -755,6 +777,8 @@ Ownership notes: heimdall owns its side of the ownership bridge
 (ecosystem plan §5, EC-05); Herdr's automation API is unreviewed
 (§5.8).
 
+Ownership notes (2026-10-16): ODIN-ADR-007 supersedes D20.10 (the heimdall ownership bridge) for Odin; ODIN-ADR-010 supersedes the "two operator interfaces" clause of D20.5 while keeping its one-command-path, binding and stop rules, and amends D20.8's handling table with new inbound sources and the attention-prompt effect; ODIN-ADR-009 clarifies D20.1 and D20.2 with the workstation daemon and session host. D20.3, D20.4, D20.6, D20.7, D20.9 and D20.11 are unchanged.
+
 ### SAGA-2026-10-D21 — Desktop capability and computer-use work (default)
 
 > wayland-computer-use remains a harness-independent desktop capability.
@@ -808,6 +832,8 @@ guards (D21.2a, D21.5); the seat-lease boundary is shared work (EC-10);
 the delegation field naming desktop authority is in Saga's delegation
 record. Desktop authority is open (§5.9).
 
+Ownership notes (2026-10-16): ODIN-ADR-011 implements D21.4's lease at a single boundary, a gated process of the workstation daemon, and preserves D21.5 and D21.7. Desktop authority (§5.9) remains open; nothing is enabled by it.
+
 ### SAGA-2026-10-D22 — Preservation (locked in shape; integration scheduled)
 
 The unit of preservation is a **selected project package**, not a
@@ -829,6 +855,8 @@ broad sync is not that implementation, so this integration is scheduled
 Ownership notes: skald owns full-archive backups; dotprivate owns its
 selected-files contract and publication (EC-08); Odin owns the package
 selection and the honest reporting of its state. Open (§5.10).
+
+Ownership notes (2026-10-16): ODIN-ADR-012 supersedes D22.3's "Dotprivate carries the package" and D22.5 for Odin: Odin produces the package and runs git itself; dotprivate is no longer on Odin's dependency path. D22.1, D22.4 and the three-state reporting rule stand; D22.2's full-archive backup ownership moves with the capture module to the transcript namespace's standalone sink.
 
 ### SAGA-2026-10-D23 — Execution backends (locked)
 
@@ -895,6 +923,8 @@ credential lineages and their refresh (D24.4b, D24.7), the worker
 subscription default (D24.8b), and the shadow-period shared volume
 (D24.9). Odin depends on them only through the pinned Saga contract.
 
+Ownership notes (2026-10-16): ODIN-ADR-009 amends D24.3 for Odin's session classes only: a workstation session host holds a local model credential in a protected store the service references, with one refresher per lineage, never the development login (D24.6). ODIN-ADR-013 adds a per-position entry to D24.2a's launch configuration. D24.4a and D24.8a are unchanged.
+
 ## 3. Inherited open decisions (source §5)
 
 The original question numbers are preserved. Items 3 and 5 are partly
@@ -904,6 +934,8 @@ stay open. The decision map assigns each an owner.
 1. **Is Saga active again?** Braid's roadmap recorded "Saga is deferred
    by user direction" in September; Phase B assumes it is not. Blocks
    Phase B and therefore I3.
+   The consolidation's Saga-side decisions (X-14) are recorded in Saga's
+   repository whether or not it is active.
 2. **Opus 5.5 or Sonnet 5.5** as Odin's default turn model, and the
    model for decomposition reviews (D8).
 3. **Memory evaluation and retention:** ODIN-ADR-003 sets the comparison
@@ -925,7 +957,9 @@ stay open. The decision map assigns each an owner.
 9. **Desktop authority**: whether any delegation should name it in the
    first year (D21), and which applications would be in scope.
 10. **Dotprivate's selected-files contract** (D22): confirm it is the
-    intended mechanism and when its implementation lands.
+    intended mechanism and when its implementation lands. ODIN-ADR-012
+    takes dotprivate off Odin's dependency path; the question is now
+    dotprivate's own, with heimdall and skald as its named consumers.
 11. **Skald retrieval** (I/O contract §6, the `archive` scope of
     `recall`; the source cites an older "contract §5"): the archived-conversation scope
     depends on skald's retrieval or MCP work, which its status file
@@ -945,9 +979,17 @@ self-change.
 
 ## 4. Odin decisions (ODIN-ADR)
 
-These records implement the operator's requested corrections on 2026-10-14.
+These records implement the operator's requested corrections on 2026-10-14
+(ADR-001 to 005) and the operator's consolidation direction of 2026-10-16
+(ADR-006 to 015; evidence in
+[`research/consolidation-2026-10/`](research/consolidation-2026-10/README.md),
+plan in [`design/CONSOLIDATION-PLAN.md`](design/CONSOLIDATION-PLAN.md)).
 They govern Odin's work; they neither close D14's handoff nor change a
-producer's interface. Inherited text and identities remain intact.
+producer's interface. Inherited text and identities remain intact; where
+an ADR supersedes an Odin-owned inherited clause, the carried text stays
+verbatim and an ownership note under that decision points here. The
+conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
+**not recorded**; they wait on X-14.
 
 ### ODIN-ADR-001 — Project license
 
@@ -1076,10 +1118,391 @@ producer's interface. Inherited text and identities remain intact.
   and source links are recorded there; deployment defaults remain subject
   to the evaluation.
 
+### ODIN-ADR-006 — One event substrate with namespaces
+
+- **Status:** default design; not implemented.
+- **Context:** Odin's history, the transcript archive (skald) and the
+  workstation surface events (standalone heimdall) would otherwise live
+  in three stores with three identity schemes, and the research that
+  motivated the consolidation found every one of the operator's tools had
+  reinvented the append-only event store. The I/O contract's one
+  transactional core (§9) and D4's ledger split must both survive.
+- **Decision:** Odin keeps one append-only event substrate with named
+  namespaces: Odin history, transcript archive, workstation surface
+  events. Each namespace has exactly one writing component, its own
+  retention and redaction rules, and revisioned records, inbox, outbox
+  and cursors that commit in the same transaction as the history they
+  belong to. Retrieval (braid) runs as an in-process library over
+  published, scoped namespace data in its own per-dataset files and never
+  indexes Odin's active chat. An execution-ledger namespace is reserved
+  as a read-only mirror of the execution backend's own store, filled only
+  through the backend's API and event cursor; the backend's store stays
+  authoritative and is never written by Odin.
+- **Consequences:** §9 intake, processing, outbox and recovery semantics
+  are unchanged (AC-01 to AC-03, AC-27). JSONL files and `view.json`
+  remain projections. Redaction propagates across namespaces with
+  per-destination pending state (AC-26). Capture gaps stay visible
+  (AC-18). Store topology, single-writer enforcement by process ownership
+  and failure domains are open at X-11. Capture runs on the workstation
+  and the substrate on the homelab, so the capture module keeps a local
+  durable spool and appends one atomic batch per checkpoint (proposed
+  scenario AC-41). Skald's own archive remains a standalone sink so the
+  capture binary stays useful without Odin.
+- **Inherited relationship:** amends D10.1's delivery mode ("child
+  process over its stdio protocol" becomes a library) and D10.2's ("via a
+  provider adapter" becomes a capture module writing the transcript
+  namespace) for Odin. Preserves D4.1 and D4.2 (the ledger is Saga's; the
+  mirror decides nothing), D6.5, D7.11 and D7.12, D22.2's exclusion of
+  live databases from git synchronization, and the X-4 reading. Amends
+  I/O contract §1, §3, §9 and Appendix A; supersedes the ecosystem plan's
+  preamble sentence that Odin "does not merge their databases" for the
+  transcript and surface-event namespaces only.
+- **Must not claim:** that the execution ledger is an Odin record or that
+  Odin's history decides approval or completion (D4.2); exactly-once
+  (D6.5); that a shared store is a security boundary; that braid or skald
+  runtime integration moved earlier than I6 unless an ADR moves it.
+
+### ODIN-ADR-007 — The commitment record is the single task authority
+
+- **Status:** locked direction for Odin; migration not designed.
+- **Context:** D20.10 planned a projection bridge because standalone
+  heimdall and its skald amendment assign accepted task state to
+  heimdall. Two authorities, even bridged, need a projection API, a
+  command relay and stale-revision handling (EC-05) that add nothing once
+  heimdall's task layer is retired. The code inventory found heimdall's
+  task records lack owner, assignment and budget fields and that its
+  ranked planner was never built.
+- **Decision:** Odin's commitment record is the only editable record of
+  task state, checkpoints and task decisions for work run through these
+  tools. Standalone heimdall's task, checkpoint and decision layer is
+  retired by a one-time import, not bridged: each native record is
+  imported with its original identity and revision as provenance and a
+  receipt, and later heimdall-side edits are refused. Delegations,
+  approvals, verdicts and run states remain the execution backend's
+  records (D4, D17); the commitment record references them and never
+  copies their authority. Heimdall's remaining value to Odin is its
+  surface sensors, which ODIN-ADR-009 places in the workstation daemon.
+- **Consequences:** Commitment (I/O contract §2, Appendix A) gains
+  checkpoint and task-decision fields; the mapping from heimdall's record
+  types is kept with the schemas. The import is a migration step (§14)
+  with an idempotent receipt (proposed scenario AC-38). EC-05 and AC-20
+  are withdrawn; their identifiers stay in the text. I5 loses "heimdall
+  external views". One human view shows commitments, runs and transcripts
+  with their owners attributed. Peer-side retirement is heimdall's to
+  record (EC-13).
+- **Inherited relationship:** supersedes D20.10 for Odin. Amends D10.5's
+  "optionally connected later as a human-facing continuity surface" and
+  its release and CI condition. Consistent with D10.5's "one authoritative
+  record", §1.b and D7.11.
+- **Must not claim:** that heimdall's record or the skald–heimdall
+  amendment has changed (that needs a decision recorded in those
+  repositories); authority over delegations or approvals (D17, D2.1);
+  that imported checkpoints corroborate anything independently (D22.4).
+
+### ODIN-ADR-008 — I0 narrowed to the event log and record schemas
+
+- **Status:** locked sequencing within Odin; no phase change.
+- **Context:** I0 bundled schemas, the event envelope, the capability
+  matrix, the fake backend, the three-document fixture, the ownership
+  mapping and the planner isolation check. The substrate and the record
+  schemas are the shared prerequisite for everything else, and the
+  operator wants runtime code to exist before the next design pass.
+- **Decision:** I0 delivers the versioned event envelope and namespaces
+  (EC-01, ODIN-ADR-006), the record schemas of I/O contract §2 and
+  Appendix A with the changes in ODIN-ADR-007, 009, 013 and 014, and
+  fixtures for the duplicate, stale and unknown cases, validated by both
+  the Go and the Python implementation against the same fixture set. The
+  adapter capability matrix, the fake Saga backend, the synthetic
+  three-document fixture and the ownership mapping move to I1. The
+  planner tool-isolation check moves with the profile schemas and must
+  still pass before I2 claims the planner profile.
+- **Consequences:** blueprint §7, I/O contract §13 row B, the roadmap's I0
+  and I1 entries, README and AGENTS.md §1 change together. I0's exit keeps
+  "no peer API is invented as implemented". Every displaced item is named
+  in its new increment.
+- **Inherited relationship:** within D14.4 (increments govern code
+  extraction) and D15 (the phase mapping is unchanged). X-9 is restated,
+  not reopened.
+- **Must not claim:** any phase or gate change; resolution of X-1; that
+  any displaced item was dropped.
+
+### ODIN-ADR-009 — Workstation daemon and session host
+
+- **Status:** default design; not implemented.
+- **Context:** the Agent SDK runs a harness as a child of the process that
+  calls it, so a service on the homelab cannot by itself run a session on
+  the workstation. Native sessions the operator wants to watch or take
+  over, Herdr control, desktop sensors, transcript capture and the human
+  surfaces all live on the operator's machine, while records and authority
+  live in the homelab service. Session bindings already carry `host` and
+  `incarnation` (I/O contract §2) but have no offline state or
+  environment evidence.
+- **Decision:** A workstation daemon runs on the operator's machine. Its
+  session host dials out to the Odin service, registers a stable host
+  identity and heartbeat, and starts, resumes, interrupts and retires SDK
+  and RPC harness sessions only on the service's command; session
+  records, ownership generations and budgets stay in the service. A
+  binding whose host is unreachable becomes `host_offline`: its sessions
+  count as unavailable, not failed, nothing is retried until the host
+  returns, and resume reconciles before any new turn (proposed scenario
+  AC-37). Each host publishes an Environment record from a deterministic
+  probe (harness and Herdr versions, sandbox and isolation support,
+  available surfaces and sensors, credential lineages present); the
+  service refuses session classes whose required capabilities the record
+  lacks and says so in `now`. Herdr is driven through its CLI, locally by
+  the daemon or over SSH with `herdr --machine` where no daemon runs; the
+  SSH key and the Herdr target live in the service, never in a session.
+  The daemon also hosts the surface sensors retired from heimdall's task
+  layer (ODIN-ADR-007), the capture module (ODIN-ADR-006) and the operator
+  surface adapters (ODIN-ADR-010); guarded desktop input is a separate
+  gated process (ODIN-ADR-011). Sensors and capture remain buildable as a
+  standalone binary with a local store.
+- **Consequences:** I/O contract §7 isolation must be provided on the
+  workstation or the planner class is refused there. The model credential
+  for local sessions lives in a protected store on the host, referenced
+  by the service, with one refresher per lineage; it is never the
+  operator's development login (X-12). Stop works with the host offline
+  and reports uncertain local outcomes (AC-10). The session-host protocol
+  is Odin's own deliverable, not a peer item. Herdr's automation API
+  remains unreviewed (§3 item 8) until the adapter is built against the
+  installed version.
+- **Inherited relationship:** clarifies D7.2 and D20.1 to D20.2. Amends
+  D24.3 for Odin's session classes only. Preserves D24.4a, D24.6, D20.6 to
+  D20.7 and D23.3's stated missing guarantees.
+- **Must not claim:** Saga's guarantees for anything the host runs
+  (D23.3); that sensor observations are authority; that Herdr's API has
+  been reviewed; that development-login use is permitted.
+
+### ODIN-ADR-010 — Operator surfaces, new inbound sources and attention prompts
+
+- **Status:** default design; voice is backlog until its data-policy
+  decision (X-13).
+- **Context:** D20.5 names two interfaces, the Herdr workspace and
+  Telegram. The operator works across a workstation, a laptop and a
+  phone, is already short of attention, and wants Odin to use workstation
+  observations and transcript lifecycle to reprioritise and prompt them
+  without another window. The legacy "nudge" (L-PU-1) was a synthesized
+  keystroke into a TUI; that mechanism is gone.
+- **Decision:** Operator surfaces are adapters on one service API, and
+  every one of them enters the same recorded command path: the terminal
+  workspace, Telegram (on the homelab, so approvals and stop work when
+  the workstation is off), a summoned terminal conversation, a status
+  bar, desktop notifications with typed actions, and later voice.
+  Heimdall-derived observations (focus, idle, surfaces) and capture
+  lifecycle events (session started, ended, gap) are typed inbound
+  sources, recorded as state-only or log-only by default, never
+  authority, and they wake a planner only through typed rules. Raw
+  observation content is operator-derived and stays with the local
+  provider under D9.5; frontier sessions receive derived signals only.
+  An **attention prompt** is a typed outbound effect, an operator-facing
+  proposal with its evidence reference and a mandatory response (done,
+  snooze, dismiss, override with reason) that is itself a record; it
+  carries per-surface and per-day caps, coalescing, quiet hours, a
+  cooldown and expiry, and it leaves shadow mode only when logged
+  outcomes support the caps. A message queued to an Odin-run session uses
+  the adapter's supported injection and is never a synthesized keystroke
+  or guidance to a Saga run. Ranking is recomputed in code on every
+  event; only a change that survives a hysteresis window is surfaced, and
+  observations of a focused session defer non-critical prompts to that
+  session's boundary.
+- **Consequences:** an approval is accepted only on a surface that shows
+  the request id and proposal digest (AC-06, AC-30); voice may carry
+  questions, clarification answers and stop, never an approval, until a
+  hash-binding mechanism exists. No evaluator handles operator input
+  (D9.3). Take control suspends prompts to that session (AC-11). Caps are
+  logged as in §4 (AC-23). New rows enter I/O contract §3 `src`, §4,
+  Appendix C and the outbox destination table; a proposed scenario AC-39
+  checks caps and the response record. The single gateway is also what
+  makes the running log complete: no harness gateway may face the
+  operator directly under Odin (D20.5's "never a second Odin").
+- **Inherited relationship:** supersedes D20.5's "two operator
+  interfaces" while retaining its one-command-path, binding and stop
+  rules. Amends D20.8. Preserves D20.9, D20.11 (Herdr and Telegram remain
+  the first configuration), D9.5, ODIN-ADR-002 and ODIN-ADR-004's four
+  hooks. Redefines L-PU-1's "nudge": the legacy mechanism is superseded,
+  the requirement is carried as the attention prompt.
+- **Must not claim:** voice approvals; a fifth evaluator hook; that
+  observations change commitments; that the extra surfaces are part of
+  the restrained initial product (D19.6).
+
+### ODIN-ADR-011 — Desktop input as a gated capability of the workstation daemon
+
+- **Status:** default (as D21); disabled until the operator decides §3
+  item 9.
+- **Context:** D21.4 requires an exclusive desktop-control lease enforced
+  "at a shared broker or tool boundary across cooperating clients". The
+  code inventory found wayland-computer-use has no lease, grant or caller
+  identity, that approval is left to each MCP client, and that no single
+  process holds input on the workstation today (pointer buttons through a
+  root `ydotoold`, keys through the compositor's virtual keyboard, focus
+  through Hyprland IPC, all reachable by every process of the operator's
+  user).
+- **Decision:** Guarded desktop input runs as its own process within the
+  workstation daemon, under a dedicated Unix user that alone owns the
+  input socket. That process is the only holder of the seat lease for
+  every cooperating client and checks lease, grant scope, target and
+  expiry on admission and again before every input segment. It is
+  disabled until a delegation naming desktop authority exists and the
+  operator has decided §3 item 9. When enabled it serves only a dedicated
+  desktop worker, never a planning session, the session host or a
+  container worker. The capability's own guards (frame expiry, pinned
+  target, pixel and focus checks, no replay, budgets) stay in force, and
+  its observation and input MCP servers remain usable without hosted
+  inference through thin shims that carry the caller's session identity.
+  Whether the compositor can deny the virtual-keyboard protocol and
+  dispatcher IPC to other clients is unverified; until it is, the lease
+  binds cooperating clients only, as the ecosystem plan already states.
+- **Consequences:** EC-10's shared seat broker becomes this process.
+  DC-01 to DC-08 apply unchanged. Enabling it is I7 work by operator
+  decision. The wayland-computer-use repository keeps its Codex plugin,
+  evaluations and reports standalone; its 12 unpushed local commits are
+  pushed before any import so the public copy and the daemon's contract
+  hash agree. Peer-side recording is WCU's (EC-16).
+- **Inherited relationship:** amends D10.4's placement and preserves its
+  isolation rule. Implements D21.4. Preserves D0.5, D2.3, D21.1, D21.5 to
+  D21.7 and D23.4.
+- **Must not claim:** that desktop authority is granted; inclusion in the
+  initial product; Saga admission for desktop work; that a classifier can
+  override a guard (DC-03); device-wide exclusivity before the compositor
+  restriction is verified.
+
+### ODIN-ADR-012 — Preservation without dotprivate on Odin's dependency path
+
+- **Status:** locked direction; carrier undecided.
+- **Context:** D22.3 names dotprivate as the carrier, but its
+  selected-files contract is an unimplemented proposal whose named
+  consumers are heimdall and skald, not Odin (EC-08), and the operator
+  wants it off Odin's path. Plain git with receipts gives Odin the
+  properties it would have borrowed.
+- **Decision:** Odin does not depend on dotprivate. Odin writes the
+  selected project package (D22.1) atomically to its own export
+  directory, stages only the package path, applies its own secret and
+  personal-data screen, and records receipts that distinguish "copied
+  locally", "committed" and "confirmed on the remote", reconciling an
+  uncertain push by observing the ref before any retry. The export
+  directory never sits inside a dotprivate-managed `.private` clone,
+  whose background sync would race it. The operator may still ingest the
+  export with dotprivate by hand; that is dotprivate's feature, not an
+  Odin interface.
+- **Consequences:** EC-08 and EC-09 are withdrawn from Odin's plan (ids
+  kept). AC-24 and AC-25 are retargeted to Odin's own receipts. §3 item 10
+  becomes dotprivate's own question. Full-archive backup ownership
+  (D22.2) moves with the capture module to the transcript namespace's
+  standalone sink. D18.5 step 7 reads "preserved by the chosen carrier".
+- **Inherited relationship:** supersedes D22.3's "Dotprivate carries the
+  package" and D22.5 for Odin. Preserves D22.1, D22.4 and the three-state
+  rule.
+- **Must not claim:** remote durability not observed on the ref; any
+  change to dotprivate's contract or license (ODIN-ADR-001); that AC-24 or
+  AC-25 pass.
+
+### ODIN-ADR-013 — Two reviewer positions with service-run consensus
+
+- **Status:** **hypothesis.** It stays only if it beats single review and
+  an equivalent extra verification budget on D8.7's measures.
+- **Context:** D8.5 records that Opus and Sonnet share a family and their
+  errors are not independent. The operator's original vision has two
+  frontier models reach consensus on major decisions before execution,
+  with the operator signing off on major tasks. The field evidence in the
+  research notes says consensus by conversation converges cheaply and
+  that the orchestrators which survived kept judgment inside bounded
+  turns, so consensus is run as a protocol by the service, not as a chat.
+  "Position" is used because "seat" already means the desktop seat lease
+  (D21.4) and the subscription seat (§3 item 6).
+- **Decision:** Required review is performed by two reviewer positions on
+  frontier models of different families where the adapters allow it.
+  Each position receives the same deterministic evidence pack and sees
+  neither Odin's conversational reasoning nor the other position's
+  findings. Service code combines the verdicts: approval requires both
+  positions to approve; any `REJECT` or `INSUFFICIENT_EVIDENCE`, or
+  disagreement that survives the single permitted corrective re-review,
+  goes to the operator with both positions and their evidence (proposed
+  scenario AC-40). "No change needed" (`APPROVE_UNCHANGED`) is a
+  first-class outcome. The combined verdict is recorded under the
+  reviewer identity key, which the service holds in a signer component
+  that no session or planner tool can reach (D2.4b), in the verdict
+  format Saga verifies; running that signer as a separate process is the
+  option D2.5 already offers and is the default deployment here. Roles are assigned per project: one planning owner and one
+  standing reviewer position, and they may swap between projects.
+  Disagreement is the protocol's most valuable output; agreement passes
+  into the log without an operator message.
+- **Consequences:** D24.2a launch configuration gains a per-position
+  entry. Sending evidence packs to a second provider needs a data-policy
+  decision (X-13). Caps are per position and total (D8.6). AC-22 is
+  re-scoped: an unavailable position never waives required review. D18.2
+  measures the consensus arm against single review and the equal-budget
+  baseline. Consensus stays switchable (D19.3). The Mimir name continues
+  to designate the reviewer role; whether one persona or two is a naming
+  question under D13.2a.
+- **Inherited relationship:** supersedes D8.5 and the single-reviewer
+  reading of D8.3 to D8.4; keeps the bounded rounds, the evidence rule,
+  D8.1's triggers, D8.2's mechanical-first rule and D8.6 to D8.7. D2.5 is
+  unchanged: its "Mimir" reads as the reviewer positions and its
+  separate-process option is taken. §3 item 2 stays open for the model
+  per position.
+- **Must not claim:** that the backend accepts per-position verdicts (that
+  is a Saga contract change, B-10); that a decision model settles
+  disagreement (D9.1); waiver when a position is unavailable; a resolution
+  of X-7; independence of errors before measurement.
+
+### ODIN-ADR-014 — Session-class decisions recorded for later evaluation
+
+- **Status:** default; evidence only. Amends ODIN-ADR-004.
+- **Context:** ODIN-ADR-004 makes code choose session classes but keeps no
+  record of the rejected alternatives, so the choices cannot later be
+  judged against an independent task-level oracle of the kind router
+  evaluations use. The I/O contract already records a routing
+  consequence and a later assessed outcome for evaluator results, but not
+  for class selection.
+- **Decision:** Each code-made session-class selection records the chosen
+  class, the rejected candidate classes with their deterministic reasons,
+  the inputs used and the configuration revision, so that an independent
+  outcome assessment can evaluate the choice later (D18, §3 item 2). The
+  record never changes routing at run time. Changing routing on the basis
+  of these records requires D9.4's review, replay and shadow period, and
+  a learned model-tier router remains off.
+- **Consequences:** the records live in the Odin-history namespace
+  (ODIN-ADR-006), subject to D9.5's sensitivity rule and D7.12's
+  redaction. New classes (reviewer positions; Bragi and Eir only if a
+  Saga-side decision transfers them) are added to ODIN-ADR-004's class
+  table. The D18 evaluation of class defaults uses the same harness,
+  fixed prompts, tools and graders, the best and cheapest single-class
+  baselines, and the task-level oracle as a reference.
+- **Inherited relationship:** amends ODIN-ADR-004; keeps its four hooks,
+  "no silent downshift" and "no learned model-tier router".
+- **Must not claim:** that a learned router or an oracle exists; a fifth
+  hook.
+
+### ODIN-ADR-015 — Early Pi RPC adapter as a fixture-only control
+
+- **Status:** locked experiment placement; fixture-only.
+- **Context:** D19.5 wants the second adapter "early enough to test whether
+  the boundary is real". The operator's motivation names complete control
+  as a goal; Claude Code through the SDK is a closed binary whose billing
+  and policy changed three times in 2026, and Pi's loop is open source.
+  The roadmap's Codex experiment after I2 is a proposal, not an ADR.
+- **Decision:** After I2's exit, a minimal Pi RPC adapter runs the same
+  bounded assignment and session replacement against the fake backend, as
+  a control for the Claude Code adapter, and publishes its capability
+  matrix and gaps. It is non-production and fixture-only. The full second
+  adapter and Phase E's exit remain I5. No common adapter framework is
+  extracted until both adapters exist. Claude models through Pi use an
+  API key, never the subscription and never Pi's Anthropic OAuth path
+  (AGENTS.md §6; D24).
+- **Consequences:** replaces the roadmap's Codex proposal, or the two run
+  side by side if both are wanted. Odin's D0.7 wording changes only if Pi
+  runs other providers' models in production. Evidence is labelled
+  fake-backend.
+- **Inherited relationship:** amends D15.Eb's timing for an early control
+  only. Honours D7.6 by starting after the Claude Code adapter is
+  validated at I2. Satisfies D19.5.
+- **Must not claim:** Phase E's exit; any live run before Phase B; X-1
+  resolution; proven portability.
+
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that
-resolved it. X-1, X-2, X-5, X-6, X-8 and X-10 are open. X-3, X-4 and X-9 are
+resolved it. X-1, X-2, X-5, X-6, X-8, X-10, X-11, X-12, X-13 and X-14 are open. X-3, X-4 and X-9 are
 resolved as recorded readings of existing decisions; X-7 is resolved
 only as far as fail-closed handling. Every resolution is subject to the
 re-review and to the operator.
@@ -1174,6 +1597,42 @@ re-review and to the operator.
   sharing planner tools/prefixes. See
   [OPTCHAT-CACHE-REVIEW.md](provenance/OPTCHAT-CACHE-REVIEW.md).
 
+- **X-11 — Substrate store topology and failure domains.** ODIN-ADR-006
+  fixes the namespace and single-writer rules but not the physical
+  layout: one SQLite file with namespaces or one per namespace, how
+  single-writer is enforced by process ownership, how the execution-ledger
+  mirror is fed and what happens when the backend's cursor and the mirror
+  disagree, and which failures take which namespaces down. Decide before
+  I1; the fake-backend scenarios must exercise the mirror's read-only
+  property.
+- **X-12 — Credential lineage for workstation sessions.** ODIN-ADR-009
+  needs a model credential on the operator's machine for Odin's local
+  sessions, next to the development login that AGENTS.md §6 and D24.6 keep
+  separate. Decide the lineage (a second subscription login, or an API
+  key), its protected store, its single refresher, and how the service
+  references it (D24.3) before I2's workstation work.
+- **X-13 — Data policy for voice and for a second review provider.**
+  Voice transcripts are operator content, so under D9.5 transcription
+  stays with the local provider unless the operator decides otherwise
+  (L-VT-2); ODIN-ADR-013 sends evidence packs, which can carry
+  specification content, to a second model family. Decide both before
+  voice leaves backlog and before the second position runs on a
+  non-Anthropic provider.
+- **X-14 — Saga-side decisions the consolidation requires.** The
+  consolidation plan's conditional parts touch clauses Saga owns and
+  cannot be recorded here: the execution backend sharing a repository and
+  release train with Odin as a separate process with its own store
+  (D14.1, D14.7, D1.2); workers reporting to the backend's own intake,
+  replacing MQTT for Saga's use (D3.3, D13.4a, D15.B, contract MQ-1);
+  Bragi and Eir transferring to Odin session and assignment classes with
+  Eir's operator-invoked path outside both failure domains (D11, D12.1,
+  D17.4b); the repository names and prefix (D13.1); and the D14 handoff.
+  The operator records these in Saga's repository; Saga publishes a new
+  contract version; Odin repins it and rechecks Appendix B (X-3). Only
+  then are ODIN-ADR-016 to 019 recorded. Until then the plan's
+  description of a shared repository is a proposal and D10.6, D14.1 and
+  D14.7 stand as carried.
+
 ## 6. Outstanding review findings
 
 The source contract review, [`provenance/SOURCE-REVIEW.md`](provenance/SOURCE-REVIEW.md),
@@ -1194,7 +1653,7 @@ resolution, with its evidence and what stays open, is in
 | B4 | Every guidance requires a verdict, contradicting D8 | Corrected in `publish_guidance`: routine guidance gets mechanical checks, material guidance its required D8 review, unresolved guidance is held; X-7's semantic choice open |
 | B5 | Odin's outbox publishes to MQTT across the Saga boundary | Corrected: Saga owns revisions and reconciliation; Odin reconciles through the API (`superseded` in B-13); AC-28 split with Saga's CT-18; `emit_event` local, B-14 withdrawn |
 | B6 | Submission request id minted in two places; non-ULID example | Corrected: `stage_run` preallocates the ULID before review; reused by submission and retries; a restart mints a new id and renews bindings; example replaced |
-| B7 | `shell` can expose credentials to Odin's turns | Corrected as a design requirement: isolated planner workspace, no credential reachable, results redacted before logging, fail closed (I/O contract §7). Not implemented; check due in I0/I2 |
+| B7 | `shell` can expose credentials to Odin's turns | Corrected as a design requirement: isolated planner workspace, no credential reachable, results redacted before logging, fail closed (I/O contract §7). Not implemented; check due in I1/I2 (the isolation check moved with the profile schemas under ODIN-ADR-008) |
 | N1 | D14 amendment instruction stale in the plan; gate not met while changes are required | D14 already permits the scaffold; the gate stays unmet until the re-review |
 | N2 | Stale "untracked/uncommitted" provenance | Addressed in Odin's copies |
 | N3 | D16 names contract v4 | Recorded in D16 and the decision map; source unchanged |
