@@ -28,8 +28,10 @@ is the contract layer the rest is built against:
 The contract lives in [`schemas/`](schemas/README.md): JSON Schema
 2020-12 files, the namespace and kind catalogues, the mapping, the
 fixtures and the semantics every implementation must follow. The
-schemas are the single source of truth; the Go packages and the Python
-package `odin_substrate` (under `substrate/python/`) implement them.
+schemas and the semantics README are the single source of truth for the
+two implementations; the documents in `docs/` win over them. The Go
+packages and the Python package `odin_substrate` (under
+`substrate/python/`) implement them.
 
 ## What it is not
 

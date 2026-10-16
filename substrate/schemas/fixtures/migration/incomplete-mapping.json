@@ -34,8 +34,8 @@
     },
     {
       "heimdall_status": "success_statuses (task.completed)",
-      "commitment_state": "closed",
-      "note": "The native completion is carried as provenance; Odin did not verify it, and commitment.close's evidence rule is not re-run on import. Imported evidence corroborates nothing independently (D22.4)."
+      "commitment_state": null,
+      "note": "undecided until the I4 import design (I/O contract §14 step 6): `closed` would bypass commitment.close's evidence rule and `satisfied` asserts matched criteria; the native completion is carried as provenance either way. Imported evidence corroborates nothing independently (D22.4)."
     },
     {
       "heimdall_status": "dropped_statuses (task.dropped)",

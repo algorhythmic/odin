@@ -93,33 +93,12 @@
       ]
     },
     "response": {
+      "description": "Reference to the response record; null until answered (§2 \"response ref\"; Appendix A `\"response\": null`).",
       "type": [
-        "object",
+        "string",
         "null"
       ],
-      "additionalProperties": false,
-      "required": [
-        "answer",
-        "by",
-        "at",
-        "source_event"
-      ],
-      "properties": {
-        "answer": {
-          "type": "string",
-          "minLength": 1
-        },
-        "by": {
-          "$ref": "../common.schema.json#/$defs/src"
-        },
-        "at": {
-          "$ref": "../common.schema.json#/$defs/ts"
-        },
-        "source_event": {
-          "type": "string",
-          "minLength": 1
-        }
-      }
+      "minLength": 1
     },
     "channel": {
       "type": [

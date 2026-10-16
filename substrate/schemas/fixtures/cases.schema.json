@@ -172,6 +172,7 @@
             "dispatch_refused_shadow",
             "invalid_dispatch_input",
             "queued",
+            "held",
             "cancelled_stale",
             "invalid_revalidation_input",
             "mapping_complete",

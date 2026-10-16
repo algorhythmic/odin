@@ -5,3 +5,4 @@ __pycache__/
 !.env.example
 .venv/
 .build/
+conformance-*.json

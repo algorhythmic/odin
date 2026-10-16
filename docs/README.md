@@ -93,6 +93,8 @@ their destination digests and transformation notes as required by `AGENTS.md`.
 ## Validation
 
 Run `python3 scripts/validate_docs.py` from the repository root for
-metadata, hash, identifier and link checks. These checks pass for the
+metadata, hash, identifier and link checks. The I0 substrate's own
+checks (Go and Python tests and the conformance comparison) are listed
+in `AGENTS.md` §8. These checks pass for the
 bootstrap; no runtime test or final semantic review is claimed. See
 [the bootstrap receipt](provenance/HANDOFF.md).

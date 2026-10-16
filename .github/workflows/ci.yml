@@ -19,12 +19,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Refuse modifications under docs/history (frozen snapshot)
+      - name: Refuse modifications under docs/history and docs/contracts (frozen snapshot, pinned contracts)
         if: github.event_name == 'pull_request'
         run: |
-          changed="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}" -- docs/history || true)"
+          changed="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}" -- docs/history docs/contracts || true)"
           if [ -n "$changed" ]; then
-            echo "docs/history/** is frozen; changed files:"; echo "$changed"; exit 1
+            echo "docs/history/** and docs/contracts/** change only by a new frozen snapshot or a repin; changed files:"; echo "$changed"; exit 1
           fi
       - run: python3 scripts/validate_docs.py
 

@@ -20,7 +20,9 @@ import (
 // (substrate/schemas README §4.9).
 type Outcome string
 
-// Outcomes of restart, reconcile, dispatch and revalidate.
+// Outcomes of restart, reconcile, dispatch and revalidate. Queued, Held and
+// CancelledStale are revalidation outcomes; CancelledStale is also a
+// dispatch outcome.
 const (
 	Restarted                  Outcome = "restarted"
 	Reconciled                 Outcome = "reconciled"
@@ -30,6 +32,7 @@ const (
 	DispatchRefusedShadow      Outcome = "dispatch_refused_shadow"
 	InvalidDispatchInput       Outcome = "invalid_dispatch_input"
 	Queued                     Outcome = "queued"
+	Held                       Outcome = "held"
 	CancelledStale             Outcome = "cancelled_stale"
 	InvalidRevalidationInput   Outcome = "invalid_revalidation_input"
 )
@@ -41,6 +44,11 @@ const (
 	SurfaceDeclared    = "surface_declared"    // attention prompts, other surfaces
 	SessionHost        = "session_host"        // workstation session host
 )
+
+// GuidanceDestination is the only destination for which Saga's operation
+// lookup may answer superseded (§9 outbox table: "superseded (guidance
+// only)"; B-13).
+const GuidanceDestination = "saga:guidance"
 
 // Host states a reconciliation of a session-host effect needs
 // (ODIN-ADR-009).
@@ -108,6 +116,10 @@ func Reconcile(e records.Effect, lookup, hostState *string) ReconcileResult {
 		if e.State != records.EffectUnknown || hostState != nil || lookup == nil {
 			return invalidReconciliation()
 		}
+		// Saga reports superseded for guidance only (§9 outbox table; B-13).
+		if *lookup == "superseded" && e.Destination != GuidanceDestination {
+			return invalidReconciliation()
+		}
 		switch *lookup {
 		case "completed":
 			r = ReconcileResult{StateAfter: records.EffectDelivered}
@@ -156,7 +168,13 @@ func Reconcile(e records.Effect, lookup, hostState *string) ReconcileResult {
 			if lookup != nil {
 				return invalidReconciliation()
 			}
-			r = ReconcileResult{StateAfter: e.State, HeldForHost: true}
+			// §9: commands addressed to an offline host "stay queued, or
+			// unknown if one was in flight".
+			after := e.State
+			if after == records.EffectInFlight {
+				after = records.EffectUnknown
+			}
+			r = ReconcileResult{StateAfter: after, HeldForHost: true}
 		case HostReturned:
 			if lookup == nil {
 				return invalidReconciliation()
@@ -182,21 +200,26 @@ func Reconcile(e records.Effect, lookup, hostState *string) ReconcileResult {
 }
 
 // DispatchResult is the result of Dispatch. StateAfter is set only when
-// Outcome is Dispatched.
+// Outcome is Dispatched, Reason only when it is CancelledStale.
 type DispatchResult struct {
 	Outcome    Outcome
 	StateAfter string
+	Reason     string
 	Effect     records.Effect
 }
 
 // Dispatch is the gate every effect passes before it leaves the service
-// (I/O contract §9 recovery step 8; ODIN-ADR-010; substrate README §4.7),
-// checked in this order: during recovery nothing is dispatched
-// (dispatch_disabled); a shadow-mode attention prompt is never sent
-// (dispatch_refused_shadow); only a queued effect may be dispatched
-// (invalid_dispatch_input). Otherwise the effect becomes in_flight with one
-// more attempt. Nothing is sent: I0 implements no destination.
-func Dispatch(e records.Effect, prompt *records.AttentionPrompt, recoveryInProgress bool) DispatchResult {
+// (I/O contract §9 outbox and recovery step 8; ODIN-ADR-010; substrate
+// README §4.7), checked in this order: during recovery nothing is
+// dispatched (dispatch_disabled); a shadow-mode attention prompt is never
+// sent (dispatch_refused_shadow); only a queued effect may be dispatched
+// (invalid_dispatch_input); then the dispatcher revalidates the authority
+// the effect was created under against ctx ("owner generation still
+// current, delegation not revoked, assignment not cancelled, approval not
+// expired", §9), and the first failing check gives cancelled_stale with its
+// reason. Otherwise the effect becomes in_flight with one more attempt.
+// Nothing is sent: I0 implements no destination.
+func Dispatch(e records.Effect, prompt *records.AttentionPrompt, recoveryInProgress bool, ctx Context) DispatchResult {
 	switch {
 	case recoveryInProgress:
 		return DispatchResult{Outcome: DispatchDisabled, Effect: e}
@@ -204,6 +227,10 @@ func Dispatch(e records.Effect, prompt *records.AttentionPrompt, recoveryInProgr
 		return DispatchResult{Outcome: DispatchRefusedShadow, Effect: e}
 	case e.State != records.EffectQueued:
 		return DispatchResult{Outcome: InvalidDispatchInput, Effect: e}
+	}
+	if reason := staleReason(e, ctx); reason != "" {
+		e.State = records.EffectCancelledStale
+		return DispatchResult{Outcome: CancelledStale, Reason: reason, Effect: e}
 	}
 	e.State = records.EffectInFlight
 	e.Attempts++
@@ -217,6 +244,11 @@ type Context struct {
 	DelegationRevoked bool    `json:"delegation_revoked"`
 	AssignmentState   *string `json:"assignment_state"`
 	ApprovalExpired   bool    `json:"approval_expired"`
+	// DispatchBlockerActive reports whether what put a held effect in held
+	// (its dispatch_blocked_by: take-control, ownership transfer or
+	// revocation) still applies; a held effect is not released while it
+	// does (§9). It is not consulted for a queued effect.
+	DispatchBlockerActive bool `json:"dispatch_blocker_active"`
 	// HostState is recorded for context and not consulted in I0.
 	HostState *string `json:"host_state"`
 }
@@ -238,35 +270,46 @@ type RevalidateResult struct {
 }
 
 // Revalidate checks a queued or held effect against the current authority
-// before dispatch (I/O contract §9 step 4; AC-27; substrate README §4.7).
-// The first failing check decides cancelled_stale with its reason:
-// owner_generation (a non-null owner_generation below the current one),
-// delegation_revoked, assignment_state (cancelled, completed or failed),
-// approval_expired. If all pass the effect is queued, so a held effect
-// leaves held only to queued or cancelled_stale. Any other effect state is
-// invalid_revalidation_input.
+// (I/O contract §9 step 4; AC-27; substrate README §4.7). Any other effect
+// state is invalid_revalidation_input. A held effect whose blocker still
+// applies (ctx.DispatchBlockerActive) stays held, unchanged: it "leaves
+// only through revalidation", and not while take-control, the transfer or
+// the revocation that held it is in force (§9). Otherwise the first failing
+// check decides cancelled_stale with its reason: owner_generation (a
+// non-null owner_generation below the current one), delegation_revoked,
+// assignment_state (cancelled, completed or failed), approval_expired. If
+// all pass the effect is queued, so a held effect leaves held only to
+// queued or cancelled_stale.
 func Revalidate(e records.Effect, ctx Context) RevalidateResult {
 	if e.State != records.EffectQueued && e.State != records.EffectHeld {
 		return RevalidateResult{Outcome: InvalidRevalidationInput, Effect: e}
 	}
-	reason := ""
-	switch {
-	case e.OwnerGeneration != nil && *e.OwnerGeneration < ctx.CurrentGeneration:
-		reason = ReasonOwnerGeneration
-	case ctx.DelegationRevoked:
-		reason = ReasonDelegationRevoked
-	case ctx.AssignmentState != nil && terminalAssignment(*ctx.AssignmentState):
-		reason = ReasonAssignmentState
-	case ctx.ApprovalExpired:
-		reason = ReasonApprovalExpired
+	if e.State == records.EffectHeld && ctx.DispatchBlockerActive {
+		return RevalidateResult{Outcome: Held, Effect: e}
 	}
-	if reason != "" {
+	if reason := staleReason(e, ctx); reason != "" {
 		e.State = records.EffectCancelledStale
 		return RevalidateResult{Outcome: CancelledStale, Reason: reason, Effect: e}
 	}
 	e.State = records.EffectQueued
 	e.DispatchBlockedBy = nil
 	return RevalidateResult{Outcome: Queued, Effect: e}
+}
+
+// staleReason runs the four authority checks of §4.7 in order and returns
+// the first failing one's reason, or "" when all pass.
+func staleReason(e records.Effect, ctx Context) string {
+	switch {
+	case e.OwnerGeneration != nil && *e.OwnerGeneration < ctx.CurrentGeneration:
+		return ReasonOwnerGeneration
+	case ctx.DelegationRevoked:
+		return ReasonDelegationRevoked
+	case ctx.AssignmentState != nil && terminalAssignment(*ctx.AssignmentState):
+		return ReasonAssignmentState
+	case ctx.ApprovalExpired:
+		return ReasonApprovalExpired
+	}
+	return ""
 }
 
 func terminalAssignment(state string) bool {

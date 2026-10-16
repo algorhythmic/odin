@@ -143,23 +143,35 @@ def _position_result(position: Mapping[str, Any]) -> str | None:
 def combine(positions: Sequence[Mapping[str, Any]], round: int) -> dict[str, Any]:
     """Combine two reviewer positions (§10 review, ODIN-ADR-013, AC-22, AC-40; schemas README §4.6).
 
-    First matching rule: any position without a verdict (including an
-    unavailable one) is ``pending``; any ``REJECT`` or
-    ``INSUFFICIENT_EVIDENCE`` is ``escalated``; both approving is
-    ``approved`` with ``verdict_result`` ``APPROVE_UNCHANGED`` only when both
-    are unchanged; otherwise ``re_review`` in round 1 and ``escalated`` in
-    round 2.
+    Raises ``ValueError`` unless ``round`` is 1 or 2 and there are exactly
+    two positions, one ``a`` and one ``b``; it never approves with fewer.
+    First matching rule: any ``REJECT`` or ``INSUFFICIENT_EVIDENCE`` is
+    ``escalated`` (unconditional, so a rejection reaches the operator even
+    while the other position is unanswered or unavailable); any position
+    without a verdict is ``pending`` (an unavailable position never waives
+    review); both approving is ``approved`` with ``verdict_result``
+    ``APPROVE_UNCHANGED`` only when both are unchanged; two ``FLAG`` results are
+    ``escalated`` in any round, and a ``FLAG`` with an approval is
+    ``re_review`` in round 1 and ``escalated`` in round 2 (Odin's
+    provisional reading pending DECISIONS.md issue X-7).
     """
-    if len(positions) != 2:
-        raise ValueError("a review combines exactly two positions")
     if round not in (1, 2):
         raise ValueError("a review has round 1 or 2")
+    if len(positions) != 2:
+        raise ValueError("a review combines exactly two positions")
+    if {p.get("position") for p in positions} != {"a", "b"}:
+        raise ValueError("a review combines one position a and one position b")
     results = [_position_result(p) for p in positions]
-    if any(r is None for r in results):
-        return {"outcome": PENDING}
+    unknown = [r for r in results if r is not None and r not in APPROVING | ESCALATING | {"FLAG"}]
+    if unknown:
+        raise ValueError(f"verdict result {unknown[0]!r} is not a §10 result")
     if any(r in ESCALATING for r in results):
         return {"outcome": ESCALATED}
+    if any(r is None for r in results):
+        return {"outcome": PENDING}
     if all(r in APPROVING for r in results):
         unchanged = all(r == "APPROVE_UNCHANGED" for r in results)
         return {"outcome": APPROVED, "verdict_result": "APPROVE_UNCHANGED" if unchanged else "APPROVE"}
+    if all(r == "FLAG" for r in results):
+        return {"outcome": ESCALATED}
     return {"outcome": RE_REVIEW if round == 1 else ESCALATED}

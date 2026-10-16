@@ -72,6 +72,7 @@
       "$ref": "../common.schema.json#/$defs/record_ref"
     },
     "capabilities": {
+      "description": "Capabilities from the adapter matrix (§2). The capability-matrix vocabulary is fixed in I1; this enum is provisional (Odin's addition in I0, from the AGENTS.md §4 vocabulary).",
       "type": "array",
       "items": {
         "enum": [

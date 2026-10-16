@@ -23,8 +23,9 @@ Validated by `heimdall-to-commitment.schema.json`:
 - `commitment_fields`: every top-level field of
   `../records/commitment.schema.json`.
 - `status_mapping`: how a heimdall task status maps to
-  `Commitment.state`. Status names are per workflow template, so the
-  mapping is by class (initial and other non-terminal, success, dropped).
+  `Commitment.state`, or `null` where the target state is undecided.
+  Status names are per workflow template, so the mapping is by class
+  (initial and other non-terminal, success, dropped).
 - `rows`: one row per heimdall record type or field group, with
   `heimdall_type` (`null` for a field heimdall has no source for),
   `heimdall_fields` (`["*"]` for the record as a whole), `commitment_field`
@@ -37,6 +38,14 @@ commitment field is covered by at least one row; the coverage rule is in
 [the schemas README](../README.md#48-migration-mapping-check_mapping_coverage).
 
 ## Choices recorded in the rows
+
+- A completed heimdall task (`success_statuses`) has no target state
+  yet: its `commitment_state` is `null`, undecided until the I4 import
+  design (I/O contract §14 step 6). `closed` would bypass
+  `commitment.close`'s evidence rule (§2: it closes only when each
+  criterion is matched to evidence) while imported criteria start with
+  `met` false, and `satisfied` asserts matched criteria. The native
+  completion is carried as provenance either way.
 
 - Each heimdall subtask (`Step`) becomes one `criteria` entry whose id is
   the step id prefixed `step:`, its provenance link; `met` starts false,

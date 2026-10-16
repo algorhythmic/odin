@@ -91,7 +91,7 @@
       ]
     },
     "wake_class": {
-      "description": "Wake class assigned at intake (§4): interrupt, wake, log (log only), state (state only), none (handled entirely in code; no planner turn by default).",
+      "description": "Wake class assigned at intake: §4's four classes interrupt, wake, log (log only) and state (state only), plus none. `none` is Odin's provisional addition in I0: not one of §4's four classes; the in-code handling marker (handled in code; no planner turn by default).",
       "enum": [
         "interrupt",
         "wake",

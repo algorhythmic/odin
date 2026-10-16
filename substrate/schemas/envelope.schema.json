@@ -56,19 +56,24 @@
           "minLength": 1
         },
         "assignment": {
+          "description": "Odin's provisional addition in I0; §2 names only project or run scope.",
           "$ref": "common.schema.json#/$defs/ulid"
         },
         "session": {
+          "description": "Odin's provisional addition in I0; §2 names only project or run scope.",
           "$ref": "common.schema.json#/$defs/ulid"
         },
         "host": {
+          "description": "Odin's provisional addition in I0; §2 names only project or run scope.",
           "type": "string",
           "minLength": 1
         },
         "commitment": {
+          "description": "Odin's provisional addition in I0; §2 names only project or run scope.",
           "$ref": "common.schema.json#/$defs/ulid"
         }
-      }
+      },
+      "description": "Project or run scope (§2 \"project or run scope\"; Appendix A shows `run`). `project` and `run` are documented; `assignment`, `session`, `host` and `commitment` are Odin's provisional additions in I0, not named by the documents."
     },
     "source_seq": {
       "description": "The producer's own sequence when it has one (Saga last_seq, Telegram message id, file offset); null otherwise.",

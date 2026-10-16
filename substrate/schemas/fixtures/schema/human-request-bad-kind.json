@@ -16,11 +16,6 @@
   "recipient": "operator",
   "expires_at": "2026-10-17T09:00:00Z",
   "state": "answered",
-  "response": {
-    "answer": "2020-12",
-    "by": "operator:terminal",
-    "at": "2026-10-16T10:15:00Z",
-    "source_event": "terminal:cmd:0007"
-  },
+  "response": "01JAEV00000000000000000107",
   "channel": "terminal"
 }

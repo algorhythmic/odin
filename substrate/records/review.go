@@ -1,5 +1,7 @@
 package records
 
+import "fmt"
+
 // Review combination outcomes (substrate README §4.6).
 const (
 	Approved  Outcome = "approved"
@@ -24,46 +26,67 @@ type CombineResult struct {
 	VerdictResult string
 }
 
-// Combine combines the verdicts of the reviewer positions of one round in
-// service code (§10 review; ODIN-ADR-013; AC-22, AC-40; substrate README
-// §4.6). The first matching rule decides:
+// Combine combines the verdicts of the two reviewer positions of one round
+// in service code (§10 review; ODIN-ADR-013; AC-22, AC-40; substrate README
+// §4.6). It refuses, with an error, anything but round 1 or 2 and exactly
+// two positions, one "a" and one "b": it never approves with fewer. The
+// first matching rule decides:
 //
-//  1. any position without a verdict (unanswered, or unavailable with
+//  1. any REJECT or INSUFFICIENT_EVIDENCE: escalated — unconditional
+//     (§10, Appendix A, ODIN-ADR-013), so a rejection reaches the operator
+//     even while the other position is unanswered or unavailable;
+//  2. any position without a verdict (unanswered, or unavailable with
 //     usage.unavailable): pending — an unavailable position never waives
-//     review, and pending comes before escalation;
-//  2. any REJECT or INSUFFICIENT_EVIDENCE: escalated;
-//  3. every result APPROVE or APPROVE_UNCHANGED: approved, with verdict
-//     result APPROVE_UNCHANGED when all are unchanged, otherwise APPROVE;
-//  4. otherwise (a FLAG): re_review in round 1, escalated in round 2.
-func Combine(round int64, positions []Position) CombineResult {
+//     review;
+//  3. both results APPROVE or APPROVE_UNCHANGED: approved, with verdict
+//     result APPROVE_UNCHANGED when both are unchanged, otherwise APPROVE;
+//  4. FLAG: two FLAGs agree that the artifact needs the operator (pinned
+//     Saga contract ADM-7), so escalated in any round; a FLAG with an
+//     approval is a disagreement, so re_review in round 1 and escalated in
+//     round 2. This rule is Odin's provisional reading pending the open
+//     guidance-result question (DECISIONS.md issue X-7).
+func Combine(round int64, positions []Position) (CombineResult, error) {
+	if round != 1 && round != 2 {
+		return CombineResult{}, fmt.Errorf("review round %d: a review has round 1 or 2", round)
+	}
+	if len(positions) != 2 {
+		return CombineResult{}, fmt.Errorf("%d positions: a review combines exactly two positions", len(positions))
+	}
+	if a, b := positions[0].Position, positions[1].Position; !(a == "a" && b == "b" || a == "b" && b == "a") {
+		return CombineResult{}, fmt.Errorf("positions %q and %q: a review combines one position a and one position b", a, b)
+	}
 	for _, p := range positions {
 		if p.Verdict == nil {
-			return CombineResult{Outcome: Pending}
+			continue
+		}
+		if r := p.Verdict.Result; r == ResultReject || r == ResultInsufficientEvidence {
+			return CombineResult{Outcome: Escalated}, nil
 		}
 	}
 	for _, p := range positions {
-		if r := p.Verdict.Result; r == ResultReject || r == ResultInsufficientEvidence {
-			return CombineResult{Outcome: Escalated}
+		if p.Verdict == nil {
+			return CombineResult{Outcome: Pending}, nil
 		}
 	}
-	allApprove, allUnchanged := true, true
+	allUnchanged, flags := true, 0
 	for _, p := range positions {
 		switch p.Verdict.Result {
 		case ResultApproveUnchanged:
 		case ResultApprove:
 			allUnchanged = false
+		case ResultFlag:
+			flags++
 		default:
-			allApprove, allUnchanged = false, false
+			return CombineResult{}, fmt.Errorf("verdict result %q is not a §10 result", p.Verdict.Result)
 		}
 	}
-	if allApprove {
-		if allUnchanged {
-			return CombineResult{Outcome: Approved, VerdictResult: ResultApproveUnchanged}
-		}
-		return CombineResult{Outcome: Approved, VerdictResult: ResultApprove}
+	switch {
+	case flags == 0 && allUnchanged:
+		return CombineResult{Outcome: Approved, VerdictResult: ResultApproveUnchanged}, nil
+	case flags == 0:
+		return CombineResult{Outcome: Approved, VerdictResult: ResultApprove}, nil
+	case flags == 2 || round == 2:
+		return CombineResult{Outcome: Escalated}, nil
 	}
-	if round == 1 {
-		return CombineResult{Outcome: ReReview}
-	}
-	return CombineResult{Outcome: Escalated}
+	return CombineResult{Outcome: ReReview}, nil
 }

@@ -251,26 +251,18 @@ type CredentialLineage struct {
 // HumanRequest is records/human_request.schema.json (§2).
 type HumanRequest struct {
 	Meta
-	Assignment     string         `json:"assignment"`
-	Run            *string        `json:"run"`
-	Kind           string         `json:"kind"`
-	Question       string         `json:"question"`
-	Options        []string       `json:"options"`
-	Authorizes     string         `json:"authorizes"`
-	ProposalDigest *string        `json:"proposal_digest"`
-	Recipient      string         `json:"recipient"`
-	ExpiresAt      string         `json:"expires_at"`
-	State          string         `json:"state"`
-	Response       *HumanResponse `json:"response"`
-	Channel        *string        `json:"channel"`
-}
-
-// HumanResponse is the answer to a human request.
-type HumanResponse struct {
-	Answer      string `json:"answer"`
-	By          string `json:"by"`
-	At          string `json:"at"`
-	SourceEvent string `json:"source_event"`
+	Assignment     string   `json:"assignment"`
+	Run            *string  `json:"run"`
+	Kind           string   `json:"kind"`
+	Question       string   `json:"question"`
+	Options        []string `json:"options"`
+	Authorizes     string   `json:"authorizes"`
+	ProposalDigest *string  `json:"proposal_digest"`
+	Recipient      string   `json:"recipient"`
+	ExpiresAt      string   `json:"expires_at"`
+	State          string   `json:"state"`
+	Response       *string  `json:"response"` // reference to the response record; null until answered
+	Channel        *string  `json:"channel"`
 }
 
 // Approval is records/approval.schema.json (§2).

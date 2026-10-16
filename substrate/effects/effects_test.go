@@ -41,6 +41,7 @@ func TestRestart(t *testing.T) {
 
 func TestReconcile(t *testing.T) {
 	saga := effect("01JAEF00000000000000000001", "saga:run.submit", IdempotentByKey, records.EffectUnknown)
+	guidance := effect("01JAEF00000000000000000009", GuidanceDestination, IdempotentByKey, records.EffectUnknown)
 	notify := effect("01JAEF00000000000000000002", "telegram:notify", IrreduciblyUnknown, records.EffectUnknown)
 	request := effect("01JAEF00000000000000000003", "telegram:request", IrreduciblyUnknown, records.EffectUnknown)
 	approval := effect("01JAEF00000000000000000004", "telegram:approval", IrreduciblyUnknown, records.EffectUnknown)
@@ -67,7 +68,8 @@ func TestReconcile(t *testing.T) {
 		{"saga completed", saga, str("completed"), nil, ok(records.EffectDelivered, false)},
 		{"saga pending", saga, str("pending"), nil, ok(records.EffectUnknown, false)},
 		{"saga failed", saga, str("failed"), nil, ok(records.EffectFailed, false)},
-		{"saga superseded", saga, str("superseded"), nil, ok(records.EffectSuperseded, false)},
+		{"saga guidance superseded", guidance, str("superseded"), nil, ok(records.EffectSuperseded, false)},
+		{"saga submission superseded", saga, str("superseded"), nil, invalid},
 		{"saga absent", saga, str("absent"), nil, ok(records.EffectQueued, true)},
 		{"saga expired", saga, str("unknown_expired"), nil,
 			with(ok(records.EffectUnknown, false), func(r *ReconcileResult) { r.SurfaceToOperator = true })},
@@ -89,7 +91,7 @@ func TestReconcile(t *testing.T) {
 		{"host offline queued", host(records.EffectQueued), nil, str(HostOffline),
 			with(ok(records.EffectQueued, false), func(r *ReconcileResult) { r.HeldForHost = true })},
 		{"host offline in flight", host(records.EffectInFlight), nil, str(HostOffline),
-			with(ok(records.EffectInFlight, false), func(r *ReconcileResult) { r.HeldForHost = true })},
+			with(ok(records.EffectUnknown, false), func(r *ReconcileResult) { r.HeldForHost = true })},
 		{"host offline unknown", host(records.EffectUnknown), nil, str(HostOffline),
 			with(ok(records.EffectUnknown, false), func(r *ReconcileResult) { r.HeldForHost = true })},
 		{"host offline with lookup", host(records.EffectUnknown), str("absent"), str(HostOffline), invalid},
@@ -117,27 +119,52 @@ func TestDispatch(t *testing.T) {
 	q := effect("01JAEF00000000000000000001", "surface:prompt", SurfaceDeclared, records.EffectQueued)
 	shadow := &records.AttentionPrompt{Mode: records.PromptShadow}
 	live := &records.AttentionPrompt{Mode: records.PromptLive}
-	if got := Dispatch(q, shadow, true).Outcome; got != DispatchDisabled {
+	pass := Context{CurrentGeneration: 2, AssignmentState: str("active")}
+	stale := Context{CurrentGeneration: 3, DelegationRevoked: true}
+	if got := Dispatch(q, shadow, true, stale).Outcome; got != DispatchDisabled {
 		t.Errorf("recovery first: %s", got)
 	}
-	if got := Dispatch(q, shadow, false).Outcome; got != DispatchRefusedShadow {
+	if got := Dispatch(q, shadow, false, stale).Outcome; got != DispatchRefusedShadow {
 		t.Errorf("shadow: %s", got)
 	}
 	held := q
 	held.State = records.EffectHeld
-	if got := Dispatch(held, live, false).Outcome; got != InvalidDispatchInput {
+	if got := Dispatch(held, live, false, stale).Outcome; got != InvalidDispatchInput {
 		t.Errorf("held: %s", got)
 	}
-	res := Dispatch(q, live, false)
-	if res.Outcome != Dispatched || res.StateAfter != records.EffectInFlight || res.Effect.Attempts != 1 {
+	cases := []struct {
+		name   string
+		ctx    Context
+		reason string
+	}{
+		{"generation", stale, ReasonOwnerGeneration},
+		{"revoked", Context{CurrentGeneration: 2, DelegationRevoked: true}, ReasonDelegationRevoked},
+		{"assignment", Context{CurrentGeneration: 2, AssignmentState: str("cancelled")}, ReasonAssignmentState},
+		{"approval", Context{CurrentGeneration: 2, ApprovalExpired: true}, ReasonApprovalExpired},
+	}
+	for _, c := range cases {
+		res := Dispatch(q, live, false, c.ctx)
+		if res.Outcome != CancelledStale || res.Reason != c.reason || res.StateAfter != "" ||
+			res.Effect.State != records.EffectCancelledStale || res.Effect.Attempts != 0 {
+			t.Errorf("%s: %+v", c.name, res)
+		}
+	}
+	// A blocker flag concerns held effects only; a queued effect ignores it.
+	blocked := pass
+	blocked.DispatchBlockerActive = true
+	res := Dispatch(q, live, false, blocked)
+	if res.Outcome != Dispatched || res.StateAfter != records.EffectInFlight || res.Effect.Attempts != 1 || res.Reason != "" {
 		t.Errorf("dispatch: %+v", res)
 	}
 }
 
 func TestRevalidate(t *testing.T) {
 	pass := Context{CurrentGeneration: 2, AssignmentState: str("active")}
+	blocked := pass
+	blocked.DispatchBlockerActive = true
 	held := effect("01JAEF00000000000000000001", "saga:guidance", IdempotentByKey, records.EffectHeld)
 	held.DispatchBlockedBy = str("ownership_transfer:01JACM00000000000000000001")
+	queued := effect(held.ID, held.Destination, IdempotentByKey, records.EffectQueued)
 	cases := []struct {
 		name   string
 		e      records.Effect
@@ -146,12 +173,16 @@ func TestRevalidate(t *testing.T) {
 		reason string
 	}{
 		{"pass", held, pass, Queued, ""},
+		{"blocker active", held, blocked, Held, ""},
+		{"blocker active before stale checks", held, Context{CurrentGeneration: 3, DispatchBlockerActive: true}, Held, ""},
+		{"blocker flag ignored when queued", queued, blocked, Queued, ""},
 		{"generation", held, Context{CurrentGeneration: 3}, CancelledStale, ReasonOwnerGeneration},
 		{"revoked", held, Context{CurrentGeneration: 2, DelegationRevoked: true}, CancelledStale, ReasonDelegationRevoked},
 		{"assignment", held, Context{CurrentGeneration: 2, AssignmentState: str("failed")}, CancelledStale, ReasonAssignmentState},
 		{"approval", held, Context{CurrentGeneration: 2, ApprovalExpired: true}, CancelledStale, ReasonApprovalExpired},
 		{"order", held, Context{CurrentGeneration: 3, DelegationRevoked: true, ApprovalExpired: true}, CancelledStale, ReasonOwnerGeneration},
 		{"in flight", effect(held.ID, held.Destination, IdempotentByKey, records.EffectInFlight), pass, InvalidRevalidationInput, ""},
+		{"in flight blocked", effect(held.ID, held.Destination, IdempotentByKey, records.EffectInFlight), blocked, InvalidRevalidationInput, ""},
 	}
 	for _, c := range cases {
 		res := Revalidate(c.e, c.ctx)
@@ -162,6 +193,10 @@ func TestRevalidate(t *testing.T) {
 	res := Revalidate(held, pass)
 	if res.Effect.State != records.EffectQueued || res.Effect.DispatchBlockedBy != nil {
 		t.Errorf("held effect after pass: %+v", res.Effect)
+	}
+	res = Revalidate(held, blocked)
+	if !reflect.DeepEqual(res.Effect, held) {
+		t.Errorf("held effect with an active blocker changed: %+v", res.Effect)
 	}
 	noGen := held
 	noGen.OwnerGeneration = nil

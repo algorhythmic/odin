@@ -90,7 +90,7 @@ OPERATIONS: dict[str, Callable[[schemas.SchemaSet, Any], dict[str, Any]]] = {
     "combine": lambda s, d: records.combine(d["positions"], d["round"]),
     "restart": lambda s, d: effects.restart(d["effects"])[0],
     "reconcile": lambda s, d: effects.reconcile(d["effect"], d["lookup"], d["host_state"]),
-    "dispatch": lambda s, d: effects.dispatch(d["effect"], d["prompt"], d["recovery_in_progress"]),
+    "dispatch": lambda s, d: effects.dispatch(d["effect"], d["prompt"], d["recovery_in_progress"], d["context"]),
     "revalidate": lambda s, d: effects.revalidate(d["effect"], d["context"]),
     "check_mapping_coverage": lambda s, d: migration.check_mapping_coverage(
         d, s.documents[migration.COMMITMENT_SCHEMA]

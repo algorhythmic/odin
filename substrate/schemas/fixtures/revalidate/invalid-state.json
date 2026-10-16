@@ -24,6 +24,7 @@
     "delegation_revoked": false,
     "assignment_state": "dispatched",
     "approval_expired": false,
+    "dispatch_blocker_active": false,
     "host_state": null
   }
 }

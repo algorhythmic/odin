@@ -256,7 +256,7 @@
           "$ref": "../records/effect.schema.json"
         },
         "lookup": {
-          "description": "The destination's answer; deliberately not an enum, so invalid values reach the semantic check.",
+          "description": "The destination's answer; deliberately not an enum, so invalid values reach the semantic check. For session_host, `completed` and `absent` are Odin's provisional report values in I0: the session-host protocol is Odin's own deliverable, not yet specified (I/O contract §9; README §4.7).",
           "type": [
             "string",
             "null"
@@ -277,7 +277,8 @@
       "required": [
         "effect",
         "prompt",
-        "recovery_in_progress"
+        "recovery_in_progress",
+        "context"
       ],
       "properties": {
         "effect": {
@@ -295,6 +296,10 @@
         },
         "recovery_in_progress": {
           "type": "boolean"
+        },
+        "context": {
+          "description": "The dispatcher revalidates the effect's authority against this before dispatch (I/O contract §9); same shape as revalidate's context.",
+          "$ref": "#/$defs/revalidate/properties/context"
         }
       }
     },
@@ -317,6 +322,7 @@
             "delegation_revoked",
             "assignment_state",
             "approval_expired",
+            "dispatch_blocker_active",
             "host_state"
           ],
           "properties": {
@@ -342,6 +348,10 @@
             "approval_expired": {
               "type": "boolean"
             },
+            "dispatch_blocker_active": {
+              "description": "Whether what put a held effect in held (its dispatch_blocked_by: take-control, ownership transfer or revocation) still applies; a held effect stays held while it does (I/O contract §9; README §4.7). Not consulted for a queued effect.",
+              "type": "boolean"
+            },
             "host_state": {
               "description": "Recorded for context; not consulted by revalidate in I0.",
               "enum": [
@@ -350,7 +360,8 @@
                 null
               ]
             }
-          }
+          },
+          "description": "The authority current at revalidation or dispatch time (I/O contract §9: \"owner generation still current, delegation not revoked, assignment not cancelled, approval not expired\"; README §4.7). dispatch uses the same shape."
         }
       }
     },

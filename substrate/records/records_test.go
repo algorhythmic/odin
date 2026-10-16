@@ -103,11 +103,11 @@ func TestCheckMessageSize(t *testing.T) {
 }
 
 func TestCombine(t *testing.T) {
-	pos := func(result string) Position {
+	pos := func(name, result string) Position {
 		if result == "" {
-			return Position{}
+			return Position{Position: name}
 		}
-		return Position{Verdict: &Verdict{Result: result}}
+		return Position{Position: name, Verdict: &Verdict{Result: result}}
 	}
 	cases := []struct {
 		round   int64
@@ -122,15 +122,47 @@ func TestCombine(t *testing.T) {
 		{1, ResultInsufficientEvidence, ResultFlag, Escalated, ""},
 		{1, ResultApprove, ResultFlag, ReReview, ""},
 		{2, ResultApprove, ResultFlag, Escalated, ""},
-		{1, ResultFlag, ResultFlag, ReReview, ""},
-		{1, "", ResultReject, Pending, ""},
+		{1, ResultFlag, ResultFlag, Escalated, ""},
+		{2, ResultFlag, ResultFlag, Escalated, ""},
+		{1, "", ResultReject, Escalated, ""},
+		{1, ResultInsufficientEvidence, "", Escalated, ""},
+		{1, "", ResultApprove, Pending, ""},
+		{1, ResultFlag, "", Pending, ""},
 		{2, "", "", Pending, ""},
 	}
 	for _, c := range cases {
-		got := Combine(c.round, []Position{pos(c.a), pos(c.b)})
-		if got.Outcome != c.out || got.VerdictResult != c.verdict {
-			t.Errorf("round %d %q+%q: %+v", c.round, c.a, c.b, got)
+		got, err := Combine(c.round, []Position{pos("a", c.a), pos("b", c.b)})
+		if err != nil || got.Outcome != c.out || got.VerdictResult != c.verdict {
+			t.Errorf("round %d %q+%q: %+v, %v", c.round, c.a, c.b, got, err)
 		}
+	}
+}
+
+// TestCombineRefusesOtherThanAB checks that Combine never approves with
+// fewer or other positions than one a and one b (ODIN-ADR-013).
+func TestCombineRefusesOtherThanAB(t *testing.T) {
+	approve := func(name string) Position {
+		return Position{Position: name, Verdict: &Verdict{Result: ResultApprove}}
+	}
+	bad := map[string]struct {
+		round     int64
+		positions []Position
+	}{
+		"none":        {1, nil},
+		"one":         {1, []Position{approve("a")}},
+		"three":       {1, []Position{approve("a"), approve("b"), approve("b")}},
+		"two a":       {1, []Position{approve("a"), approve("a")}},
+		"unnamed":     {1, []Position{approve(""), approve("b")}},
+		"round three": {3, []Position{approve("a"), approve("b")}},
+		"bad result":  {1, []Position{approve("a"), {Position: "b", Verdict: &Verdict{Result: "MAYBE"}}}},
+	}
+	for name, c := range bad {
+		if got, err := Combine(c.round, c.positions); err == nil || got.Outcome != "" {
+			t.Errorf("%s: got %+v, %v; want an error and no outcome", name, got, err)
+		}
+	}
+	if got, err := Combine(1, []Position{approve("b"), approve("a")}); err != nil || got.Outcome != Approved {
+		t.Errorf("b then a: %+v, %v", got, err)
 	}
 }
 

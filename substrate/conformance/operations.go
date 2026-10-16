@@ -232,7 +232,10 @@ func runCombine(_ *Runner, data []byte) (Result, error) {
 	if err := decode(data, &in); err != nil {
 		return nil, err
 	}
-	res := records.Combine(in.Round, in.Positions)
+	res, err := records.Combine(in.Round, in.Positions)
+	if err != nil {
+		return nil, fmt.Errorf("fixture defect: %w", err)
+	}
 	out := outcome(res.Outcome)
 	if res.Outcome == records.Approved {
 		out["verdict_result"] = res.VerdictResult
@@ -295,6 +298,7 @@ type dispatchInput struct {
 	Effect             records.Effect           `json:"effect"`
 	Prompt             *records.AttentionPrompt `json:"prompt"`
 	RecoveryInProgress bool                     `json:"recovery_in_progress"`
+	Context            effects.Context          `json:"context"`
 }
 
 func runDispatch(_ *Runner, data []byte) (Result, error) {
@@ -302,10 +306,13 @@ func runDispatch(_ *Runner, data []byte) (Result, error) {
 	if err := decode(data, &in); err != nil {
 		return nil, err
 	}
-	res := effects.Dispatch(in.Effect, in.Prompt, in.RecoveryInProgress)
+	res := effects.Dispatch(in.Effect, in.Prompt, in.RecoveryInProgress, in.Context)
 	out := outcome(res.Outcome)
-	if res.Outcome == effects.Dispatched {
+	switch res.Outcome {
+	case effects.Dispatched:
 		out["state_after"] = res.StateAfter
+	case effects.CancelledStale:
+		out["reason"] = res.Reason
 	}
 	return out, nil
 }

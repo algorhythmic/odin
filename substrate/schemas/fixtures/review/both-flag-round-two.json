@@ -1,0 +1,37 @@
+{
+  "round": 2,
+  "positions": [
+    {
+      "position": "a",
+      "harness": "claude-code",
+      "model": "model-family_one-1",
+      "family": "family_one",
+      "verdict": {
+        "result": "FLAG",
+        "checklist": {},
+        "findings": []
+      },
+      "usage": {
+        "input_tokens": 41200,
+        "output_tokens": 1800,
+        "cost_usd": 0.42
+      }
+    },
+    {
+      "position": "b",
+      "harness": "pi-rpc",
+      "model": "model-family_two-1",
+      "family": "family_two",
+      "verdict": {
+        "result": "FLAG",
+        "checklist": {},
+        "findings": []
+      },
+      "usage": {
+        "input_tokens": 41200,
+        "output_tokens": 1800,
+        "cost_usd": 0.42
+      }
+    }
+  ]
+}

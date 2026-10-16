@@ -28,10 +28,12 @@ type Mapping struct {
 }
 
 // StatusMapping maps a heimdall task status to a commitment state.
+// CommitmentState is nil where the target state is undecided until the I4
+// import design (I/O contract §14 step 6).
 type StatusMapping struct {
-	HeimdallStatus  string `json:"heimdall_status"`
-	CommitmentState string `json:"commitment_state"`
-	Note            string `json:"note"`
+	HeimdallStatus  string  `json:"heimdall_status"`
+	CommitmentState *string `json:"commitment_state"`
+	Note            string  `json:"note"`
 }
 
 // MappingRow is one heimdall record type or field group and its fate.

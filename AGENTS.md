@@ -249,6 +249,12 @@ python3 -m pytest -q substrate/python/tests     # Python: every fixture case
 just conformance                                # both runners, then scripts/compare_conformance.py
 ```
 
+`just conformance` needs `just` and the Python package importable by the
+system interpreter (`uv pip install --system -e substrate/python` once;
+`substrate/python/README.md` has the uv-only alternative). The Python
+package and workspace names (`odin-substrate`, `odin-workspace`) are
+unpublished development names, not deliverable names (X-5).
+
 The compare script fails when any case is missing from either
 implementation, differs from the fixtures' expected outcome, or differs
 between the two. A pass is I0 fixture-only evidence and exercises no

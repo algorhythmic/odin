@@ -78,6 +78,14 @@ this file is wrong.
   `schema/envelope-id-trailing-newline` probes this.
 - Integers are written without a fraction or exponent. No fixture uses
   `1.0` for an integer, and I0 fixes no behaviour for it.
+- **Provisional additions.** Where a schema allows a value or key the
+  documents do not name, its `description` says it is Odin's provisional
+  addition in I0: the envelope `scope` keys other than `project` and
+  `run`; Approval states other than `granted`; EvaluatorResult `status:
+  timeout` and `consequence` `baseline` and `none`; the SessionBinding
+  `capabilities` enum (the capability-matrix vocabulary is fixed in I1);
+  the wake class `none`; and the session-host report values `completed`
+  and `absent` (§4.7).
 
 ## 3. Fixture format
 
@@ -231,12 +239,17 @@ above for `replay`).
 The control kinds are the five direct commands
 `operator.command.{stop,pause,revoke,take,return}`. §9 step 3 names stop,
 revoke, take-control, ownership transfer and operator corrections.
-Ownership transfer is the `commitment.transfer` operation and a
-correction is detected in code on an `operator.message`; neither is an
-inbound kind, and none is invented. Pause and return are included
-because Appendix C classes all five commands as direct, and keeping them
-in one ordered batch preserves their relative order: a `return` received
-before a `take` must still be applied before it
+Ownership transfer is the `commitment.transfer` operation, not an inbound
+kind. §9 step 3 also names operator corrections among the control
+messages, but a correction is detected in code on an `operator.message`
+during processing (§4 routing table), not by its kind at intake.
+Identifying a correction at intake, so that replay can order it first, is
+intake work for I1, the increment that builds intake (implementation
+blueprint §7). The control-first ordering here therefore covers the five
+direct commands only, and no kind is invented. Pause and return are
+included because Appendix C classes all five commands as direct, and
+keeping them in one ordered batch preserves their relative order: a
+`return` received before a `take` must still be applied before it
 (`replay/control-relative-order-kept`).
 
 ### 4.5 Revisions, ownership and operations (§2, §9)
@@ -271,25 +284,38 @@ Result keys: `outcome`; plus `generation_after`, `rev_after` and
 
 ### 4.6 Review combination (`combine`; §10 review, ODIN-ADR-013, AC-22, AC-40)
 
-Input: `{ "round": 1 | 2, "positions": [position a, position b] }`. With
-each position's result being its `verdict.result`, or none when its
-`verdict` is `null`, the first matching rule decides:
+Input: `{ "round": 1 | 2, "positions": [position a, position b] }`.
+Exactly two positions, one `a` and one `b`, in either order; anything
+else is refused by both implementations as a defect (an error, never an
+outcome), so a review is never approved with fewer positions. With each
+position's result being its `verdict.result`, or none when its `verdict`
+is `null`, the first matching rule decides:
 
-1. any position without a verdict (unanswered, or unavailable with
+1. any `REJECT` or `INSUFFICIENT_EVIDENCE`: `escalated`. This is
+   unconditional (§10, Appendix A, ODIN-ADR-013: "Any REJECT or
+   INSUFFICIENT_EVIDENCE ... sets escalated"), so a rejection reaches the
+   operator even while the other position is unanswered or unavailable
+   (`review/unavailable-and-reject`).
+2. any position without a verdict (unanswered, or unavailable with
    `usage.unavailable: true`): `pending`. An unavailable position never
-   waives review, and pending comes before escalation.
-2. any `REJECT` or `INSUFFICIENT_EVIDENCE`: `escalated`.
+   waives review (AC-22).
 3. both results in {`APPROVE`, `APPROVE_UNCHANGED`}: `approved`, with
    `verdict_result` `APPROVE_UNCHANGED` when both are
    `APPROVE_UNCHANGED`, otherwise `APPROVE`.
-4. otherwise (a `FLAG` with an approval, or two `FLAG`s): `re_review` in
-   round 1, `escalated` in round 2.
+4. `FLAG` handling. Two `FLAG`s are agreement that the artifact needs the
+   operator (pinned Saga contract ADM-7: a FLAG goes to the operator):
+   `escalated` in any round. A `FLAG` with an approval is a disagreement:
+   `re_review` in round 1, `escalated` in round 2. This rule is Odin's
+   provisional reading pending the open guidance-result question
+   (DECISIONS.md issue X-7).
 
 Result keys: `outcome`; `verdict_result` only with `approved`. The Review
-record schema enforces the matching record rules: `combination` is
-`null` while any position's verdict is `null`; `null` and `escalated`
-combinations have a `null` combined verdict; `approved` requires both
-positions and the combined verdict to approve.
+record schema enforces the matching record rules: while any position's
+verdict is `null`, `combination` is `null` unless the other position's
+result is `REJECT` or `INSUFFICIENT_EVIDENCE`, when `escalated` is also
+allowed; `null` and `escalated` combinations have a `null` combined
+verdict; `approved` requires both positions and the combined verdict to
+approve.
 
 ### 4.7 Effects: restart, reconciliation, dispatch, revalidation (AC-02, AC-27, §9)
 
@@ -303,34 +329,32 @@ destination's answer. By the effect's `destination_capability`:
 
 | Capability | Accepted effect states | Rule |
 |---|---|---|
-| `idempotent_by_key` (Saga) | `unknown`; `host_state` must be `null` | `completed` → `delivered`, retry false; `pending` → `unknown`, retry false (wait); `failed` → `failed`, retry false; `superseded` → `superseded`, retry false, never re-sent; `absent` → `queued`, retry true (same operation id); `unknown_expired` → `unknown`, retry false, `surface_to_operator: true` |
+| `idempotent_by_key` (Saga) | `unknown`; `host_state` must be `null` | `completed` → `delivered`, retry false; `pending` → `unknown`, retry false (wait); `failed` → `failed`, retry false; `superseded` (destination `saga:guidance` only, §9 "superseded (guidance only)", B-13) → `superseded`, retry false, never re-sent; `absent` → `queued`, retry true (same operation id); `unknown_expired` → `unknown`, retry false, `surface_to_operator: true` |
 | `irreducibly_unknown` (Telegram) | `unknown`; `lookup` and `host_state` must be `null` | operation (the part after `:`) `notify` → `unknown`, retry false, `note: "may have been sent"`; `request` or `approval` → `queued`, retry true, `same_request_id: true` |
 | `surface_declared` (attention prompts, other surfaces) | `unknown`; `lookup` and `host_state` must be `null` | `unknown`, retry false, `counts_against_caps: true` |
-| `session_host` | `queued`, `in_flight`, `unknown` | `host_offline` (with `lookup` `null`): state unchanged, retry false, `held_for_host: true`. `host_returned` with the host's report as `lookup`: `completed` → `delivered`, retry false; `absent` → `queued`, retry true |
+| `session_host` | `queued`, `in_flight`, `unknown` | `host_offline` (with `lookup` `null`), per §9 ("commands addressed to it stay `queued`, or `unknown` if one was in flight"): `queued` stays `queued`, `in_flight` becomes `unknown`, `unknown` stays `unknown`; all with retry false and `held_for_host: true`. `host_returned` with the host's report as `lookup`: `completed` → `delivered`, retry false; `absent` → `queued`, retry true. The report values `completed` and `absent` are Odin's provisional vocabulary in I0: the session-host protocol is Odin's own deliverable, not yet specified (§9) |
 
 Anything else (an unknown capability, a lookup value outside the row, a
-lookup where none exists, a missing `host_state` for a session host, an
-effect in a state the row does not accept, a Telegram operation other
-than `notify`, `request` or `approval`) gives
+lookup where none exists, `superseded` for any destination other than
+`saga:guidance`, a missing `host_state` for a session host, an effect in
+a state the row does not accept, a Telegram operation other than
+`notify`, `request` or `approval`) gives
 `invalid_reconciliation_input`. A valid reconciliation gives outcome
 `reconciled` with `state_after` and `retry_allowed`, plus
 `surface_to_operator`, `note`, `same_request_id`, `counts_against_caps`
 or `held_for_host` exactly where the table names them.
 
-**`dispatch`**, input `{ "effect", "prompt": AttentionPrompt | null,
-"recovery_in_progress": bool }`, checked in this order:
-`recovery_in_progress` → `dispatch_disabled` (nothing leaves the service
-until recovery step 8); a prompt in `shadow` mode →
-`dispatch_refused_shadow` (a shadow prompt is never dispatched); an
-effect not in `queued` → `invalid_dispatch_input`; otherwise
-`dispatched` with `state_after: "in_flight"`.
-
 **`revalidate`**, input `{ "effect", "context": { "current_generation",
 "delegation_revoked", "assignment_state", "approval_expired",
-"host_state" } }`. Only `queued` and `held` effects are revalidated;
-any other state gives `invalid_revalidation_input`. The checks run in
-this order and the first failure decides `cancelled_stale` with
-`reason`:
+"dispatch_blocker_active", "host_state" } }`. Only `queued` and `held`
+effects are revalidated; any other state gives
+`invalid_revalidation_input`. Then, for a `held` effect whose
+`dispatch_blocker_active` is true, the outcome is `held`: the effect is
+unchanged. A held effect "leaves only through revalidation" (§9), and not
+while the take-control, ownership transfer or revocation recorded in its
+`dispatch_blocked_by` still applies; `dispatch_blocker_active` is not
+consulted for a `queued` effect. Otherwise the checks run in this order
+and the first failure decides `cancelled_stale` with `reason`:
 
 1. `owner_generation`: the effect's `owner_generation` is not `null` and
    is lower than `current_generation`;
@@ -343,6 +367,21 @@ If all pass, the outcome is `queued`: a `held` effect leaves `held` only
 to `queued` or `cancelled_stale`. `host_state` is recorded for context
 and not consulted in I0; session-host commands are held by the
 reconciliation rule above. Result keys: `outcome`; `reason` only with
+`cancelled_stale`.
+
+**`dispatch`**, input `{ "effect", "prompt": AttentionPrompt | null,
+"recovery_in_progress": bool, "context" }`, where `context` has the same
+shape as `revalidate`'s. The dispatcher revalidates an effect's authority
+before dispatch (§9: "owner generation still current, delegation not
+revoked, assignment not cancelled, approval not expired"). Checked in
+this order: `recovery_in_progress` → `dispatch_disabled` (nothing leaves
+the service until recovery step 8); a prompt in `shadow` mode →
+`dispatch_refused_shadow` (a shadow prompt is never dispatched); an
+effect not in `queued` → `invalid_dispatch_input` (a held effect is
+revalidated first); then the four `revalidate` checks above, in their
+order, the first failure giving `cancelled_stale` with `reason`;
+otherwise `dispatched` with `state_after: "in_flight"`. Result keys:
+`outcome`; `state_after` only with `dispatched`; `reason` only with
 `cancelled_stale`.
 
 ### 4.8 Migration mapping (`check_mapping_coverage`)
@@ -373,8 +412,8 @@ empty, otherwise `mapping_incomplete`. Result keys: `outcome`,
 | `combine` | `approved`, `escalated`, `pending`, `re_review` |
 | `restart` | `restarted` |
 | `reconcile` | `reconciled`, `invalid_reconciliation_input` |
-| `dispatch` | `dispatched`, `dispatch_disabled`, `dispatch_refused_shadow`, `invalid_dispatch_input` |
-| `revalidate` | `queued`, `cancelled_stale`, `invalid_revalidation_input` |
+| `dispatch` | `dispatched`, `dispatch_disabled`, `dispatch_refused_shadow`, `invalid_dispatch_input`, `cancelled_stale` |
+| `revalidate` | `queued`, `held`, `cancelled_stale`, `invalid_revalidation_input` |
 | `check_mapping_coverage` | `mapping_complete`, `mapping_incomplete` |
 
 ## 5. Catalogue notes
@@ -386,8 +425,9 @@ empty, otherwise `mapping_incomplete`. Result keys: `outcome`,
   cursor; the adapter applies, never authors or amends; Saga's store
   stays authoritative and decides (D4). The mirror decides nothing.
 - **Kinds.** `default_wake` is the class assigned at intake: §4's four
-  (`interrupt`, `wake`, `log`, `state`) or `none`, meaning the event is
-  handled in code with no planner turn by default (direct control path,
+  (`interrupt`, `wake`, `log`, `state`) or `none`. `none` is Odin's
+  provisional addition in I0, not one of §4's four classes but the
+  in-code handling marker: the event is handled in code with no planner turn by default (direct control path,
   approval validation, lifecycle handler, operator-queue delivery,
   journal triage before its typed outcome). A consequence of that code
   handling, such as the lifecycle handler's `decision_required` wake, is

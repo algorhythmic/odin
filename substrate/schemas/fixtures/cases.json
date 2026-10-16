@@ -105,7 +105,7 @@
       "I/O contract §2",
       "I/O contract Appendix A"
     ],
-    "note": "A complete, valid human_request record."
+    "note": "A complete, valid human_request record; response is a reference to the response record (§2 \"response ref\")."
   },
   {
     "id": "schema/approval-valid",
@@ -265,6 +265,43 @@
       "ODIN-ADR-013"
     ],
     "note": "FLAG is a verdict result (§10; pinned Saga contract REC-4); an escalated review leaves the combined verdict null."
+  },
+  {
+    "id": "schema/review-escalated-unavailable-and-reject",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/review.schema.json",
+    "input": "fixtures/schema/review-escalated-unavailable-and-reject.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §10",
+      "I/O contract Appendix A",
+      "ODIN-ADR-013",
+      "AC-22"
+    ],
+    "note": "A REJECT escalates even while the other position is unavailable, so an escalated combination with a null position verdict is valid."
+  },
+  {
+    "id": "schema/review-escalated-while-pending",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/review.schema.json",
+    "input": "fixtures/schema/review-escalated-while-pending.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/combination"
+      ]
+    },
+    "cites": [
+      "I/O contract §10",
+      "I/O contract Appendix A",
+      "ODIN-ADR-013",
+      "AC-22"
+    ],
+    "note": "Without a REJECT or INSUFFICIENT_EVIDENCE, combination stays null while a position's verdict is null."
   },
   {
     "id": "schema/attention-prompt-shadow-expired-valid",
@@ -659,6 +696,24 @@
       "I/O contract Appendix A"
     ],
     "note": "Request kinds are clarification, plan_approval, delegation_change, principle_change, desktop_action."
+  },
+  {
+    "id": "schema/human-request-response-object",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/human_request.schema.json",
+    "input": "fixtures/schema/human-request-response-object.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/response"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "response is a reference (\"response ref\"), not an inline answer object."
   },
   {
     "id": "schema/approval-principal-not-operator",
@@ -2271,7 +2326,7 @@
       "ODIN-ADR-013",
       "AC-40"
     ],
-    "note": "A disagreement in round 1 gets the single corrective re-review."
+    "note": "A FLAG with an approval is a disagreement; round 1 gets the single corrective re-review (Odin's provisional reading pending issue X-7)."
   },
   {
     "id": "review/disagreement-round-two",
@@ -2294,14 +2349,31 @@
     "operation": "combine",
     "input": "fixtures/review/both-flag-round-one.json",
     "expected": {
-      "outcome": "re_review"
+      "outcome": "escalated"
     },
     "cites": [
       "I/O contract §10",
       "ODIN-ADR-013",
-      "AC-40"
+      "AC-40",
+      "DECISIONS.md issue X-7"
     ],
-    "note": "Two FLAGs are not an approval; round 1 gets the corrective re-review."
+    "note": "Two FLAGs agree that the artifact needs the operator (pinned Saga contract ADM-7): escalated in any round. Odin's provisional reading pending issue X-7."
+  },
+  {
+    "id": "review/both-flag-round-two",
+    "group": "review",
+    "operation": "combine",
+    "input": "fixtures/review/both-flag-round-two.json",
+    "expected": {
+      "outcome": "escalated"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013",
+      "AC-40",
+      "DECISIONS.md issue X-7"
+    ],
+    "note": "Two FLAGs escalate in round 2 as in round 1. Odin's provisional reading pending issue X-7."
   },
   {
     "id": "review/one-unavailable",
@@ -2325,7 +2397,7 @@
     "operation": "combine",
     "input": "fixtures/review/unavailable-and-reject.json",
     "expected": {
-      "outcome": "pending"
+      "outcome": "escalated"
     },
     "cites": [
       "I/O contract §10",
@@ -2334,7 +2406,7 @@
       "AC-22",
       "I/O contract Appendix A"
     ],
-    "note": "Combination stays null while any position's verdict is null; pending precedes escalation."
+    "note": "Any REJECT escalates unconditionally, so the rejection reaches the operator; the unavailable position still never waives review."
   },
   {
     "id": "review/both-pending",
@@ -2452,6 +2524,21 @@
       "AC-28"
     ],
     "note": "A guidance operation Saga reports superseded is never re-sent."
+  },
+  {
+    "id": "effects/superseded-non-guidance-invalid",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/superseded-non-guidance-invalid.json",
+    "expected": {
+      "outcome": "invalid_reconciliation_input"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "I/O contract Appendix B (B-13)"
+    ],
+    "note": "superseded is a lookup answer for guidance only (§9: \"superseded (guidance only)\"); for a run submission it is invalid input."
   },
   {
     "id": "effects/saga-absent",
@@ -2588,7 +2675,7 @@
     "input": "fixtures/effects/host-offline-in-flight.json",
     "expected": {
       "outcome": "reconciled",
-      "state_after": "in_flight",
+      "state_after": "unknown",
       "retry_allowed": false,
       "held_for_host": true
     },
@@ -2598,7 +2685,7 @@
       "ODIN-ADR-009",
       "AC-37"
     ],
-    "note": "An in-flight command stays as it is while the host is offline."
+    "note": "An in-flight command to an offline host becomes unknown (§9: \"or unknown if one was in flight\") and is not retried."
   },
   {
     "id": "effects/host-offline-unknown",
@@ -2893,6 +2980,36 @@
     "note": "A held effect whose generation was superseded is cancelled."
   },
   {
+    "id": "revalidate/held-blocker-active-stays-held",
+    "group": "revalidate",
+    "operation": "revalidate",
+    "input": "fixtures/revalidate/held-blocker-active-stays-held.json",
+    "expected": {
+      "outcome": "held"
+    },
+    "cites": [
+      "AC-11",
+      "AC-27",
+      "I/O contract §9"
+    ],
+    "note": "An effect held by take-control at the current generation stays held while the take-control is in force; it is not released by revalidation."
+  },
+  {
+    "id": "revalidate/held-blocker-released-queued",
+    "group": "revalidate",
+    "operation": "revalidate",
+    "input": "fixtures/revalidate/held-blocker-released-queued.json",
+    "expected": {
+      "outcome": "queued"
+    },
+    "cites": [
+      "AC-11",
+      "AC-27",
+      "I/O contract §9"
+    ],
+    "note": "Once the take-control that held it is returned, revalidation releases the effect to queued when every authority check passes."
+  },
+  {
     "id": "revalidate/no-owner-generation",
     "group": "revalidate",
     "operation": "revalidate",
@@ -2962,6 +3079,38 @@
       "I/O contract §9 (recovery, step 8)"
     ],
     "note": "A queued effect outside recovery is dispatched and becomes in_flight."
+  },
+  {
+    "id": "revalidate/dispatch-stale-generation",
+    "group": "revalidate",
+    "operation": "dispatch",
+    "input": "fixtures/revalidate/dispatch-stale-generation.json",
+    "expected": {
+      "outcome": "cancelled_stale",
+      "reason": "owner_generation"
+    },
+    "cites": [
+      "AC-12",
+      "AC-27",
+      "I/O contract §9"
+    ],
+    "note": "The dispatcher revalidates before dispatch: a queued effect created under a superseded owner generation is cancelled, never sent."
+  },
+  {
+    "id": "revalidate/dispatch-revoked-delegation",
+    "group": "revalidate",
+    "operation": "dispatch",
+    "input": "fixtures/revalidate/dispatch-revoked-delegation.json",
+    "expected": {
+      "outcome": "cancelled_stale",
+      "reason": "delegation_revoked"
+    },
+    "cites": [
+      "AC-11",
+      "AC-27",
+      "I/O contract §9"
+    ],
+    "note": "The dispatcher revalidates before dispatch: a queued effect whose delegation was revoked is cancelled, never sent."
   },
   {
     "id": "revalidate/dispatch-not-queued",

@@ -1,6 +1,7 @@
 // Package schemas embeds the I0 substrate contract: the JSON Schemas, the
 // namespace and kind catalogues, the heimdall mapping and the fixture set.
-// The files are the single source of truth; see README.md.
+// With README.md they are the single source of truth for the two
+// implementations; the documents in docs/ win over them.
 package schemas
 
 import "embed"

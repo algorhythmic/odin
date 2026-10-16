@@ -228,7 +228,7 @@
   },
   "allOf": [
     {
-      "description": "Combination stays null while any position's verdict is null.",
+      "description": "Combination stays null while any position's verdict is null, unless the other position rejected: any REJECT or INSUFFICIENT_EVIDENCE sets escalated unconditionally (§10, Appendix A, ODIN-ADR-013), so escalated is allowed then. Approved is excluded by the approved rule.",
       "if": {
         "required": [
           "positions"
@@ -236,17 +236,47 @@
         "properties": {
           "positions": {
             "type": "array",
-            "contains": {
-              "type": "object",
-              "required": [
-                "verdict"
-              ],
-              "properties": {
-                "verdict": {
-                  "type": "null"
+            "allOf": [
+              {
+                "contains": {
+                  "type": "object",
+                  "required": [
+                    "verdict"
+                  ],
+                  "properties": {
+                    "verdict": {
+                      "type": "null"
+                    }
+                  }
+                }
+              },
+              {
+                "not": {
+                  "contains": {
+                    "type": "object",
+                    "required": [
+                      "verdict"
+                    ],
+                    "properties": {
+                      "verdict": {
+                        "type": "object",
+                        "required": [
+                          "result"
+                        ],
+                        "properties": {
+                          "result": {
+                            "enum": [
+                              "REJECT",
+                              "INSUFFICIENT_EVIDENCE"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
-            }
+            ]
           }
         }
       },

@@ -53,8 +53,10 @@
               "blocked",
               "satisfied",
               "closed",
-              "abandoned"
-            ]
+              "abandoned",
+              null
+            ],
+            "description": "A Commitment.state, or null where the target state is undecided until the I4 import design (I/O contract §14 step 6)."
           },
           "note": {
             "type": "string"

@@ -20,6 +20,7 @@ DISPATCH_DISABLED = "dispatch_disabled"
 DISPATCH_REFUSED_SHADOW = "dispatch_refused_shadow"
 INVALID_DISPATCH_INPUT = "invalid_dispatch_input"
 QUEUED = "queued"
+HELD = "held"
 CANCELLED_STALE = "cancelled_stale"
 INVALID_REVALIDATION_INPUT = "invalid_revalidation_input"
 
@@ -47,6 +48,9 @@ _HOST_RETURNED: dict[str, tuple[str, bool]] = {
     "completed": ("delivered", False),
     "absent": ("queued", True),
 }
+
+# The only destination for which Saga's lookup may answer superseded (§9: "superseded (guidance only)"; B-13).
+GUIDANCE_DESTINATION = "saga:guidance"
 
 _TERMINAL_ASSIGNMENT_STATES = frozenset({"cancelled", "completed", "failed"})
 
@@ -85,6 +89,8 @@ def reconcile(effect: Mapping[str, Any], lookup: str | None, host_state: str | N
     if capability == "idempotent_by_key":
         if state != "unknown" or host_state is not None or lookup not in _IDEMPOTENT_BY_KEY:
             return dict(_INVALID_RECONCILIATION)
+        if lookup == "superseded" and effect.get("destination") != GUIDANCE_DESTINATION:
+            return dict(_INVALID_RECONCILIATION)
         return _reconciled(*_IDEMPOTENT_BY_KEY[lookup])
     if capability == "irreducibly_unknown":
         if state != "unknown" or lookup is not None or host_state is not None:
@@ -101,21 +107,43 @@ def reconcile(effect: Mapping[str, Any], lookup: str | None, host_state: str | N
         if state not in ("queued", "in_flight", "unknown"):
             return dict(_INVALID_RECONCILIATION)
         if host_state == "host_offline" and lookup is None:
-            return _reconciled(state, False, {"held_for_host": True})
+            # §9: commands to an offline host "stay queued, or unknown if one was in flight".
+            return _reconciled("unknown" if state == "in_flight" else state, False, {"held_for_host": True})
         if host_state == "host_returned" and lookup in _HOST_RETURNED:
             return _reconciled(*_HOST_RETURNED[lookup])
         return dict(_INVALID_RECONCILIATION)
     return dict(_INVALID_RECONCILIATION)
 
 
+def _stale_reason(effect: Mapping[str, Any], context: Mapping[str, Any]) -> str | None:
+    """The four authority checks of schemas README §4.7, in order; the first failing reason, or ``None``."""
+    generation = effect.get("owner_generation")
+    if generation is not None and generation < context["current_generation"]:
+        return "owner_generation"
+    if context["delegation_revoked"]:
+        return "delegation_revoked"
+    if context["assignment_state"] in _TERMINAL_ASSIGNMENT_STATES:
+        return "assignment_state"
+    if context["approval_expired"]:
+        return "approval_expired"
+    return None
+
+
 def dispatch(
-    effect: Mapping[str, Any], prompt: Mapping[str, Any] | None, recovery_in_progress: bool
+    effect: Mapping[str, Any],
+    prompt: Mapping[str, Any] | None,
+    recovery_in_progress: bool,
+    context: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Dispatch decision (I/O contract §9 steps 4 and 8, ODIN-ADR-010; schemas README §4.7).
+    """Dispatch decision (I/O contract §9 outbox and step 8, ODIN-ADR-010; schemas README §4.7).
 
     In order: during recovery ``dispatch_disabled``; a shadow-mode
     attention prompt ``dispatch_refused_shadow``; an effect not ``queued``
-    ``invalid_dispatch_input``; otherwise ``dispatched`` to ``in_flight``.
+    ``invalid_dispatch_input``; then the dispatcher revalidates the
+    effect's authority against ``context`` (§9: "owner generation still
+    current, delegation not revoked, assignment not cancelled, approval not
+    expired") and the first failing check gives ``cancelled_stale`` with
+    its ``reason``; otherwise ``dispatched`` to ``in_flight``.
     """
     if recovery_in_progress:
         return {"outcome": DISPATCH_DISABLED}
@@ -123,28 +151,30 @@ def dispatch(
         return {"outcome": DISPATCH_REFUSED_SHADOW}
     if effect.get("state") != "queued":
         return {"outcome": INVALID_DISPATCH_INPUT}
+    reason = _stale_reason(effect, context)
+    if reason is not None:
+        return {"outcome": CANCELLED_STALE, "reason": reason}
     return {"outcome": DISPATCHED, "state_after": "in_flight"}
 
 
 def revalidate(effect: Mapping[str, Any], context: Mapping[str, Any]) -> dict[str, Any]:
-    """Revalidation before dispatch (AC-27; I/O contract §9 step 4; schemas README §4.7).
+    """Revalidation of a queued or held effect (AC-27; I/O contract §9 step 4; schemas README §4.7).
 
-    Only ``queued`` and ``held`` effects are revalidated. The first failing
-    check, in the order owner generation, delegation revoked, assignment
-    state, approval expired, gives ``cancelled_stale`` with that ``reason``;
-    otherwise ``queued``. ``host_state`` is not consulted in I0.
+    Only ``queued`` and ``held`` effects are revalidated. A ``held`` effect
+    whose blocker still applies (``dispatch_blocker_active``) stays
+    ``held``: it leaves held only through revalidation, and not while the
+    take-control, transfer or revocation that held it is in force (§9).
+    Otherwise the first failing check, in the order owner generation,
+    delegation revoked, assignment state, approval expired, gives
+    ``cancelled_stale`` with that ``reason``; otherwise ``queued``.
+    ``host_state`` is not consulted in I0.
     """
-    if effect.get("state") not in ("queued", "held"):
+    state = effect.get("state")
+    if state not in ("queued", "held"):
         return {"outcome": INVALID_REVALIDATION_INPUT}
-    generation = effect.get("owner_generation")
-    if generation is not None and generation < context["current_generation"]:
-        reason = "owner_generation"
-    elif context["delegation_revoked"]:
-        reason = "delegation_revoked"
-    elif context["assignment_state"] in _TERMINAL_ASSIGNMENT_STATES:
-        reason = "assignment_state"
-    elif context["approval_expired"]:
-        reason = "approval_expired"
-    else:
-        return {"outcome": QUEUED}
-    return {"outcome": CANCELLED_STALE, "reason": reason}
+    if state == "held" and context["dispatch_blocker_active"]:
+        return {"outcome": HELD}
+    reason = _stale_reason(effect, context)
+    if reason is not None:
+        return {"outcome": CANCELLED_STALE, "reason": reason}
+    return {"outcome": QUEUED}

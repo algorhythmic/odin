@@ -46,5 +46,13 @@
     "state": "logged",
     "response": null
   },
-  "recovery_in_progress": true
+  "recovery_in_progress": true,
+  "context": {
+    "current_generation": 2,
+    "delegation_revoked": false,
+    "assignment_state": "dispatched",
+    "approval_expired": false,
+    "dispatch_blocker_active": false,
+    "host_state": null
+  }
 }
