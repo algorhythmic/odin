@@ -8,9 +8,11 @@ must agree with the [decision record](../DECISIONS.md) and the
 scenario is claimed to pass. Adapted for the Odin repository from extraction
 snapshot `2026-10-14-14fdab3`
 ([frozen original](../history/saga-extraction/2026-10-14-14fdab3/docs/design/ODIN-ACCEPTANCE-SCENARIOS.md));
-identifiers AC-01 to AC-30 and DC-01 to DC-08 are unchanged. AC-28 and the
+identifiers AC-01 to AC-30 and DC-01 to DC-08 are unchanged. AC-31 and
+AC-32 are added for ODIN-ADR-002. AC-28 and the
 release scopes in §4 were corrected for the source review (B2, B5;
 [`REVIEW-RESOLUTIONS.md`](../provenance/REVIEW-RESOLUTIONS.md)).
+AC-33 to AC-36 specify ODIN-ADR-004–005; they are not executed tests.
 
 **Where each check runs.** Odin owns these scenarios except AC-29, which is a
 producer-side check at Saga: Odin's acceptance report cites Saga's result
@@ -103,6 +105,12 @@ adapter before claiming its capability.
 | AC-28 | Guidance A's receipt is lost, guidance B is later delivered to the same run, then Odin reconciles A | Odin reconciles A only through Saga's operation lookup and event cursor, never by reading the broker; Saga reports A `superseded` because B's newer `guidance_rev` was delivered first; Odin marks A `superseded` and never resends it; B remains in place. Saga never replacing a newer revision with an older one is the Saga-side check (pinned contract CT-18) |
 | AC-29 | A worker publishes on its run's `answers/` or `guidance` topic | The broker rejects it under the direction-specific ACL; the attempt is visible in Saga's logs; no answer or guidance record changes (Saga-side check; the transport named here is v7's proposal and Saga's pinned contract governs it) |
 | AC-30 | An approval request expires and is reissued for unchanged content; the operator answers the new one | The answer resolves against the new request id and revision and is applied; it is not discarded as a duplicate of the expired request; the proposal digest still binds the content |
+| AC-31 | Routine journal batches yield `no_attention`, `attention_required`, uncertain, unavailable or malformed triage; inject a mandatory event during triage | No-attention evidence and typed result persist without an immediate planner wake; attention queues a bounded coalesced wake; uncertain/failed/invalid triage queues original evidence for the planner without waiting for a successful report. Mandatory events bypass both triage and evaluator; shadow evaluator output cannot suppress the baseline. Missing source coverage is invalid, not silent success |
+| AC-32 | A no-attention batch approaches its maximum age while no planner turns occur; restart, reclassify, then repeat under a budget pause | Original intake deadline survives restart and reclassification. A bounded digest schedules one batched wake by the default six-hour deadline; an earlier consuming turn prevents a redundant wake. Under a hard cap, retain the digest and expose overdue attention without claiming delivery or bypassing the cap. New batches cannot indefinitely postpone older evidence; consumption is recorded and original evidence remains reachable |
+| AC-33 | A journal says all is well or instructs the router to ignore failures while a typed test-regression transition arrives; also replay with swapped option order and truncated evidence | Typed regression wakes regardless of evaluator output; no hosted request includes D9-protected content. Shadow results cannot alter baseline routing. Missing evidence/conflicting signals cannot qualify for deferral; record option-order sensitivity, Haiku disagreement and independently assessed outcomes |
+| AC-34 | Compactor returns only thinking, empty text, refusal, truncated text, or a multibyte summary over 512 UTF-8 bytes; repeat until retry budget ends | No failed candidate becomes a valid node; original source and last valid view remain accessible; bounded retries stop and expose backlog/coverage limits. Validate both initial leaf summaries and merged nodes, with output allowance including thinking |
+| AC-35 | Whole Haiku request crosses the configured headroom or 100,000-token boundary through tool history, cached input or an oversized raw leaf; repeat without adapter token telemetry | Direct-call preflight splits/defer inputs or applies a recorded configured exception; safe harness rotation preserves commitments. All observed threshold crossings are flagged; cached inputs count. Missing telemetry is explicit, never reported as zero usage or a proven hard limit; mandatory context is not silently discarded |
+| AC-36 | Operator message lacks a project binding; a wake has conflicting session-class requirements; classifier suggests an approval, stop, model switch or new target | Operator target ambiguity returns to the shared command path without semantic routing. Code selects the configured capable class within budget or queues/escalates; no silent downshift or mid-session model change. Classifier output grants no authority; identity/request binding and direct stop checks still apply |
 
 ### Optional desktop cases
 
@@ -155,6 +163,38 @@ Evaluate Mimir on frozen pre-review artifacts with independent outcome assessmen
 Split retrieval/routing examples by artifact or conversation lineage so copies
 do not leak between tuning and held-out evaluation.
 
+**Memory comparison protocol (ODIN-ADR-003).** At I5 the baseline is rolling
+summary plus structured notes, compared with OptChat/UniiChat memory. Both
+arms use the same frozen fixture retriever, with pinned corpus/source
+revisions, scope filters, query-to-result mapping and byte limits; the same
+query returns the same ordered results. Freeze tasks, harness/model,
+retention settings and total budget before measurement, and retain identical
+authoritative commitments in both arms. Record actual queries, consumed
+bytes and all compaction, summarization and retrieval costs. Reject a
+comparison with unequal retrieval access; label fixture results as a
+controlled memory comparison, not proof of live Braid/Skald integration.
+After I6, repeat with the same live retrieval adapters in both arms and
+disclose changed corpora or configuration. Phase G retains the final D18
+comparison; production retention defaults remain a separate open question.
+
+**Attention and compaction experiments (ODIN-ADR-004–005).** Pin evaluator
+projection, options, order, threshold and model version before activation.
+Report Haiku disagreement separately from independently assessed errors;
+test injected prose, missing coverage and mandatory-event conflicts. Prefer
+conservative deferral based on actionable-event false negatives and delay,
+not a universal confidence cutoff. Include fallback and digest costs.
+
+For compaction, compare `medium`, `high` and `xhigh` on identical synthetic
+fleet/journal fixtures first, then explicitly scoped real migration data.
+Set fidelity/latency limits before measurement; assess lost or changed ids,
+numbers, negation, supersession, open commitments, empty/invalid replies,
+retries and total cost. Jev's fidelity score is supporting evidence, not the
+sole assessor. Select the least costly passing configuration and retain the
+model, effort, thinking mode, output allowance and prompt revision. Triage
+has its own workload and effort evaluation. Check a pinned gist revision
+and its reported cache fix before code reuse; do not claim transferred
+cache performance from the original replay.
+
 ### Primary measures
 
 Verified outcomes per operator hour; missed commitments; false completion;
@@ -183,6 +223,9 @@ count, confidence threshold, or claimed performance gain is established here.
 - **Ecosystem demonstration:** the full three-document walkthrough with actual
   attributed views and history retrieval; selection-based preservation only after
   dotprivate's release contract exists.
+- **Memory evidence:** distinguish the I5 controlled fixture comparison from
+  the repeated live-retrieval comparison after I6 and the final Phase G
+  evaluation. Report each configuration and its limitations separately.
 - **Desktop proof:** I7 and DC-01–08; no inference from headless fixture timings
   to complete model-driven performance.
 

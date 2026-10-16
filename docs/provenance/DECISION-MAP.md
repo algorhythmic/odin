@@ -27,8 +27,8 @@ joint Saga and Odin decision record frozen at
   cross-reference the two maps by decision and content, never by
   suffix; for example Odin's `D24.8a` and Saga's `D24.d` are the same
   planning-session default. Neither map renumbers the other. New
-  decisions use `ODIN-ADR-nnn` (Odin) or `SAGA-ADR-nnn` (Saga); none has
-  been recorded on Odin's side.
+  decisions use `ODIN-ADR-nnn` (Odin) or `SAGA-ADR-nnn` (Saga). Odin's
+  records are mapped at the end of this document and in DECISIONS.md §4.
 - **Owner.** The repository whose live record carries the normative
   text after the handoff is recorded. `Shared rule` means the clause
   applies to both services and each owns its own implementation and
@@ -161,7 +161,7 @@ joint Saga and Odin decision record frozen at
 | D7.7 | Interactive-only behaviours (channels, plugin monitors, teammates) not relied on; the service supplies its own Telegram adapter and event intake | Odin | IO §11 | locked | — |
 | D7.8 | Memory interface and six requirements | Odin | IO §8 | locked | — |
 | D7.9 | UniiChat ideas adapted to the runtime boundary; not promised: fresh call per message, exact prompt layout, cache economics, constant context | Odin | IO §8, §11 | hypothesis | Victor Taelin's design; gist shows no license (§5.5) |
-| D7.10 | Implementation stays only if it beats the simpler baseline on D18 memory measures at comparable cost; "nothing is lost" means retained bytes | Odin | IO §8; AS §3 | hypothesis | Baseline choice open (§5.3) |
+| D7.10 | Implementation stays only if it beats the simpler baseline on D18 memory measures at comparable cost; "nothing is lost" means retained bytes | Odin | IO §8; AS §3 | hypothesis | ODIN-ADR-003 sets rolling summary plus notes and identical fixture retrieval at I5; repeat with live retrieval after I6. No outcome claimed |
 | D7.11 | Commitments are not memory; commitment record contents; Saga keeps authority and execution state, Odin keeps commitments and memory | Odin | IO §2; BP §4 | locked | — |
 | D7.12 | Retention: redaction as the one exception to append-only; propagation; logged; backups follow policy | Odin | IO §8; AC-26 | locked | Retention defaults open (§5.3) |
 
@@ -185,8 +185,8 @@ joint Saga and Odin decision record frozen at
 | D9.2 | `decide(state, questions)`: advisory, provider abstraction, explicit unavailable/invalid status, cannot execute | Odin | IO §6 | locked | — |
 | D9.3 | Evaluators: versioned, fixed configuration, registry of hook locations; unsupported locations; operator-intent hook withdrawn | Odin | IO §6 evaluators | locked | The operator-intent hook (also once in the blueprint) is withdrawn in the source |
 | D9.4 | `propose_decider(config)`: approval binds full configuration; replay and shadow before activation; revalidation; one-command rollback | Odin | IO §6 | locked | Renamed from `install_decider` (§2) |
-| D9.5 | Safety rules: mandatory checks first; bypass for operator and control messages; typed messages never classified; maximum deferral; confidence is not correctness; sensitivity follows content to the local provider | Odin | IO §4, §6; BP §6 | locked | — |
-| D9.6 | First experiment: journal-attention evaluator in shadow mode against Haiku triage | Odin | IO §6; ROADMAP Phase F | locked | — |
+| D9.5 | Safety rules: mandatory checks first; bypass for operator and control messages; typed messages never classified; maximum deferral; confidence is not correctness; sensitivity follows content to the local provider | Odin | IO §4, §6; BP §6 | locked | ODIN-ADR-002 specifies typed triage, bounded digest and visible overdue state under caps; bypass rules unchanged |
+| D9.6 | First experiment: journal-attention evaluator in shadow mode against Haiku triage | Odin | IO §6; ROADMAP Phase F | locked | ODIN-ADR-002 clarifies the baseline triage path; shadow output cannot suppress its wakes |
 
 ### SAGA-2026-10-D10 — The standalone tools stay separate (locked; Odin consumer, peers own capabilities)
 
@@ -243,7 +243,7 @@ joint Saga and Odin decision record frozen at
 | D14.3 | The documentation handoff may create `odin` earlier than Phase C as a documentation-first scaffold: design documents, frozen record snapshot, provenance map preserving D-numbers, pinned Saga contract once it exists | Odin | this checkout | locked | Already permits this scaffold; no further amendment needed |
 | D14.4 | Code extraction enters in the blueprint's increments | Odin | BP §7; ROADMAP | locked | — |
 | D14.5 | Deployment cutover still depends on Saga Phase B | Odin (gate); Saga (provider) | ROADMAP; BP §7 | locked | — |
-| D14.6 | Handoff gate: contract held for one review cycle; Saga's producer contract extracted at Saga; decision map written | Shared rule | DECISIONS.md D14; docs/README.md | locked | Gate **not yet satisfied**: review in progress (CHANGES_REQUIRED); producer contract pinned as a draft with its producer commit unrecorded; this map is a candidate |
+| D14.6 | Handoff gate: contract held for one review cycle; Saga's producer contract extracted at Saga; decision map written | Shared rule | DECISIONS.md D14; docs/README.md | locked | Gate **not yet satisfied**: final independent review pending (source review CHANGES_REQUIRED). Draft pin bookkeeping complete: producer commit `a84f9ac28a6b4de651fccc057d33a335472f9773` recorded and bytes match canonical draft; target API unimplemented; this map remains a candidate |
 | D14.7 | Until the handoff is recorded, Saga remains the document owner | Saga | README; DECISIONS.md header | locked | Lapses only when the handoff is recorded in both repositories |
 
 ### SAGA-2026-10-D15 — Development direction and sequencing (locked; split)
@@ -260,7 +260,7 @@ joint Saga and Odin decision record frozen at
 | D15.Fa | Phase F: `recall` on braid, `decide`, first evaluator in shadow, skald archiver, observability | Odin | ROADMAP; IO §13 | locked | — |
 | D15.Fb | Phase F: Bragi on the new inputs | Saga | — | locked | — |
 | D15.G | Phase G: the D18 evaluation and demonstration; results published in the repo | Odin (Odin comparison); Saga (participant) | ROADMAP; AS §3–4 | locked | — |
-| D15.8 | B precedes C: Odin v1 is built against the API and its first live project must meet the D0 boundary | Shared rule | DECISIONS.md D15 (handoff clarification); IO §13; ROADMAP; BP §7 | locked | Handoff clarification (review B2; issues X-1, X-9): I0–I2 non-production against a fake backend; I3, live runs and submissions, cutover and the Phase C exit wait for Phase B's exit; peer integrations in D15's phases. Same text in Saga's D15 note |
+| D15.8 | B precedes C: Odin v1 is built against the API and its first live project must meet the D0 boundary | Shared rule | DECISIONS.md D15 (Odin-side interpretation); IO §13; ROADMAP; BP §7 | locked | X-1 open: allowing I0–I2 alongside Phase B is Odin's interpretation of source blueprint §7, not recorded in Saga. I3, live runs/submissions, cutover and Phase C exit remain gated on Phase B. Peer placement internally reconciled (X-9); producer sequencing agreement pending |
 
 ### SAGA-2026-10-D16 — Documentation (locked; historical except design ownership)
 
@@ -315,7 +315,7 @@ joint Saga and Odin decision record frozen at
 | D20.5 | Two operator interfaces, one command path; approvals bound to the proposal whatever the channel; stop works when the model is unresponsive | Odin | IO §10 operator; AC-05, AC-06, AC-10 | locked | — |
 | D20.6 | Native vs interactive terminal integration; capabilities tested and published; workspace "done"/"wait" do not establish completion | Odin | IO §11; EI §4; AC-13 | locked | Herdr API not reviewed (§5.8) |
 | D20.7 | Adopt into supervision; take control | Odin | IO §10 operator; AC-11 | locked | — |
-| D20.8 | Service path vs model path; handling table | Odin | IO §4 | locked | — |
+| D20.8 | Service path vs model path; handling table | Odin | IO §4 | locked | ODIN-ADR-002 replaces unconditional journal-report wake with typed outcomes and bounded digest |
 | D20.9 | Structured requests go directly to the operator queue; planner joins only when the answer changes the plan | Odin | IO §4, §10; AC-07 | locked | — |
 | D20.10 | Ownership bridge with standalone heimdall: projection, edits route to owner, no second editable copy; new work scheduled with the workspace integration | Odin + heimdall | EI §5; EC-05 | locked | Heimdall's side is heimdall's to adopt |
 | D20.11 | First configuration; then a second project before any further supervisory layer | Odin | ROADMAP; IO §13 | locked | — |
@@ -376,15 +376,17 @@ joint Saga and Odin decision record frozen at
 
 ## §5 — Open decisions for the operator
 
-All remain open. Moving them does not answer them.
+Original question identities are preserved. Items §5.3 and §5.5 are partly
+settled by the operator-directed Odin ADRs; moving a question alone does
+not answer it.
 
 | Item | Question | Owner | Odin location | Notes |
 |---|---|---|---|---|
 | §5.1 | Is Saga active again? | Saga / Operator | ROADMAP gates; IO §14 step 2 | Blocks Phase B and therefore I3 |
 | §5.2 | Opus 5.5 or Sonnet 5.5 as Odin's default turn model; model for decomposition reviews | Odin / Operator | IO §15 | — |
-| §5.3 | Memory baseline for the D7 evaluation; retention defaults | Odin / Operator | IO §15 | — |
+| §5.3 | Memory baseline for the D7 evaluation; retention defaults | Odin / Operator | ODIN-ADR-003; IO §8, §15 | Comparison baseline and fixture protocol set; freeze run parameters before measurement; production retention defaults open |
 | §5.4 | muninn: a `recall` scope, Bragi's second destination, or retirement | Odin + Saga / Operator | IO §15 | — |
-| §5.5 | Licenses: the UniiChat gist and the five standalone repos show none | Shared / Operator | README; AGENTS.md | Settle before anything goes public; Odin has no license file and grants none |
+| §5.5 | Own-project license choice and third-party reuse terms | Shared / Operator | ODIN-ADR-001; README; LICENSE | Apache-2.0 default, MIT for dotprivate; Odin license added. UniiChat reuse/attribution remains open; no blanket claim about absent peer licenses |
 | §5.6 | Claim the Max API credits; a second seat | Operator | ROADMAP (dependency) | Planning sessions' default `api` mode depends on the credits |
 | §5.7 | The first delegation for the D18 demonstration | Odin / Operator | ROADMAP Phase G | — |
 | §5.8 | Herdr's automation API capabilities per adapter | Odin / Operator | EI §4; EC-03 | — |
@@ -413,3 +415,20 @@ All remain open. Moving them does not answer them.
 These are corrections of design documents to existing decisions,
 recorded in [`REVIEW-RESOLUTIONS.md`](REVIEW-RESOLUTIONS.md). No
 decision clause has been superseded on its merits by this extraction.
+
+## Odin decisions after bootstrap
+
+These operator-directed corrections are distinct from the original extraction
+dispositions above. They do not amend Saga-owned contracts or record the
+formal handoff. See [DECISIONS.md §4](../DECISIONS.md#4-odin-decisions-odin-adr).
+
+| Decision | Status | Inherited relationship | Operational locations |
+|---|---|---|---|
+| ODIN-ADR-001 | locked | Resolves Odin's source §5.5 license choice; retains D7.9 third-party attribution/reuse question | README, LICENSE, source question §5.5 above |
+| ODIN-ADR-002 | locked design correction | Operationalizes D9.5–D9.6 and D20.8; supersedes extracted IO §4/§5 unconditional journal-triage wake, without weakening mandatory-event or maximum-age rules | IO §4–§5, BP §5–§6, AC-31–AC-32 |
+| ODIN-ADR-003 | default evaluation configuration | Sets source §5.3 baseline/protocol for D7.10 and D18; retention defaults remain open; D10/D15 integration order unchanged | IO §8/§13, BP §6–§7, ROADMAP I5/I6, AS §3 |
+| ODIN-ADR-004 | default design; activation still gated | Refines D9.3–D9.6, D20.8–D20.9 and ADR-002; retains four hooks/operator exclusion; code selects stable session classes under D7/D24 | IO §5–§6, BP §6, ROADMAP I6, AC-33/AC-36 |
+| ODIN-ADR-005 | default experiment configuration | Adds trial settings and failure/request-budget checks for D7.9–D7.10 and D18; cache-fix source inspected at `3c190e0`, runtime regressions pending; compactor context scope open (X-10); no transferred cache claims or proven effort optimum | IO §8/§12, BP §6, ROADMAP I2/I3, AC-34–AC-35, AS §3; OPTCHAT-CACHE-REVIEW.md |
+
+The early Codex adapter experiment in ROADMAP Phase C is a proposal, not
+an ADR or a changed gate. Full second-adapter delivery remains I5.

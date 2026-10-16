@@ -10,7 +10,9 @@
 > recorded in both repositories, the joint record frozen at
 > [`history/saga-extraction/2026-10-14-14fdab3/docs/DECISIONS.md`](history/saga-extraction/2026-10-14-14fdab3/docs/DECISIONS.md)
 > (Saga commit `14fdab3`) and Saga's live record remain authoritative,
-> and this file must agree with them (D14.7).
+> and this file must agree with them (D14.7), except for explicit
+> operator decisions recorded in Odin's ADRs. These apply to Odin only;
+> they do not amend Saga-owned interfaces or close the handoff.
 >
 > **Authority within Odin.** This record wins over the
 > [I/O contract](design/ODIN-IO-CONTRACT.md), which wins over the
@@ -28,8 +30,8 @@
 > `SAGA-2026-10-Dn`, written `Dn` for short in all Odin documents.
 > [`provenance/DECISION-MAP.md`](provenance/DECISION-MAP.md) resolves
 > every `Dn` and its clauses (`D7.4`, `D24.8a`) to an owner, a location
-> and a status. New Odin decisions are `ODIN-ADR-nnn` (§4); none has
-> been recorded.
+> and a status. New Odin decisions are `ODIN-ADR-nnn` (§4), with their
+> scope and inherited-clause relationship recorded explicitly.
 >
 > **Status values** (unchanged from the source): **locked** (build
 > against it), **default** (locked unless the operator objects),
@@ -278,6 +280,9 @@ the same retention policy.
 Ownership notes: the planning-session authentication default is
 confirmed or changed under open question §5.12a. UniiChat is Victor
 Taelin's design; the gist shows no license (open question §5.5).
+ODIN-ADR-001 settles Odin's own license, not third-party reuse rights.
+ODIN-ADR-003 supplies the baseline and staged evaluation protocol for D7.10;
+production retention defaults remain open.
 
 ### SAGA-2026-10-D8 — Mimir: selective, evidence-based, measured (default)
 
@@ -456,8 +461,12 @@ this repository remains the document owner.
 State in this checkout: this is the documentation-first scaffold D14.3
 permits; no further amendment is needed for it. The handoff gate
 (D14.6) is not yet satisfied: the review cycle is in progress, Saga's
-producer contract is pinned here only as a draft whose producer commit
-is not yet recorded, and the decision map is a candidate. "This repository" in the carried text means Saga (D14.7).
+producer contract is pinned as `0.1.1-draft` at producer commit
+`a84f9ac28a6b4de651fccc057d33a335472f9773`, and the decision map is a
+candidate. The pinned bytes match the canonical draft; its target API
+is unimplemented. Pin bookkeeping is complete, but no final independent
+review or formal handoff is claimed. "This repository" in the carried
+text means Saga (D14.7).
 
 ### SAGA-2026-10-D15 — Development direction and sequencing (locked; split)
 
@@ -487,9 +496,12 @@ the mapping to Odin increments is in the [roadmap](ROADMAP.md).
   against the API, and because the first live project must meet the
   boundary D0 promises." (D15.8)
 
-**Handoff clarification on sequencing** (source review B2, issue X-1;
-recorded identically in Saga's live record, D15). This is a reading of
-existing decisions and grants no new permission. D14.4 has code
+**Odin-side sequencing interpretation; producer reconciliation pending**
+(source review B2, issue X-1). Saga's live D15 does not contain this
+clarification, and its developer instructions still prohibit starting
+Phase C before Phase B's API and minimum enforcement. This is a proposed
+reconciliation of that wording with the source blueprint, not an amendment
+approved in Saga. D14.4 has code
 extraction enter in the blueprint's increments; the source blueprint
 (§7) lets I0 to I2 use a fake Saga backend; the source extraction plan
 (§1) says a fake backend establishes no production readiness. Read with
@@ -503,7 +515,7 @@ adapter with adopt and take-control in I4 (D15.Db), the second harness
 adapter in I5 (D15.Eb), braid `recall` and skald enrollment and archive
 in I6 (D15.Fa, D10). Earlier work on any of them is fixture work only.
 The mapping is in I/O contract §13 and the [roadmap](ROADMAP.md). The
-operator may still reopen this reading (Saga §5 question 13).
+interpretation remains open at X-1 until reconciled in the two repositories.
 
 Saga's phases A, B and its parts of D, E and F (D15.A, D15.B, D15.Da,
 D15.Ea, D15.Fb) are Saga's and appear in Odin's roadmap as dependencies.
@@ -885,20 +897,25 @@ subscription default (D24.8b), and the shadow-period shared volume
 
 ## 3. Inherited open decisions (source §5)
 
-All twelve remain open. The decision map assigns each an owner.
+The original question numbers are preserved. Items 3 and 5 are partly
+settled by the operator-directed corrections below; the remaining questions
+stay open. The decision map assigns each an owner.
 
 1. **Is Saga active again?** Braid's roadmap recorded "Saga is deferred
    by user direction" in September; Phase B assumes it is not. Blocks
    Phase B and therefore I3.
 2. **Opus 5.5 or Sonnet 5.5** as Odin's default turn model, and the
    model for decomposition reviews (D8).
-3. **The memory baseline** for the D7 evaluation (rolling summary plus
-   notes plus `recall` is proposed) and the retention policy's defaults.
+3. **Memory evaluation and retention:** ODIN-ADR-003 sets the comparison
+   baseline and an I5 fixture-retrieval protocol; freeze run parameters
+   before measurement. Retention defaults remain open.
 4. **Muninn's future**: a `recall` scope, Bragi's second destination
    later, or retirement.
-5. **Licenses**: the UniiChat gist shows none; the five standalone repos
-   show none. Settle before anything goes public. This repository has no
-   license file and grants none.
+5. **Licenses:** the operator selected Apache-2.0 as the project default,
+   with MIT for dotprivate (ODIN-ADR-001). Odin now carries its license.
+   Third-party UniiChat reuse terms and attribution remain unresolved;
+   the original blanket claim that the standalone repositories have no
+   licenses is stale. Peer repositories govern their own published terms.
 6. **Credits and seats**: claim the Max API credits; decide on a second
    seat once the fleet runs again.
 7. **The first delegation** for the D18 demonstration.
@@ -928,16 +945,141 @@ self-change.
 
 ## 4. Odin decisions (ODIN-ADR)
 
-None recorded. Record new Odin decisions here as `ODIN-ADR-001`
-onwards, each with status, context, decision, consequences and the
-inherited clauses it amends or supersedes; then update the decision
-map. Do not renumber or rewrite an inherited `Dn`; supersede its clause
-explicitly.
+These records implement the operator's requested corrections on 2026-10-14.
+They govern Odin's work; they neither close D14's handoff nor change a
+producer's interface. Inherited text and identities remain intact.
+
+### ODIN-ADR-001 — Project license
+
+- **Status:** locked; records the operator's earlier instruction to default
+  to Apache-2.0, with MIT for dotprivate.
+- **Context:** the extracted license question incorrectly treated the
+  operator's choice and third-party reuse permission as one open question.
+- **Decision:** license Odin's original contributions under Apache-2.0 and
+  include the canonical license text. Preserve third-party notices and terms;
+  neither the root license nor this ADR relicenses retained source material.
+- **Consequences:** the own-project choice is settled. Resolve permission
+  and attribution for UniiChat material before incorporating or publishing
+  that material. No license change is made in a peer repository here.
+- **Inherited relationship:** resolves Odin's portion of source §5.5;
+  leaves D7.9's attribution/reuse obligation and third-party question open.
+
+### ODIN-ADR-002 — Journal attention without an unconditional planner wake
+
+- **Status:** locked design correction; not implemented.
+- **Context:** the journal triage path woke the planner for every report,
+  eliminating its intended attention-cost benefit.
+- **Decision:** coalesce eligible journal entries by project within a bounded
+  window and record a typed result with covered source ids: `no_attention`,
+  `attention_required`, `uncertain`, `unavailable`, or `invalid`.
+  `no_attention` is logged without an immediate planner wake;
+  `attention_required` queues a bounded report and coalesced wake. An uncertain,
+  unavailable or invalid triage result queues the original evidence for a
+  coalesced planner wake. No successful report is required to release that
+  fallback. Optional evaluator failures use the ordinary triage baseline;
+  if that also fails, the planner fallback applies.
+- **Consequences:** a no-attention result defers attention, never deletes an
+  event or resolves a commitment. Deferred evidence enters a bounded digest
+  by the maximum age (default six hours from original intake, not reset by
+  reclassification). If no planning turn consumes it sooner, schedule one
+  batched wake at the deadline. Budget pauses retain and visibly mark overdue
+  work; do not bypass hard caps or pretend delivery occurred. Mandatory
+  events bypass triage and evaluators. Direct operator requests never wait
+  for a model. High-risk projects can use direct planner evaluation.
+- **Inherited relationship:** operationalizes D9's optional routing and D20's
+  deterministic outer loop; supersedes the extracted I/O contract §4/§5
+  rule that every journal triage report wakes the planner. D9's bounded
+  deferral, mandatory-event bypass and shadow-before-activation rules stand.
+
+### ODIN-ADR-003 — Memory comparison before retrieval integration
+
+- **Status:** default evaluation configuration; not a measured result.
+- **Context:** I5 evaluates memory before I6 implements Braid `recall` and
+  Skald integration; comparing unequal retrieval access would confound it.
+- **Decision:** compare rolling summary plus structured notes against
+  OptChat/UniiChat memory at I5 with the same frozen fixture retriever in
+  both arms. Pin corpus and source revisions, scope filters, query-to-result
+  mapping, byte limits, harness/model, task set, retention setting and total
+  budget before running. Both arms receive the same retrieval access; for a
+  given query they receive identical ordered results. Record actual queries,
+  consumed bytes and all memory/retrieval costs. Authoritative commitments
+  are identical in both arms and are not replaced by summaries.
+- **Consequences:** I5 evidence is a controlled memory comparison, not proof
+  of live `recall`, Braid or Skald integration. Repeat the comparison with
+  both arms using the same real adapters after I6; disclose corpus or
+  configuration changes. The final D18 evaluation remains in Phase G.
+  Production retention defaults remain open; run-specific settings must be
+  frozen before evaluation.
+- **Inherited relationship:** sets the baseline requested by source §5.3
+  and supplies the protocol for D7.10 and D18. It does not move D10/D15's
+  retrieval integrations out of I6 or claim the memory hypothesis is proven.
+
+### ODIN-ADR-004 — Narrow attention classification and session-class routing
+
+- **Status:** default design, following the operator's routing review;
+  evaluator activation still requires D9's evidence and approval.
+- **Context:** worker prose, operator routing and model selection have
+  different failure costs. The existing journal-attention hook already
+  covers the first experiment; no fifth hook is added.
+- **Decision:** retain D9's four hook locations and operator exclusion.
+  Bind operator input to an explicit project/session or ask for a target;
+  no classifier silently selects one. For eligible worker prose, defer
+  only when `P(routine)` meets a workload-validated threshold and code
+  finds no mandatory event, missing coverage or conflicting typed state.
+  Otherwise use ADR-002's baseline fallback. Choose the threshold for
+  missed-action and delay limits, not aggregate accuracy or a vendor's
+  confidence number. Shadow results compare with Haiku and independently
+  assessed outcomes; agreement with Haiku is not ground truth.
+- **Consequences:** send a bounded extract plus run, iteration and status
+  metadata; retain source references and mark omissions. D9's local-only
+  rule follows sensitive content into extracts and questions. Code chooses
+  model/effort from session class, event kind and assignment requirements,
+  keeping them stable during a session. Ambiguous class selection uses the
+  configured more capable class within budget or queues/escalates; it does
+  not silently downshift. A future advisory complexity Score needs a new
+  proposal supported by measured routing ambiguity. Jev cannot compact,
+  draft guidance or decompose work; worker-model selection stays with
+  Odin's planning and launch policy, with Mimir where D8 requires it.
+- **Inherited relationship:** operationalizes D9.3–D9.6, D20.8–D20.9 and
+  ADR-002; preserves D7's harness boundary and D24's launch configuration.
+  No enforcement or approval requirement is delegated to a classifier.
+  Checks: AC-33 and AC-36; I/O contract §5–§6.
+
+### ODIN-ADR-005 — Compactor effort and request-size discipline
+
+- **Status:** default experiment configuration, not a measured optimum.
+- **Context:** the supplied gist review reports `xhigh` in the original
+  setup, but Odin's
+  separate compactor has different prompts and cache behavior. Anthropic's
+  default for Haiku 5.5 is `medium`; its guidance supports testing `high`
+  for fidelity-sensitive instructions, not mandating it for compaction.
+- **Decision:** start the compactor experiment at `high` and compare
+  `medium`, `high` and `xhigh` on the same scoped corpus. Select the least
+  costly configuration meeting predeclared fidelity/latency requirements;
+  evaluate triage separately. Pin model, effort, thinking mode, output
+  allowance and prompt revision. Validate nonempty visible text and byte
+  length; bounded failure recovery retains the source and last valid view.
+  Jev may assess a candidate's fidelity, never write its replacement.
+- **Consequences:** target Haiku requests below 100,000 input tokens with
+  configured headroom, using model-specific counts of the whole request.
+  Bound raw leaf inputs as well as merges. Use the 16 KB summary-view end
+  of the briefing range for triage, fetching further evidence within budget.
+  Log actual usage, cache behavior and threshold crossings where observable;
+  missing adapter telemetry is a coverage gap, not zero cost. The reported
+  gist cache fix has now been inspected at revision `3c190e0` (2026-10-15;
+  [inspection](provenance/OPTCHAT-CACHE-REVIEW.md)); implementation regression
+  checks remain required before reuse. Its replay cache rate is not an
+  Odin estimate. Compactor context scope remains open at X-10.
+- **Inherited relationship:** supplies experimental defaults for D7.9–D7.10
+  and D18, without changing the memory hypothesis or claiming transferred
+  cache economics. Checks: AC-34–AC-35; I/O contract §8/§12. Provider facts
+  and source links are recorded there; deployment defaults remain subject
+  to the evaluation.
 
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that
-resolved it. X-2, X-5, X-6 and X-8 are open. X-1, X-3, X-4 and X-9 are
+resolved it. X-1, X-2, X-5, X-6, X-8 and X-10 are open. X-3, X-4 and X-9 are
 resolved as recorded readings of existing decisions; X-7 is resolved
 only as far as fail-closed handling. Every resolution is subject to the
 re-review and to the operator.
@@ -946,13 +1088,15 @@ re-review and to the operator.
   developer instructions say "Do not start C before B's API and minimum
   enforcement exist". The blueprint (§7), carried by D14.4, allows I0–I2
   against a fake Saga backend, and the I/O contract (§13) places I0–I1
-  beside Phase B and I2–I3 in Phase C. **Resolved** by the handoff
-  clarification under D15 (review finding B2): I0, I1 and I2 are
+  beside Phase B and I2–I3 in Phase C. **Open: producer reconciliation
+  pending.** Odin's interpretation under D15 (review finding B2): I0, I1 and I2 are
   non-production work against fixtures and a fake backend; I3, any live
   delegated run, any live Saga submission, deployment cutover and the
   Phase C exit wait for Phase B's exit. Evidence: D14.4, source
-  blueprint §7, source extraction plan §1, D15.8. Saga's record carries
-  the same clarification (its D15 note and §5 question 13).
+  blueprint §7, source extraction plan §1, D15.8. Saga's live record
+  does not carry this clarification. Record agreement in both repositories
+  before describing the sequencing exception as jointly approved. This
+  documentation correction does not amend Saga's record.
 - **X-2 — Stop operations.** The extraction plan lists D2 as Saga-owned,
   but two of D2's four stop operations (pause planner, disable
   schedules) act on Odin's state. The map keeps the definition with
@@ -960,7 +1104,9 @@ re-review and to the operator.
   Confirm, or move those clauses to an Odin decision (review gap G2).
 - **X-3 — Pinned Saga contract.** `contracts/saga/2026-10-14-14fdab3/SAGA-SERVICE.md`
   is pinned as a draft (`0.1.1-draft`, target API unimplemented; its
-  producer commit is not yet recorded). **Resolved as a check:** Appendix
+  producer commit is `a84f9ac28a6b4de651fccc057d33a335472f9773`, recorded
+  in `SNAPSHOT.json`; pinned bytes match the canonical draft).
+  **Resolved as a document check, not a handoff approval:** Appendix
   B of the I/O contract now records, per capability, what Saga's
   canonical `0.1.1-draft` provides and what is a gap (no delegation read
   operation; no published admission schema; wire details Saga still has
@@ -1012,10 +1158,21 @@ re-review and to the operator.
   in I5. D15 and I/O contract §13 place `recall` on braid and the skald
   archiver in Phase F (I6). The blueprint puts the Herdr adapter in I4,
   while the contract puts Herdr inspection in Phase C (I2/I3).
-  **Resolved** with X-1 by the handoff clarification under D15: D15 and
+  **Resolved within Odin's documents** under D15 (X-1's cross-repository
+  sequencing interpretation remains open): D15 and
   D10 govern, so braid and skald runtime work is I6, read-only Herdr
   inspection is I3 and the full Herdr adapter with takeover is I4; the
   blueprint (§7), the I/O contract (§13) and the roadmap now agree.
+
+- **X-10 — Context supplied to the independent compactor.** The inspected
+  gist uses preceding context to resolve references; Odin keeps a separate,
+  tool-less compactor but does not specify its context projection. Define
+  a bounded, source-attributed context policy before I2, with no future
+  messages or cross-project leakage. Compare input-only and contextual
+  summaries under ADR-005's fidelity/budget checks, including ambiguous
+  references. The cache inspection does not decide the size or authorize
+  sharing planner tools/prefixes. See
+  [OPTCHAT-CACHE-REVIEW.md](provenance/OPTCHAT-CACHE-REVIEW.md).
 
 ## 6. Outstanding review findings
 
@@ -1023,15 +1180,16 @@ The source contract review, [`provenance/SOURCE-REVIEW.md`](provenance/SOURCE-RE
 returned **CHANGES_REQUIRED**. Its final disposition is recorded in
 [`provenance/HANDOFF.md`](provenance/HANDOFF.md) after an independent
 re-review. The corrections below are applied to the live documents
-and resolved against existing decisions; none is an `ODIN-ADR`, none
-approves a new policy, and none describes implemented behaviour. Each
+against existing decisions; the table records the original source-review
+dispositions, separate from the later Odin ADRs in §4. None describes
+implemented behaviour. X-1 still needs producer reconciliation. Each
 resolution, with its evidence and what stays open, is in
 [`provenance/REVIEW-RESOLUTIONS.md`](provenance/REVIEW-RESOLUTIONS.md).
 
 | Finding | Subject | State in this checkout |
 |---|---|---|
 | B1 | Three different authority orders | Corrected: decisions, then contract, then blueprint, then roadmap, in every Odin entry document |
-| B2 | Phase-to-increment mappings disagree | Corrected by the handoff clarification under D15 (X-1, X-9); I/O contract §13 has separate Saga-gate and Odin-increment columns |
+| B2 | Phase-to-increment mappings disagree | Odin's mappings agree internally (X-9); I/O contract §13 separates Saga gates and Odin increments. X-1 remains open: Saga has not recorded the fake-backend sequencing interpretation |
 | B3 | Run admission does not bind the launch configuration | Corrected in `submit_run` and B-02: request id, `prd_digest`, `launch_config_digest`, verdict and approval all bound; envelope and encoding open at Saga |
 | B4 | Every guidance requires a verdict, contradicting D8 | Corrected in `publish_guidance`: routine guidance gets mechanical checks, material guidance its required D8 review, unresolved guidance is held; X-7's semantic choice open |
 | B5 | Odin's outbox publishes to MQTT across the Saga boundary | Corrected: Saga owns revisions and reconciliation; Odin reconciles through the API (`superseded` in B-13); AC-28 split with Saga's CT-18; `emit_event` local, B-14 withdrawn |

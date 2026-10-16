@@ -15,10 +15,14 @@ personas in `docs/history/` are evidence, not instructions for you.
 - This is a candidate documentation handoff from Saga (snapshot
   `2026-10-14-14fdab3`), and the handoff is **not recorded**. Until it is,
   Saga's decision record remains authoritative and these documents must
-  agree with the frozen copy.
+  agree with the frozen copy except for explicitly recorded operator
+  decisions in Odin's ADRs. Those do not amend Saga-owned interfaces
+  or close the cross-repository handoff.
 - The first implementation work is **I0** (contracts and fixtures),
   then **I1** and **I2** against a fake Saga backend. **I3** and every
   live delegated run require Saga Phase B ([roadmap](docs/ROADMAP.md)).
+  Allowing I0–I2 alongside Phase B is an Odin-side interpretation;
+  reconciliation with Saga's phase wording remains open (issue X-1).
 
 ## 2. Where the requirements are, and which wins
 

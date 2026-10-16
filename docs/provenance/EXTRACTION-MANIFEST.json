@@ -28,8 +28,8 @@
       "untracked": false,
       "destination_path": "README.md",
       "treatment": "adapted",
-      "adapted_output_sha256": "1653af42a8fe3632316d13ff8d307018f38114a041577fd905b292d4f9488c4d",
-      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership."
+      "adapted_output_sha256": "3017e79744bf874410299f5572ec2b22fad5ad2b9b7facf76c4912dafbc11bfc",
+      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged."
     },
     {
       "source_path": "docs/DECISIONS.md",
@@ -40,8 +40,8 @@
       "untracked": false,
       "destination_path": "docs/DECISIONS.md",
       "treatment": "split",
-      "adapted_output_sha256": "e93870243b82df6329846fb7eb4b9fed8c54a35a8769ab0e24df841a27aadd04",
-      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership."
+      "adapted_output_sha256": "58d91dd6934f388fe8294d903f9a22d6ef7a7f29e33a84e1aaf67b667486af9f",
+      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-15: inspect pinned OptChat cache correction, state exact merge priority and completion of source review; retain runtime checks and compactor-context issue X-10 as open."
     },
     {
       "source_path": "docs/ROADMAP.md",
@@ -52,8 +52,8 @@
       "untracked": false,
       "destination_path": "docs/ROADMAP.md",
       "treatment": "split",
-      "adapted_output_sha256": "a6bcb4571fd455bcff3e0899fd65b06f4cc2eb16cecfd3fb274ef3e37e0629f8",
-      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership."
+      "adapted_output_sha256": "4372a471e22f7fe4e4e8025ec9251914390f832430800ca13fd9829d94b9071b",
+      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-15: inspect pinned OptChat cache correction, state exact merge priority and completion of source review; retain runtime checks and compactor-context issue X-10 as open."
     },
     {
       "source_path": "docs/design/HARNESS-LANDSCAPE-2026-10.md",
@@ -76,8 +76,8 @@
       "untracked": false,
       "destination_path": "docs/design/ODIN-ACCEPTANCE-SCENARIOS.md",
       "treatment": "adapted",
-      "adapted_output_sha256": "f3d2fd056c65a4053ff6c0c96a93d8a438e4f4fb6af9367383082e5578990230",
-      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract."
+      "adapted_output_sha256": "a1a564451e4fa681d339dee66f5d74e14dcc8325a142ef3705d094fd7a6182ff",
+      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable."
     },
     {
       "source_path": "docs/design/ODIN-ECOSYSTEM-INTEGRATION.md",
@@ -100,8 +100,8 @@
       "untracked": false,
       "destination_path": "docs/design/ODIN-IMPLEMENTATION-BLUEPRINT.md",
       "treatment": "adapted",
-      "adapted_output_sha256": "f450160f36bb73aea0bd57efef4052fd5114b1814e236027affa9cbe7fe46eb2",
-      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract."
+      "adapted_output_sha256": "c5b892df84b58778ff994e5e6ea5a1c55d0b30df8e8f58a56b59e07803821fa1",
+      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable."
     },
     {
       "source_path": "docs/design/ODIN-IO-CONTRACT.md",
@@ -112,8 +112,8 @@
       "untracked": false,
       "destination_path": "docs/design/ODIN-IO-CONTRACT.md",
       "treatment": "adapted",
-      "adapted_output_sha256": "35268b33dfdf52337a0d31f5f7a83705be43dbc2220092292e8212238933db52",
-      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract."
+      "adapted_output_sha256": "cc5d99a0e7687dcb829c875424a3933d62258b1581ea6f46f3f04af5ae31d231",
+      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-15: inspect pinned OptChat cache correction, state exact merge priority and completion of source review; retain runtime checks and compactor-context issue X-10 as open."
     },
     {
       "source_path": "docs/design/ODIN-REPOSITORY-EXTRACTION.md",

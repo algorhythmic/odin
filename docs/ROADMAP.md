@@ -19,15 +19,17 @@ foundation) and I2 (first harness), both non-production, against a
 fake Saga backend that implements the I/O contract's Appendix B and is
 never presented as Saga. **I3, any live delegated run and any live Saga
 submission wait for Saga Phase B's exit criterion and minimum
-enforcement.** This is the handoff clarification recorded under D15 in
-`DECISIONS.md` (issue X-1, review finding B2).
+enforcement.** Allowing I0–I2 alongside Phase B is Odin's interpretation
+of the source blueprint, recorded under D15 in `DECISIONS.md`. Saga has
+not recorded it; X-1 remains open for reconciliation with Saga's stricter
+phase wording (review finding B2). It is not a jointly approved exception.
 
 ## Dependency gates
 
 | Gate | Owner | Blocks | State |
 |---|---|---|---|
 | G-1 Documentation handoff recorded (D14.6: contract held one review cycle, Saga producer contract extracted, decision map written) | Saga + Odin | Odin becoming the document owner | Source review returned CHANGES_REQUIRED ([findings](provenance/SOURCE-REVIEW.md)); corrections applied ([resolutions](provenance/REVIEW-RESOLUTIONS.md)); re-review pending; not recorded |
-| G-2 Saga contract pinned at `contracts/saga/2026-10-14-14fdab3/` | Saga (producer), copied into Odin | The Saga adapter's compatibility checks | Draft pinned (`0.1.1-draft`); producer commit not recorded; to be repinned from the corrected canonical bytes; Appendix B checked against the canonical draft at document level (X-3) |
+| G-2 Saga contract pinned at `contracts/saga/2026-10-14-14fdab3/` | Saga (producer), copied into Odin | The Saga adapter's compatibility checks | Pin bookkeeping complete: `0.1.1-draft`, producer commit `a84f9ac28a6b4de651fccc057d33a335472f9773` recorded; digest matches canonical draft. Appendix B checked at document level (X-3). Target API unimplemented; formal review remains G-1 |
 | G-3 Saga confirmed active (open §5.1) | Operator | Phase B, migration step 2 | Open |
 | G-4 Saga Phase B exit: CLI submits, watches, guides, stops and cancels; refused for the same reasons Odin would be; `/stop` stops a delegation and reports | Saga | I3, live runs, deployment cutover (D14.5) | Not started |
 | G-5 Billing and auth re-test recorded; Max API credits claimed (open §5.6, §5.12) | Saga / Operator | Planning-session `api` default in production (D24.8a: default, pending operator confirmation) | Open; no billing test has run |
@@ -54,7 +56,7 @@ scoping Saga's record and is carried the same way.
 | G4 | Saga's validator as a dependency: `stage_run` pre-checks only against a schema Saga publishes, never Saga's code (Saga ADM-10) | Saga (published schema); Odin (pre-check against it) | Odin relies on local pre-checks (I3 at the latest); until then there is no pre-check |
 | G5 | Planner answers: Saga can enforce only the request kind and the delegation's permission, not "does not change the plan" (Saga RQ-5) | Saga (enforcement); Odin (the judgment, logged and reviewable) | Saga's Phase B request protocol; Odin's I3 |
 | G6 | Unconfirmed integrations: Herdr's API (§5.8), skald retrieval (§5.11), dotprivate's selected-files contract (§5.10), the heimdall projection (EC-05) | Odin with each peer | Herdr: I3 (read-only inspection) and I4 (adapter); heimdall: I5; skald, braid, dotprivate: I6 |
-| G7 | Unsettled defaults: the billing and auth re-test; the Console spend cap not applying under a subscription login; wake, interrupt and review caps and the coalescing window; the memory baseline | Operator (re-test, Phase A; G-5); Odin (caps and window from I3's first week of records; spend-cap behaviour before I3; baseline before the I5 memory comparison) | As stated per owner |
+| G7 | Unsettled defaults: the billing and auth re-test; the Console spend cap not applying under a subscription login; wake, interrupt and review caps and the coalescing window; memory evaluation run parameters | Operator (re-test, Phase A; G-5); Odin (caps and window from I3's first week of records; spend-cap behaviour before I3; freeze run parameters under ODIN-ADR-003 before I5) | As stated per owner |
 | R-S1 | Whether D7 redaction reaches Bragi's outputs compiled from Odin's chat logs (Saga's record §7) | Saga (Bragi's outputs); Odin (redaction propagation, I/O contract §8) | Bragi is given Odin's history projections (cutover, I/O contract §14 step 3); Saga tracks it as SB-08 |
 
 ## Phase A — reset (Saga phase; Odin documentation handoff)
@@ -69,14 +71,19 @@ scoping Saga's record and is carried the same way.
 - [ ] Independent re-review of the corrections (D14's review cycle)
 - [ ] Documentation handoff recorded in both repositories (G-1)
 - [x] Saga's producer contract pinned here as a draft (G-2); producer
-      commit still to be recorded; repin from the corrected canonical
-      bytes pending
+      commit recorded in `SNAPSHOT.json`; pinned bytes match the canonical
+      draft. This completes pin bookkeeping, not the handoff review.
 - [x] Appendix B checked against Saga's canonical `0.1.1-draft` at
       document level (X-3); repeat at each repin
 - [ ] Odin-relevant operator answers to the open questions
-      (`DECISIONS.md` §3): default models, memory baseline and retention
-      defaults, muninn, licenses, the first delegation, Herdr, desktop
+      (`DECISIONS.md` §3): default models and retention defaults,
+      muninn, third-party reuse terms, the first delegation, Herdr, desktop
       authority, dotprivate, skald retrieval, planning billing mode
+- [x] Record Apache-2.0 for Odin (MIT exception for dotprivate), typed
+      journal triage and the memory-comparison protocol (ODIN-ADR-001–003).
+- [x] Record the narrow attention-classifier experiment, deterministic
+      session-class routing and Haiku effort/request-budget experiments
+      (ODIN-ADR-004–005); provider facts linked in I/O contract §6/§12.
 - Saga-side Phase A items (credits, billing re-test, Saga active) are
   dependencies G-3 and G-5.
 
@@ -106,6 +113,15 @@ parallel, and non-production, Odin:
       check (I/O contract §7). Exit: one bounded assignment survives
       replacement of its session; unsupported operations are explicit
       (AC-04).
+- [ ] **I2 compactor checks:** synthetic fidelity/effort comparison;
+      invalid-output recovery and whole-request accounting (AC-34–AC-35).
+      Check corrected merge priority, batch boundaries and identical restart
+      rendering against the pinned gist inspection. Resolve compactor
+      context scope (X-10) and test ambiguous references before I2.
+- [x] Inspect the gist cache fix at revision `3c190e0`; record before/after
+      hashes and an isolated arithmetic check in
+      [`OPTCHAT-CACHE-REVIEW.md`](provenance/OPTCHAT-CACHE-REVIEW.md).
+      This completes source inspection, not runtime regression testing.
 - [ ] **I3 governed project** (requires G-4; gates G1 to G5): Saga
       Phase B boundary, operator channel (Telegram with hash-bound
       approvals), selective Mimir, verification; **read-only** workspace
@@ -113,9 +129,21 @@ parallel, and non-production, Odin:
       import, shadow mode, cutover (I/O contract §14). Exit: one real
       project passes admission and finishes with evidence; the CLI and
       Odin face the same refusal rules.
+- [ ] **I3 migration evidence:** repeat compaction fidelity/effort checks on
+      scoped real fleet JSON and journals before cutover; retain measured
+      configuration and cost, never put real history in repository fixtures.
 - Phase exit (D15.C): Odin runs one project end to end without tmux,
   meeting Saga's boundary on its first live submission; an interrupted
   session is replaced without losing the outstanding assignment.
+
+**Proposed experiment, not an added gate or sequence change:** after I2,
+try one bounded assignment and session replacement through a minimal Codex
+adapter against the fake backend, before investing in broad workspace and
+visibility integrations. This would test whether the records and tool
+boundary are portable early. Record capability gaps and all evidence as
+fixture-only; do not build a universal adapter framework. The full second
+adapter remains I5. This proposal does not resolve X-1 or authorize live
+execution before Phase B.
 
 ## Phase D — richer policy (Saga), second project (Odin)
 
@@ -132,11 +160,14 @@ parallel, and non-production, Odin:
 
 - [ ] **I5 portability and context:** the second Odin runtime adapter
       (Codex app-server or Pi RPC) with its capability matrix; memory
-      comparison against the baseline (D7, D18); heimdall external views
+      comparison against rolling summary plus notes, using identical frozen
+      fixture retrieval in both arms (ODIN-ADR-003; D7, D18); heimdall external views
       (EC-05). Exit:
       capability differences and unavailable-peer behaviour pass the
       acceptance scenarios; Odin runs one assignment through the second
-      adapter with its missing capabilities stated. A Codex worker image
+      adapter with its missing capabilities stated. Memory evidence is
+      labelled a controlled comparison, not live retrieval integration.
+      A Codex worker image
       (Saga, G-7) does not test Odin's harness portability.
 
 ## Phase F — integrations
@@ -149,8 +180,14 @@ parallel, and non-production, Odin:
       selected
       preservation through dotprivate once its contract is released
       (EC-08, EC-09; §5.10); local session backend with its capability
-      matrix (D23); observability. Exit: routing benefit measured;
+      matrix (D23); observability. Repeat the memory comparison with the
+      same live retrieval adapters in both arms and disclose configuration
+      changes (ODIN-ADR-003). Exit: routing benefit measured;
       publication receipts distinguish local and remote state.
+- [ ] **I6 attention experiment:** compare journal classifier with Haiku
+      and independently assessed outcomes, including AC-33 injection and
+      mandatory-event conflicts. Set missed-action/delay limits before
+      activation; count fallback and digest costs (ODIN-ADR-004).
 - Bragi on the new inputs is Saga's (D15.Fb); Odin provides the import
   endpoint and history projections.
 

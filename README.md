@@ -53,6 +53,10 @@ or change the existing deployment.
    Phase B (its API and minimum enforcement). Fake-backend results do
    not establish production readiness.
 
+Allowing I0–I2 alongside Phase B is Odin's interpretation of the source
+blueprint; reconciliation with Saga's stricter phase wording remains
+open ([X-1](docs/DECISIONS.md#5-issues-raised-by-the-extraction)).
+
 Details, exit evidence and dependency gates are in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
@@ -74,9 +78,13 @@ Developers and coding agents: read [`AGENTS.md`](AGENTS.md) first.
 
 ## License and attribution
 
-This repository has no license file, and nothing in it grants a
-license. Odin's first memory implementation adapts Victor Taelin's
-UniiChat design, credited, from a gist that shows no license. The
-operator's standalone tools also show none. These questions are open
-and must be settled before anything is published
-([`docs/DECISIONS.md`](docs/DECISIONS.md) §3, item 5).
+Odin's original work is licensed under [Apache-2.0](LICENSE), following
+the operator's project-wide default; dotprivate's chosen license is MIT.
+This does not relicense third-party material retained as research or
+historical evidence.
+
+The planned memory implementation draws on Victor Taelin's UniiChat
+design. Attribution and permission for any reuse of material from its
+gist remain to be resolved before that material is incorporated or
+published; credit alone does not settle reuse terms. See
+[ODIN-ADR-001](docs/DECISIONS.md#odin-adr-001--project-license).

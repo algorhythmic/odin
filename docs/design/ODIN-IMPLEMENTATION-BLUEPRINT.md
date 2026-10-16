@@ -154,6 +154,7 @@ Use typed events before semantic classification:
 | Approval response | Validate principal, exact proposal binding, expiry, revision, and outstanding request in code |
 | Stop / revoke / correction | Priority handling; bypass learned routing |
 | Ambiguous worker prose | Optional approved evaluator; uncertainty follows baseline handling |
+| Eligible routine journal entries | Coalesced triage: `no_attention` logs without immediate planner wake; attention or triage failure wakes; bounded digest preserves deferred evidence (I/O contract §5, ODIN-ADR-002) |
 | Scope change / dependency conflict / strategic failure | Engage the responsible planning session |
 | Provider failure / missing observation | Record coverage gap and use the defined fallback |
 
@@ -184,6 +185,14 @@ requirement to replace Claude Code's context loop. Render a briefing at session
 start; expose `zoom` and optional `recall`; resume or replace sessions at explicit
 boundaries. Do not promise the original cache layout or constant total context.
 
+At I5, compare against rolling summary plus structured notes with identical
+frozen fixture retrieval available to both arms (ODIN-ADR-003). Pin the
+corpus, query-to-result mapping, scopes, byte limits, harness/model and run
+budget before evaluation. Keep authoritative commitments identical and count
+all memory/retrieval costs. This tests memory, not live peer integration.
+After I6, repeat using the same real retrieval adapters in both arms;
+disclose configuration changes. Final D18 evaluation remains in Phase G.
+
 Preserve routed events durably, but select their relevance for planning context.
 Skald archives full native conversations independently; Odin records references
 and selected content instead of blindly injecting all worker transcripts.
@@ -191,6 +200,13 @@ Summary provenance must reach original evidence. Corrections and supersession
 remain visible. Redaction propagates through summaries, indexes, archive copies,
 and preservation destinations under an explicit policy; failed propagation stays
 pending and cannot be reported as completed deletion.
+
+Compactor effort starts experimentally at `high`, compared with `medium`
+and `xhigh`; triage is evaluated separately (ODIN-ADR-005). Empty or invalid
+summaries never replace valid nodes. Whole-request token accounting covers
+raw leaves, merged nodes and harness overhead; byte-bounded summaries alone
+do not prove a small prompt. The Haiku-specific budget and measured cache
+policy are in I/O contract §8/§12; AC-34–AC-35 cover failures.
 
 ### Mimir
 
@@ -214,7 +230,13 @@ fallback, and permitted effects to replay/shadow evidence and required approval.
 Do not use a general agent-written question as an automatically installed hook.
 
 First evaluator: journal attention in shadow mode. Mandatory events bypass it;
-routine deferral has a maximum age. Provider failures return to baseline routing.
+routine deferral has a maximum age. An activated evaluator's `no_attention`
+outcome follows the same logged, bounded-digest path as journal triage;
+it does not trigger a planner turn merely by returning a report. Provider
+failures return to ordinary triage, whose uncertainty or failure queues a
+planner wake with the original evidence (I/O contract §5). Shadow results
+never suppress baseline wakes. Include triage, evaluator and digest costs
+when measuring savings.
 Confidence is not observed correctness. A new provider/model/question needs
 revalidation. Hosted inputs are allowlisted; D9's local-only restriction follows
 operator/specification content into summaries, questions, and candidates too.
@@ -222,6 +244,14 @@ operator/specification content into summaries, questions, and candidates too.
 Jev is not Mimir, an approval engine, or a transport. For desktop work its current
 documented text-only interface can classify accessibility/DOM/readback evidence;
 vision and coordinate grounding remain with capable models and WCU's guards.
+
+ODIN-ADR-004 keeps the first experiment at the existing journal-attention
+hook. Defer only on a validated routine probability with adequate evidence
+and no contradictory typed state; otherwise take the baseline path. Haiku
+agreement is not ground truth. Operator target bindings remain explicit;
+session class, model and effort are selected in code, stable across resumes.
+No fifth hook or per-turn tier classifier is added. Jev does not generate
+summaries, guidance or plans, and does not choose worker models.
 
 ## 7. Implementation sequence
 
@@ -237,17 +267,23 @@ non-production, is labelled as fixture work, and does not delay the core proof.
 | I2: first harness | C (non-production) | Claude Code adapter and integration package; briefing/zoom; session lifecycle | One bounded assignment survives replacement of its session; unsupported operations are explicit |
 | I3: governed project | C (requires Phase B exit) | Saga Phase B boundary, operator channel, selective Mimir, verification; read-only Herdr inspection (overview, attachable sessions where supported) | One real project passes admission and finishes with evidence; CLI and Odin face the same refusal rules |
 | I4: parallel workspace | D | Second project, full Herdr adapter with explicit bindings, scoped planning owners, adopt and takeover | Projects remain separate, bindings are explicit, no pane state is mistaken for completion |
-| I5: portability and context | E | Second harness adapter; memory comparison; Heimdall external views | Capability differences and unavailable-peer behavior pass the acceptance scenarios |
-| I6: optional optimizations and integrations | F | Braid `recall`; Skald source enrollment, archiver and history (`archive` scope); shadow evaluator, controlled activation; selected preservation contract | Routing benefit measured; publication receipts distinguish local and remote state; archive coverage gaps visible |
+| I5: portability and context | E | Second harness adapter; controlled memory comparison with identical fixture retrieval; Heimdall external views | Capability differences and unavailable-peer behavior pass the acceptance scenarios; memory evidence labelled fixture-based |
+| I6: optional optimizations and integrations | F | Braid `recall`; Skald source enrollment, archiver and history (`archive` scope); repeat memory comparison with live retrieval; shadow evaluator, controlled activation; selected preservation contract | Routing benefit measured; publication receipts distinguish local and remote state; archive coverage gaps visible; integrated memory evidence recorded |
 | I7: desktop workflow | G, by operator decision | WCU worker, shared seat broker, human takeover, bounded textual classifier experiment | No cooperating agents input concurrently; uncertain effects reconcile; end-to-end outcomes measured |
 
-I0–I2 may use a fake Saga backend for development (it implements the I/O
+Under Odin's sequencing interpretation (D15; X-1, still awaiting producer
+reconciliation), I0–I2 may use a fake Saga backend for development (it implements the I/O
 contract's Appendix B and is never presented as Saga); that work is
 non-production and establishes no production readiness. I3, every production
 delegated run and every live Saga submission require Phase B's exit criterion and
 minimum enforcement. A backend without Saga must state its own limits and must
 not advertise Saga guarantees; it is not a bypass for a Saga-managed delegation.
 The full three-workstream ecosystem demonstration follows the one-project proof.
+
+The roadmap also proposes a small Codex adapter experiment after I2 to test
+portability before broad peer integrations. It is fixture-only, not an added
+gate or a change to the locked sequence; full second-adapter delivery remains
+I5. X-1's cross-repository sequencing question remains open.
 
 ## 8. Source basis
 
