@@ -1,0 +1,24 @@
+{
+  "effect": {
+    "id": "01JAEF00000000000000000052",
+    "rev": 2,
+    "created_at": "2026-10-16T08:00:00Z",
+    "updated_at": "2026-10-16T09:30:00Z",
+    "operation_id": "01JAXP00000000000000000052",
+    "destination": "session_host:start",
+    "destination_capability": "session_host",
+    "payload_digest": "ac6b01ac14b4065c8a9724adcf52e31b067866a4431aa5cafab792a21f015475",
+    "assignment": "01JAAS00000000000000000001",
+    "owner_generation": 2,
+    "delegation_version": 3,
+    "approval_digest": null,
+    "guidance_rev": null,
+    "state": "unknown",
+    "dispatch_blocked_by": null,
+    "attempts": 0,
+    "receipt": null,
+    "reconciliation": null
+  },
+  "lookup": null,
+  "host_state": "host_offline"
+}

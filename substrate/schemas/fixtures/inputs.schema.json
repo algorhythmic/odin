@@ -1,0 +1,361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/fixtures/inputs.schema.json",
+  "title": "Fixture input formats",
+  "description": "One $defs entry per cases.json operation, named after it: the input file of a case validates against #/$defs/<operation>. `validate` has no entry: its input is validated against the case's `schema`. Semantics: substrate/schemas/README.md.",
+  "$defs": {
+    "append": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "log",
+        "writer",
+        "event"
+      ],
+      "properties": {
+        "log": {
+          "type": "array",
+          "items": {
+            "$ref": "../envelope.schema.json"
+          }
+        },
+        "writer": {
+          "type": "string",
+          "pattern": "^[a-z_]+$"
+        },
+        "event": {
+          "$ref": "../envelope.schema.json"
+        }
+      }
+    },
+    "amend": {
+      "$ref": "#/$defs/append"
+    },
+    "delete": {
+      "$ref": "#/$defs/append"
+    },
+    "intake_sequence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "events"
+      ],
+      "properties": {
+        "events": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "../envelope.schema.json"
+          }
+        }
+      }
+    },
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "events"
+      ],
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "../envelope.schema.json"
+          }
+        }
+      }
+    },
+    "inbox_sequence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "events",
+        "steps"
+      ],
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "../envelope.schema.json"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "op",
+                  "event_id"
+                ],
+                "properties": {
+                  "op": {
+                    "const": "process"
+                  },
+                  "event_id": {
+                    "type": "string",
+                    "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "op"
+                ],
+                "properties": {
+                  "op": {
+                    "const": "replay"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    "check_revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_rev"
+      ],
+      "properties": {
+        "record_rev": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "expected_revision": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      }
+    },
+    "check_owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session",
+        "commitment"
+      ],
+      "properties": {
+        "session": {
+          "$ref": "../records/planning_session.schema.json"
+        },
+        "commitment": {
+          "$ref": "../records/commitment.schema.json"
+        }
+      }
+    },
+    "commitment_transfer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "commitment",
+        "new_owner",
+        "effects"
+      ],
+      "properties": {
+        "commitment": {
+          "$ref": "../records/commitment.schema.json"
+        },
+        "new_owner": {
+          "type": "string",
+          "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+        },
+        "expected_revision": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "../records/effect.schema.json"
+          }
+        }
+      }
+    },
+    "operation_reuse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "existing",
+        "incoming"
+      ],
+      "properties": {
+        "existing": {
+          "$ref": "../records/effect.schema.json"
+        },
+        "incoming": {
+          "$ref": "../records/effect.schema.json"
+        }
+      }
+    },
+    "check_message_size": {
+      "$ref": "../records/message.schema.json"
+    },
+    "combine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "round",
+        "positions"
+      ],
+      "properties": {
+        "round": {
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "positions": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "../records/review.schema.json#/properties/positions/items"
+          }
+        }
+      }
+    },
+    "restart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effects"
+      ],
+      "properties": {
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "../records/effect.schema.json"
+          }
+        }
+      }
+    },
+    "reconcile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effect",
+        "lookup",
+        "host_state"
+      ],
+      "properties": {
+        "effect": {
+          "$ref": "../records/effect.schema.json"
+        },
+        "lookup": {
+          "description": "The destination's answer; deliberately not an enum, so invalid values reach the semantic check.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "host_state": {
+          "enum": [
+            "host_offline",
+            "host_returned",
+            null
+          ]
+        }
+      }
+    },
+    "dispatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effect",
+        "prompt",
+        "recovery_in_progress"
+      ],
+      "properties": {
+        "effect": {
+          "$ref": "../records/effect.schema.json"
+        },
+        "prompt": {
+          "anyOf": [
+            {
+              "$ref": "../records/attention_prompt.schema.json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recovery_in_progress": {
+          "type": "boolean"
+        }
+      }
+    },
+    "revalidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effect",
+        "context"
+      ],
+      "properties": {
+        "effect": {
+          "$ref": "../records/effect.schema.json"
+        },
+        "context": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "current_generation",
+            "delegation_revoked",
+            "assignment_state",
+            "approval_expired",
+            "host_state"
+          ],
+          "properties": {
+            "current_generation": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "delegation_revoked": {
+              "type": "boolean"
+            },
+            "assignment_state": {
+              "enum": [
+                "drafted",
+                "approved",
+                "dispatched",
+                "active",
+                "completed",
+                "failed",
+                "cancelled",
+                null
+              ]
+            },
+            "approval_expired": {
+              "type": "boolean"
+            },
+            "host_state": {
+              "description": "Recorded for context; not consulted by revalidate in I0.",
+              "enum": [
+                "active",
+                "host_offline",
+                null
+              ]
+            }
+          }
+        }
+      }
+    },
+    "check_mapping_coverage": {
+      "$ref": "../migrations/heimdall-to-commitment.schema.json"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "01JAPR00000000000000000001",
+  "rev": 3,
+  "created_at": "2026-10-16T08:00:00Z",
+  "updated_at": "2026-10-16T09:30:00Z",
+  "name": "alpha",
+  "sources": [
+    {
+      "locator": "raw/spec.md",
+      "digest": "70a254274659fcaecbd8c6cf9e33dc6c16296ac290003934623007b816f5015b",
+      "version": "v2",
+      "registered_at": "2026-10-16T08:05:00Z"
+    }
+  ],
+  "delegations": [
+    "dlg-alpha-0001"
+  ],
+  "interface_decision_owner": "01JAPS00000000000000000001",
+  "owner": "01JAPS00000000000000000001"
+}

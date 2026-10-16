@@ -1,0 +1,21 @@
+{
+  "id": "01JAEV00000000000000000001",
+  "envelope": 1,
+  "namespace": "odin_history",
+  "producer": "saga",
+  "kind": "run.state.started",
+  "kind": "run.state.verified",
+  "scope": {
+    "run": "run-alpha-0001",
+    "project": "01JAPR00000000000000000001"
+  },
+  "source_seq": 1842,
+  "received_at": "2026-10-16T09:00:00Z",
+  "causation": null,
+  "correlation": "run:run-alpha-0001",
+  "payload": null,
+  "payload_ref": "evid:saga/events/1842",
+  "dedupe_key": "saga:1842",
+  "wake": "none",
+  "state": "received"
+}

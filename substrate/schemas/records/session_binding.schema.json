@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/session_binding.schema.json",
+  "title": "SessionBinding record",
+  "description": "I/O contract §2, SessionBinding: \"harness/provider, native session id, host identity (the stable identity a session host registers, §11, or the service's own host), process incarnation, state (`active`, `host_offline`, `invalidated`), the Environment record and revision it was opened under, capabilities (from the adapter matrix), optional workspace binding (host, server incarnation, pane), predecessor binding\" (ODIN-ADR-009). The capability names are the AGENTS.md §4 matrix vocabulary; the matrix itself is I1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "subject",
+    "harness",
+    "native_session_id",
+    "host",
+    "incarnation",
+    "state",
+    "environment",
+    "capabilities",
+    "workspace",
+    "predecessor"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "created_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "updated_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "subject": {
+      "$ref": "../common.schema.json#/$defs/subject_ref",
+      "properties": {
+        "kind": {
+          "enum": [
+            "assignment",
+            "planning_session"
+          ]
+        }
+      }
+    },
+    "harness": {
+      "type": "string",
+      "minLength": 1
+    },
+    "native_session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "host": {
+      "type": "string",
+      "minLength": 1
+    },
+    "incarnation": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "state": {
+      "enum": [
+        "active",
+        "host_offline",
+        "invalidated"
+      ]
+    },
+    "environment": {
+      "$ref": "../common.schema.json#/$defs/record_ref"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "start",
+          "resume",
+          "inject",
+          "interrupt",
+          "budget",
+          "model_effort",
+          "transcript",
+          "hooks",
+          "profile_enforcement",
+          "attachable_view",
+          "permission_relay"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "workspace": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "host",
+        "server_incarnation",
+        "pane"
+      ],
+      "properties": {
+        "host": {
+          "type": "string",
+          "minLength": 1
+        },
+        "server_incarnation": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pane": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "predecessor": {
+      "$ref": "../common.schema.json#/$defs/ulid_or_null"
+    }
+  }
+}

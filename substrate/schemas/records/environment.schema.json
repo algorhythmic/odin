@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/environment.schema.json",
+  "title": "Environment record",
+  "description": "I/O contract §2, Environment (from the host's probe; ODIN-ADR-009): \"host identity and incarnation, probe time and probe version, harness versions, Herdr version and access path, sandbox and isolation support, surfaces and sensors available, credential lineages present (references and refresher, never the credential)\". A `credential_lineages` value that looks like a secret rather than a reference is a defect; the schema cannot detect it, and the implementations must not try to infer it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "host",
+    "host_incarnation",
+    "probed_at",
+    "probe_version",
+    "harnesses",
+    "herdr",
+    "isolation",
+    "surfaces",
+    "sensors",
+    "credential_lineages"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "created_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "updated_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "host": {
+      "type": "string",
+      "minLength": 1
+    },
+    "host_incarnation": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "probed_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "probe_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "harnesses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "version"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "herdr": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "access"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "access": {
+          "enum": [
+            "local",
+            "ssh_machine"
+          ]
+        }
+      }
+    },
+    "isolation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sandbox",
+        "planner_workspace"
+      ],
+      "properties": {
+        "sandbox": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "planner_workspace": {
+          "type": "boolean"
+        }
+      }
+    },
+    "surfaces": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "sensors": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "credential_lineages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ref",
+          "mode",
+          "refresher"
+        ],
+        "properties": {
+          "ref": {
+            "description": "A reference to the protected store, never the credential (X-12).",
+            "type": "string",
+            "minLength": 1
+          },
+          "mode": {
+            "enum": [
+              "subscription",
+              "api",
+              "local"
+            ]
+          },
+          "refresher": {
+            "description": "The single process that refreshes this lineage (D24).",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

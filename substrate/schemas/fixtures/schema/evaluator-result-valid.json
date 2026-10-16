@@ -1,0 +1,14 @@
+{
+  "id": "01JAER00000000000000000001",
+  "rev": 1,
+  "created_at": "2026-10-16T08:00:00Z",
+  "updated_at": "2026-10-16T09:30:00Z",
+  "evaluator": "journal_attention_v1",
+  "model": "jev-1.13.0",
+  "input_digest": "6da02632cd8c067498c4a1ca18f6a33be2242921c7673f8f9ac07f636d3dbd26",
+  "result": "routine",
+  "p": 0.91,
+  "status": "ok",
+  "consequence": "deferred",
+  "outcome": null
+}

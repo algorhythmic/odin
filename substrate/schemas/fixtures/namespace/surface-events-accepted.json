@@ -1,0 +1,26 @@
+{
+  "log": [],
+  "writer": "workstation_sensors",
+  "event": {
+    "id": "01JAEV00000000000000000004",
+    "envelope": 1,
+    "namespace": "surface_events",
+    "producer": "surface:focus",
+    "kind": "surface.focus",
+    "scope": {
+      "host": "desk"
+    },
+    "source_seq": 5512,
+    "received_at": "2026-10-16T09:00:00Z",
+    "causation": null,
+    "correlation": null,
+    "payload": {
+      "focused": "terminal",
+      "span_ms": 64000
+    },
+    "payload_ref": null,
+    "dedupe_key": "desk:focus:5512",
+    "wake": "state",
+    "state": "received"
+  }
+}

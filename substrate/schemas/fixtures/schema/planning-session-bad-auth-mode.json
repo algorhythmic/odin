@@ -1,0 +1,20 @@
+{
+  "id": "01JAPS00000000000000000001",
+  "rev": 1,
+  "created_at": "2026-10-16T08:00:00Z",
+  "updated_at": "2026-10-16T09:30:00Z",
+  "project": "01JAPR00000000000000000001",
+  "adapter": "claude-code-sdk@1",
+  "native_session_id": "native-sess-0001",
+  "incarnation": 4,
+  "state": "active",
+  "briefing": "brief:0001",
+  "budget_usd": 3,
+  "ownership_generation": 2,
+  "profile": "planner",
+  "auth": {
+    "mode": "oauth",
+    "credential_ref": "secret:odin-model-key",
+    "refresh_owner": "service"
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "events": [
+    {
+      "id": "01JAEV00000000000000000309",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "saga",
+      "kind": "run.status.transition",
+      "scope": {},
+      "source_seq": 40,
+      "received_at": "2026-10-16T09:01:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": null,
+      "payload_ref": "evid:inbox/01JAEV00000000000000000309",
+      "dedupe_key": "saga:40",
+      "wake": "wake",
+      "state": "received"
+    },
+    {
+      "id": "01JAEV00000000000000000301",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "operator:telegram:123",
+      "kind": "operator.message",
+      "scope": {},
+      "source_seq": 400,
+      "received_at": "2026-10-16T09:02:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": {
+        "text": "go"
+      },
+      "payload_ref": null,
+      "dedupe_key": "telegram:123:400",
+      "wake": "interrupt",
+      "state": "processed"
+    },
+    {
+      "id": "01JAEV00000000000000000305",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "operator:terminal",
+      "kind": "operator.command.stop",
+      "scope": {},
+      "source_seq": null,
+      "received_at": "2026-10-16T09:03:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": {
+        "scope": "all"
+      },
+      "payload_ref": null,
+      "dedupe_key": "cmd:0030",
+      "wake": "none",
+      "state": "received"
+    },
+    {
+      "id": "01JAEV00000000000000000303",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "saga",
+      "kind": "run.journal",
+      "scope": {},
+      "source_seq": 41,
+      "received_at": "2026-10-16T09:04:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": null,
+      "payload_ref": "evid:inbox/01JAEV00000000000000000303",
+      "dedupe_key": "hash:57c5d330c6c38ba2687703054ea5da2e41d294b53397aab1d5f5d5938db0f966",
+      "wake": "none",
+      "state": "received"
+    }
+  ],
+  "steps": [
+    {
+      "op": "process",
+      "event_id": "01JAEV00000000000000000309"
+    },
+    {
+      "op": "process",
+      "event_id": "01JAEV00000000000000000309"
+    },
+    {
+      "op": "process",
+      "event_id": "01JAEV00000000000000000301"
+    },
+    {
+      "op": "process",
+      "event_id": "01JAEV00000000000000000999"
+    },
+    {
+      "op": "replay"
+    }
+  ]
+}

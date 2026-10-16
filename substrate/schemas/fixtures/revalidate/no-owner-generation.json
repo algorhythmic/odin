@@ -1,0 +1,29 @@
+{
+  "effect": {
+    "id": "01JAEF00000000000000000079",
+    "rev": 2,
+    "created_at": "2026-10-16T08:00:00Z",
+    "updated_at": "2026-10-16T09:30:00Z",
+    "operation_id": "01JAXP00000000000000000079",
+    "destination": "telegram:notify",
+    "destination_capability": "irreducibly_unknown",
+    "payload_digest": "7f5d5f2d97ac14c8605a8fb13c5a1d1ee4a5e6597eee6e9521bdd1cf7db9e1e6",
+    "assignment": null,
+    "owner_generation": null,
+    "delegation_version": 3,
+    "approval_digest": null,
+    "guidance_rev": null,
+    "state": "queued",
+    "dispatch_blocked_by": null,
+    "attempts": 0,
+    "receipt": null,
+    "reconciliation": null
+  },
+  "context": {
+    "current_generation": 5,
+    "delegation_revoked": false,
+    "assignment_state": null,
+    "approval_expired": false,
+    "host_state": null
+  }
+}

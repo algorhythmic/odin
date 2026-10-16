@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/envelope.schema.json",
+  "title": "Event envelope, version 1 (Event record)",
+  "description": "I/O contract §2, Event (Odin inbox): \"stable event id, envelope version, namespace, producer identity, kind, project or run scope, source sequence when the producer has one, received time, causation and correlation ids, payload or evidence ref, dedupe key\"; Appendix A Event and \"Event processing states (inbox) received → processed\"; namespaces per §1 and ODIN-ADR-006 (EC-01). `kind` must also be in kinds.json (a catalogue check, outcome `unknown_kind`); `wake` is the class assigned at intake (§4, Appendix C). At least one of `payload` and `payload_ref` is non-null.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "envelope",
+    "namespace",
+    "producer",
+    "kind",
+    "scope",
+    "source_seq",
+    "received_at",
+    "causation",
+    "correlation",
+    "payload",
+    "payload_ref",
+    "dedupe_key",
+    "wake",
+    "state"
+  ],
+  "properties": {
+    "id": {
+      "description": "Stable event id minted by Odin's intake.",
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "envelope": {
+      "description": "Envelope version.",
+      "const": 1
+    },
+    "namespace": {
+      "$ref": "common.schema.json#/$defs/namespace"
+    },
+    "producer": {
+      "$ref": "common.schema.json#/$defs/src"
+    },
+    "kind": {
+      "description": "An Appendix C kind; the catalogue (kinds.json) is the check.",
+      "type": "string",
+      "pattern": "^[a-z_]+(\\.[a-z_]+)+$"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "project": {
+          "$ref": "common.schema.json#/$defs/ulid"
+        },
+        "run": {
+          "description": "Saga-native run id.",
+          "type": "string",
+          "minLength": 1
+        },
+        "assignment": {
+          "$ref": "common.schema.json#/$defs/ulid"
+        },
+        "session": {
+          "$ref": "common.schema.json#/$defs/ulid"
+        },
+        "host": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commitment": {
+          "$ref": "common.schema.json#/$defs/ulid"
+        }
+      }
+    },
+    "source_seq": {
+      "description": "The producer's own sequence when it has one (Saga last_seq, Telegram message id, file offset); null otherwise.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "received_at": {
+      "$ref": "common.schema.json#/$defs/ts"
+    },
+    "causation": {
+      "description": "The event that caused this one.",
+      "$ref": "common.schema.json#/$defs/ulid_or_null"
+    },
+    "correlation": {
+      "$ref": "common.schema.json#/$defs/ref_or_null"
+    },
+    "payload": {
+      "description": "Inline payload (bounded by the implementation, not by this schema).",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "payload_ref": {
+      "$ref": "common.schema.json#/$defs/evidence_ref_or_null"
+    },
+    "dedupe_key": {
+      "description": "Producer-specific dedupe key (§4 table); opaque to the implementations.",
+      "type": "string",
+      "minLength": 1
+    },
+    "wake": {
+      "$ref": "common.schema.json#/$defs/wake_class"
+    },
+    "state": {
+      "description": "Inbox processing state.",
+      "enum": [
+        "received",
+        "processed"
+      ]
+    }
+  },
+  "anyOf": [
+    {
+      "properties": {
+        "payload": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "properties": {
+        "payload_ref": {
+          "type": "string"
+        }
+      }
+    }
+  ]
+}

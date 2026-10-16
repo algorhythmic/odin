@@ -1,0 +1,21 @@
+# uv workspace root for the Odin repository. Virtual: the root builds no
+# package of its own. The one member is the Python substrate
+# implementation (I0; ODIN-ADR-008). See substrate/python/README.md.
+[project]
+name = "odin-workspace"
+version = "0.0.0"
+description = "uv workspace root for the Odin repository (virtual; builds nothing)."
+requires-python = ">=3.12"
+dependencies = ["odin-substrate"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+odin-substrate = { workspace = true }
+
+[tool.uv.workspace]
+members = ["substrate/python"]

@@ -1,0 +1,20 @@
+{
+  "id": "01JAEF00000000000000000001",
+  "rev": 2,
+  "created_at": "2026-10-16T08:00:00Z",
+  "updated_at": "2026-10-16T09:30:00Z",
+  "operation_id": "01JAXP00000000000000000001",
+  "destination": "saga:run.submit",
+  "destination_capability": "idempotent_by_key",
+  "payload_digest": "ce0c7a094ec575eb5e9f0a13e4f154fb7290b480acca5176e0c1f4d2257c3730",
+  "assignment": "01JAAS00000000000000000001",
+  "owner_generation": 2,
+  "delegation_version": 3,
+  "approval_digest": "1838bcf3f47a8b64f697a187d46813498e00eb21353b76f1115d89488b9ce984",
+  "guidance_rev": null,
+  "state": "held",
+  "dispatch_blocked_by": "take_control:01JAPS00000000000000000001",
+  "attempts": 1,
+  "receipt": null,
+  "reconciliation": "pending"
+}

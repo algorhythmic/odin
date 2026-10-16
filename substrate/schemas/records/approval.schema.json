@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/approval.schema.json",
+  "title": "Approval record",
+  "description": "I/O contract §2, Approval (Saga authority, Odin record): \"principal (verified operator identity), proposal digest, channel, received time, expiry, state\"; bound to the specific request id and request revision (§4, AC-30). The principal is an operator identity, so it must be an `operator:` src. The state set beyond `granted` is Open at Saga (pinned contract, GAP-07); this enum is Odin's record of it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "request_id",
+    "request_rev",
+    "principal",
+    "proposal_digest",
+    "source_event",
+    "channel",
+    "received_at",
+    "expires_at",
+    "state"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "created_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "updated_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "request_id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "request_rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "principal": {
+      "$ref": "../common.schema.json#/$defs/src",
+      "pattern": "^operator:[!-~]+$"
+    },
+    "proposal_digest": {
+      "$ref": "../common.schema.json#/$defs/digest"
+    },
+    "source_event": {
+      "description": "Transport identity of the answer (channel plus message or callback id).",
+      "type": "string",
+      "minLength": 1
+    },
+    "channel": {
+      "type": "string",
+      "minLength": 1
+    },
+    "received_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "expires_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "state": {
+      "enum": [
+        "granted",
+        "expired",
+        "revoked",
+        "rejected"
+      ]
+    }
+  }
+}

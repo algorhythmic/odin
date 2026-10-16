@@ -1,0 +1,26 @@
+{
+  "id": "01JAHR00000000000000000001",
+  "rev": 2,
+  "created_at": "2026-10-16T08:00:00Z",
+  "updated_at": "2026-10-16T09:30:00Z",
+  "assignment": "01JAAS00000000000000000001",
+  "run": "run-alpha-0001",
+  "kind": "approval",
+  "question": "Which JSON Schema draft should the records use?",
+  "options": [
+    "2020-12",
+    "2019-09"
+  ],
+  "authorizes": "Choosing the schema draft for this assignment",
+  "proposal_digest": null,
+  "recipient": "operator",
+  "expires_at": "2026-10-17T09:00:00Z",
+  "state": "answered",
+  "response": {
+    "answer": "2020-12",
+    "by": "operator:terminal",
+    "at": "2026-10-16T10:15:00Z",
+    "source_event": "terminal:cmd:0007"
+  },
+  "channel": "terminal"
+}

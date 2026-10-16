@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/namespaces.schema.json",
+  "title": "Namespace catalogue",
+  "description": "Schema of namespaces.json. I/O contract §1: \"Each namespace has exactly one writing component\"; ODIN-ADR-006. Exactly the four namespaces of common.schema.json#/$defs/namespace.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "source",
+    "namespaces"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1
+    },
+    "namespaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "writer",
+          "read_only",
+          "content",
+          "authority",
+          "source"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "common.schema.json#/$defs/namespace"
+          },
+          "writer": {
+            "description": "The single writing component id.",
+            "type": "string",
+            "pattern": "^[a-z_]+$"
+          },
+          "read_only": {
+            "type": "boolean"
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "authority": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "minItems": 4,
+      "maxItems": 4
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "log": [],
+  "writer": "service",
+  "event": {
+    "id": "01JAEV00000000000000000003",
+    "envelope": 1,
+    "namespace": "transcript_archive",
+    "producer": "capture",
+    "kind": "capture.gap",
+    "scope": {
+      "host": "desk",
+      "session": "01JAPS00000000000000000001"
+    },
+    "source_seq": null,
+    "received_at": "2026-10-16T09:00:00Z",
+    "causation": null,
+    "correlation": null,
+    "payload": null,
+    "payload_ref": "evid:transcript/desk/native-sess-0001/gap/41",
+    "dedupe_key": "capture:desk:native-sess-0001:41",
+    "wake": "log",
+    "state": "received"
+  }
+}

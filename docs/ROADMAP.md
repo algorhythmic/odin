@@ -10,7 +10,11 @@ documents, they win ([`DECISIONS.md`](DECISIONS.md) authority order).
 Old phase numbers from legacy feature documents are not commitments
 ([`provenance/LEGACY-REQUIREMENTS.md`](provenance/LEGACY-REQUIREMENTS.md)).
 
-Nothing below is implemented. Checked items are documentation only.
+I0 is the only implemented increment: its contract layer and the Go and
+Python implementations live under `substrate/` (non-production,
+fixture-only; see the [I0 entry](#phase-b--saga-service-v1-saga-with-i0-and-i1-in-odin)).
+Everything else below is unimplemented, and the other checked items are
+documentation only.
 
 ## Where to start
 
@@ -106,7 +110,7 @@ scoping Saga's record and is carried the same way.
 Saga delivers the API and minimum enforcement (I/O contract §13). In
 parallel, and non-production, Odin:
 
-- [ ] **I0 contracts and fixtures** (ODIN-ADR-008): the versioned event
+- [x] **I0 contracts and fixtures** (ODIN-ADR-008): the versioned event
       envelope and kinds (Appendix C, EC-01) with the namespaces of
       ODIN-ADR-006; versioned record schemas (I/O contract §2,
       Appendix A) with the changes of ODIN-ADR-007 (commitment
@@ -118,6 +122,14 @@ parallel, and non-production, Odin:
       both implementations validate the same fixtures; duplicate, stale
       and unknown cases have explicit semantics; no peer API is invented
       as implemented.
+      **Delivered 2026-10-16** under [`substrate/`](../substrate/README.md):
+      the schemas, catalogues, heimdall mapping and fixture set in
+      [`substrate/schemas/`](../substrate/schemas/README.md), the Go
+      packages and the Python package `odin_substrate`; `go test ./...`,
+      the Python tests and `scripts/compare_conformance.py` show both
+      implementations producing the fixtures' expected outcomes. This is
+      fixture-only evidence: no store (X-11 stays open), service, fake
+      backend or peer API exists.
 - [ ] **I1 service foundation:** transactional state, event intake and
       cursors, outbox, scheduling, direct stop, CLI (I/O contract §9);
       moved from I0 by ODIN-ADR-008: the adapter capability matrix

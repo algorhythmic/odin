@@ -1,0 +1,23 @@
+{
+  "log": [],
+  "writer": "saga_adapter",
+  "event": {
+    "id": "01JAEV00000000000000000005",
+    "envelope": 1,
+    "namespace": "execution_ledger",
+    "producer": "saga",
+    "kind": "run.state.verified",
+    "scope": {
+      "run": "run-alpha-0001"
+    },
+    "source_seq": 1843,
+    "received_at": "2026-10-16T09:00:00Z",
+    "causation": null,
+    "correlation": null,
+    "payload": null,
+    "payload_ref": "evid:saga/events/1843",
+    "dedupe_key": "saga:1843",
+    "wake": "none",
+    "state": "received"
+  }
+}

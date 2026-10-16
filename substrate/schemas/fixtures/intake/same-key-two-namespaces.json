@@ -1,0 +1,38 @@
+{
+  "events": [
+    {
+      "id": "01JAEV00000000000000000111",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "saga",
+      "kind": "run.state.started",
+      "scope": {},
+      "source_seq": 1842,
+      "received_at": "2026-10-16T09:00:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": null,
+      "payload_ref": "evid:inbox/01JAEV00000000000000000111",
+      "dedupe_key": "saga:1842",
+      "wake": "none",
+      "state": "received"
+    },
+    {
+      "id": "01JAEV00000000000000000112",
+      "envelope": 1,
+      "namespace": "execution_ledger",
+      "producer": "saga",
+      "kind": "run.state.started",
+      "scope": {},
+      "source_seq": 1842,
+      "received_at": "2026-10-16T09:00:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": null,
+      "payload_ref": "evid:inbox/01JAEV00000000000000000112",
+      "dedupe_key": "saga:1842",
+      "wake": "none",
+      "state": "received"
+    }
+  ]
+}

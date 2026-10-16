@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/evaluator_result.schema.json",
+  "title": "EvaluatorResult record",
+  "description": "I/O contract §2, EvaluatorResult: \"evaluator name and version, model version, input projection digest, result, probabilities, status, routing consequence, later assessed outcome\"; fields per Appendix A. An evaluator may defer a wake, never drop it (§4; D9).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "evaluator",
+    "model",
+    "input_digest",
+    "result",
+    "p",
+    "status",
+    "consequence",
+    "outcome"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "created_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "updated_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "evaluator": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input_digest": {
+      "$ref": "../common.schema.json#/$defs/digest"
+    },
+    "result": {
+      "type": "string",
+      "minLength": 1
+    },
+    "p": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "unavailable",
+        "invalid",
+        "uncertain",
+        "timeout"
+      ]
+    },
+    "consequence": {
+      "enum": [
+        "deferred",
+        "baseline",
+        "none"
+      ]
+    },
+    "outcome": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    }
+  }
+}

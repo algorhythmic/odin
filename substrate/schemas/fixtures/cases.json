@@ -1,0 +1,3031 @@
+[
+  {
+    "id": "schema/project-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/project.schema.json",
+    "input": "fixtures/schema/project-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "A complete, valid project record."
+  },
+  {
+    "id": "schema/commitment-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/commitment.schema.json",
+    "input": "fixtures/schema/commitment-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-007"
+    ],
+    "note": "A complete, valid commitment record."
+  },
+  {
+    "id": "schema/assignment-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/assignment.schema.json",
+    "input": "fixtures/schema/assignment-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "A complete, valid assignment record."
+  },
+  {
+    "id": "schema/planning-session-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/planning_session.schema.json",
+    "input": "fixtures/schema/planning-session-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "A complete, valid planning_session record."
+  },
+  {
+    "id": "schema/session-binding-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/session_binding.schema.json",
+    "input": "fixtures/schema/session-binding-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-009"
+    ],
+    "note": "A complete, valid session_binding record."
+  },
+  {
+    "id": "schema/environment-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/environment.schema.json",
+    "input": "fixtures/schema/environment-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-009"
+    ],
+    "note": "A complete, valid environment record."
+  },
+  {
+    "id": "schema/human-request-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/human_request.schema.json",
+    "input": "fixtures/schema/human-request-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "A complete, valid human_request record."
+  },
+  {
+    "id": "schema/approval-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/approval.schema.json",
+    "input": "fixtures/schema/approval-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §4",
+      "I/O contract Appendix A",
+      "AC-30"
+    ],
+    "note": "A complete, valid approval record."
+  },
+  {
+    "id": "schema/review-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/review.schema.json",
+    "input": "fixtures/schema/review-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §10",
+      "I/O contract Appendix A",
+      "ODIN-ADR-013"
+    ],
+    "note": "A complete, valid review record."
+  },
+  {
+    "id": "schema/evaluator-result-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/evaluator_result.schema.json",
+    "input": "fixtures/schema/evaluator-result-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "A complete, valid evaluator_result record."
+  },
+  {
+    "id": "schema/session-class-decision-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/session_class_decision.schema.json",
+    "input": "fixtures/schema/session-class-decision-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-014"
+    ],
+    "note": "A complete, valid session_class_decision record."
+  },
+  {
+    "id": "schema/attention-prompt-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/attention_prompt.schema.json",
+    "input": "fixtures/schema/attention-prompt-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §4",
+      "I/O contract Appendix A",
+      "ODIN-ADR-010"
+    ],
+    "note": "A complete, valid attention_prompt record."
+  },
+  {
+    "id": "schema/effect-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/effect.schema.json",
+    "input": "fixtures/schema/effect-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §9",
+      "I/O contract Appendix A"
+    ],
+    "note": "A complete, valid effect record."
+  },
+  {
+    "id": "schema/message-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/message.schema.json",
+    "input": "fixtures/schema/message-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §3"
+    ],
+    "note": "A complete, valid message record."
+  },
+  {
+    "id": "schema/envelope-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/schema/envelope-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-006"
+    ],
+    "note": "The Appendix A event, with an Appendix C kind (run.state.started) and the inbox state."
+  },
+  {
+    "id": "schema/commitment-imported-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/commitment.schema.json",
+    "input": "fixtures/schema/commitment-imported-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "ODIN-ADR-007",
+      "I/O contract Appendix A",
+      "I/O contract §14"
+    ],
+    "note": "An imported commitment carries heimdall provenance (native id, native revision, import receipt)."
+  },
+  {
+    "id": "schema/review-escalated-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/review.schema.json",
+    "input": "fixtures/schema/review-escalated-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013"
+    ],
+    "note": "FLAG is a verdict result (§10; pinned Saga contract REC-4); an escalated review leaves the combined verdict null."
+  },
+  {
+    "id": "schema/attention-prompt-shadow-expired-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/attention_prompt.schema.json",
+    "input": "fixtures/schema/attention-prompt-shadow-expired-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §4",
+      "I/O contract Appendix A",
+      "AC-39"
+    ],
+    "note": "A shadow prompt is logged, never sent, and ends expired with an expired response record."
+  },
+  {
+    "id": "schema/effect-guidance-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/effect.schema.json",
+    "input": "fixtures/schema/effect-guidance-valid.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract Appendix A",
+      "AC-28"
+    ],
+    "note": "guidance_rev is set on a guidance effect."
+  },
+  {
+    "id": "schema/kinds-catalogue-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "kinds.schema.json",
+    "input": "kinds.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract Appendix C"
+    ],
+    "note": "The kinds catalogue validates against its schema."
+  },
+  {
+    "id": "schema/namespaces-catalogue-valid",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "namespaces.schema.json",
+    "input": "namespaces.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §1"
+    ],
+    "note": "The namespaces catalogue validates against its schema."
+  },
+  {
+    "id": "schema/project-unknown-key",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/project.schema.json",
+    "input": "fixtures/schema/project-unknown-key.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/owner"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "Unknown keys reject the document (strict JSON); a project has no owner field."
+  },
+  {
+    "id": "schema/project-bad-source-digest",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/project.schema.json",
+    "input": "fixtures/schema/project-bad-source-digest.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/sources/0/digest"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "Digests are lowercase sha256 hex."
+  },
+  {
+    "id": "schema/commitment-bad-state",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/commitment.schema.json",
+    "input": "fixtures/schema/commitment-bad-state.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/state"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-007"
+    ],
+    "note": "Commitment state is open, blocked, satisfied, closed or abandoned."
+  },
+  {
+    "id": "schema/commitment-provenance-wrong-source",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/commitment.schema.json",
+    "input": "fixtures/schema/commitment-provenance-wrong-source.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/provenance/source"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-007"
+    ],
+    "note": "Provenance source is heimdall, the only import source (ODIN-ADR-007)."
+  },
+  {
+    "id": "schema/commitment-generation-zero",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/commitment.schema.json",
+    "input": "fixtures/schema/commitment-generation-zero.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/ownership_generation"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-007"
+    ],
+    "note": "ownership_generation starts at 1."
+  },
+  {
+    "id": "schema/commitment-missing-checkpoints",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/commitment.schema.json",
+    "input": "fixtures/schema/commitment-missing-checkpoints.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/checkpoints"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-007"
+    ],
+    "note": "Checkpoints are a required field since ODIN-ADR-007; a missing key is reported at its own pointer."
+  },
+  {
+    "id": "schema/commitment-two-errors",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/commitment.schema.json",
+    "input": "fixtures/schema/commitment-two-errors.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/criteria/0/evidence/0",
+        "/owner"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-007"
+    ],
+    "note": "Two failures are reported as a sorted list of pointers: a non-ULID owner and an evidence ref without evid:."
+  },
+  {
+    "id": "schema/assignment-bad-backend",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/assignment.schema.json",
+    "input": "fixtures/schema/assignment-bad-backend.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/backend"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "Backend is saga, local or desktop."
+  },
+  {
+    "id": "schema/assignment-negative-budget",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/assignment.schema.json",
+    "input": "fixtures/schema/assignment-negative-budget.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/limits/budget_usd"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "Limits are numbers >= 0."
+  },
+  {
+    "id": "schema/assignment-unknown-limit",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/assignment.schema.json",
+    "input": "fixtures/schema/assignment-unknown-limit.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/limits/tokens"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "Nested objects are strict too."
+  },
+  {
+    "id": "schema/planning-session-bad-auth-mode",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/planning_session.schema.json",
+    "input": "fixtures/schema/planning-session-bad-auth-mode.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/auth/mode"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "Auth mode is subscription, api or local (AGENTS.md §6; D24)."
+  },
+  {
+    "id": "schema/planning-session-missing-rev",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/planning_session.schema.json",
+    "input": "fixtures/schema/planning-session-missing-rev.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/rev"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "Every record has id, rev, created_at, updated_at (Appendix A)."
+  },
+  {
+    "id": "schema/session-binding-subject-kind",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/session_binding.schema.json",
+    "input": "fixtures/schema/session-binding-subject-kind.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/subject/kind"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-009"
+    ],
+    "note": "A binding's subject is an assignment or a planning session."
+  },
+  {
+    "id": "schema/session-binding-failed-state",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/session_binding.schema.json",
+    "input": "fixtures/schema/session-binding-failed-state.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/state"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-009"
+    ],
+    "note": "An unreachable host makes a binding host_offline, never failed (ODIN-ADR-009)."
+  },
+  {
+    "id": "schema/session-binding-unknown-capability",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/session_binding.schema.json",
+    "input": "fixtures/schema/session-binding-unknown-capability.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/capabilities/4"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-009"
+    ],
+    "note": "Capabilities come from the adapter capability-matrix vocabulary."
+  },
+  {
+    "id": "schema/environment-herdr-access",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/environment.schema.json",
+    "input": "fixtures/schema/environment-herdr-access.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/herdr/access"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-009"
+    ],
+    "note": "Herdr access is local or ssh_machine."
+  },
+  {
+    "id": "schema/environment-missing-z",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/environment.schema.json",
+    "input": "fixtures/schema/environment-missing-z.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/probed_at"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-009"
+    ],
+    "note": "Timestamps are UTC with a literal Z."
+  },
+  {
+    "id": "schema/human-request-bad-kind",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/human_request.schema.json",
+    "input": "fixtures/schema/human-request-bad-kind.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/kind"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "Request kinds are clarification, plan_approval, delegation_change, principle_change, desktop_action."
+  },
+  {
+    "id": "schema/approval-principal-not-operator",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/approval.schema.json",
+    "input": "fixtures/schema/approval-principal-not-operator.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/principal"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §4",
+      "I/O contract Appendix A",
+      "AC-30"
+    ],
+    "note": "The principal is a verified operator identity; Odin cannot approve."
+  },
+  {
+    "id": "schema/approval-timestamp-offset",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/approval.schema.json",
+    "input": "fixtures/schema/approval-timestamp-offset.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/received_at"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §4",
+      "I/O contract Appendix A",
+      "AC-30"
+    ],
+    "note": "A numeric UTC offset is not the canonical Z form."
+  },
+  {
+    "id": "schema/review-three-positions",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/review.schema.json",
+    "input": "fixtures/schema/review-three-positions.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/positions"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §10",
+      "I/O contract Appendix A",
+      "ODIN-ADR-013"
+    ],
+    "note": "Exactly two reviewer positions (ODIN-ADR-013)."
+  },
+  {
+    "id": "schema/review-missing-position-b",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/review.schema.json",
+    "input": "fixtures/schema/review-missing-position-b.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/positions"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §10",
+      "I/O contract Appendix A",
+      "ODIN-ADR-013"
+    ],
+    "note": "The two positions are a and b."
+  },
+  {
+    "id": "schema/review-escalated-with-verdict",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/review.schema.json",
+    "input": "fixtures/schema/review-escalated-with-verdict.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/verdict"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §10",
+      "I/O contract Appendix A",
+      "ODIN-ADR-013"
+    ],
+    "note": "Escalated leaves the combined verdict null (Appendix A)."
+  },
+  {
+    "id": "schema/review-approved-with-reject",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/review.schema.json",
+    "input": "fixtures/schema/review-approved-with-reject.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/positions/1/verdict/result"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §10",
+      "I/O contract Appendix A",
+      "ODIN-ADR-013"
+    ],
+    "note": "Approved requires both positions to approve."
+  },
+  {
+    "id": "schema/review-open-round-combined",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/review.schema.json",
+    "input": "fixtures/schema/review-open-round-combined.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/combination",
+        "/positions/1/verdict"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §10",
+      "I/O contract Appendix A",
+      "ODIN-ADR-013"
+    ],
+    "note": "Combination stays null while a position's verdict is null; approved also needs both verdicts."
+  },
+  {
+    "id": "schema/review-round-three",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/review.schema.json",
+    "input": "fixtures/schema/review-round-three.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/round"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §10",
+      "I/O contract Appendix A",
+      "ODIN-ADR-013"
+    ],
+    "note": "One review and at most one corrective re-review (D8; §10)."
+  },
+  {
+    "id": "schema/evaluator-result-p-above-one",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/evaluator_result.schema.json",
+    "input": "fixtures/schema/evaluator-result-p-above-one.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/p"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "Probabilities are within 0..1."
+  },
+  {
+    "id": "schema/evaluator-result-bad-status",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/evaluator_result.schema.json",
+    "input": "fixtures/schema/evaluator-result-bad-status.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/status"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "Status is ok, unavailable, invalid, uncertain or timeout (§5; AC-09)."
+  },
+  {
+    "id": "schema/session-class-decision-subject-kind",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/session_class_decision.schema.json",
+    "input": "fixtures/schema/session-class-decision-subject-kind.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/subject/kind"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "ODIN-ADR-014"
+    ],
+    "note": "A class decision is about an event, an assignment or a planning session."
+  },
+  {
+    "id": "schema/attention-prompt-override-without-reason",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/attention_prompt.schema.json",
+    "input": "fixtures/schema/attention-prompt-override-without-reason.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/response/reason"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §4",
+      "I/O contract Appendix A",
+      "ODIN-ADR-010"
+    ],
+    "note": "An override without a reason is refused (§4; AC-39)."
+  },
+  {
+    "id": "schema/attention-prompt-snooze-without-until",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/attention_prompt.schema.json",
+    "input": "fixtures/schema/attention-prompt-snooze-without-until.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/response/until"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §4",
+      "I/O contract Appendix A",
+      "ODIN-ADR-010"
+    ],
+    "note": "snooze carries its until time (Appendix A)."
+  },
+  {
+    "id": "schema/attention-prompt-shadow-delivered",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/attention_prompt.schema.json",
+    "input": "fixtures/schema/attention-prompt-shadow-delivered.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/state"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §4",
+      "I/O contract Appendix A",
+      "ODIN-ADR-010"
+    ],
+    "note": "In shadow mode a prompt is logged, never sent (§4)."
+  },
+  {
+    "id": "schema/attention-prompt-responded-without-response",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/attention_prompt.schema.json",
+    "input": "fixtures/schema/attention-prompt-responded-without-response.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/response"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §4",
+      "I/O contract Appendix A",
+      "ODIN-ADR-010"
+    ],
+    "note": "A responded prompt carries its response record."
+  },
+  {
+    "id": "schema/attention-prompt-unversioned-rule",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/attention_prompt.schema.json",
+    "input": "fixtures/schema/attention-prompt-unversioned-rule.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/rule"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §4",
+      "I/O contract Appendix A",
+      "ODIN-ADR-010"
+    ],
+    "note": "A typed rule is recorded with its version (<rule>@<version>)."
+  },
+  {
+    "id": "schema/effect-held-without-blocker",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/effect.schema.json",
+    "input": "fixtures/schema/effect-held-without-blocker.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/dispatch_blocked_by"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §9",
+      "I/O contract Appendix A"
+    ],
+    "note": "held records dispatch_blocked_by (§9)."
+  },
+  {
+    "id": "schema/effect-bad-operation-id",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/effect.schema.json",
+    "input": "fixtures/schema/effect-bad-operation-id.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/operation_id"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §9",
+      "I/O contract Appendix A"
+    ],
+    "note": "U is not a Crockford base32 character."
+  },
+  {
+    "id": "schema/effect-guidance-rev-on-submit",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/effect.schema.json",
+    "input": "fixtures/schema/effect-guidance-rev-on-submit.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/guidance_rev"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §9",
+      "I/O contract Appendix A"
+    ],
+    "note": "guidance_rev is set only for guidance effects; null otherwise (Appendix A)."
+  },
+  {
+    "id": "schema/effect-bad-destination",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/effect.schema.json",
+    "input": "fixtures/schema/effect-bad-destination.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/destination"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §9",
+      "I/O contract Appendix A"
+    ],
+    "note": "Destinations are <target>:<operation>."
+  },
+  {
+    "id": "schema/message-bad-chat",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/message.schema.json",
+    "input": "fixtures/schema/message-bad-chat.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/chat"
+      ]
+    },
+    "cites": [
+      "I/O contract §3"
+    ],
+    "note": "chat is odin/<project>, mimir or work/<name>."
+  },
+  {
+    "id": "schema/message-bad-kind",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/message.schema.json",
+    "input": "fixtures/schema/message-bad-kind.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/kind"
+      ]
+    },
+    "cites": [
+      "I/O contract §3"
+    ],
+    "note": "Message kinds are the ten of §3."
+  },
+  {
+    "id": "schema/message-unknown-id",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "records/message.schema.json",
+    "input": "fixtures/schema/message-unknown-id.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/id"
+      ]
+    },
+    "cites": [
+      "I/O contract §3"
+    ],
+    "note": "A message's identity is (chat, i); it has no id field."
+  },
+  {
+    "id": "schema/envelope-scope-unknown-key",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/schema/envelope-scope-unknown-key.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/scope/repo"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "EC-01"
+    ],
+    "note": "Scope keys are project, run, assignment, session, host, commitment."
+  },
+  {
+    "id": "schema/envelope-version-two",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/schema/envelope-version-two.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/envelope"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "EC-01"
+    ],
+    "note": "This is envelope version 1."
+  },
+  {
+    "id": "schema/envelope-bad-namespace",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/schema/envelope-bad-namespace.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/namespace"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "EC-01",
+      "ODIN-ADR-006"
+    ],
+    "note": "A namespace outside the catalogue is a schema failure."
+  },
+  {
+    "id": "schema/envelope-negative-source-seq",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/schema/envelope-negative-source-seq.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/source_seq"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "EC-01"
+    ],
+    "note": "Source sequences are >= 0."
+  },
+  {
+    "id": "schema/envelope-missing-state",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/schema/envelope-missing-state.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/state"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "EC-01"
+    ],
+    "note": "The inbox processing state is required."
+  },
+  {
+    "id": "schema/envelope-id-trailing-newline",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/schema/envelope-id-trailing-newline.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/id"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "EC-01"
+    ],
+    "note": "$ in a pattern means end of string: a trailing newline does not pass (Python re's $ would allow it)."
+  },
+  {
+    "id": "schema/envelope-duplicate-key",
+    "group": "schema",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/schema/envelope-duplicate-key.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/kind"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A",
+      "EC-01"
+    ],
+    "note": "Duplicate keys reject the document at decoding; the error is the duplicated key's pointer."
+  },
+  {
+    "id": "envelope/payload-and-ref-null",
+    "group": "envelope",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/envelope/payload-and-ref-null.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        ""
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix C",
+      "EC-01"
+    ],
+    "note": "An event carries a payload or an evidence ref; the anyOf failure is reported at the document root (\"\")."
+  },
+  {
+    "id": "envelope/payload-and-ref-both",
+    "group": "envelope",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/envelope/payload-and-ref-both.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix C",
+      "EC-01"
+    ],
+    "note": "Both payload and payload_ref may be present."
+  },
+  {
+    "id": "envelope/unknown-kind",
+    "group": "envelope",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/envelope/unknown-kind.json",
+    "expected": {
+      "outcome": "unknown_kind"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix C",
+      "EC-01",
+      "I/O contract Appendix A"
+    ],
+    "note": "run.state (the Appendix A example's spelling) matches the kind pattern but is not an Appendix C kind."
+  },
+  {
+    "id": "envelope/unknown-kind-and-schema-invalid",
+    "group": "envelope",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/envelope/unknown-kind-and-schema-invalid.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/wake"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix C",
+      "EC-01"
+    ],
+    "note": "Schema validation runs first; the catalogue check runs only on a schema-valid envelope."
+  },
+  {
+    "id": "envelope/kind-bad-pattern",
+    "group": "envelope",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/envelope/kind-bad-pattern.json",
+    "expected": {
+      "outcome": "schema_invalid",
+      "errors": [
+        "/kind"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix C",
+      "EC-01"
+    ],
+    "note": "A kind is dotted lowercase segments."
+  },
+  {
+    "id": "envelope/namespace-odin-history",
+    "group": "envelope",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/envelope/namespace-odin-history.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix C",
+      "EC-01",
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "A valid event in the odin_history namespace."
+  },
+  {
+    "id": "envelope/namespace-transcript-archive",
+    "group": "envelope",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/envelope/namespace-transcript-archive.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix C",
+      "EC-01",
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "A valid event in the transcript_archive namespace."
+  },
+  {
+    "id": "envelope/namespace-surface-events",
+    "group": "envelope",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/envelope/namespace-surface-events.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix C",
+      "EC-01",
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "A valid event in the surface_events namespace."
+  },
+  {
+    "id": "envelope/namespace-execution-ledger",
+    "group": "envelope",
+    "operation": "validate",
+    "schema": "envelope.schema.json",
+    "input": "fixtures/envelope/namespace-execution-ledger.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix C",
+      "EC-01",
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "A valid event in the execution_ledger namespace."
+  },
+  {
+    "id": "namespace/writer-mismatch-odin-history",
+    "group": "namespace",
+    "operation": "append",
+    "input": "fixtures/namespace/writer-mismatch-odin-history.json",
+    "expected": {
+      "outcome": "namespace_writer_mismatch"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "Only the namespace's single writer may append to odin_history; nothing is appended."
+  },
+  {
+    "id": "namespace/writer-mismatch-transcript-archive",
+    "group": "namespace",
+    "operation": "append",
+    "input": "fixtures/namespace/writer-mismatch-transcript-archive.json",
+    "expected": {
+      "outcome": "namespace_writer_mismatch"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "Only the namespace's single writer may append to transcript_archive; nothing is appended."
+  },
+  {
+    "id": "namespace/writer-mismatch-surface-events",
+    "group": "namespace",
+    "operation": "append",
+    "input": "fixtures/namespace/writer-mismatch-surface-events.json",
+    "expected": {
+      "outcome": "namespace_writer_mismatch"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "Only the namespace's single writer may append to surface_events; nothing is appended."
+  },
+  {
+    "id": "namespace/writer-mismatch-execution-ledger",
+    "group": "namespace",
+    "operation": "append",
+    "input": "fixtures/namespace/writer-mismatch-execution-ledger.json",
+    "expected": {
+      "outcome": "namespace_writer_mismatch"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "Only the namespace's single writer may append to execution_ledger; nothing is appended."
+  },
+  {
+    "id": "namespace/unknown-writer",
+    "group": "namespace",
+    "operation": "append",
+    "input": "fixtures/namespace/unknown-writer.json",
+    "expected": {
+      "outcome": "namespace_writer_mismatch"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "A component that is no namespace's writer is refused."
+  },
+  {
+    "id": "namespace/mirror-without-source-seq",
+    "group": "namespace",
+    "operation": "append",
+    "input": "fixtures/namespace/mirror-without-source-seq.json",
+    "expected": {
+      "outcome": "mirror_requires_source_seq"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006",
+      "I/O contract Appendix B (B-12)",
+      "D4"
+    ],
+    "note": "The mirror is filled only from Saga's cursor, so a mirrored event carries its Saga sequence."
+  },
+  {
+    "id": "namespace/mirror-wrong-writer-checked-first",
+    "group": "namespace",
+    "operation": "append",
+    "input": "fixtures/namespace/mirror-wrong-writer-checked-first.json",
+    "expected": {
+      "outcome": "namespace_writer_mismatch"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "The writer check precedes the source_seq check."
+  },
+  {
+    "id": "namespace/mirror-accepted",
+    "group": "namespace",
+    "operation": "append",
+    "input": "fixtures/namespace/mirror-accepted.json",
+    "expected": {
+      "outcome": "accepted"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006",
+      "D4"
+    ],
+    "note": "The Saga adapter applies a cursor-delivered event to the mirror."
+  },
+  {
+    "id": "namespace/odin-history-accepted",
+    "group": "namespace",
+    "operation": "append",
+    "input": "fixtures/namespace/odin-history-accepted.json",
+    "expected": {
+      "outcome": "accepted"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "The service writer appends to odin_history."
+  },
+  {
+    "id": "namespace/transcript-archive-accepted",
+    "group": "namespace",
+    "operation": "append",
+    "input": "fixtures/namespace/transcript-archive-accepted.json",
+    "expected": {
+      "outcome": "accepted"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "The capture_module writer appends to transcript_archive."
+  },
+  {
+    "id": "namespace/surface-events-accepted",
+    "group": "namespace",
+    "operation": "append",
+    "input": "fixtures/namespace/surface-events-accepted.json",
+    "expected": {
+      "outcome": "accepted"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "The workstation_sensors writer appends to surface_events."
+  },
+  {
+    "id": "namespace/amend-attempt",
+    "group": "namespace",
+    "operation": "amend",
+    "input": "fixtures/namespace/amend-attempt.json",
+    "expected": {
+      "outcome": "append_only_violation"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006",
+      "I/O contract §3",
+      "I/O contract §8"
+    ],
+    "note": "Even the namespace's own writer cannot amend an appended event; redaction is a tombstone message operation (§8)."
+  },
+  {
+    "id": "namespace/delete-attempt",
+    "group": "namespace",
+    "operation": "delete",
+    "input": "fixtures/namespace/delete-attempt.json",
+    "expected": {
+      "outcome": "append_only_violation"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006"
+    ],
+    "note": "Appended events are never deleted."
+  },
+  {
+    "id": "namespace/mirror-amend-attempt",
+    "group": "namespace",
+    "operation": "amend",
+    "input": "fixtures/namespace/mirror-amend-attempt.json",
+    "expected": {
+      "outcome": "append_only_violation"
+    },
+    "cites": [
+      "I/O contract §1",
+      "ODIN-ADR-006",
+      "D4"
+    ],
+    "note": "The adapter applies, never authors or amends a mirrored record."
+  },
+  {
+    "id": "intake/same-dedupe-key-twice",
+    "group": "intake",
+    "operation": "intake_sequence",
+    "input": "fixtures/intake/same-dedupe-key-twice.json",
+    "expected": {
+      "steps": [
+        {
+          "outcome": "accepted",
+          "cursor_after": 100,
+          "duplicates_counted": 0
+        },
+        {
+          "outcome": "duplicate_dedupe_key",
+          "cursor_after": 100,
+          "duplicates_counted": 1
+        }
+      ]
+    },
+    "cites": [
+      "AC-01",
+      "I/O contract §9"
+    ],
+    "note": "A redelivered Telegram message is a counted no-op; the dedupe-key check runs before the sequence check."
+  },
+  {
+    "id": "intake/same-dedupe-key-without-sequence",
+    "group": "intake",
+    "operation": "intake_sequence",
+    "input": "fixtures/intake/same-dedupe-key-without-sequence.json",
+    "expected": {
+      "steps": [
+        {
+          "outcome": "accepted",
+          "cursor_after": null,
+          "duplicates_counted": 0
+        },
+        {
+          "outcome": "duplicate_dedupe_key",
+          "cursor_after": null,
+          "duplicates_counted": 1
+        }
+      ]
+    },
+    "cites": [
+      "AC-01",
+      "I/O contract §9"
+    ],
+    "note": "A producer without a sequence is deduplicated by key alone; its cursor stays null."
+  },
+  {
+    "id": "intake/same-source-seq-twice",
+    "group": "intake",
+    "operation": "intake_sequence",
+    "input": "fixtures/intake/same-source-seq-twice.json",
+    "expected": {
+      "steps": [
+        {
+          "outcome": "accepted",
+          "cursor_after": 1843,
+          "duplicates_counted": 0
+        },
+        {
+          "outcome": "duplicate_sequence",
+          "cursor_after": 1843,
+          "duplicates_counted": 1
+        }
+      ]
+    },
+    "cites": [
+      "AC-01",
+      "I/O contract §9"
+    ],
+    "note": "A different dedupe key at a sequence the cursor has passed is still a duplicate."
+  },
+  {
+    "id": "intake/source-seq-below-cursor",
+    "group": "intake",
+    "operation": "intake_sequence",
+    "input": "fixtures/intake/source-seq-below-cursor.json",
+    "expected": {
+      "steps": [
+        {
+          "outcome": "accepted",
+          "cursor_after": 10,
+          "duplicates_counted": 0
+        },
+        {
+          "outcome": "accepted",
+          "cursor_after": 12,
+          "duplicates_counted": 0
+        },
+        {
+          "outcome": "duplicate_sequence",
+          "cursor_after": 12,
+          "duplicates_counted": 1
+        }
+      ]
+    },
+    "cites": [
+      "AC-01",
+      "I/O contract §9"
+    ],
+    "note": "A sequence at or below the cursor is a counted no-op; gaps above the cursor are accepted."
+  },
+  {
+    "id": "intake/different-producers-same-seq",
+    "group": "intake",
+    "operation": "intake_sequence",
+    "input": "fixtures/intake/different-producers-same-seq.json",
+    "expected": {
+      "steps": [
+        {
+          "outcome": "accepted",
+          "cursor_after": 5,
+          "duplicates_counted": 0
+        },
+        {
+          "outcome": "accepted",
+          "cursor_after": 5,
+          "duplicates_counted": 0
+        }
+      ]
+    },
+    "cites": [
+      "AC-01",
+      "I/O contract §9",
+      "I/O contract §9 (no implied total order)"
+    ],
+    "note": "Cursors are per producer: equal sequences from different producers are independent."
+  },
+  {
+    "id": "intake/same-key-two-namespaces",
+    "group": "intake",
+    "operation": "intake_sequence",
+    "input": "fixtures/intake/same-key-two-namespaces.json",
+    "expected": {
+      "steps": [
+        {
+          "outcome": "accepted",
+          "cursor_after": 1842,
+          "duplicates_counted": 0
+        },
+        {
+          "outcome": "accepted",
+          "cursor_after": 1842,
+          "duplicates_counted": 0
+        }
+      ]
+    },
+    "cites": [
+      "AC-01",
+      "I/O contract §9",
+      "ODIN-ADR-006"
+    ],
+    "note": "Cursors and seen dedupe keys are per (namespace, producer): the inbox copy and the mirror copy are both accepted."
+  },
+  {
+    "id": "intake/mixed-stream",
+    "group": "intake",
+    "operation": "intake_sequence",
+    "input": "fixtures/intake/mixed-stream.json",
+    "expected": {
+      "steps": [
+        {
+          "outcome": "accepted",
+          "cursor_after": 1,
+          "duplicates_counted": 0
+        },
+        {
+          "outcome": "accepted",
+          "cursor_after": 2,
+          "duplicates_counted": 0
+        },
+        {
+          "outcome": "accepted",
+          "cursor_after": 7,
+          "duplicates_counted": 0
+        },
+        {
+          "outcome": "duplicate_dedupe_key",
+          "cursor_after": 2,
+          "duplicates_counted": 1
+        },
+        {
+          "outcome": "accepted",
+          "cursor_after": 7,
+          "duplicates_counted": 1
+        },
+        {
+          "outcome": "accepted",
+          "cursor_after": 3,
+          "duplicates_counted": 1
+        },
+        {
+          "outcome": "duplicate_sequence",
+          "cursor_after": 7,
+          "duplicates_counted": 2
+        }
+      ]
+    },
+    "cites": [
+      "AC-01",
+      "I/O contract §9"
+    ],
+    "note": "duplicates_counted is cumulative over the case; an event without a sequence leaves its producer's cursor unchanged."
+  },
+  {
+    "id": "replay/control-first",
+    "group": "replay",
+    "operation": "replay",
+    "input": "fixtures/replay/control-first.json",
+    "expected": {
+      "outcome": "replayed",
+      "replay_order": [
+        "01JAEV00000000000000000305",
+        "01JAEV00000000000000000307",
+        "01JAEV00000000000000000306",
+        "01JAEV00000000000000000309",
+        "01JAEV00000000000000000303"
+      ]
+    },
+    "cites": [
+      "AC-27",
+      "I/O contract §9"
+    ],
+    "note": "Control messages first in received order, then the rest in received order; processed events are skipped."
+  },
+  {
+    "id": "replay/control-relative-order-kept",
+    "group": "replay",
+    "operation": "replay",
+    "input": "fixtures/replay/control-relative-order-kept.json",
+    "expected": {
+      "outcome": "replayed",
+      "replay_order": [
+        "01JAEV00000000000000000309",
+        "01JAEV00000000000000000305",
+        "01JAEV00000000000000000303",
+        "01JAEV00000000000000000301"
+      ]
+    },
+    "cites": [
+      "AC-27",
+      "I/O contract §9"
+    ],
+    "note": "return, take and pause are all direct commands; keeping them in one ordered batch preserves take-after-return."
+  },
+  {
+    "id": "replay/no-control",
+    "group": "replay",
+    "operation": "replay",
+    "input": "fixtures/replay/no-control.json",
+    "expected": {
+      "outcome": "replayed",
+      "replay_order": [
+        "01JAEV00000000000000000307",
+        "01JAEV00000000000000000309",
+        "01JAEV00000000000000000305"
+      ]
+    },
+    "cites": [
+      "AC-27",
+      "I/O contract §9"
+    ],
+    "note": "Without control messages the order is the received order, not id order."
+  },
+  {
+    "id": "replay/all-processed",
+    "group": "replay",
+    "operation": "replay",
+    "input": "fixtures/replay/all-processed.json",
+    "expected": {
+      "outcome": "replayed",
+      "replay_order": []
+    },
+    "cites": [
+      "AC-27",
+      "I/O contract §9"
+    ],
+    "note": "Nothing is replayed when every event is processed."
+  },
+  {
+    "id": "replay/process-twice",
+    "group": "replay",
+    "operation": "inbox_sequence",
+    "input": "fixtures/replay/process-twice.json",
+    "expected": {
+      "steps": [
+        {
+          "outcome": "processed"
+        },
+        {
+          "outcome": "already_processed"
+        },
+        {
+          "outcome": "already_processed"
+        },
+        {
+          "outcome": "unknown_event"
+        },
+        {
+          "outcome": "replayed",
+          "replay_order": [
+            "01JAEV00000000000000000305",
+            "01JAEV00000000000000000303"
+          ]
+        }
+      ]
+    },
+    "cites": [
+      "AC-27",
+      "I/O contract §9"
+    ],
+    "note": "Processing is idempotent by event id; an unknown id is reported; replay skips what was processed."
+  },
+  {
+    "id": "revision/check-revision-ok",
+    "group": "revision",
+    "operation": "check_revision",
+    "input": "fixtures/revision/check-revision-ok.json",
+    "expected": {
+      "outcome": "ok"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "Equal revisions pass."
+  },
+  {
+    "id": "revision/check-revision-stale",
+    "group": "revision",
+    "operation": "check_revision",
+    "input": "fixtures/revision/check-revision-stale.json",
+    "expected": {
+      "outcome": "stale_revision"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "A write based on an older revision is the 409 stale_revision; nothing changes."
+  },
+  {
+    "id": "revision/check-revision-ahead",
+    "group": "revision",
+    "operation": "check_revision",
+    "input": "fixtures/revision/check-revision-ahead.json",
+    "expected": {
+      "outcome": "stale_revision"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "Any mismatch is stale, including an expected revision from the future."
+  },
+  {
+    "id": "revision/check-revision-missing",
+    "group": "revision",
+    "operation": "check_revision",
+    "input": "fixtures/revision/check-revision-missing.json",
+    "expected": {
+      "outcome": "expected_revision_required"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "A write that depends on prior state must carry expected_revision."
+  },
+  {
+    "id": "revision/check-revision-null",
+    "group": "revision",
+    "operation": "check_revision",
+    "input": "fixtures/revision/check-revision-null.json",
+    "expected": {
+      "outcome": "expected_revision_required"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract Appendix A"
+    ],
+    "note": "A null expected_revision counts as missing."
+  },
+  {
+    "id": "revision/check-owner-ok",
+    "group": "revision",
+    "operation": "check_owner",
+    "input": "fixtures/revision/check-owner-ok.json",
+    "expected": {
+      "outcome": "ok"
+    },
+    "cites": [
+      "I/O contract §2",
+      "AC-04"
+    ],
+    "note": "The session acts under the commitment's current ownership generation."
+  },
+  {
+    "id": "revision/check-owner-stale-generation",
+    "group": "revision",
+    "operation": "check_owner",
+    "input": "fixtures/revision/check-owner-stale-generation.json",
+    "expected": {
+      "outcome": "stale_owner"
+    },
+    "cites": [
+      "I/O contract §2",
+      "AC-04"
+    ],
+    "note": "A superseded session's writes fail with 409 stale_owner."
+  },
+  {
+    "id": "revision/check-owner-retired",
+    "group": "revision",
+    "operation": "check_owner",
+    "input": "fixtures/revision/check-owner-retired.json",
+    "expected": {
+      "outcome": "stale_owner"
+    },
+    "cites": [
+      "I/O contract §2",
+      "AC-04"
+    ],
+    "note": "A retired session's writes fail even at the current generation."
+  },
+  {
+    "id": "revision/check-owner-retiring",
+    "group": "revision",
+    "operation": "check_owner",
+    "input": "fixtures/revision/check-owner-retiring.json",
+    "expected": {
+      "outcome": "ok"
+    },
+    "cites": [
+      "I/O contract §2",
+      "AC-04"
+    ],
+    "note": "Only retired is stale by state; a retiring session at the current generation may still write."
+  },
+  {
+    "id": "revision/transfer-holds-effects",
+    "group": "revision",
+    "operation": "commitment_transfer",
+    "input": "fixtures/revision/transfer-holds-effects.json",
+    "expected": {
+      "outcome": "transferred",
+      "generation_after": 3,
+      "rev_after": 8,
+      "held_effects": [
+        "01JAEF00000000000000000010",
+        "01JAEF00000000000000000011",
+        "01JAEF00000000000000000015"
+      ]
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §9",
+      "AC-11",
+      "AC-12"
+    ],
+    "note": "Transfer bumps generation and rev and holds every queued or held effect created under an older generation."
+  },
+  {
+    "id": "revision/transfer-stale-revision",
+    "group": "revision",
+    "operation": "commitment_transfer",
+    "input": "fixtures/revision/transfer-stale-revision.json",
+    "expected": {
+      "outcome": "stale_revision"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §9",
+      "AC-11",
+      "AC-12"
+    ],
+    "note": "Transfer is a revisioned write; a stale expected revision changes nothing."
+  },
+  {
+    "id": "revision/transfer-missing-expected-revision",
+    "group": "revision",
+    "operation": "commitment_transfer",
+    "input": "fixtures/revision/transfer-missing-expected-revision.json",
+    "expected": {
+      "outcome": "expected_revision_required"
+    },
+    "cites": [
+      "I/O contract §2",
+      "I/O contract §9",
+      "AC-11",
+      "AC-12"
+    ],
+    "note": "Transfer depends on prior state and must carry expected_revision."
+  },
+  {
+    "id": "revision/operation-conflict",
+    "group": "revision",
+    "operation": "operation_reuse",
+    "input": "fixtures/revision/operation-conflict.json",
+    "expected": {
+      "outcome": "operation_conflict"
+    },
+    "cites": [
+      "I/O contract §9",
+      "AC-02"
+    ],
+    "note": "Reusing an operation id with different content fails (409 operation_conflict)."
+  },
+  {
+    "id": "revision/operation-idempotent",
+    "group": "revision",
+    "operation": "operation_reuse",
+    "input": "fixtures/revision/operation-idempotent.json",
+    "expected": {
+      "outcome": "operation_idempotent"
+    },
+    "cites": [
+      "I/O contract §9",
+      "AC-01"
+    ],
+    "note": "The same operation id with the same payload digest is the same operation."
+  },
+  {
+    "id": "revision/size-mismatch",
+    "group": "revision",
+    "operation": "check_message_size",
+    "input": "fixtures/revision/size-mismatch.json",
+    "expected": {
+      "outcome": "size_mismatch"
+    },
+    "cites": [
+      "I/O contract §3"
+    ],
+    "note": "size counts UTF-8 bytes (5 for café), not characters."
+  },
+  {
+    "id": "revision/size-ok-multibyte",
+    "group": "revision",
+    "operation": "check_message_size",
+    "input": "fixtures/revision/size-ok-multibyte.json",
+    "expected": {
+      "outcome": "ok"
+    },
+    "cites": [
+      "I/O contract §3"
+    ],
+    "note": "size equals the UTF-8 byte length of text."
+  },
+  {
+    "id": "revision/size-ok-empty",
+    "group": "revision",
+    "operation": "check_message_size",
+    "input": "fixtures/revision/size-ok-empty.json",
+    "expected": {
+      "outcome": "ok"
+    },
+    "cites": [
+      "I/O contract §3"
+    ],
+    "note": "An empty text has size 0."
+  },
+  {
+    "id": "review/both-approve",
+    "group": "review",
+    "operation": "combine",
+    "input": "fixtures/review/both-approve.json",
+    "expected": {
+      "outcome": "approved",
+      "verdict_result": "APPROVE"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013",
+      "AC-40"
+    ],
+    "note": "Both positions approve."
+  },
+  {
+    "id": "review/both-unchanged",
+    "group": "review",
+    "operation": "combine",
+    "input": "fixtures/review/both-unchanged.json",
+    "expected": {
+      "outcome": "approved",
+      "verdict_result": "APPROVE_UNCHANGED"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013",
+      "AC-40"
+    ],
+    "note": "No change needed is a first-class outcome."
+  },
+  {
+    "id": "review/approve-and-unchanged",
+    "group": "review",
+    "operation": "combine",
+    "input": "fixtures/review/approve-and-unchanged.json",
+    "expected": {
+      "outcome": "approved",
+      "verdict_result": "APPROVE"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013",
+      "AC-40"
+    ],
+    "note": "Mixed approvals combine to APPROVE (the mapping §10 leaves to the review schemas)."
+  },
+  {
+    "id": "review/one-reject",
+    "group": "review",
+    "operation": "combine",
+    "input": "fixtures/review/one-reject.json",
+    "expected": {
+      "outcome": "escalated"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013",
+      "AC-40"
+    ],
+    "note": "Any REJECT goes to the operator, even in round 1."
+  },
+  {
+    "id": "review/one-insufficient",
+    "group": "review",
+    "operation": "combine",
+    "input": "fixtures/review/one-insufficient.json",
+    "expected": {
+      "outcome": "escalated"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013",
+      "AC-40"
+    ],
+    "note": "Any INSUFFICIENT_EVIDENCE goes to the operator."
+  },
+  {
+    "id": "review/reject-and-flag-round-one",
+    "group": "review",
+    "operation": "combine",
+    "input": "fixtures/review/reject-and-flag-round-one.json",
+    "expected": {
+      "outcome": "escalated"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013",
+      "AC-40"
+    ],
+    "note": "REJECT escalates before any disagreement rule applies."
+  },
+  {
+    "id": "review/disagreement-round-one",
+    "group": "review",
+    "operation": "combine",
+    "input": "fixtures/review/disagreement-round-one.json",
+    "expected": {
+      "outcome": "re_review"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013",
+      "AC-40"
+    ],
+    "note": "A disagreement in round 1 gets the single corrective re-review."
+  },
+  {
+    "id": "review/disagreement-round-two",
+    "group": "review",
+    "operation": "combine",
+    "input": "fixtures/review/disagreement-round-two.json",
+    "expected": {
+      "outcome": "escalated"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013",
+      "AC-40"
+    ],
+    "note": "A disagreement that survives the re-review goes to the operator."
+  },
+  {
+    "id": "review/both-flag-round-one",
+    "group": "review",
+    "operation": "combine",
+    "input": "fixtures/review/both-flag-round-one.json",
+    "expected": {
+      "outcome": "re_review"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013",
+      "AC-40"
+    ],
+    "note": "Two FLAGs are not an approval; round 1 gets the corrective re-review."
+  },
+  {
+    "id": "review/one-unavailable",
+    "group": "review",
+    "operation": "combine",
+    "input": "fixtures/review/one-unavailable.json",
+    "expected": {
+      "outcome": "pending"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013",
+      "AC-40",
+      "AC-22"
+    ],
+    "note": "An unavailable position never waives required review; one approval alone is not approved."
+  },
+  {
+    "id": "review/unavailable-and-reject",
+    "group": "review",
+    "operation": "combine",
+    "input": "fixtures/review/unavailable-and-reject.json",
+    "expected": {
+      "outcome": "pending"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013",
+      "AC-40",
+      "AC-22",
+      "I/O contract Appendix A"
+    ],
+    "note": "Combination stays null while any position's verdict is null; pending precedes escalation."
+  },
+  {
+    "id": "review/both-pending",
+    "group": "review",
+    "operation": "combine",
+    "input": "fixtures/review/both-pending.json",
+    "expected": {
+      "outcome": "pending"
+    },
+    "cites": [
+      "I/O contract §10",
+      "ODIN-ADR-013",
+      "AC-40"
+    ],
+    "note": "Neither position has answered."
+  },
+  {
+    "id": "effects/restart-marks-unknown",
+    "group": "effects",
+    "operation": "restart",
+    "input": "fixtures/effects/restart-marks-unknown.json",
+    "expected": {
+      "outcome": "restarted",
+      "marked_unknown": [
+        "01JAEF00000000000000000020",
+        "01JAEF00000000000000000022"
+      ]
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "A process that died between action and receipt leaves the effect unknown on restart."
+  },
+  {
+    "id": "effects/restart-nothing-in-flight",
+    "group": "effects",
+    "operation": "restart",
+    "input": "fixtures/effects/restart-nothing-in-flight.json",
+    "expected": {
+      "outcome": "restarted",
+      "marked_unknown": []
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "Nothing was in flight."
+  },
+  {
+    "id": "effects/saga-completed",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/saga-completed.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "delivered",
+      "retry_allowed": false
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "I/O contract Appendix B (B-13)"
+    ],
+    "note": "Saga's lookup reports completed with the original receipt."
+  },
+  {
+    "id": "effects/saga-pending",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/saga-pending.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "unknown",
+      "retry_allowed": false
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "I/O contract Appendix B (B-13)"
+    ],
+    "note": "Pending: wait."
+  },
+  {
+    "id": "effects/saga-failed",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/saga-failed.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "failed",
+      "retry_allowed": false
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "I/O contract Appendix B (B-13)"
+    ],
+    "note": "Failed is recorded as failed."
+  },
+  {
+    "id": "effects/saga-superseded",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/saga-superseded.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "superseded",
+      "retry_allowed": false
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "I/O contract Appendix B (B-13)",
+      "AC-28"
+    ],
+    "note": "A guidance operation Saga reports superseded is never re-sent."
+  },
+  {
+    "id": "effects/saga-absent",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/saga-absent.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "queued",
+      "retry_allowed": true
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "I/O contract Appendix B (B-13)"
+    ],
+    "note": "Confirmed absence within the retention window allows a retry with the same operation id."
+  },
+  {
+    "id": "effects/saga-unknown-expired",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/saga-unknown-expired.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "unknown",
+      "retry_allowed": false,
+      "surface_to_operator": true
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "I/O contract Appendix B (B-13)"
+    ],
+    "note": "An aged-out record is not confirmed absence: stays unknown and goes to the operator."
+  },
+  {
+    "id": "effects/telegram-notify",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/telegram-notify.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "unknown",
+      "retry_allowed": false,
+      "note": "may have been sent"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "AC-05"
+    ],
+    "note": "A plain notification is never auto-resent."
+  },
+  {
+    "id": "effects/telegram-request",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/telegram-request.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "queued",
+      "retry_allowed": true,
+      "same_request_id": true
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "AC-05"
+    ],
+    "note": "A request is resent with the same request id and digest."
+  },
+  {
+    "id": "effects/telegram-approval",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/telegram-approval.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "queued",
+      "retry_allowed": true,
+      "same_request_id": true
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "AC-05",
+      "AC-30"
+    ],
+    "note": "An approval request is resent with the same request id and digest."
+  },
+  {
+    "id": "effects/surface-prompt",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/surface-prompt.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "unknown",
+      "retry_allowed": false,
+      "counts_against_caps": true
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "ODIN-ADR-010",
+      "AC-39"
+    ],
+    "note": "An attention prompt is never auto-resent; it counts against the caps."
+  },
+  {
+    "id": "effects/host-offline-queued",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/host-offline-queued.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "queued",
+      "retry_allowed": false,
+      "held_for_host": true
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "ODIN-ADR-009",
+      "AC-37"
+    ],
+    "note": "While the host is offline a queued command stays queued and is not retried."
+  },
+  {
+    "id": "effects/host-offline-in-flight",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/host-offline-in-flight.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "in_flight",
+      "retry_allowed": false,
+      "held_for_host": true
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "ODIN-ADR-009",
+      "AC-37"
+    ],
+    "note": "An in-flight command stays as it is while the host is offline."
+  },
+  {
+    "id": "effects/host-offline-unknown",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/host-offline-unknown.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "unknown",
+      "retry_allowed": false,
+      "held_for_host": true
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "ODIN-ADR-009",
+      "AC-37"
+    ],
+    "note": "An unknown command stays unknown while the host is offline."
+  },
+  {
+    "id": "effects/host-returned-completed",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/host-returned-completed.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "delivered",
+      "retry_allowed": false
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "ODIN-ADR-009",
+      "AC-37"
+    ],
+    "note": "On return the host's report confirms the command."
+  },
+  {
+    "id": "effects/host-returned-absent",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/host-returned-absent.json",
+    "expected": {
+      "outcome": "reconciled",
+      "state_after": "queued",
+      "retry_allowed": true
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9",
+      "ODIN-ADR-009",
+      "AC-37"
+    ],
+    "note": "On return the host reports it never received the command: retry with the same operation id."
+  },
+  {
+    "id": "effects/invalid-lookup",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/invalid-lookup.json",
+    "expected": {
+      "outcome": "invalid_reconciliation_input"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "A lookup value outside B-13's set is refused."
+  },
+  {
+    "id": "effects/invalid-lookup-for-telegram",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/invalid-lookup-for-telegram.json",
+    "expected": {
+      "outcome": "invalid_reconciliation_input"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "Telegram has no lookup; supplying one is invalid input."
+  },
+  {
+    "id": "effects/invalid-telegram-operation",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/invalid-telegram-operation.json",
+    "expected": {
+      "outcome": "invalid_reconciliation_input"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "Only :notify, :request and :approval have an irreducibly-unknown policy."
+  },
+  {
+    "id": "effects/invalid-session-host-without-host-state",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/invalid-session-host-without-host-state.json",
+    "expected": {
+      "outcome": "invalid_reconciliation_input"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "A session-host command is reconciled only with the host's state."
+  },
+  {
+    "id": "effects/invalid-host-report",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/invalid-host-report.json",
+    "expected": {
+      "outcome": "invalid_reconciliation_input"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "A returned host reports completed or absent."
+  },
+  {
+    "id": "effects/invalid-effect-state",
+    "group": "effects",
+    "operation": "reconcile",
+    "input": "fixtures/effects/invalid-effect-state.json",
+    "expected": {
+      "outcome": "invalid_reconciliation_input"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "Only unknown (or, for a session host, queued and in_flight) effects are reconciled."
+  },
+  {
+    "id": "effects/shadow-dispatch",
+    "group": "effects",
+    "operation": "dispatch",
+    "input": "fixtures/effects/shadow-dispatch.json",
+    "expected": {
+      "outcome": "dispatch_refused_shadow"
+    },
+    "cites": [
+      "I/O contract §4",
+      "I/O contract §9",
+      "ODIN-ADR-010",
+      "AC-39"
+    ],
+    "note": "A shadow-mode prompt is logged and never dispatched."
+  },
+  {
+    "id": "revalidate/owner-generation",
+    "group": "revalidate",
+    "operation": "revalidate",
+    "input": "fixtures/revalidate/owner-generation.json",
+    "expected": {
+      "outcome": "cancelled_stale",
+      "reason": "owner_generation"
+    },
+    "cites": [
+      "AC-27",
+      "I/O contract §9",
+      "AC-12"
+    ],
+    "note": "An effect created under a superseded owner generation is cancelled."
+  },
+  {
+    "id": "revalidate/delegation-revoked",
+    "group": "revalidate",
+    "operation": "revalidate",
+    "input": "fixtures/revalidate/delegation-revoked.json",
+    "expected": {
+      "outcome": "cancelled_stale",
+      "reason": "delegation_revoked"
+    },
+    "cites": [
+      "AC-27",
+      "I/O contract §9",
+      "AC-10"
+    ],
+    "note": "A revoked delegation cancels its pending effects."
+  },
+  {
+    "id": "revalidate/assignment-cancelled",
+    "group": "revalidate",
+    "operation": "revalidate",
+    "input": "fixtures/revalidate/assignment-cancelled.json",
+    "expected": {
+      "outcome": "cancelled_stale",
+      "reason": "assignment_state"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "An effect for a cancelled assignment is cancelled."
+  },
+  {
+    "id": "revalidate/assignment-completed",
+    "group": "revalidate",
+    "operation": "revalidate",
+    "input": "fixtures/revalidate/assignment-completed.json",
+    "expected": {
+      "outcome": "cancelled_stale",
+      "reason": "assignment_state"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "An effect for a completed assignment is cancelled."
+  },
+  {
+    "id": "revalidate/approval-expired",
+    "group": "revalidate",
+    "operation": "revalidate",
+    "input": "fixtures/revalidate/approval-expired.json",
+    "expected": {
+      "outcome": "cancelled_stale",
+      "reason": "approval_expired"
+    },
+    "cites": [
+      "AC-27",
+      "I/O contract §9",
+      "AC-06"
+    ],
+    "note": "An expired approval cannot authorize dispatch."
+  },
+  {
+    "id": "revalidate/first-failing-check-wins",
+    "group": "revalidate",
+    "operation": "revalidate",
+    "input": "fixtures/revalidate/first-failing-check-wins.json",
+    "expected": {
+      "outcome": "cancelled_stale",
+      "reason": "delegation_revoked"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "Checks run in order owner_generation, delegation_revoked, assignment_state, approval_expired."
+  },
+  {
+    "id": "revalidate/pass",
+    "group": "revalidate",
+    "operation": "revalidate",
+    "input": "fixtures/revalidate/pass.json",
+    "expected": {
+      "outcome": "queued"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "Current authority: the effect stays queued."
+  },
+  {
+    "id": "revalidate/held-to-queued",
+    "group": "revalidate",
+    "operation": "revalidate",
+    "input": "fixtures/revalidate/held-to-queued.json",
+    "expected": {
+      "outcome": "queued"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "A held effect leaves held only through revalidation, here to queued."
+  },
+  {
+    "id": "revalidate/held-to-cancelled",
+    "group": "revalidate",
+    "operation": "revalidate",
+    "input": "fixtures/revalidate/held-to-cancelled.json",
+    "expected": {
+      "outcome": "cancelled_stale",
+      "reason": "owner_generation"
+    },
+    "cites": [
+      "AC-27",
+      "I/O contract §9",
+      "AC-11"
+    ],
+    "note": "A held effect whose generation was superseded is cancelled."
+  },
+  {
+    "id": "revalidate/no-owner-generation",
+    "group": "revalidate",
+    "operation": "revalidate",
+    "input": "fixtures/revalidate/no-owner-generation.json",
+    "expected": {
+      "outcome": "queued"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "An effect created under no owner generation and no assignment skips those checks."
+  },
+  {
+    "id": "revalidate/invalid-state",
+    "group": "revalidate",
+    "operation": "revalidate",
+    "input": "fixtures/revalidate/invalid-state.json",
+    "expected": {
+      "outcome": "invalid_revalidation_input"
+    },
+    "cites": [
+      "AC-02",
+      "I/O contract §9"
+    ],
+    "note": "Only queued and held effects are revalidated."
+  },
+  {
+    "id": "revalidate/dispatch-disabled",
+    "group": "revalidate",
+    "operation": "dispatch",
+    "input": "fixtures/revalidate/dispatch-disabled.json",
+    "expected": {
+      "outcome": "dispatch_disabled"
+    },
+    "cites": [
+      "AC-27",
+      "I/O contract §9 (recovery, step 8)"
+    ],
+    "note": "Dispatch is disabled until recovery step 8."
+  },
+  {
+    "id": "revalidate/dispatch-disabled-before-shadow",
+    "group": "revalidate",
+    "operation": "dispatch",
+    "input": "fixtures/revalidate/dispatch-disabled-before-shadow.json",
+    "expected": {
+      "outcome": "dispatch_disabled"
+    },
+    "cites": [
+      "AC-27",
+      "I/O contract §9 (recovery, step 8)"
+    ],
+    "note": "The recovery check comes first."
+  },
+  {
+    "id": "revalidate/dispatched",
+    "group": "revalidate",
+    "operation": "dispatch",
+    "input": "fixtures/revalidate/dispatched.json",
+    "expected": {
+      "outcome": "dispatched",
+      "state_after": "in_flight"
+    },
+    "cites": [
+      "AC-27",
+      "I/O contract §9 (recovery, step 8)"
+    ],
+    "note": "A queued effect outside recovery is dispatched and becomes in_flight."
+  },
+  {
+    "id": "revalidate/dispatch-not-queued",
+    "group": "revalidate",
+    "operation": "dispatch",
+    "input": "fixtures/revalidate/dispatch-not-queued.json",
+    "expected": {
+      "outcome": "invalid_dispatch_input"
+    },
+    "cites": [
+      "AC-27",
+      "I/O contract §9 (recovery, step 8)"
+    ],
+    "note": "Only a queued effect is dispatched; a held one must be revalidated first."
+  },
+  {
+    "id": "migration/mapping-schema-valid",
+    "group": "migration",
+    "operation": "validate",
+    "schema": "migrations/heimdall-to-commitment.schema.json",
+    "input": "migrations/heimdall-to-commitment.json",
+    "expected": {
+      "outcome": "schema_valid"
+    },
+    "cites": [
+      "ODIN-ADR-007",
+      "I/O contract Appendix A",
+      "inventory-go-repos.md §B.5"
+    ],
+    "note": "The heimdall mapping validates against its schema."
+  },
+  {
+    "id": "migration/mapping-complete",
+    "group": "migration",
+    "operation": "check_mapping_coverage",
+    "input": "migrations/heimdall-to-commitment.json",
+    "expected": {
+      "outcome": "mapping_complete",
+      "uncovered": []
+    },
+    "cites": [
+      "ODIN-ADR-007",
+      "I/O contract Appendix A",
+      "inventory-go-repos.md §B.5"
+    ],
+    "note": "Every commitment field is covered by at least one row."
+  },
+  {
+    "id": "migration/mapping-incomplete",
+    "group": "migration",
+    "operation": "check_mapping_coverage",
+    "input": "fixtures/migration/incomplete-mapping.json",
+    "expected": {
+      "outcome": "mapping_incomplete",
+      "uncovered": [
+        "decisions",
+        "next_trigger"
+      ]
+    },
+    "cites": [
+      "ODIN-ADR-007",
+      "I/O contract Appendix A",
+      "inventory-go-repos.md §B.5"
+    ],
+    "note": "A mapping without rows for two fields reports them, sorted."
+  }
+]

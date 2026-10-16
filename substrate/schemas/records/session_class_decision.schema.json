@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/session_class_decision.schema.json",
+  "title": "SessionClassDecision record",
+  "description": "I/O contract §2, SessionClassDecision (ODIN-ADR-014): \"chosen class, rejected candidate classes each with its deterministic reason, inputs used (event kind, assignment requirements, Environment record and revision, budget state), configuration revision, later assessed outcome\". Appendix A: \"outcome: attached later by an independent outcome assessment; routing never reads it at run time.\"",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "project",
+    "subject",
+    "chosen",
+    "rejected",
+    "inputs",
+    "config_rev",
+    "decided_at",
+    "outcome"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "created_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "updated_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "project": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "subject": {
+      "$ref": "../common.schema.json#/$defs/subject_ref",
+      "properties": {
+        "kind": {
+          "enum": [
+            "event",
+            "assignment",
+            "planning_session"
+          ]
+        }
+      }
+    },
+    "chosen": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rejected": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "class",
+          "reason"
+        ],
+        "properties": {
+          "class": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_kind",
+        "assignment_requirements",
+        "environment",
+        "budget_state"
+      ],
+      "properties": {
+        "event_kind": {
+          "description": "The triggering event kind, or null when no event triggered the choice.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z_]+(\\.[a-z_]+)+$"
+        },
+        "assignment_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "$ref": "../common.schema.json#/$defs/record_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "budget_state": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "config_rev": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decided_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "outcome": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    }
+  }
+}

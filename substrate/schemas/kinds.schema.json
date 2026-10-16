@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/kinds.schema.json",
+  "title": "Event-kind catalogue",
+  "description": "Schema of kinds.json. I/O contract Appendix C (event kinds and wake classes) and §4 (wake classes and service handling); §9 recovery step 3 (control messages first).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "source",
+    "kinds"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "default_wake",
+          "conditional",
+          "handling",
+          "control",
+          "source"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "pattern": "^[a-z_]+(\\.[a-z_]+)+$"
+          },
+          "default_wake": {
+            "$ref": "common.schema.json#/$defs/wake_class"
+          },
+          "conditional": {
+            "description": "True when Appendix C or §4 makes the wake depend on content or a typed rule.",
+            "type": "boolean"
+          },
+          "handling": {
+            "type": "string",
+            "minLength": 1
+          },
+          "control": {
+            "description": "True for direct control messages that recovery applies first (§9 step 3).",
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  }
+}

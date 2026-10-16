@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/assignment.schema.json",
+  "title": "Assignment record",
+  "description": "I/O contract §2, Assignment: \"commitment ref and revision, exact input artifacts (digests), scope, output contract, owner, limits, backend (`saga`, `local`, `desktop`), state (`drafted`, `approved`, `dispatched`, `active`, `completed`, `failed`, `cancelled`), run ref when backend is Saga\". Appendix A: \"request_id: the ULID preallocated by stage_run; it is the submission's operation id.\"",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "commitment",
+    "commitment_rev",
+    "inputs",
+    "scope",
+    "output_contract",
+    "owner",
+    "backend",
+    "limits",
+    "state",
+    "run",
+    "request_id"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "created_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "updated_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "commitment": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "commitment_rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ref",
+          "digest"
+        ],
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "digest": {
+            "$ref": "../common.schema.json#/$defs/digest"
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "output_contract": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "backend": {
+      "enum": [
+        "saga",
+        "local",
+        "desktop"
+      ]
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "iterations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "budget_usd": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "state": {
+      "enum": [
+        "drafted",
+        "approved",
+        "dispatched",
+        "active",
+        "completed",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "run": {
+      "description": "Saga-native run id when backend is saga.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "request_id": {
+      "$ref": "../common.schema.json#/$defs/ulid_or_null"
+    }
+  }
+}

@@ -1,0 +1,629 @@
+{
+  "version": 1,
+  "status": "mapping only; the import itself is I4 after G-10 (I/O contract §14 step 6; AC-38)",
+  "commitment_fields": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "project",
+    "objective",
+    "criteria",
+    "state",
+    "owner",
+    "ownership_generation",
+    "dependencies",
+    "open_decisions",
+    "next_trigger",
+    "delegation",
+    "evidence",
+    "checkpoints",
+    "decisions",
+    "provenance"
+  ],
+  "status_mapping": [
+    {
+      "heimdall_status": "the workflow's initial_status, and any status in neither success_statuses nor dropped_statuses",
+      "commitment_state": "open",
+      "note": "Also after task.reopened."
+    },
+    {
+      "heimdall_status": "a non-terminal status named blocked, where a workflow defines one",
+      "commitment_state": "blocked",
+      "note": "Per-workflow status names are not enumerated by the inventory; the import confirms them (I4)."
+    },
+    {
+      "heimdall_status": "success_statuses (task.completed)",
+      "commitment_state": "closed",
+      "note": "The native completion is carried as provenance; Odin did not verify it, and commitment.close's evidence rule is not re-run on import. Imported evidence corroborates nothing independently (D22.4)."
+    },
+    {
+      "heimdall_status": "dropped_statuses (task.dropped)",
+      "commitment_state": "abandoned",
+      "note": "none"
+    }
+  ],
+  "rows": [
+    {
+      "heimdall_type": null,
+      "heimdall_fields": [],
+      "commitment_field": "id",
+      "disposition": "new_in_odin",
+      "gap": "Odin mints a ULID at import; the native id is kept in provenance.native_id, never used as Odin's identity (I/O contract §2).",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Task",
+      "heimdall_fields": [
+        "id"
+      ],
+      "commitment_field": "provenance.native_id",
+      "disposition": "provenance",
+      "gap": "none",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": null,
+      "heimdall_fields": [],
+      "commitment_field": "rev",
+      "disposition": "new_in_odin",
+      "gap": "Odin's revision starts at 1 at import; heimdall's revision is provenance.native_rev.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "TaskRecord",
+      "heimdall_fields": [
+        "revision"
+      ],
+      "commitment_field": "provenance.native_rev",
+      "disposition": "provenance",
+      "gap": "none; heimdall's revision / task_revision / previous chains are the pattern to keep, not the data.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": null,
+      "heimdall_fields": [],
+      "commitment_field": "provenance.source",
+      "disposition": "new_in_odin",
+      "gap": "Always \"heimdall\" for imported records.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": null,
+      "heimdall_fields": [],
+      "commitment_field": "provenance.import_receipt",
+      "disposition": "new_in_odin",
+      "gap": "The import's idempotent receipt (I/O contract §14; proposed AC-38).",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "TaskRecord",
+      "heimdall_fields": [
+        "created_at"
+      ],
+      "commitment_field": "created_at",
+      "disposition": "mapped",
+      "gap": "Proposed: keep the native creation time; whether created_at is the native time or the import time is decided with the import (I4).",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": null,
+      "heimdall_fields": [],
+      "commitment_field": "updated_at",
+      "disposition": "new_in_odin",
+      "gap": "Set by the import transaction.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": null,
+      "heimdall_fields": [],
+      "commitment_field": "project",
+      "disposition": "new_in_odin",
+      "gap": "heimdall has no project record; the rule assigning each imported task to an Odin project is decided with the import (I4).",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Contract",
+      "heimdall_fields": [
+        "objective"
+      ],
+      "commitment_field": "objective",
+      "disposition": "mapped",
+      "gap": "none; the head contract's objective is used.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Task",
+      "heimdall_fields": [
+        "title"
+      ],
+      "commitment_field": "objective",
+      "disposition": "mapped",
+      "gap": "Fallback when a task has no accepted contract.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Contract",
+      "heimdall_fields": [
+        "constraints"
+      ],
+      "commitment_field": "objective",
+      "disposition": "mapped",
+      "gap": "Commitment has no constraints field; constraints are appended to the objective text, or carried into assignment scope when the import creates assignments (I4).",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Contract",
+      "heimdall_fields": [
+        "acceptance"
+      ],
+      "commitment_field": "criteria",
+      "disposition": "mapped",
+      "gap": "Each acceptance item becomes one criteria entry with met=false; an imported claim corroborates nothing independently (D22.4).",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Task",
+      "heimdall_fields": [
+        "done.text",
+        "done.mode",
+        "done.checks"
+      ],
+      "commitment_field": "criteria",
+      "disposition": "mapped",
+      "gap": "Fallback when a task has no accepted contract; done.mode has no Odin field and is dropped.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Check",
+      "heimdall_fields": [
+        "id",
+        "kind",
+        "params"
+      ],
+      "commitment_field": "criteria",
+      "disposition": "mapped",
+      "gap": "Odin has no check-spec field: the check is kept as criteria text. mail.*, gh.pr_merged and silence checks have no evaluator yet.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Step",
+      "heimdall_fields": [
+        "id",
+        "title",
+        "status",
+        "done"
+      ],
+      "commitment_field": "criteria",
+      "disposition": "mapped",
+      "gap": "Choice: each subtask (Step) becomes one criteria entry whose id is the Step id prefixed \"step:\" (its provenance link); met starts false even for done steps (D22.4); dropped steps are not imported.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Step",
+      "heimdall_fields": [
+        "after",
+        "estimate_minutes"
+      ],
+      "commitment_field": null,
+      "disposition": "dropped",
+      "gap": "Commitments have no step ordering or estimates; Step.due feeds next_trigger (Timer row).",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Task",
+      "heimdall_fields": [
+        "status"
+      ],
+      "commitment_field": "state",
+      "disposition": "mapped",
+      "gap": "Per status_mapping. Status names are per workflow template (project, application, research, study); the inventory does not enumerate them.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Workflow",
+      "heimdall_fields": [
+        "version",
+        "statuses",
+        "initial_status",
+        "success_statuses",
+        "dropped_statuses",
+        "subtasks",
+        "proposed_status_mappings"
+      ],
+      "commitment_field": "state",
+      "disposition": "mapped",
+      "gap": "Used only to classify Task.status for status_mapping; the template itself is not imported.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "TaskRecord",
+      "heimdall_fields": [
+        "workflow"
+      ],
+      "commitment_field": "state",
+      "disposition": "mapped",
+      "gap": "Names the template used to classify Task.status.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "TaskRecord",
+      "heimdall_fields": [
+        "completed"
+      ],
+      "commitment_field": "checkpoints",
+      "disposition": "mapped",
+      "gap": "Each step completion becomes a checkpoint entry (at; summary \"step <id> completed\"); the completion token is a heimdall authority artefact and is dropped.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": null,
+      "heimdall_fields": [],
+      "commitment_field": "owner",
+      "disposition": "new_in_odin",
+      "gap": "heimdall records carry only an actor; agents are observed, never assigned. Imported commitments start unowned (null).",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": null,
+      "heimdall_fields": [],
+      "commitment_field": "ownership_generation",
+      "disposition": "new_in_odin",
+      "gap": "Starts at 1 at import.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": null,
+      "heimdall_fields": [],
+      "commitment_field": null,
+      "disposition": "new_in_odin",
+      "gap": "Assignments are separate Odin records referencing the commitment (Assignment.commitment); heimdall has no delegated-assignment record.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Task",
+      "heimdall_fields": [
+        "estimate_minutes"
+      ],
+      "commitment_field": null,
+      "disposition": "dropped",
+      "gap": "Budget is new in Odin and lives in Assignment.limits (I/O contract §2: assignments carry the scope, limits and budget heimdall's task records lack); estimate_minutes is not a budget.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Task",
+      "heimdall_fields": [
+        "importance",
+        "impact.income",
+        "impact.skill",
+        "impact.portfolio",
+        "impact.relationships"
+      ],
+      "commitment_field": null,
+      "disposition": "dropped",
+      "gap": "Ranking inputs for a planner heimdall never built; Odin ranks in code from its own records.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Task",
+      "heimdall_fields": [
+        "parent",
+        "type",
+        "next_action"
+      ],
+      "commitment_field": null,
+      "disposition": "dropped",
+      "gap": "No parent/child structure on commitments; type names the workflow template; next_action survives in the latest checkpoint's summary.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "TaskDependency",
+      "heimdall_fields": [
+        "depends_on",
+        "active"
+      ],
+      "commitment_field": "dependencies",
+      "disposition": "mapped",
+      "gap": "Only active dependencies whose prerequisite is also imported; the revision pins (task_revision, prerequisite_revision), previous chain and reason are dropped.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Decision",
+      "heimdall_fields": [
+        "id",
+        "text",
+        "actor",
+        "at"
+      ],
+      "commitment_field": "decisions",
+      "disposition": "mapped",
+      "gap": "heimdall's Decision has one text field; the split into question, choice and rationale, and the actor → decided_by (src) mapping, are decided with the import (I4). Superseded decisions are dropped.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Decision",
+      "heimdall_fields": [
+        "supersedes",
+        "target",
+        "task_revision"
+      ],
+      "commitment_field": null,
+      "disposition": "dropped",
+      "gap": "Only the current decision chain head is imported.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "ProgressProposal",
+      "heimdall_fields": [
+        "kind",
+        "text",
+        "contract_id",
+        "context",
+        "decision_digest",
+        "supersedes",
+        "digest"
+      ],
+      "commitment_field": "open_decisions",
+      "disposition": "mapped",
+      "gap": "Only proposals of kind decision still pending review; heimdall has no open-question record other than proposals. Accepted ones are Decisions.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Proposal",
+      "heimdall_fields": [
+        "id",
+        "target",
+        "target_revision",
+        "kind",
+        "status",
+        "evidence"
+      ],
+      "commitment_field": "open_decisions",
+      "disposition": "mapped",
+      "gap": "Ratification proposals still pending become open decisions; ratified or rejected ones are dropped.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Checkpoint",
+      "heimdall_fields": [
+        "id",
+        "summary",
+        "at",
+        "actor"
+      ],
+      "commitment_field": "checkpoints",
+      "disposition": "mapped",
+      "gap": "actor → recorded_by needs an actor-to-src mapping (I4). An imported checkpoint corroborates nothing independently (D22.4).",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Checkpoint",
+      "heimdall_fields": [
+        "context",
+        "decisions",
+        "actions",
+        "artifacts",
+        "resources",
+        "blockers",
+        "current_step",
+        "next_action"
+      ],
+      "commitment_field": "checkpoints.evidence",
+      "disposition": "mapped",
+      "gap": "Kept as evidence refs to the imported material, not as fields.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Checkpoint",
+      "heimdall_fields": [
+        "target",
+        "task_revision",
+        "contract_id",
+        "previous",
+        "source_event",
+        "grant_id"
+      ],
+      "commitment_field": null,
+      "disposition": "dropped",
+      "gap": "heimdall's chaining and authority fields; the chain is not reconstructed.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Evaluator",
+      "heimdall_fields": [
+        "check_id",
+        "contract_id",
+        "spec"
+      ],
+      "commitment_field": "criteria.evidence",
+      "disposition": "mapped",
+      "gap": "Evaluator specs are not imported as evaluators; their results are referenced as evidence.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Evidence",
+      "heimdall_fields": [
+        "status",
+        "outcome",
+        "reason",
+        "observer",
+        "inputs",
+        "context",
+        "output_digest",
+        "executable_digest",
+        "started",
+        "finished"
+      ],
+      "commitment_field": "criteria.evidence",
+      "disposition": "mapped",
+      "gap": "Evidence refs only; corroborates nothing independently (D22.4).",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Evidence",
+      "heimdall_fields": [
+        "*"
+      ],
+      "commitment_field": "evidence",
+      "disposition": "mapped",
+      "gap": "Evidence not tied to a check is attached to the commitment's evidence list.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "ArtifactVersion",
+      "heimdall_fields": [
+        "*"
+      ],
+      "commitment_field": "evidence",
+      "disposition": "mapped",
+      "gap": "Referenced as evidence; fields not enumerated by the inventory.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "PreservationReceipt",
+      "heimdall_fields": [
+        "*"
+      ],
+      "commitment_field": "evidence",
+      "disposition": "mapped",
+      "gap": "Referenced as evidence; Odin's own export receipts replace them (ODIN-ADR-012).",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "ProgressReview",
+      "heimdall_fields": [
+        "proposal_id",
+        "status",
+        "note"
+      ],
+      "commitment_field": "evidence",
+      "disposition": "mapped",
+      "gap": "Referenced as evidence.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "ProgressReview",
+      "heimdall_fields": [
+        "authority"
+      ],
+      "commitment_field": null,
+      "disposition": "dropped",
+      "gap": "A heimdall grant scope, not an Odin authority.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Task",
+      "heimdall_fields": [
+        "resume_by"
+      ],
+      "commitment_field": "next_trigger",
+      "disposition": "mapped",
+      "gap": "none",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Timer",
+      "heimdall_fields": [
+        "id",
+        "target",
+        "kind",
+        "anchor",
+        "due_at",
+        "status",
+        "outcome"
+      ],
+      "commitment_field": "next_trigger",
+      "disposition": "mapped",
+      "gap": "next_trigger holds one time: the earliest of Task.resume_by, a pending Timer.due_at and an open Step.due.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Grant",
+      "heimdall_fields": [
+        "id",
+        "name",
+        "target",
+        "subtree",
+        "resource_ids",
+        "token_hash",
+        "expires_at",
+        "revoked_at",
+        "action_write",
+        "checkpoint_write"
+      ],
+      "commitment_field": "delegation",
+      "disposition": "dropped",
+      "gap": "A scoped credential, not a delegation with authority limits; never imported.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": null,
+      "heimdall_fields": [],
+      "commitment_field": "delegation",
+      "disposition": "saga_owned",
+      "gap": "commitment.delegation references a Saga delegation (D17); heimdall has none, so imported commitments start with null.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Capture",
+      "heimdall_fields": [
+        "id",
+        "client",
+        "pointer",
+        "title",
+        "targets",
+        "kind",
+        "why",
+        "origin",
+        "expires_at",
+        "expired"
+      ],
+      "commitment_field": null,
+      "disposition": "dropped",
+      "gap": "Inbox capture items, not commitments; unassigned captures stay in heimdall's frozen store.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Resource",
+      "heimdall_fields": [
+        "id",
+        "target",
+        "kind",
+        "root",
+        "path",
+        "exclude",
+        "active",
+        "initial"
+      ],
+      "commitment_field": null,
+      "disposition": "deferred",
+      "gap": "File and tree bindings used to attribute conversations to tasks; worth porting as a commitment-attribution heuristic (inventory §B.3 item 3), not a commitment field.",
+      "source": "inventory-go-repos.md §B.3, §B.5"
+    },
+    {
+      "heimdall_type": "SessionBinding",
+      "heimdall_fields": [
+        "target",
+        "task_revision",
+        "manifest_id",
+        "surface_id",
+        "locator",
+        "herdr"
+      ],
+      "commitment_field": null,
+      "disposition": "deferred",
+      "gap": "Not a commitment field: a workspace binding is Odin's SessionBinding record (workspace host, server incarnation, pane), established by the I4 Herdr adapter.",
+      "source": "inventory-go-repos.md §B.5"
+    },
+    {
+      "heimdall_type": "Conversation",
+      "heimdall_fields": [
+        "*"
+      ],
+      "commitment_field": null,
+      "disposition": "deferred",
+      "gap": "Identity-key gap: heimdall derives the capture namespace from os.Hostname(), skald from /etc/machine-id, so the same transcript gets different keys and records will not join until one host-identity rule is chosen. Transcripts belong to the transcript-archive namespace, not to commitments.",
+      "source": "inventory-go-repos.md §0.8, §B.5"
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/project.schema.json",
+  "title": "Project record",
+  "description": "I/O contract §2, Project (owner Odin, scope one planning owner): \"name, source documents (locator, immutable digest, version), delegation refs, decision owner for shared interfaces\"; fields per Appendix A.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "name",
+    "sources",
+    "delegations",
+    "interface_decision_owner"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "created_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "updated_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "locator",
+          "digest",
+          "version",
+          "registered_at"
+        ],
+        "properties": {
+          "locator": {
+            "type": "string",
+            "minLength": 1
+          },
+          "digest": {
+            "$ref": "../common.schema.json#/$defs/digest"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "registered_at": {
+            "$ref": "../common.schema.json#/$defs/ts"
+          }
+        }
+      }
+    },
+    "delegations": {
+      "type": "array",
+      "items": {
+        "description": "Saga-native delegation id (D17); Saga owns the delegation.",
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "interface_decision_owner": {
+      "description": "Planning session that decides shared interfaces.",
+      "$ref": "../common.schema.json#/$defs/ulid_or_null"
+    }
+  }
+}

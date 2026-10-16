@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/migrations/heimdall-to-commitment.schema.json",
+  "title": "heimdall to commitment mapping",
+  "description": "Schema of heimdall-to-commitment.json. ODIN-ADR-007: \"the mapping from heimdall's record types is kept with the schemas\"; I/O contract Appendix A: \"The mapping from heimdall's task, checkpoint and decision types to these fields is kept with these schemas (I0).\" Rows follow inventory-go-repos.md §B.5. A mapping only; the import itself is I4 after G-10 (§14 step 6; AC-38).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "status",
+    "commitment_fields",
+    "status_mapping",
+    "rows"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "status": {
+      "type": "string",
+      "minLength": 1
+    },
+    "commitment_fields": {
+      "description": "Every top-level field of records/commitment.schema.json (Appendix A Commitment plus id, rev, created_at, updated_at).",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z_]+$"
+      },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "status_mapping": {
+      "description": "How a heimdall Task status maps to Commitment.state.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "heimdall_status",
+          "commitment_state",
+          "note"
+        ],
+        "properties": {
+          "heimdall_status": {
+            "type": "string",
+            "minLength": 1
+          },
+          "commitment_state": {
+            "enum": [
+              "open",
+              "blocked",
+              "satisfied",
+              "closed",
+              "abandoned"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "heimdall_type",
+          "heimdall_fields",
+          "commitment_field",
+          "disposition",
+          "gap",
+          "source"
+        ],
+        "properties": {
+          "heimdall_type": {
+            "description": "Heimdall record type, or null for a field heimdall has no source for.",
+            "enum": [
+              "Task",
+              "Step",
+              "TaskRecord",
+              "Workflow",
+              "Check",
+              "Contract",
+              "Decision",
+              "Resource",
+              "Checkpoint",
+              "TaskDependency",
+              "ProgressProposal",
+              "ProgressReview",
+              "Evaluator",
+              "Evidence",
+              "ArtifactVersion",
+              "PreservationReceipt",
+              "Proposal",
+              "Timer",
+              "Capture",
+              "Grant",
+              "SessionBinding",
+              "Conversation",
+              null
+            ]
+          },
+          "heimdall_fields": {
+            "description": "JSON field names; [\"*\"] means the record as a whole; [] when heimdall_type is null.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "commitment_field": {
+            "description": "A commitment field, optionally dotted (criteria.evidence), or null when the row maps to no commitment field.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-z_]+(\\.[a-z_]+)*$"
+          },
+          "disposition": {
+            "enum": [
+              "mapped",
+              "provenance",
+              "dropped",
+              "new_in_odin",
+              "saga_owned",
+              "deferred"
+            ]
+          },
+          "gap": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

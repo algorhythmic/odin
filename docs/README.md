@@ -2,7 +2,10 @@
 
 Reading order, authority and status for every document in this
 repository. This checkout is a **documentation-first scaffold**
-(D14.3): there is no code yet.
+(D14.3) plus the I0 substrate (`substrate/`, 2026-10-16): the event
+envelope, record schemas and fixture set with their Go and Python
+validators, non-production and fixture-only. No service, store or
+backend code exists.
 
 ## Handoff state
 

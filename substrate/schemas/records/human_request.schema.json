@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/human_request.schema.json",
+  "title": "HumanRequest record",
+  "description": "I/O contract §2, HumanRequest: \"request id, kind (`clarification`, `plan_approval`, `delegation_change`, `principle_change`, `desktop_action`), question, options, proposal digest when applicable, recipient, expiry, state (`open`, `delivered`, `answered`, `consumed`, `closed`, `expired`, `cancelled`), response ref\". Saga owns a request raised by a run; Odin owns one raised through ask_operator; each holds the other's as a projection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "assignment",
+    "run",
+    "kind",
+    "question",
+    "options",
+    "authorizes",
+    "proposal_digest",
+    "recipient",
+    "expires_at",
+    "state",
+    "response",
+    "channel"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "created_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "updated_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "assignment": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "run": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "kind": {
+      "enum": [
+        "clarification",
+        "plan_approval",
+        "delegation_change",
+        "principle_change",
+        "desktop_action"
+      ]
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "authorizes": {
+      "description": "What answering authorizes (§10 workers).",
+      "type": "string",
+      "minLength": 1
+    },
+    "proposal_digest": {
+      "$ref": "../common.schema.json#/$defs/digest_or_null"
+    },
+    "recipient": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expires_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "state": {
+      "enum": [
+        "open",
+        "delivered",
+        "answered",
+        "consumed",
+        "closed",
+        "expired",
+        "cancelled"
+      ]
+    },
+    "response": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "answer",
+        "by",
+        "at",
+        "source_event"
+      ],
+      "properties": {
+        "answer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "by": {
+          "$ref": "../common.schema.json#/$defs/src"
+        },
+        "at": {
+          "$ref": "../common.schema.json#/$defs/ts"
+        },
+        "source_event": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "channel": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    }
+  }
+}

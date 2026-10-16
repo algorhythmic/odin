@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/fixtures/cases.schema.json",
+  "title": "Fixture case index",
+  "description": "Schema of cases.json, the I0 fixture index (ODIN-ADR-008: \"fixtures for the duplicate, stale and unknown cases, validated by both the Go and the Python implementation against the same fixture set\"). `expected` is compared exactly with each implementation's result; the outcome strings and result keys are defined in substrate/schemas/README.md. Input formats per operation are in inputs.schema.json.",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id",
+      "group",
+      "operation",
+      "input",
+      "expected",
+      "cites",
+      "note"
+    ],
+    "properties": {
+      "id": {
+        "description": "<group>/<slug>; stable, never renumbered.",
+        "type": "string",
+        "pattern": "^(schema|envelope|namespace|intake|replay|revision|review|effects|revalidate|migration)/[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "group": {
+        "enum": [
+          "schema",
+          "envelope",
+          "namespace",
+          "intake",
+          "replay",
+          "revision",
+          "review",
+          "effects",
+          "revalidate",
+          "migration"
+        ]
+      },
+      "operation": {
+        "enum": [
+          "validate",
+          "append",
+          "amend",
+          "delete",
+          "intake_sequence",
+          "replay",
+          "inbox_sequence",
+          "check_revision",
+          "check_owner",
+          "commitment_transfer",
+          "operation_reuse",
+          "check_message_size",
+          "combine",
+          "restart",
+          "reconcile",
+          "dispatch",
+          "revalidate",
+          "check_mapping_coverage"
+        ]
+      },
+      "schema": {
+        "description": "validate only: the schema file, relative to substrate/schemas/.",
+        "type": "string",
+        "pattern": "^([a-z_]+/)?[a-z_-]+\\.schema\\.json$"
+      },
+      "input": {
+        "description": "The input file, relative to substrate/schemas/.",
+        "type": "string",
+        "pattern": "^([a-z0-9_-]+/)*[a-z0-9_-]+\\.json$"
+      },
+      "expected": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/result"
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "steps"
+            ],
+            "properties": {
+              "steps": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/$defs/result"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "cites": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "note": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "operation": {
+              "const": "validate"
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "schema"
+          ]
+        },
+        "else": {
+          "not": {
+            "required": [
+              "schema"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "$defs": {
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome"
+      ],
+      "properties": {
+        "outcome": {
+          "enum": [
+            "schema_valid",
+            "schema_invalid",
+            "unknown_kind",
+            "accepted",
+            "namespace_writer_mismatch",
+            "mirror_requires_source_seq",
+            "append_only_violation",
+            "duplicate_dedupe_key",
+            "duplicate_sequence",
+            "processed",
+            "already_processed",
+            "unknown_event",
+            "replayed",
+            "ok",
+            "stale_revision",
+            "expected_revision_required",
+            "stale_owner",
+            "transferred",
+            "operation_conflict",
+            "operation_idempotent",
+            "size_mismatch",
+            "approved",
+            "escalated",
+            "pending",
+            "re_review",
+            "restarted",
+            "reconciled",
+            "invalid_reconciliation_input",
+            "dispatched",
+            "dispatch_disabled",
+            "dispatch_refused_shadow",
+            "invalid_dispatch_input",
+            "queued",
+            "cancelled_stale",
+            "invalid_revalidation_input",
+            "mapping_complete",
+            "mapping_incomplete"
+          ]
+        },
+        "errors": {
+          "description": "Sorted, de-duplicated JSON pointers (RFC 6901); \"\" is the document root.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(/([^~/]|~[01])*)*$"
+          }
+        },
+        "cursor_after": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "duplicates_counted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "replay_order": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          }
+        },
+        "generation_after": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "rev_after": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "held_effects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          }
+        },
+        "verdict_result": {
+          "enum": [
+            "APPROVE",
+            "APPROVE_UNCHANGED"
+          ]
+        },
+        "marked_unknown": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+          }
+        },
+        "state_after": {
+          "enum": [
+            "queued",
+            "held",
+            "in_flight",
+            "delivered",
+            "failed",
+            "unknown",
+            "cancelled_stale",
+            "superseded"
+          ]
+        },
+        "retry_allowed": {
+          "type": "boolean"
+        },
+        "surface_to_operator": {
+          "const": true
+        },
+        "note": {
+          "const": "may have been sent"
+        },
+        "same_request_id": {
+          "const": true
+        },
+        "counts_against_caps": {
+          "const": true
+        },
+        "held_for_host": {
+          "const": true
+        },
+        "reason": {
+          "enum": [
+            "owner_generation",
+            "delegation_revoked",
+            "assignment_state",
+            "approval_expired"
+          ]
+        },
+        "uncovered": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

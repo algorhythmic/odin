@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/common.schema.json",
+  "title": "Common definitions",
+  "description": "Primitive types shared by every substrate schema. I/O contract Appendix A: \"Field types: `id` ULID, `ts` ISO-8601 UTC, `digest` sha256 hex, `rev` integer.\" §2: \"All identifiers are ULIDs minted by the owning service; source-native identities (Saga run ids, harness session ids, workspace pane ids, archive record ids) are preserved in bindings, never used as a universal identity.\" Patterns use the common subset of RE2 and Python re; `$` means end of string (see README.md).",
+  "$defs": {
+    "ulid": {
+      "description": "ULID: Crockford base32, uppercase, 26 characters. All Odin-minted ids.",
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "ulid_or_null": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+    },
+    "ts": {
+      "description": "ISO-8601 UTC timestamp with a literal Z; optional 1 to 9 fraction digits.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$"
+    },
+    "ts_or_null": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$"
+    },
+    "digest": {
+      "description": "sha256, lowercase hex.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "digest_or_null": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "rev": {
+      "description": "Record revision; starts at 1 (§2).",
+      "type": "integer",
+      "minimum": 1
+    },
+    "evidence_ref": {
+      "description": "A reference to evidence held elsewhere (Appendix A `evid:...`).",
+      "type": "string",
+      "pattern": "^evid:[!-~]+$"
+    },
+    "evidence_ref_or_null": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^evid:[!-~]+$"
+    },
+    "ref": {
+      "description": "Correlation key (§3 `ref`): run:<id>, request:<rid>, review:<rid>, approval:<approval id>, work:<name>, commitment:<id>, prompt:<id>; identities, never content digests.",
+      "type": "string",
+      "pattern": "^(run|request|review|approval|work|commitment|prompt):[!-~]+$"
+    },
+    "ref_or_null": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^(run|request|review|approval|work|commitment|prompt):[!-~]+$"
+    },
+    "src": {
+      "description": "Producer identity (§3 `src`): operator:telegram:<chat_id>, operator:terminal, operator:<surface>, odin, mimir, mimir:<position>, run/<id>, saga, eir-webhook, work:<name>, bragi, host, host:<id>, capture, surface:<sensor>.",
+      "type": "string",
+      "pattern": "^(operator:telegram:-?[0-9]+|operator:[a-z][a-z0-9_]*|odin|mimir|mimir:[a-z0-9_]+|run/[!-~]+|saga|eir-webhook|work:[!-~]+|bragi|host|host:[!-~]+|capture|surface:[a-z][a-z0-9_]*)$"
+    },
+    "src_or_null": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^(operator:telegram:-?[0-9]+|operator:[a-z][a-z0-9_]*|odin|mimir|mimir:[a-z0-9_]+|run/[!-~]+|saga|eir-webhook|work:[!-~]+|bragi|host|host:[!-~]+|capture|surface:[a-z][a-z0-9_]*)$"
+    },
+    "namespace": {
+      "description": "Event-substrate namespace (§1; ODIN-ADR-006).",
+      "enum": [
+        "odin_history",
+        "transcript_archive",
+        "surface_events",
+        "execution_ledger"
+      ]
+    },
+    "wake_class": {
+      "description": "Wake class assigned at intake (§4): interrupt, wake, log (log only), state (state only), none (handled entirely in code; no planner turn by default).",
+      "enum": [
+        "interrupt",
+        "wake",
+        "log",
+        "state",
+        "none"
+      ]
+    },
+    "subject_ref": {
+      "description": "A typed reference to another Odin record. Each record narrows `kind`.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "event",
+            "assignment",
+            "planning_session",
+            "commitment"
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/ulid"
+        }
+      }
+    },
+    "record_ref": {
+      "description": "A record id with the revision it was read at (e.g. the Environment a binding was opened under).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "rev"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ulid"
+        },
+        "rev": {
+          "$ref": "#/$defs/rev"
+        }
+      }
+    },
+    "usage": {
+      "description": "Usage of a model turn or review position. §12: \"Log request/model/configuration ids, input, output and cache usage, latency, retries and priced cost; unavailable fields stay unknown.\" Every key is optional; `unavailable: true` marks a position or call that did not run (AC-22).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "unavailable": {
+          "type": "boolean"
+        },
+        "input_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "output_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_read_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cache_write_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "latency_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cost_usd": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

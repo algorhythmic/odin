@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/effect.schema.json",
+  "title": "Effect record (outbox)",
+  "description": "I/O contract §2, Effect: \"idempotency key, destination, payload digest, state (`queued`, `held`, `in_flight`, `delivered`, `failed`, `unknown`, `cancelled_stale`, `superseded`; §9), attempts, receipt, reconciliation note\". §9: each effect carries \"the authority under which it was created: the assignment, the commitment's `ownership_generation`, the delegation version and the approval digest\"; `held` \"records `dispatch_blocked_by`\". Appendix A: \"guidance_rev: set only for guidance effects, from Saga's ledger; null otherwise.\" Destinations are `<target>:<operation>`; `saga:guidance` is the guidance destination.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "operation_id",
+    "destination",
+    "destination_capability",
+    "payload_digest",
+    "assignment",
+    "owner_generation",
+    "delegation_version",
+    "approval_digest",
+    "guidance_rev",
+    "state",
+    "dispatch_blocked_by",
+    "attempts",
+    "receipt",
+    "reconciliation"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "created_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "updated_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "operation_id": {
+      "description": "Durable operation id, reused unchanged across retries (§9).",
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "destination": {
+      "type": "string",
+      "pattern": "^[a-z_]+:[a-z_.]+$"
+    },
+    "destination_capability": {
+      "enum": [
+        "idempotent_by_key",
+        "irreducibly_unknown",
+        "surface_declared",
+        "session_host"
+      ]
+    },
+    "payload_digest": {
+      "$ref": "../common.schema.json#/$defs/digest"
+    },
+    "assignment": {
+      "$ref": "../common.schema.json#/$defs/ulid_or_null"
+    },
+    "owner_generation": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "delegation_version": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "approval_digest": {
+      "$ref": "../common.schema.json#/$defs/digest_or_null"
+    },
+    "guidance_rev": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
+    "state": {
+      "enum": [
+        "queued",
+        "held",
+        "in_flight",
+        "delivered",
+        "failed",
+        "unknown",
+        "cancelled_stale",
+        "superseded"
+      ]
+    },
+    "dispatch_blocked_by": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "receipt": {
+      "description": "Destination receipt; its shape is the destination's.",
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "reconciliation": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    }
+  },
+  "allOf": [
+    {
+      "description": "held records what blocks dispatch (§9).",
+      "if": {
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "const": "held"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "dispatch_blocked_by": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "description": "guidance_rev is set only for guidance effects (Appendix A).",
+      "if": {
+        "required": [
+          "destination"
+        ],
+        "properties": {
+          "destination": {
+            "not": {
+              "const": "saga:guidance"
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "guidance_rev": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
+}

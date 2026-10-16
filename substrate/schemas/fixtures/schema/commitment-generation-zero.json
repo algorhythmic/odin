@@ -1,0 +1,59 @@
+{
+  "id": "01JACM00000000000000000001",
+  "rev": 7,
+  "created_at": "2026-10-16T08:00:00Z",
+  "updated_at": "2026-10-16T09:30:00Z",
+  "project": "01JAPR00000000000000000001",
+  "objective": "Publish the substrate contract layer",
+  "criteria": [
+    {
+      "id": "c1",
+      "text": "Every fixture validates in both implementations",
+      "evidence": [
+        "evid:run-alpha-0001/tests/3"
+      ],
+      "met": false
+    }
+  ],
+  "state": "open",
+  "owner": "01JAPS00000000000000000001",
+  "ownership_generation": 0,
+  "dependencies": [
+    "01JACM00000000000000000002"
+  ],
+  "open_decisions": [
+    {
+      "id": "d1",
+      "text": "Choose the store layout (X-11)",
+      "raised_by": "odin"
+    }
+  ],
+  "next_trigger": "2026-10-16T17:00:00Z",
+  "delegation": "dlg-alpha-0001",
+  "evidence": [
+    "evid:run-alpha-0001/journal/3"
+  ],
+  "checkpoints": [
+    {
+      "id": "k1",
+      "at": "2026-10-16T10:00:00Z",
+      "summary": "Envelope drafted",
+      "evidence": [
+        "evid:commit/5d1f0a2"
+      ],
+      "recorded_by": "01JAPS00000000000000000001"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "t1",
+      "question": "Strict or lenient decoding?",
+      "choice": "strict",
+      "rationale": "Unknown keys hide drift between producers",
+      "decided_by": "operator:telegram:123",
+      "at": "2026-10-16T11:00:00Z",
+      "evidence": []
+    }
+  ],
+  "provenance": null
+}

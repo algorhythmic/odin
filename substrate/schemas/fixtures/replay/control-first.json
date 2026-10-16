@@ -1,0 +1,133 @@
+{
+  "events": [
+    {
+      "id": "01JAEV00000000000000000309",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "saga",
+      "kind": "run.status.transition",
+      "scope": {},
+      "source_seq": 20,
+      "received_at": "2026-10-16T09:01:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": null,
+      "payload_ref": "evid:inbox/01JAEV00000000000000000309",
+      "dedupe_key": "saga:20",
+      "wake": "wake",
+      "state": "received"
+    },
+    {
+      "id": "01JAEV00000000000000000301",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "operator:telegram:123",
+      "kind": "operator.message",
+      "scope": {},
+      "source_seq": 200,
+      "received_at": "2026-10-16T09:02:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": {
+        "text": "hi"
+      },
+      "payload_ref": null,
+      "dedupe_key": "telegram:123:200",
+      "wake": "interrupt",
+      "state": "processed"
+    },
+    {
+      "id": "01JAEV00000000000000000305",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "operator:terminal",
+      "kind": "operator.command.stop",
+      "scope": {},
+      "source_seq": null,
+      "received_at": "2026-10-16T09:03:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": {
+        "scope": "all"
+      },
+      "payload_ref": null,
+      "dedupe_key": "cmd:0001",
+      "wake": "none",
+      "state": "received"
+    },
+    {
+      "id": "01JAEV00000000000000000303",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "saga",
+      "kind": "run.journal",
+      "scope": {},
+      "source_seq": 21,
+      "received_at": "2026-10-16T09:04:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": null,
+      "payload_ref": "evid:inbox/01JAEV00000000000000000303",
+      "dedupe_key": "hash:3847768f2293a683853a5b4d25adbf266bd2ff1f1e58e8bb254e76a9369bc97e",
+      "wake": "none",
+      "state": "received"
+    },
+    {
+      "id": "01JAEV00000000000000000307",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "operator:terminal",
+      "kind": "operator.command.take",
+      "scope": {},
+      "source_seq": null,
+      "received_at": "2026-10-16T09:05:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": {
+        "session": "01JAPS00000000000000000001"
+      },
+      "payload_ref": null,
+      "dedupe_key": "cmd:0002",
+      "wake": "none",
+      "state": "received"
+    },
+    {
+      "id": "01JAEV00000000000000000302",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "host",
+      "kind": "host.timer",
+      "scope": {},
+      "source_seq": null,
+      "received_at": "2026-10-16T09:06:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": {
+        "note": "check alpha"
+      },
+      "payload_ref": null,
+      "dedupe_key": "timer:0003",
+      "wake": "wake",
+      "state": "processed"
+    },
+    {
+      "id": "01JAEV00000000000000000306",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "operator:telegram:123",
+      "kind": "operator.command.revoke",
+      "scope": {},
+      "source_seq": 201,
+      "received_at": "2026-10-16T09:07:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": {
+        "delegation": "dlg-alpha-0001"
+      },
+      "payload_ref": null,
+      "dedupe_key": "telegram:123:201",
+      "wake": "none",
+      "state": "received"
+    }
+  ]
+}

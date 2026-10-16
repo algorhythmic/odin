@@ -28,8 +28,8 @@
       "untracked": false,
       "destination_path": "README.md",
       "treatment": "adapted",
-      "adapted_output_sha256": "cfbf0f74e9e4d808a30e078fd747578a9739b775cf2bd025393bcf6560c97246",
-      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14)."
+      "adapted_output_sha256": "29cfc0ade0e942d8849c67f5ddabf291a767ee39f291a9ba05f8879975c6d099",
+      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14). 2026-10-16 (I0): status updated for the implemented I0 substrate under substrate/ (fixture-only, non-production); no decision or clause changed."
     },
     {
       "source_path": "docs/DECISIONS.md",
@@ -52,7 +52,7 @@
       "untracked": false,
       "destination_path": "docs/ROADMAP.md",
       "treatment": "split",
-      "adapted_output_sha256": "68ca1e8989998bc77e1e4f68e8dfb906321b122b442b4666868b525f15376cb2",
+      "adapted_output_sha256": "2c0f1a0c3a5e966eb3cf3251294754c2e45ed85cc7baaa721460c6b3ed4f9829",
       "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-15: inspect pinned OptChat cache correction, state exact merge priority and completion of source review; retain runtime checks and compactor-context issue X-10 as open. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14)."
     },
     {

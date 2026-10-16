@@ -1,0 +1,44 @@
+{
+  "effects": [
+    {
+      "id": "01JAEF00000000000000000021",
+      "rev": 2,
+      "created_at": "2026-10-16T08:00:00Z",
+      "updated_at": "2026-10-16T09:30:00Z",
+      "operation_id": "01JAXP00000000000000000021",
+      "destination": "saga:guidance",
+      "destination_capability": "idempotent_by_key",
+      "payload_digest": "ea8e9e2b37a64cae596a984b0713b7aa9cbdd0ccd1f2fcb996fcf6c4fc458a8a",
+      "assignment": "01JAAS00000000000000000001",
+      "owner_generation": 2,
+      "delegation_version": 3,
+      "approval_digest": null,
+      "guidance_rev": 1,
+      "state": "queued",
+      "dispatch_blocked_by": null,
+      "attempts": 0,
+      "receipt": null,
+      "reconciliation": null
+    },
+    {
+      "id": "01JAEF00000000000000000023",
+      "rev": 2,
+      "created_at": "2026-10-16T08:00:00Z",
+      "updated_at": "2026-10-16T09:30:00Z",
+      "operation_id": "01JAXP00000000000000000023",
+      "destination": "saga:guidance",
+      "destination_capability": "idempotent_by_key",
+      "payload_digest": "39b52dc66b6f330e8c1b2cbddad4753d608b0529a3772d359a33368ff3d04598",
+      "assignment": "01JAAS00000000000000000001",
+      "owner_generation": 2,
+      "delegation_version": 3,
+      "approval_digest": null,
+      "guidance_rev": 3,
+      "state": "delivered",
+      "dispatch_blocked_by": null,
+      "attempts": 0,
+      "receipt": null,
+      "reconciliation": null
+    }
+  ]
+}

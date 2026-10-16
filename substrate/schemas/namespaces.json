@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "source": "I/O contract §1; ODIN-ADR-006",
+  "namespaces": [
+    {
+      "name": "odin_history",
+      "writer": "service",
+      "read_only": false,
+      "content": "§2 records, §3 messages, §8 tree nodes, the inbox, outbox and cursors",
+      "authority": "Odin's service, except delegations and runs, which are Saga's (§2)",
+      "source": "I/O contract §1; ODIN-ADR-006"
+    },
+    {
+      "name": "transcript_archive",
+      "writer": "capture_module",
+      "read_only": false,
+      "content": "Native harness transcripts with revisions, capture gaps and checkpoints, appended from the capture module's local spool (§9)",
+      "authority": "The native sources remain the originals; skald's own archive remains a standalone sink",
+      "source": "I/O contract §1; ODIN-ADR-006"
+    },
+    {
+      "name": "surface_events",
+      "writer": "workstation_sensors",
+      "read_only": false,
+      "content": "Focus, idle and surface observations; sensor health",
+      "authority": "None: observations are evidence, never authority (§4)",
+      "source": "I/O contract §1; ODIN-ADR-006"
+    },
+    {
+      "name": "execution_ledger",
+      "writer": "saga_adapter",
+      "read_only": true,
+      "content": "Runs, delegations, approvals, verdicts and operations as Saga reports them; filled only through Saga's API and event cursor (B-12); the adapter applies, never authors or amends",
+      "authority": "Saga's ledger decides (D4). Saga's store stays authoritative and is never written by Odin; the mirror decides nothing",
+      "source": "I/O contract §1; ODIN-ADR-006"
+    }
+  ]
+}

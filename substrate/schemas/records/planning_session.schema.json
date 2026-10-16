@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/planning_session.schema.json",
+  "title": "PlanningSession record",
+  "description": "I/O contract §2, PlanningSession: \"project ref, harness and adapter, native session id, process incarnation, state (`starting`, `active`, `idle`, `retiring`, `retired`), briefing ref, budget, ownership generation it may act under\"; profile and auth per Appendix A and §7. `auth.credential_ref` is a reference to a protected store, never a credential (AGENTS.md §6; D24).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "project",
+    "adapter",
+    "native_session_id",
+    "incarnation",
+    "state",
+    "briefing",
+    "budget_usd",
+    "ownership_generation",
+    "profile",
+    "auth"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "created_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "updated_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "project": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "adapter": {
+      "type": "string",
+      "minLength": 1
+    },
+    "native_session_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "incarnation": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "state": {
+      "enum": [
+        "starting",
+        "active",
+        "idle",
+        "retiring",
+        "retired"
+      ]
+    },
+    "briefing": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "budget_usd": {
+      "type": "number",
+      "minimum": 0
+    },
+    "ownership_generation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "profile": {
+      "enum": [
+        "planner",
+        "reviewer",
+        "worker",
+        "desktop_worker",
+        "subagent"
+      ]
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "credential_ref",
+        "refresh_owner"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "subscription",
+            "api",
+            "local"
+          ]
+        },
+        "credential_ref": {
+          "description": "A reference, never a secret.",
+          "type": "string",
+          "minLength": 1
+        },
+        "refresh_owner": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "log": [],
+  "writer": "service",
+  "event": {
+    "id": "01JAEV00000000000000000002",
+    "envelope": 1,
+    "namespace": "odin_history",
+    "producer": "operator:telegram:123",
+    "kind": "operator.message",
+    "scope": {
+      "project": "01JAPR00000000000000000001"
+    },
+    "source_seq": 100,
+    "received_at": "2026-10-16T09:00:00Z",
+    "causation": null,
+    "correlation": null,
+    "payload": {
+      "text": "pause the alpha runs"
+    },
+    "payload_ref": null,
+    "dedupe_key": "telegram:123:100",
+    "wake": "interrupt",
+    "state": "received"
+  }
+}

@@ -1,0 +1,81 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    name: documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Refuse modifications under docs/history (frozen snapshot)
+        if: github.event_name == 'pull_request'
+        run: |
+          changed="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.sha }}" -- docs/history || true)"
+          if [ -n "$changed" ]; then
+            echo "docs/history/** is frozen; changed files:"; echo "$changed"; exit 1
+          fi
+      - run: python3 scripts/validate_docs.py
+
+  go:
+    name: go substrate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: test -z "$(gofmt -l substrate)" || (gofmt -l substrate && exit 1)
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go run ./substrate/cmd/substrate-conformance -out conformance-go.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: conformance-go
+          path: conformance-go.json
+
+  python:
+    name: python substrate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - run: uv run python -m pytest -q substrate/python/tests
+      - run: uv run python -m odin_substrate.conformance --out conformance-python.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: conformance-python
+          path: conformance-python.json
+
+  conformance:
+    name: conformance agreement
+    needs: [go, python]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: conformance-go
+      - uses: actions/download-artifact@v4
+        with:
+          name: conformance-python
+      - run: python3 scripts/compare_conformance.py substrate/schemas/fixtures/cases.json conformance-go.json conformance-python.json
+
+  ci-ok:
+    name: ci-ok
+    needs: [docs, go, python, conformance]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok

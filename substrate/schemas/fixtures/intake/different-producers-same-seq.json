@@ -1,0 +1,40 @@
+{
+  "events": [
+    {
+      "id": "01JAEV00000000000000000109",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "saga",
+      "kind": "run.state.accepted",
+      "scope": {},
+      "source_seq": 5,
+      "received_at": "2026-10-16T09:00:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": null,
+      "payload_ref": "evid:inbox/01JAEV00000000000000000109",
+      "dedupe_key": "saga:5",
+      "wake": "none",
+      "state": "received"
+    },
+    {
+      "id": "01JAEV00000000000000000110",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "operator:telegram:123",
+      "kind": "operator.message",
+      "scope": {},
+      "source_seq": 5,
+      "received_at": "2026-10-16T09:00:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": {
+        "text": "hello"
+      },
+      "payload_ref": null,
+      "dedupe_key": "telegram:123:5",
+      "wake": "interrupt",
+      "state": "received"
+    }
+  ]
+}

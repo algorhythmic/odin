@@ -1,0 +1,347 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/review.schema.json",
+  "title": "Review record",
+  "description": "I/O contract §2, Review (Odin coordination, Saga verdict record): \"request id, type, evidence packet digest, reviewer identity, the two reviewer positions (each: position, harness, model and family, verdict, findings, usage), the combined verdict computed by service code, combination outcome (`approved`, `escalated`), rounds, usage (ODIN-ADR-013)\". §10: result ∈ `APPROVE_UNCHANGED | APPROVE | FLAG | REJECT | INSUFFICIENT_EVIDENCE`, findings each with `evidence`, `consequence`, `minimal_correction`, `citations`; one review and at most one corrective re-review. Appendix A: \"combination: null while a round is open | approved | escalated. Any REJECT or INSUFFICIENT_EVIDENCE, or disagreement after the single re-review, sets escalated and leaves verdict null.\"",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "request_id",
+    "type",
+    "artifact_lineage",
+    "evidence_pack_digest",
+    "reviewer",
+    "round",
+    "positions",
+    "combination",
+    "verdict",
+    "usage"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "created_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "updated_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "request_id": {
+      "description": "The request the verdict binds (§2 \"request id\"; §10 deliver_verdict), or null.",
+      "$ref": "../common.schema.json#/$defs/ulid_or_null"
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_lineage": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "evidence_pack_digest": {
+      "$ref": "../common.schema.json#/$defs/digest"
+    },
+    "reviewer": {
+      "const": "mimir"
+    },
+    "round": {
+      "description": "1 for the review, 2 for the single corrective re-review.",
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "positions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "position",
+          "harness",
+          "model",
+          "family",
+          "verdict",
+          "usage"
+        ],
+        "properties": {
+          "position": {
+            "enum": [
+              "a",
+              "b"
+            ]
+          },
+          "harness": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "family": {
+            "type": "string",
+            "minLength": 1
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/verdict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "$ref": "../common.schema.json#/$defs/usage"
+          }
+        }
+      },
+      "minItems": 2,
+      "maxItems": 2,
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "position"
+            ],
+            "properties": {
+              "position": {
+                "const": "a"
+              }
+            }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "position"
+            ],
+            "properties": {
+              "position": {
+                "const": "b"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "combination": {
+      "enum": [
+        "approved",
+        "escalated",
+        null
+      ]
+    },
+    "verdict": {
+      "description": "The combined verdict, computed by service code; the only verdict sent to Saga (B-10).",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/verdict"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "usage": {
+      "$ref": "../common.schema.json#/$defs/usage"
+    }
+  },
+  "$defs": {
+    "verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result",
+        "checklist",
+        "findings"
+      ],
+      "properties": {
+        "result": {
+          "enum": [
+            "APPROVE_UNCHANGED",
+            "APPROVE",
+            "FLAG",
+            "REJECT",
+            "INSUFFICIENT_EVIDENCE"
+          ]
+        },
+        "checklist": {
+          "description": "Checklist answers; keys are checklist items and are not fixed by the documents.",
+          "type": "object"
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "evidence",
+              "consequence",
+              "minimal_correction",
+              "citations"
+            ],
+            "properties": {
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "consequence": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minimal_correction": {
+                "type": "string",
+                "minLength": 1
+              },
+              "citations": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "Combination stays null while any position's verdict is null.",
+      "if": {
+        "required": [
+          "positions"
+        ],
+        "properties": {
+          "positions": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "required": [
+                "verdict"
+              ],
+              "properties": {
+                "verdict": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "combination": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "description": "No combined verdict while the round is open.",
+      "if": {
+        "required": [
+          "combination"
+        ],
+        "properties": {
+          "combination": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "verdict": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "description": "Escalated leaves the combined verdict null.",
+      "if": {
+        "required": [
+          "combination"
+        ],
+        "properties": {
+          "combination": {
+            "const": "escalated"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "verdict": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "description": "Approved requires both positions and the combined verdict to approve.",
+      "if": {
+        "required": [
+          "combination"
+        ],
+        "properties": {
+          "combination": {
+            "const": "approved"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "verdict": {
+            "type": "object",
+            "properties": {
+              "result": {
+                "enum": [
+                  "APPROVE_UNCHANGED",
+                  "APPROVE"
+                ]
+              }
+            }
+          },
+          "positions": {
+            "items": {
+              "properties": {
+                "verdict": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "enum": [
+                        "APPROVE_UNCHANGED",
+                        "APPROVE"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

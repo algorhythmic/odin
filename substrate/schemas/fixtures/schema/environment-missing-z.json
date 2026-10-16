@@ -1,0 +1,41 @@
+{
+  "id": "01JAEN00000000000000000001",
+  "rev": 3,
+  "created_at": "2026-10-16T08:00:00Z",
+  "updated_at": "2026-10-16T09:30:00Z",
+  "host": "desk",
+  "host_incarnation": 7,
+  "probed_at": "2026-10-16T09:00:00",
+  "probe_version": "probe-1",
+  "harnesses": [
+    {
+      "name": "claude-code",
+      "version": "2.5.0"
+    }
+  ],
+  "herdr": {
+    "version": "0.4.0",
+    "access": "local"
+  },
+  "isolation": {
+    "sandbox": "bubblewrap",
+    "planner_workspace": false
+  },
+  "surfaces": [
+    "status_bar",
+    "notifications",
+    "terminal"
+  ],
+  "sensors": [
+    "focus",
+    "idle",
+    "surfaces"
+  ],
+  "credential_lineages": [
+    {
+      "ref": "secret:odin-model-key",
+      "mode": "api",
+      "refresher": "session_host"
+    }
+  ]
+}

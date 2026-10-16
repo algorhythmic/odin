@@ -1,0 +1,55 @@
+{
+  "id": "01JARV00000000000000000001",
+  "rev": 2,
+  "created_at": "2026-10-16T08:00:00Z",
+  "updated_at": "2026-10-16T09:30:00Z",
+  "request_id": "01JAXP00000000000000000001",
+  "type": "decomposition",
+  "artifact_lineage": [
+    "plan:alpha/v3"
+  ],
+  "evidence_pack_digest": "390ab2d11b120903018bb17c9cf08844b94796459c32855132b8e99203e0a7b8",
+  "reviewer": "mimir",
+  "round": 1,
+  "positions": [
+    {
+      "position": "a",
+      "harness": "claude-code",
+      "model": "model-family_one-1",
+      "family": "family_one",
+      "verdict": {
+        "result": "APPROVE_UNCHANGED",
+        "checklist": {},
+        "findings": []
+      },
+      "usage": {
+        "input_tokens": 41200,
+        "output_tokens": 1800,
+        "cost_usd": 0.42
+      }
+    },
+    {
+      "position": "b",
+      "harness": "pi-rpc",
+      "model": "model-family_two-1",
+      "family": "family_two",
+      "verdict": null,
+      "usage": {
+        "input_tokens": 41200,
+        "output_tokens": 1800,
+        "cost_usd": 0.42
+      }
+    }
+  ],
+  "combination": "approved",
+  "verdict": {
+    "result": "APPROVE_UNCHANGED",
+    "checklist": {},
+    "findings": []
+  },
+  "usage": {
+    "input_tokens": 82400,
+    "output_tokens": 3600,
+    "cost_usd": 0.84
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "effect": {
+    "id": "01JAEF00000000000000000060",
+    "rev": 2,
+    "created_at": "2026-10-16T08:00:00Z",
+    "updated_at": "2026-10-16T09:30:00Z",
+    "operation_id": "01JAXP00000000000000000060",
+    "destination": "saga:run.submit",
+    "destination_capability": "idempotent_by_key",
+    "payload_digest": "30e8062b5fa33dc83eeb38e5552acf6c76dc5d10e0cd91db8f33b093b67f8e5c",
+    "assignment": "01JAAS00000000000000000001",
+    "owner_generation": 2,
+    "delegation_version": 3,
+    "approval_digest": null,
+    "guidance_rev": null,
+    "state": "delivered",
+    "dispatch_blocked_by": null,
+    "attempts": 0,
+    "receipt": null,
+    "reconciliation": null
+  },
+  "lookup": "completed",
+  "host_state": null
+}

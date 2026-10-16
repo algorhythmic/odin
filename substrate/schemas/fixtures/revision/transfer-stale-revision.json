@@ -1,0 +1,185 @@
+{
+  "commitment": {
+    "id": "01JACM00000000000000000001",
+    "rev": 7,
+    "created_at": "2026-10-16T08:00:00Z",
+    "updated_at": "2026-10-16T09:30:00Z",
+    "project": "01JAPR00000000000000000001",
+    "objective": "Publish the substrate contract layer",
+    "criteria": [
+      {
+        "id": "c1",
+        "text": "Every fixture validates in both implementations",
+        "evidence": [
+          "evid:run-alpha-0001/tests/3"
+        ],
+        "met": false
+      }
+    ],
+    "state": "open",
+    "owner": "01JAPS00000000000000000001",
+    "ownership_generation": 2,
+    "dependencies": [
+      "01JACM00000000000000000002"
+    ],
+    "open_decisions": [
+      {
+        "id": "d1",
+        "text": "Choose the store layout (X-11)",
+        "raised_by": "odin"
+      }
+    ],
+    "next_trigger": "2026-10-16T17:00:00Z",
+    "delegation": "dlg-alpha-0001",
+    "evidence": [
+      "evid:run-alpha-0001/journal/3"
+    ],
+    "checkpoints": [
+      {
+        "id": "k1",
+        "at": "2026-10-16T10:00:00Z",
+        "summary": "Envelope drafted",
+        "evidence": [
+          "evid:commit/5d1f0a2"
+        ],
+        "recorded_by": "01JAPS00000000000000000001"
+      }
+    ],
+    "decisions": [
+      {
+        "id": "t1",
+        "question": "Strict or lenient decoding?",
+        "choice": "strict",
+        "rationale": "Unknown keys hide drift between producers",
+        "decided_by": "operator:telegram:123",
+        "at": "2026-10-16T11:00:00Z",
+        "evidence": []
+      }
+    ],
+    "provenance": null
+  },
+  "new_owner": "01JAPS00000000000000000002",
+  "expected_revision": 6,
+  "effects": [
+    {
+      "id": "01JAEF00000000000000000015",
+      "rev": 2,
+      "created_at": "2026-10-16T08:00:00Z",
+      "updated_at": "2026-10-16T09:30:00Z",
+      "operation_id": "01JAXP00000000000000000015",
+      "destination": "saga:guidance",
+      "destination_capability": "idempotent_by_key",
+      "payload_digest": "8d1b095b66293f275066fe70f7bf295875ea6fe7150c11debb44fdd037629e4c",
+      "assignment": "01JAAS00000000000000000001",
+      "owner_generation": 1,
+      "delegation_version": 3,
+      "approval_digest": null,
+      "guidance_rev": 2,
+      "state": "queued",
+      "dispatch_blocked_by": null,
+      "attempts": 0,
+      "receipt": null,
+      "reconciliation": null
+    },
+    {
+      "id": "01JAEF00000000000000000012",
+      "rev": 2,
+      "created_at": "2026-10-16T08:00:00Z",
+      "updated_at": "2026-10-16T09:30:00Z",
+      "operation_id": "01JAXP00000000000000000012",
+      "destination": "saga:guidance",
+      "destination_capability": "idempotent_by_key",
+      "payload_digest": "e11ff3f18921d9d08eecfa107f5ae03212a6b634e91765f5f3630b33db373f39",
+      "assignment": "01JAAS00000000000000000001",
+      "owner_generation": 2,
+      "delegation_version": 3,
+      "approval_digest": null,
+      "guidance_rev": 6,
+      "state": "in_flight",
+      "dispatch_blocked_by": null,
+      "attempts": 0,
+      "receipt": null,
+      "reconciliation": null
+    },
+    {
+      "id": "01JAEF00000000000000000010",
+      "rev": 2,
+      "created_at": "2026-10-16T08:00:00Z",
+      "updated_at": "2026-10-16T09:30:00Z",
+      "operation_id": "01JAXP00000000000000000010",
+      "destination": "saga:guidance",
+      "destination_capability": "idempotent_by_key",
+      "payload_digest": "feea695701e52f24819c09af81c27107a65bb12db7879fe0d9cdbcae9f2a73b9",
+      "assignment": "01JAAS00000000000000000001",
+      "owner_generation": 2,
+      "delegation_version": 3,
+      "approval_digest": null,
+      "guidance_rev": 4,
+      "state": "queued",
+      "dispatch_blocked_by": null,
+      "attempts": 0,
+      "receipt": null,
+      "reconciliation": null
+    },
+    {
+      "id": "01JAEF00000000000000000014",
+      "rev": 2,
+      "created_at": "2026-10-16T08:00:00Z",
+      "updated_at": "2026-10-16T09:30:00Z",
+      "operation_id": "01JAXP00000000000000000014",
+      "destination": "saga:guidance",
+      "destination_capability": "idempotent_by_key",
+      "payload_digest": "6ce637835114a30614a4ec2441271f9388783714f0e34c23bafa53304862eda6",
+      "assignment": "01JAAS00000000000000000001",
+      "owner_generation": 1,
+      "delegation_version": 3,
+      "approval_digest": null,
+      "guidance_rev": 1,
+      "state": "delivered",
+      "dispatch_blocked_by": null,
+      "attempts": 0,
+      "receipt": null,
+      "reconciliation": null
+    },
+    {
+      "id": "01JAEF00000000000000000011",
+      "rev": 2,
+      "created_at": "2026-10-16T08:00:00Z",
+      "updated_at": "2026-10-16T09:30:00Z",
+      "operation_id": "01JAXP00000000000000000011",
+      "destination": "saga:guidance",
+      "destination_capability": "idempotent_by_key",
+      "payload_digest": "c169f2b1d145cb9e15d883cf65b817723f2b038b8db8403be72ac3a86623d8e8",
+      "assignment": "01JAAS00000000000000000001",
+      "owner_generation": 2,
+      "delegation_version": 3,
+      "approval_digest": null,
+      "guidance_rev": 5,
+      "state": "held",
+      "dispatch_blocked_by": "take_control:01JAPS00000000000000000001",
+      "attempts": 0,
+      "receipt": null,
+      "reconciliation": null
+    },
+    {
+      "id": "01JAEF00000000000000000013",
+      "rev": 2,
+      "created_at": "2026-10-16T08:00:00Z",
+      "updated_at": "2026-10-16T09:30:00Z",
+      "operation_id": "01JAXP00000000000000000013",
+      "destination": "telegram:notify",
+      "destination_capability": "irreducibly_unknown",
+      "payload_digest": "254d44e92a2ae98d628e1aed1a7d0d273aa92c695ba86279a5af76038057a3ce",
+      "assignment": "01JAAS00000000000000000001",
+      "owner_generation": null,
+      "delegation_version": 3,
+      "approval_digest": null,
+      "guidance_rev": null,
+      "state": "queued",
+      "dispatch_blocked_by": null,
+      "attempts": 0,
+      "receipt": null,
+      "reconciliation": null
+    }
+  ]
+}

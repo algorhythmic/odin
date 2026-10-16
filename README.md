@@ -37,8 +37,15 @@ control is an optional later capability.
 The documentation bootstrap is complete: design documents, decisions,
 acceptance criteria, research, provenance, developer instructions, and a
 pinned draft Saga contract are present. Run `python3 scripts/validate_docs.py`
-to check documentation integrity. No Odin service implementation or runtime
-test exists yet.
+to check documentation integrity.
+
+On 2026-10-16, increment I0 was implemented under
+[`substrate/`](substrate/README.md): the versioned event envelope and
+namespaces, the record schemas, the heimdall-to-commitment mapping and
+one fixture set for the duplicate, stale and unknown cases, validated by
+a Go and a Python implementation that produce identical outcomes. It is
+non-production and fixture-only. No Odin service, store, fake backend,
+adapter or peer integration exists yet.
 
 On 2026-10-16, ODIN-ADR-006 to 015 recorded the operator's consolidation
 direction for the inherited clauses Odin owns
@@ -55,10 +62,11 @@ or change the existing deployment.
 
 ## First implementation milestone
 
-1. **I0, event log and record schemas:** the versioned event envelope,
-   its namespaces and the record schemas, validated by both the Go and
-   the Python implementation against one fixture set
-   ([ODIN-ADR-008](docs/DECISIONS.md#odin-adr-008--i0-narrowed-to-the-event-log-and-record-schemas)).
+1. **I0, event log and record schemas (delivered):** the versioned
+   event envelope, its namespaces and the record schemas, validated by
+   both the Go and the Python implementation against one fixture set
+   ([ODIN-ADR-008](docs/DECISIONS.md#odin-adr-008--i0-narrowed-to-the-event-log-and-record-schemas);
+   [`substrate/`](substrate/README.md)).
 2. **I1, service foundation:** the adapter capability matrix, a fake
    Saga backend, the synthetic three-document fixture and the ownership
    mapping, then the service foundation. **I2, first harness**, adds the

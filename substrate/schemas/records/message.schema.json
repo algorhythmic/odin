@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/message.schema.json",
+  "title": "Message record (durable history row)",
+  "description": "I/O contract §3: \"Every message Odin perceives or produces is a row in the service's `messages` table\"; fields `chat` (`odin/<project>`, `mimir`, or `work/<name>`), `i` (\"permanent integer id, dense from 0 within the chat\"), `kind`, `src`, `text`, `size` (\"bytes of `text`\"; UTF-8, a semantic check, not a schema rule), `date`, `ref`. A message is not a revisioned record: it is append-only (redaction excepted, §8).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "chat",
+    "i",
+    "kind",
+    "src",
+    "text",
+    "size",
+    "date",
+    "ref"
+  ],
+  "properties": {
+    "chat": {
+      "type": "string",
+      "pattern": "^(odin/[!-.0-~]+|mimir|work/[!-.0-~]+)$"
+    },
+    "i": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "kind": {
+      "enum": [
+        "operator",
+        "verdict",
+        "odin",
+        "fleet",
+        "host",
+        "work",
+        "request",
+        "tool",
+        "echo",
+        "note"
+      ]
+    },
+    "src": {
+      "$ref": "../common.schema.json#/$defs/src"
+    },
+    "text": {
+      "type": "string"
+    },
+    "size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "date": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "ref": {
+      "$ref": "../common.schema.json#/$defs/ref_or_null"
+    }
+  }
+}

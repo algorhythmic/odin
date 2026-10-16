@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/attention_prompt.schema.json",
+  "title": "AttentionPrompt record",
+  "description": "I/O contract §2, AttentionPrompt (ODIN-ADR-010): \"effect ref, proposal, evidence refs, surface, typed rule and version, coalescing key, mode (`shadow`, `live`), cap state, expiry, state (`logged`, `queued`, `delivered`, `responded`, `expired`), response (`done`, `snooze` with until, `dismiss`, `override` with reason; `expired` when none arrives), responder and source event\". Appendix A: \"a shadow prompt is logged, never sent, and ends expired\"; every prompt has a response record once it is responded or expired (§4).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "effect",
+    "project",
+    "subject",
+    "proposal",
+    "evidence",
+    "surface",
+    "rule",
+    "coalescing_key",
+    "mode",
+    "cap_state",
+    "expires_at",
+    "state",
+    "response"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "created_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "updated_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "effect": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "project": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "subject": {
+      "$ref": "../common.schema.json#/$defs/subject_ref",
+      "properties": {
+        "kind": {
+          "enum": [
+            "commitment",
+            "planning_session"
+          ]
+        }
+      }
+    },
+    "proposal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "../common.schema.json#/$defs/evidence_ref"
+      }
+    },
+    "surface": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rule": {
+      "description": "<typed rule id>@<version>.",
+      "type": "string",
+      "pattern": "^[a-z_]+@[0-9]+$"
+    },
+    "coalescing_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mode": {
+      "enum": [
+        "shadow",
+        "live"
+      ]
+    },
+    "cap_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_today",
+        "all_today"
+      ],
+      "properties": {
+        "surface_today": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "all_today": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "expires_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "state": {
+      "enum": [
+        "logged",
+        "queued",
+        "delivered",
+        "responded",
+        "expired"
+      ]
+    },
+    "response": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "reason",
+        "until",
+        "by",
+        "at",
+        "source_event"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "done",
+            "snooze",
+            "dismiss",
+            "override",
+            "expired"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "until": {
+          "$ref": "../common.schema.json#/$defs/ts_or_null"
+        },
+        "by": {
+          "$ref": "../common.schema.json#/$defs/src_or_null"
+        },
+        "at": {
+          "$ref": "../common.schema.json#/$defs/ts"
+        },
+        "source_event": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "description": "snooze requires its until time (Appendix A).",
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "snooze"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "until": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "description": "An override without a reason is refused (§4; AC-39).",
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "override"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "description": "No response record before a response or expiry.",
+      "if": {
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "enum": [
+              "logged",
+              "queued",
+              "delivered"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "response": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "description": "A responded prompt carries the operator's response.",
+      "if": {
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "const": "responded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "response": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "done",
+                  "snooze",
+                  "dismiss",
+                  "override"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "An expired prompt records `expired` as its response.",
+      "if": {
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "const": "expired"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "response": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "expired"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "A shadow-mode prompt is logged, never sent, and ends expired.",
+      "if": {
+        "required": [
+          "mode"
+        ],
+        "properties": {
+          "mode": {
+            "const": "shadow"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "state": {
+            "enum": [
+              "logged",
+              "expired"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

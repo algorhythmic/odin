@@ -1,0 +1,25 @@
+{
+  "id": "01JAAS00000000000000000001",
+  "rev": 2,
+  "created_at": "2026-10-16T08:00:00Z",
+  "updated_at": "2026-10-16T09:30:00Z",
+  "commitment": "01JACM00000000000000000001",
+  "commitment_rev": 7,
+  "inputs": [
+    {
+      "ref": "wiki/contracts/schema.md",
+      "digest": "c252aa34a95d97594cb663a5dcefbe7de7a33c9cf5474dcbfce424d1d791de8a"
+    }
+  ],
+  "scope": "substrate/schemas only",
+  "output_contract": "Schemas and fixtures, validated in Go and Python",
+  "owner": "01JAPS00000000000000000001",
+  "backend": "saga",
+  "limits": {
+    "iterations": 20,
+    "budget_usd": -1
+  },
+  "state": "dispatched",
+  "run": "run-alpha-0001",
+  "request_id": "01JAXP00000000000000000001"
+}

@@ -1,0 +1,80 @@
+{
+  "events": [
+    {
+      "id": "01JAEV00000000000000000309",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "operator:terminal",
+      "kind": "operator.command.return",
+      "scope": {},
+      "source_seq": null,
+      "received_at": "2026-10-16T09:01:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": {
+        "session": "01JAPS00000000000000000001"
+      },
+      "payload_ref": null,
+      "dedupe_key": "cmd:0010",
+      "wake": "none",
+      "state": "received"
+    },
+    {
+      "id": "01JAEV00000000000000000301",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "work:triage",
+      "kind": "work.report",
+      "scope": {},
+      "source_seq": null,
+      "received_at": "2026-10-16T09:02:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": {
+        "outcome": "no_attention"
+      },
+      "payload_ref": null,
+      "dedupe_key": "work:triage:1",
+      "wake": "wake",
+      "state": "received"
+    },
+    {
+      "id": "01JAEV00000000000000000305",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "operator:terminal",
+      "kind": "operator.command.take",
+      "scope": {},
+      "source_seq": null,
+      "received_at": "2026-10-16T09:03:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": {
+        "session": "01JAPS00000000000000000001"
+      },
+      "payload_ref": null,
+      "dedupe_key": "cmd:0011",
+      "wake": "none",
+      "state": "received"
+    },
+    {
+      "id": "01JAEV00000000000000000303",
+      "envelope": 1,
+      "namespace": "odin_history",
+      "producer": "operator:terminal",
+      "kind": "operator.command.pause",
+      "scope": {},
+      "source_seq": null,
+      "received_at": "2026-10-16T09:04:00Z",
+      "causation": null,
+      "correlation": null,
+      "payload": {
+        "scope": "planner"
+      },
+      "payload_ref": null,
+      "dedupe_key": "cmd:0012",
+      "wake": "none",
+      "state": "received"
+    }
+  ]
+}

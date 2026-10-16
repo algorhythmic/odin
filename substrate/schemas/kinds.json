@@ -1,0 +1,414 @@
+{
+  "version": 1,
+  "source": "I/O contract Appendix C and §4; §9 step 3 for control",
+  "kinds": [
+    {
+      "kind": "operator.message",
+      "default_wake": "interrupt",
+      "conditional": false,
+      "handling": "Recorded on the command path; slash commands parsed in code; interrupt to the owning project's session, standing instructions to all (§4). Corrections are detected in code on this kind; there is no separate correction kind.",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "operator.approval",
+      "default_wake": "none",
+      "conditional": true,
+      "handling": "Deduplicated by source identity, resolved against the specific request id and revision, principal, expiry and proposal digest verified in code, grant forwarded to Saga; wake only if it unblocks a decision the planner must make (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "operator.command.stop",
+      "default_wake": "none",
+      "conditional": false,
+      "handling": "Direct control path: pause and cancel applied in code, bypassing learned routing; a host line records it (§4, §10 operator).",
+      "control": true,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "operator.command.pause",
+      "default_wake": "none",
+      "conditional": false,
+      "handling": "Direct control path: the planner pause applied in code; a host line records it (§4, §10 operator).",
+      "control": true,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "operator.command.revoke",
+      "default_wake": "none",
+      "conditional": false,
+      "handling": "Direct control path: revocation applied in code, holding or cancelling pending effects in its scope (§4, §9).",
+      "control": true,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "operator.command.take",
+      "default_wake": "none",
+      "conditional": false,
+      "handling": "Direct control path: take-control pauses automated prompting for that session and holds its effects (§4, §9; AC-11).",
+      "control": true,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "operator.command.return",
+      "default_wake": "none",
+      "conditional": false,
+      "handling": "Direct control path: return of control resumes automated prompting after a recorded handoff (§4; AC-11).",
+      "control": true,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.state.accepted",
+      "default_wake": "none",
+      "conditional": false,
+      "handling": "Lifecycle handler updates the assignment state in code (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.state.queued",
+      "default_wake": "none",
+      "conditional": true,
+      "handling": "Lifecycle handler updates the assignment; wake only when queued longer than 2 h (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.state.started",
+      "default_wake": "none",
+      "conditional": false,
+      "handling": "Lifecycle handler updates the assignment state in code (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.state.terminated",
+      "default_wake": "none",
+      "conditional": false,
+      "handling": "Lifecycle handler updates the assignment state in code (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.state.verified",
+      "default_wake": "none",
+      "conditional": true,
+      "handling": "Lifecycle handler matches evidence against the output contract and criteria; it records decision_required and wakes the owner when a criterion is unmet (§4; AC-13, AC-14).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.state.failed",
+      "default_wake": "wake",
+      "conditional": false,
+      "handling": "Lifecycle handler marks the assignment and logs host; wake (§4, Appendix C).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.state.cancelled",
+      "default_wake": "wake",
+      "conditional": false,
+      "handling": "Lifecycle handler marks the assignment and logs host; wake (§4, Appendix C).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.state.limit_paused",
+      "default_wake": "wake",
+      "conditional": false,
+      "handling": "Lifecycle handler marks the assignment and logs host; wake (§4, Appendix C). Odin spelling; Saga spells the side state limit-paused and its wire spelling is fixed by its schema (INC-08).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.state.closed",
+      "default_wake": "none",
+      "conditional": false,
+      "handling": "Lifecycle handler updates the assignment state in code (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.status.transition",
+      "default_wake": "wake",
+      "conditional": false,
+      "handling": "Log a fleet one-liner; wake (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.journal",
+      "default_wake": "none",
+      "conditional": true,
+      "handling": "Store as run evidence, log the fleet reference and extract, coalesce for journal triage; triage's typed outcome decides a wake or the bounded digest (§4, §5; ODIN-ADR-002).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.plateau.converged",
+      "default_wake": "wake",
+      "conditional": false,
+      "handling": "Log fleet with the JSON; coalesced wake (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.plateau.commit",
+      "default_wake": "wake",
+      "conditional": false,
+      "handling": "Log fleet with the JSON; coalesced wake (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.plateau.completion_likely",
+      "default_wake": "wake",
+      "conditional": false,
+      "handling": "Log fleet with the JSON; coalesced wake (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.alert",
+      "default_wake": "wake",
+      "conditional": true,
+      "handling": "Log fleet with severity; critical is an interrupt, otherwise a wake (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "run.request",
+      "default_wake": "none",
+      "conditional": false,
+      "handling": "Create the HumanRequest and deliver it to the operator queue; no planner involvement at delivery (§4, §10 workers).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "review.verdict",
+      "default_wake": "interrupt",
+      "conditional": false,
+      "handling": "The combined verdict of both reviewer positions, or the escalation: record the review and mirror it into the planner's chat; interrupt (§4, §10 review).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "review.position",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "One reviewer position's verdict: recorded on the Review and combined in code once both have answered; never acted on alone (§4; ODIN-ADR-013).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "host.restart",
+      "default_wake": "wake",
+      "conditional": false,
+      "handling": "Log host with counts; wake (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "host.replay",
+      "default_wake": "wake",
+      "conditional": false,
+      "handling": "Log host with counts; wake (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "host.budget_pause",
+      "default_wake": "wake",
+      "conditional": false,
+      "handling": "Log host with counts; wake (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "host.credential",
+      "default_wake": "log",
+      "conditional": true,
+      "handling": "Log host; wake when expiry is within 3 days or a limit is reached, otherwise log only (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "host.timer",
+      "default_wake": "wake",
+      "conditional": false,
+      "handling": "A timer set by Odin: log host with the note; wake (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "work.report",
+      "default_wake": "wake",
+      "conditional": true,
+      "handling": "Log work; validate journal-triage results and source coverage; wake, except journal triage uses its typed outcome and digest policy (§4, §5).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "lesson.published",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "A lesson published by Bragi: log note; log only (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "session.taken",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "Operator takes control: automated prompting for that session paused in code; log host (§4; AC-11).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "session.returned",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "Operator returns control: automated prompting resumed in code; log host (§4; AC-11).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "session.adopted",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "A session adopted under Odin: log host (§4, Appendix C).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "surface.focus",
+      "default_wake": "state",
+      "conditional": false,
+      "handling": "Written by the sensors to the surface-events namespace; derived attention state updated in code; state only, never a wake by itself (§4; ODIN-ADR-010).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "surface.idle",
+      "default_wake": "state",
+      "conditional": false,
+      "handling": "Written by the sensors to the surface-events namespace; derived attention state updated in code; state only, never a wake by itself (§4; ODIN-ADR-010).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "surface.changed",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "Surface change: log only, never a wake by itself; raw content stays with the local provider (§4; ODIN-ADR-010).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "capture.session_started",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "Capture lifecycle: the capture module writes the transcript-archive namespace; the service logs host with session refs (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "capture.session_ended",
+      "default_wake": "log",
+      "conditional": true,
+      "handling": "Capture lifecycle: log host; a session that ended with uncommitted work may queue a coalesced wake only through a typed rule (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "capture.gap",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "Capture lifecycle: log host with the gap ref; a gap stays visible (§4; AC-18).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "host.registered",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "Session host registered: update the Environment record and the host's bindings (§4; ODIN-ADR-009).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "host.offline",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "Heartbeat lost: the host's bindings become host_offline; nothing is retried (§2, §4, §9).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "host.returned",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "Host returned: reconciliation runs before any new turn; what it finds routes as its own events (§4, §9).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "host.environment",
+      "default_wake": "state",
+      "conditional": false,
+      "handling": "Environment probe: update the Environment record; refused classes appear in now (§4, Appendix C).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "prompt.raised",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "Attention prompt raised; in shadow mode it is logged and never sent (§4; ODIN-ADR-010).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "prompt.delivered",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "Attention prompt delivered to its surface (§4; ODIN-ADR-010).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "prompt.responded",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "Response recorded on the prompt through the command path; an override without a reason is refused; never edits or closes a commitment by itself (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "prompt.expired",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "No response before expiry: expired is recorded as the response (§4).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "import.heimdall.completed",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "The one-time heimdall import completed with its receipt (§14; ODIN-ADR-007; AC-38).",
+      "control": false,
+      "source": "Appendix C"
+    },
+    {
+      "kind": "import.heimdall.later_edit",
+      "default_wake": "log",
+      "conditional": false,
+      "handling": "A later heimdall-side edit: refused, or ignored with a visible record, never applied (Appendix C; AC-38).",
+      "control": false,
+      "source": "Appendix C"
+    }
+  ]
+}

@@ -1,0 +1,270 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/substrate/schemas/records/commitment.schema.json",
+  "title": "Commitment record",
+  "description": "I/O contract §2, Commitment: \"objective, acceptance criteria, state (`open`, `blocked`, `satisfied`, `closed`, `abandoned`), owner (planning session id) and `ownership_generation`, dependencies (commitment ids), open decisions, next trigger, evidence refs, delegation ref; checkpoints and task decisions (ODIN-ADR-007); provenance when imported (source, native identity, native revision, import receipt)\". Fields per Appendix A. An imported checkpoint corroborates nothing independently (D22.4).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "project",
+    "objective",
+    "criteria",
+    "state",
+    "owner",
+    "ownership_generation",
+    "dependencies",
+    "open_decisions",
+    "next_trigger",
+    "delegation",
+    "evidence",
+    "checkpoints",
+    "decisions",
+    "provenance"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "$ref": "../common.schema.json#/$defs/rev"
+    },
+    "created_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "updated_at": {
+      "$ref": "../common.schema.json#/$defs/ts"
+    },
+    "project": {
+      "$ref": "../common.schema.json#/$defs/ulid"
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "text",
+          "evidence",
+          "met"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/evidence_ref"
+            }
+          },
+          "met": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "state": {
+      "enum": [
+        "open",
+        "blocked",
+        "satisfied",
+        "closed",
+        "abandoned"
+      ]
+    },
+    "owner": {
+      "description": "Owning planning session id, or null when unowned.",
+      "$ref": "../common.schema.json#/$defs/ulid_or_null"
+    },
+    "ownership_generation": {
+      "description": "Incremented by commitment.transfer (§2).",
+      "type": "integer",
+      "minimum": 1
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "description": "Commitment ids.",
+        "$ref": "../common.schema.json#/$defs/ulid"
+      }
+    },
+    "open_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "text",
+          "raised_by"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "raised_by": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "next_trigger": {
+      "$ref": "../common.schema.json#/$defs/ts_or_null"
+    },
+    "delegation": {
+      "description": "Saga-native delegation id this commitment runs under; Saga owns it.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "../common.schema.json#/$defs/evidence_ref"
+      }
+    },
+    "checkpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "at",
+          "summary",
+          "evidence",
+          "recorded_by"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "at": {
+            "$ref": "../common.schema.json#/$defs/ts"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/evidence_ref"
+            }
+          },
+          "recorded_by": {
+            "description": "The recording planning session (ULID) or a producer identity (src).",
+            "anyOf": [
+              {
+                "$ref": "../common.schema.json#/$defs/ulid"
+              },
+              {
+                "$ref": "../common.schema.json#/$defs/src"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "question",
+          "choice",
+          "rationale",
+          "decided_by",
+          "at",
+          "evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1
+          },
+          "choice": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1
+          },
+          "decided_by": {
+            "$ref": "../common.schema.json#/$defs/src"
+          },
+          "at": {
+            "$ref": "../common.schema.json#/$defs/ts"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "../common.schema.json#/$defs/evidence_ref"
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "description": "Null unless imported from standalone heimdall (§14; ODIN-ADR-007).",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "native_id",
+        "native_rev",
+        "import_receipt"
+      ],
+      "properties": {
+        "source": {
+          "const": "heimdall"
+        },
+        "native_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "native_rev": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "import_receipt": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
