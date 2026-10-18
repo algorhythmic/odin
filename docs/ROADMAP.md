@@ -10,15 +10,27 @@ documents, they win ([`DECISIONS.md`](DECISIONS.md) authority order).
 Old phase numbers from legacy feature documents are not commitments
 ([`provenance/LEGACY-REQUIREMENTS.md`](provenance/LEGACY-REQUIREMENTS.md)).
 
-Nothing below is implemented. Checked items are documentation only.
+I0 is partially implemented: the unaffected record schemas and event
+envelope, shared synthetic fixtures, independent Go/Python validators and
+pure duplicate/stale/unknown checks are in [`runtime/`](../runtime/README.md).
+I0's full exit remains open, including X-7 and the Review/guidance schemas.
+I1 has a local fake-backend service foundation, with full Appendix B compatibility
+still open. Some I2 components have local prototypes; I2–I7 exits are incomplete.
+Checked items below are documentation or local component evidence only. See
+[implementation status](IMPLEMENTATION-STATUS.md) for runnable checks and limits.
 
 ## Where to start
 
 **First task: I0, contracts and fixtures:** the versioned event
 envelope and namespaces and the record schemas, validated by both the
 Go and the Python implementation against the same fixture set
-(ODIN-ADR-008). I0's envelope and schema work may begin now; it waits on
-no Saga-side or peer decision (G-9, G-10), and X-11 is decided before I1. Then I1 (service foundation) and I2
+(ODIN-ADR-008). The envelope and unaffected record schemas may begin now
+without the consolidation decisions G-9 and G-10. **X-7 must be resolved
+before writing the Review/guidance schemas in I0** (`DECISIONS.md` §5);
+the fail-closed guidance rule does not close that semantic question or
+remove its deadline. I0 is not complete until its review-schema dependency
+and shared-fixture exit are met. ADR-021 chooses a local X-11 layout; production process and failure-domain checks remain open. Then I1
+(service foundation) and I2
 (first harness), both non-production, against a fake Saga backend that
 implements the I/O contract's Appendix B and is never presented as
 Saga. **I3, any live delegated run and any live Saga
@@ -33,7 +45,7 @@ phase wording (review finding B2). It is not a jointly approved exception.
 | Gate | Owner | Blocks | State |
 |---|---|---|---|
 | G-1 Documentation handoff recorded (D14.6: contract held one review cycle, Saga producer contract extracted, decision map written) | Saga + Odin | Odin becoming the document owner | Source review returned CHANGES_REQUIRED ([findings](provenance/SOURCE-REVIEW.md)); corrections applied ([resolutions](provenance/REVIEW-RESOLUTIONS.md)); re-review pending; not recorded |
-| G-2 Saga contract pinned at `contracts/saga/2026-10-14-14fdab3/` | Saga (producer), copied into Odin | The Saga adapter's compatibility checks | Pin bookkeeping complete: `0.1.1-draft`, producer commit `a84f9ac28a6b4de651fccc057d33a335472f9773` recorded; digest matches canonical draft. Appendix B checked at document level (X-3). Target API unimplemented; formal review remains G-1 |
+| G-2 Saga contract pinned at `contracts/saga/2026-10-14-14fdab3/` | Saga (producer), copied into Odin | The Saga adapter's compatibility checks | Pin bookkeeping complete: `0.1.1-draft`, producer commit `a84f9ac28a6b4de651fccc057d33a335472f9773` recorded; digest matched the canonical draft at extraction. Appendix B's document check (X-3) now also records the worker-event delivery gap in B-12; producer resolution and a repin are still required. Target API unimplemented per the pin; formal review remains G-1 |
 | G-3 Saga confirmed active (open §5.1) | Operator | Phase B, migration step 2 | Open |
 | G-4 Saga Phase B exit: CLI submits, watches, guides, stops and cancels; refused for the same reasons Odin would be; `/stop` stops a delegation and reports | Saga | I3, live runs, deployment cutover (D14.5) | Not started |
 | G-5 Billing and auth re-test recorded; Max API credits claimed (open §5.6, §5.12) | Saga / Operator | Planning-session `api` default in production (D24.8a: default, pending operator confirmation) | Open; no billing test has run |
@@ -65,15 +77,15 @@ scoping Saga's record and is carried the same way.
 | G3 | Restarts and review cost: a restart's new request id needs renewed verdict and approval coverage; whether unchanged digests avoid a fresh model review; the cost (Saga GAP-07, GAP-08) | Saga (binding rule); Odin (renewal in `stage_run`, review-cost accounting) | Saga builds Phase B binding; Odin's I3 |
 | G4 | Saga's validator as a dependency: `stage_run` pre-checks only against a schema Saga publishes, never Saga's code (Saga ADM-10) | Saga (published schema); Odin (pre-check against it) | Odin relies on local pre-checks (I3 at the latest); until then there is no pre-check |
 | G5 | Planner answers: Saga can enforce only the request kind and the delegation's permission, not "does not change the plan" (Saga RQ-5) | Saga (enforcement); Odin (the judgment, logged and reviewable) | Saga's Phase B request protocol; Odin's I3 |
-| G6 | Unconfirmed integrations: Herdr's API (§5.8), skald retrieval (§5.11), dotprivate's selected-files contract (§5.10), the heimdall projection (EC-05) | Odin with each peer | Herdr: I3 (read-only inspection) and I4 (adapter); heimdall: I5; skald, braid, dotprivate: I6. The heimdall projection and the dotprivate contract are withdrawn from Odin's plan (ODIN-ADR-007, 012) |
+| G6 | Unconfirmed integrations: Herdr's API (§5.8), skald retrieval (§5.11), braid integration (EC-07); historical heimdall projection (EC-05) and dotprivate selected-files contract (§5.10) withdrawn from Odin's plan | Odin with each remaining peer | Herdr: I3 (read-only inspection) and I4 (adapter); skald and braid: I6. Heimdall import/retirement is I4 under G-10/EC-13, not the withdrawn I5 projection. Dotprivate has no Odin milestone (ODIN-ADR-007, 012) |
 | G7 | Unsettled defaults: the billing and auth re-test; the Console spend cap not applying under a subscription login; wake, interrupt and review caps and the coalescing window; memory evaluation run parameters | Operator (re-test, Phase A; G-5); Odin (caps and window from I3's first week of records; spend-cap behaviour before I3; freeze run parameters under ODIN-ADR-003 before I5) | As stated per owner |
 | R-S1 | Whether D7 redaction reaches Bragi's outputs compiled from Odin's chat logs (Saga's record §7) | Saga (Bragi's outputs); Odin (redaction propagation, I/O contract §8) | Bragi is given Odin's history projections (cutover, I/O contract §14 step 3); Saga tracks it as SB-08 |
 
 ## Phase A — reset (Saga phase; Odin documentation handoff)
 
 - [x] Odin design documents adapted for this repository, with the
-      frozen snapshot, decision map and legacy triage (candidate; under
-      review)
+      frozen snapshot, decision map and legacy triage (candidate;
+      independent re-review pending)
 - [x] Source review findings B1–B7 and N1–N11 corrected in the
       documents (`DECISIONS.md` §6,
       [`REVIEW-RESOLUTIONS.md`](provenance/REVIEW-RESOLUTIONS.md)); G1–G7
@@ -84,7 +96,9 @@ scoping Saga's record and is carried the same way.
       commit recorded in `SNAPSHOT.json`; pinned bytes match the canonical
       draft. This completes pin bookkeeping, not the handoff review.
 - [x] Appendix B checked against Saga's canonical `0.1.1-draft` at
-      document level (X-3); repeat at each repin
+      document level (X-3); worker-event delivery coverage added to the
+      recorded B-12 gaps after the audit. This is a gap inventory, not
+      producer capability approval; repeat at each repin.
 - [ ] Odin-relevant operator answers to the open questions
       (`DECISIONS.md` §3): default models and retention defaults,
       muninn, third-party reuse terms, the first delegation, Herdr, desktop
@@ -116,18 +130,34 @@ parallel, and non-production, Odin:
       duplicate, stale and unknown cases, validated by both the Go and
       the Python implementation against the same fixture set. Exit:
       both implementations validate the same fixtures; duplicate, stale
-      and unknown cases have explicit semantics; no peer API is invented
-      as implemented.
+      and unknown cases have explicit semantics; X-7 is resolved before
+      the Review/guidance schemas are written; no peer API is invented
+      as implemented. Work on the envelope and other unaffected schemas
+      does not wait for X-7.
+      **Implemented subset:** event envelope/namespaces, unaffected record
+      and workload-class schemas, heimdall target mapping, structural
+      fixtures and shared duplicate/stale/unknown contract checks. Run
+      `scripts/check_runtime.py` as described in
+      [`runtime/README.md`](../runtime/README.md). These are schema and pure contract tests. A separate local Python service
+      foundation and fake Saga backend now exist; no live harness has been built.
 - [ ] **I1 service foundation:** transactional state, event intake and
       cursors, outbox, scheduling, direct stop, CLI (I/O contract §9);
       moved from I0 by ODIN-ADR-008: the adapter capability matrix
       (§11), the fake Saga backend for Appendix B, a synthetic
       three-document fixture (acceptance §1) and the ownership mapping.
-      Store topology (X-11) is decided first, and the fake-backend
+      Store topology (X-11) is decided first; G2's stop split is settled
+      before the direct-stop work. The fake-backend
       scenarios exercise the execution-ledger mirror's read-only
       property. Exit: restart and replay produce one logical action and
       retain unknown outcomes (AC-01, AC-02, AC-27 against the fake
       backend).
+
+The local experimental portfolio and consultation protocol (ADR-022) is
+checked first with synthetic packets, grants, evidence and adapter intents
+(AC-45–AC-50). A typed Herdr layout is only a service-state view. Actual
+provider calls, voice transcription, identity-bound approval and worker
+execution wait for their I2/I3 and X-12/X-13/X-15/Saga gates. ADR-020's model
+comparisons remain Phase G work; fixture configuration is not a result.
 
 ## Phase C — Odin v1 (Odin)
 
@@ -279,9 +309,9 @@ Phase B.
 
 | Increment | Phase (I/O contract §13) | Backend | Gate |
 |---|---|---|---|
-| I0 contracts and fixtures | B | none (non-production) | — |
-| I1 service foundation | B | fake (non-production) | — |
-| I2 first harness | C | fake (non-production) | X-12 for the workstation daemon's local sessions |
+| I0 contracts and fixtures | B | none (non-production) | X-7 before Review/guidance schemas are written; unaffected schema work may start |
+| I1 service foundation | B | fake (non-production) | X-11 before I1; G2 before direct-stop work |
+| I2 first harness | C | fake (non-production) | X-10 before I2; X-12 for the workstation daemon's local sessions; isolation checks before claiming the planner profile |
 | I3 governed project | C | Saga | G-4; G1 to G5; Herdr read-only inspection (EC-03, G6) |
 | I4 parallel workspace | D | Saga | G-6 for the phase exit; EC-03; G-10 for heimdall's import |
 | I5 portability and context | E | Saga | G-7 for the phase exit (EC-05 withdrawn) |

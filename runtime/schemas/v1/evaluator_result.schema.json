@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/schemas/v1/evaluator_result.schema.json",
+  "title": "Evaluator Result",
+  "description": "",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "updated_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "evaluator": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input_digest": {
+      "$ref": "common.schema.json#/$defs/digest"
+    },
+    "result": {
+      "type": "string",
+      "minLength": 1
+    },
+    "p": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "status": {
+      "type": "string",
+      "minLength": 1
+    },
+    "consequence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "evaluator",
+    "model",
+    "input_digest",
+    "result",
+    "status",
+    "consequence",
+    "outcome"
+  ],
+  "additionalProperties": false
+}

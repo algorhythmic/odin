@@ -2,7 +2,7 @@
 
 > **Status:** candidate live record for the documentation handoff of
 > extraction snapshot `2026-10-14-14fdab3`. The handoff is **not yet
-> recorded**; the D14 gate is under independent review. The source
+> recorded**; the independent D14 re-review remains pending. The source
 > contract review returned CHANGES_REQUIRED; its corrections are applied
 > and resolved against existing decisions, and its re-review is pending
 > (§6, [`provenance/REVIEW-RESOLUTIONS.md`](provenance/REVIEW-RESOLUTIONS.md)).
@@ -521,8 +521,9 @@ approved in Saga. D14.4 has code
 extraction enter in the blueprint's increments; the source blueprint
 (§7) lets I0 to I2 use a fake Saga backend; the source extraction plan
 (§1) says a fake backend establishes no production readiness. Read with
-D15.8: I0 to I2 are non-production development against fixtures and a
-fake backend and may proceed while Phase B is in progress. I3, every
+D15.8: I0 uses fixtures, while I1 to I2 use fixtures and a fake
+backend; all are non-production and may proceed while Phase B is in
+progress. I3, every
 live delegated run, every live Saga submission, deployment cutover
 (D14.5) and the Phase C exit require Phase B's exit criterion and
 minimum enforcement. Peer integrations follow D15's phases: read-only
@@ -1082,6 +1083,9 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   proposal supported by measured routing ambiguity. Jev cannot compact,
   draft guidance or decompose work; worker-model selection stays with
   Odin's planning and launch policy, with Mimir where D8 requires it.
+  The workload-class configuration is specified in I/O contract §5; I0
+  defines its validated schema and fixture representation. These classes
+  are distinct from capability profiles and process roles.
 - **Inherited relationship:** operationalizes D9.3–D9.6, D20.8–D20.9 and
   ADR-002; preserves D7's harness boundary and D24's launch configuration.
   No enforcement or approval requirement is delegated to a classifier.
@@ -1190,6 +1194,9 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   external views". One human view shows commitments, runs and transcripts
   with their owners attributed. Peer-side retirement is heimdall's to
   record (EC-13).
+  An ignored edit is not evidence that the source task layer was retired;
+  migration acceptance requires enforceable refusal on the heimdall side
+  under EC-13 and G-10.
 - **Inherited relationship:** supersedes D20.10 for Odin. Amends D10.5's
   "optionally connected later as a human-facing continuity surface" and
   its release and CI condition. Consistent with D10.5's "one authoritative
@@ -1216,6 +1223,9 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   three-document fixture and the ownership mapping move to I1. The
   planner tool-isolation check moves with the profile schemas and must
   still pass before I2 claims the planner profile.
+- **Clarification:** envelope and unaffected record-schema work can begin
+  in I0. Resolve X-7 before writing the Review/guidance schemas;
+  fail-closed handling does not answer the open semantic choice.
 - **Consequences:** blueprint §7, I/O contract §13 row B, the roadmap's I0
   and I1 entries, README and AGENTS.md §1 change together. I0's exit keeps
   "no peer API is invented as implemented". Every displaced item is named
@@ -1413,19 +1423,23 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   frontier models of different families where the adapters allow it.
   Each position receives the same deterministic evidence pack and sees
   neither Odin's conversational reasoning nor the other position's
-  findings. Service code combines the verdicts: approval requires both
-  positions to approve; any `REJECT` or `INSUFFICIENT_EVIDENCE`, or
-  disagreement that survives the single permitted corrective re-review,
-  goes to the operator with both positions and their evidence (proposed
-  scenario AC-40). "No change needed" (`APPROVE_UNCHANGED`) is a
+  findings. Service code combines the verdicts by the action-level
+  pair rule in I/O contract §10: both positions must approve for an
+  approving outcome; any `FLAG` goes to the operator under Saga ADM-7,
+  as does any `REJECT` or `INSUFFICIENT_EVIDENCE`. A disagreement that
+  survives the single permitted corrective re-review goes to the
+  operator with both positions and their evidence (proposed AC-40).
+  Mixed `APPROVE`/`APPROVE_UNCHANGED` serialization remains for the I0
+  review schema; no combined verdict is submitted until it is defined.
+  "No change needed" (`APPROVE_UNCHANGED`) is a
   first-class outcome. The combined verdict is recorded under the
   reviewer identity key, which the service holds in a signer component
   that no session or planner tool can reach (D2.4b), in the verdict
   format Saga verifies; running that signer as a separate process is the
   option D2.5 already offers and is the default deployment here. Roles are assigned per project: one planning owner and one
   standing reviewer position, and they may swap between projects.
-  Disagreement is the protocol's most valuable output; agreement passes
-  into the log without an operator message.
+  Disagreement is the protocol's most valuable output; matching approving
+  results pass into the log without an operator message.
 - **Consequences:** D24.2a launch configuration gains a per-position
   entry. Sending evidence packs to a second provider needs a data-policy
   decision (X-13). Caps are per position and total (D8.6). AC-22 is
@@ -1464,8 +1478,10 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
 - **Consequences:** the records live in the Odin-history namespace
   (ODIN-ADR-006), subject to D9.5's sensitivity rule and D7.12's
   redaction. New classes (reviewer positions; Bragi and Eir only if a
-  Saga-side decision transfers them) are added to ODIN-ADR-004's class
-  table. The D18 evaluation of class defaults uses the same harness,
+  Saga-side decision transfers them) belong in the workload-class
+  configuration specified in I/O contract §5. Its validated schema and
+  fixtures are I0 work; this does not add a class or set a model default.
+  The D18 evaluation of class defaults uses the same harness,
   fixed prompts, tools and graders, the best and cheapest single-class
   baselines, and the task-level oracle as a reference.
 - **Inherited relationship:** amends ODIN-ADR-004; keeps its four hooks,
@@ -1499,10 +1515,105 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
 - **Must not claim:** Phase E's exit; any live run before Phase B; X-1
   resolution; proven portability.
 
+### ODIN-ADR-020 — Model and delegation evaluation protocol
+
+- **Date and status:** 2026-10-16; default evaluation specification.
+  Local metadata/accounting checks are implemented; comparative trials and
+  actual harness checks remain unimplemented. Records the application of the operator-supplied
+  orchestration research; it is not a measured result or a model choice.
+- **Context:** Configured mixed-model routes and author observations do
+  not establish comparative quality. Consultation, executable work,
+  harness changes, extra inference and selective reporting can each
+  explain apparent gains. The [review](provenance/MODEL-ORCHESTRATION-REVIEW.md)
+  records source checks and what is not adopted.
+- **Decision:** Evaluate a configuration as its task, ownership pattern,
+  exact requested and resolved model identities, harness/adapter/provider
+  path, context/tools, permissions and resource policy. Separate bounded
+  advice, read-only `work` subagents, reviewer positions and Saga execution.
+  Freeze delegation packets for worker comparisons before measuring
+  adaptive whole episodes. Compare solo operation, additional solo effort,
+  same-model delegation, repeated same-model samples and a fixed workflow
+  before crediting model diversity. Hold the harness fixed for model
+  comparisons and models fixed for harness comparisons where supported;
+  disclose unmatched capabilities as confounds.
+- **Measurement:** Verified end-to-end success is primary. Count all
+  attempts, including failures, retries, repair, review, compaction,
+  evaluators and tools. Report cost per accepted task, total/unconditional
+  cost, elapsed-time distributions, deadline success, operator time and
+  failure attribution. Pin prices and billing modes; unknown usage stays
+  unknown, and repricing is not a rerun. Use paired repeated trials,
+  held-out task lineages and independently assessed outcomes. Operational
+  defaults, dollar caps and deadlines are separate conditions. A small
+  pilot diagnoses failures and variance, not a universal ranking.
+- **Checks and placement:** Acceptance §3 specifies the protocol. I1
+  defines validated evaluation metadata and extends the adapter capability
+  matrix; I2 checks read-only child confinement and partial/stale returns
+  (proposed AC-42–AC-43), AC-36's observational class records, and child
+  cap/stop behavior after X-15 is resolved (proposed AC-44). The Pi control
+  uses the same protocol after I2. Live repeats require I3/Saga Phase B;
+  the D18 comparative report remains Phase G. Missing telemetry or an
+  unsupported condition is reported, never filled with an assumed zero.
+- **Inherited relationship:** operationalizes D18.1, D18.2, D18.4 and
+  D19.4; adds detail to the evaluations in ADR-013/014/015 without
+  superseding them or any inherited clause. I0 remains ADR-008's narrow
+  schema increment. The current session-class policy and two-loop
+  architecture stand; learned model-tier routing remains off.
+- **Must not claim:** a best model pair, independent reviewer errors,
+  framework adoption, production advisor/peer-handoff support, Saga
+  guarantees from local children, new producer capabilities, a resolved
+  data/billing policy, or a completed runtime evaluation. Proposed
+  comparisons never remove required review from live work.
+
+### ODIN-ADR-021 — Local implementation storage and contract conventions
+
+- **Date/status:** 2026-10-16; default implementation choice under the
+  operator's instruction to complete local development while leaving live
+  credentials undecided. No live deployment or producer change is authorized.
+- **Decision:** Use one SQLite WAL file per namespace. A nonblocking OS
+  file lock admits one writing process per namespace; each component opens
+  only its own namespace. Odin records, inbox, cursor, outbox and history
+  commit together inside the Odin-history database. There is no atomic
+  transaction across namespaces: capture uses its durable spool, and mirror
+  updates commit with their producer cursor. A gap or conflicting mirror
+  sequence stops ingestion for reconciliation, never authors a correction.
+  Separate files isolate storage transactions, not processes or Unix users.
+  Production file ownership and sandbox enforcement remain I2 deployment
+  checks. Local code runs no untrusted session or external effect.
+- **Contract conventions:** Runtime JSON Schemas use Draft 2020-12, closed
+  record objects, `schema_version: 1`, `record_type`, and Appendix A's `rev`
+  spelling for revision. UTC timestamps use `Z`; IDs are canonical ULIDs.
+  Producer-native identities remain opaque references. The 12 unaffected Odin-owned
+  record shapes and the event envelope are validated independently in Go
+  and Python. Saga delegation/run schemas are not invented here. Local
+  deterministic JSON digests are explicitly not Saga's unresolved canonical
+  wire digest. JSON/YAML runtime data uses schemas; native language build
+  manifests and dependency lockfiles use their standard tool formats.
+- **Checks:** namespace-writer lock, transaction rollback, duplicate intake,
+  stale revisions, unknown effect recovery and mirror cursor tests in the
+  local suite. Cross-language schema fixtures include gated Review rejection,
+  unbound approval, invalid dates/IDs, partial/unknown effect evidence and
+  unknown fields. These establish only their tested local behavior.
+- **Relationship:** implements X-11's local physical layout and D6/D7/D19
+  without superseding a clause. X-11 remains open for production process
+  ownership/failure-domain validation. X-7, X-12, X-13 and X-14 stay open;
+  unresolved guidance publication and live transports are disabled. See
+  [implementation status](IMPLEMENTATION-STATUS.md) for local evidence
+  and the remaining full-I1/I2 work.
+
+### ODIN-ADR-022 — Experimental portfolio coordination and scoped orchestration
+
+- **Date/status:** 2026-10-16; operator-authorized local experimental design. The fake-backend prototype may record and check the protocol. No live model route, second production adapter, delegated run or credential distribution is authorized by this ADR.
+- **Decision:** For a portfolio of software, research or infrastructure projects, a configured Fable coordinator may identify priorities and request work. Each project keeps one Astra planning owner with explicit assignment and commitment records. Opus or Sol workers receive bounded Saga delegations only through the service and Saga adapter. A bounded chirality consultation returns read-only, source-attributed advice with confidence and uncertainty; it cannot approve, route, edit, submit or complete work. The service owns admission, state, budgets, stop, approval and reconciliation. Model names here are configured experimental roles, not claims about a provider, model quality or an available harness.
+- **Handoff:** Every coordinator-to-owner, owner-to-worker and consultation return has a versioned typed packet: source IDs and revisions, project/assignment/commitment identity, objective, scope, accepted decisions, dependencies, checks, evidence references, authority, deadline and budget. Receiving a packet does not transfer authority or establish completion. Stale, missing or ambiguous context is held for reconciliation; source material stays retrievable. The one project planning owner remains accountable for integration.
+- **Incident authority:** The operator may approve a time-bound, project- and action-scoped incident grant through the recorded command path. The service validates principal, exact scope, expiry and revocation at use and logs each exercise. Grants confer no blanket model credentials and no bypass of Saga, required review or direct stop. A model request, voice transcript or Herdr view does not itself grant authority.
+- **Surfaces and adapters:** Herdr's layout may display portfolio, project, handoff and incident state, but it is a view of the service's records. Adapter lifecycle is a structured capability and status contract (start, resume, interrupt, retire, observation, error/unknown), checked before class admission; it does not create a universal framework. Voice becomes a recorded operator input through the same identity and command path, with transcription provenance and confirmation where the command requires it; voice never supplies approval. Explore a second adapter only as a controlled fixture after the first harness path and the ADR-015 Pi control gates, preserving D19's no-framework rule.
+- **Evaluation and limits:** Store exact requested and resolved model/harness/provider versions, profile, tools, packet revision, resource policy and outcomes. Apply ADR-020's paired controls and complete episode accounting; configuration examples are not empirical rankings. Local fake-backend tests establish only protocol behavior. X-7, X-12, X-13, X-15, X-1 and Saga Phase B remain open. No live external effect or cross-provider data transfer follows from this decision.
+- **Inherited relationship:** Amends Odin's D10/D19 single-project planning scope only to allow a portfolio coordinator above independent project owners; it does not amend Saga-owned interfaces. It refines D5–D8 and ADR-009/010/014/020 for packet, authority, surface and evaluation checks. It supersedes any Odin reading of D19 that every project must share one planning session; each project still has one accountable planning owner. This is not a replacement for Odin's service loop or Saga's worker boundary.
+
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that
-resolved it. X-1, X-2, X-5, X-6, X-8, X-10, X-11, X-12, X-13 and X-14 are open. X-3, X-4 and X-9 are
+resolved it. X-1, X-2, X-5, X-6, X-8, X-10, X-11, X-12, X-13, X-14 and X-15 are open. X-3, X-4 and X-9 are
 resolved as recorded readings of existing decisions; X-7 is resolved
 only as far as fail-closed handling. Every resolution is subject to the
 re-review and to the operator.
@@ -1513,7 +1624,8 @@ re-review and to the operator.
   against a fake Saga backend, and the I/O contract (§13) places I0–I1
   beside Phase B and I2–I3 in Phase C. **Open: producer reconciliation
   pending.** Odin's interpretation under D15 (review finding B2): I0, I1 and I2 are
-  non-production work against fixtures and a fake backend; I3, any live
+  non-production work against fixtures in I0 and a fake backend in
+  I1–I2; I3, any live
   delegated run, any live Saga submission, deployment cutover and the
   Phase C exit wait for Phase B's exit. Evidence: D14.4, source
   blueprint §7, source extraction plan §1, D15.8. Saga's live record
@@ -1533,7 +1645,10 @@ re-review and to the operator.
   B of the I/O contract now records, per capability, what Saga's
   canonical `0.1.1-draft` provides and what is a gap (no delegation read
   operation; no published admission schema; wire details Saga still has
-  open). The check compares documents only and must be repeated when
+  open). B-12 also identifies a worker-event delivery gap against EV-4:
+  status and evidence reads do not promise cursor notifications for
+  journals, per-iteration status, plateau signals or alerts. The check
+  compares documents only and must be repeated when
   the producer bytes are repinned. Gaps are resolved at the producer,
   never by editing the pinned copy.
 - **X-4 — Archived-conversation retrieval.** D10.1 and the I/O contract
@@ -1632,6 +1747,22 @@ re-review and to the operator.
   then are ODIN-ADR-016 to 019 recorded. Until then the plan's
   description of a shared repository is a proposal and D10.6, D14.1 and
   D14.7 stand as carried.
+
+- **X-15 — Shared limits and lifecycle of harness subagents.** D8's
+  review caps, I/O contract §5's session caps and AC-23 require enforcement, but the
+  adapter contract does not yet define how concurrent native children
+  share a cap. Before I2 enables child dispatch, specify Odin-side
+  admission/reservations, attribution without double counting parent
+  totals, in-flight usage, missing telemetry, release/reconciliation after
+  crash, child count/depth limits and stop propagation. A next-request
+  spend check or a per-child turn limit is not proof of an aggregate hard
+  dollar ceiling. For each advertised limit, identify its enforcing
+  component and adapter evidence; refuse a session class whose required
+  limit cannot be enforced. Define how an unconfirmed child stop remains
+  visible and prevents unsafe redispatch (AC-10/AC-37). Proposed AC-44
+  supplies adversarial cases. This is Odin's local harness boundary;
+  Saga-owned worker limits and its pinned API are unchanged. No mechanism
+  or numerical limit is settled by this issue.
 
 ## 6. Outstanding review findings
 

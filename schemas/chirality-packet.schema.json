@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "revision", "question", "evidence", "target", "source"],
+  "properties": {
+    "schema_version": {"const": 1}, "revision": {"type": "integer", "minimum": 1},
+    "question": {"type": "string", "minLength": 1, "maxLength": 8192},
+    "evidence": {"type": "array", "maxItems": 64, "items": {"type": "string", "minLength": 1, "maxLength": 8192}},
+    "target": {"type": ["string", "null"], "maxLength": 2048},
+    "source": {"type": "object", "additionalProperties": false,
+      "required": ["handoff_operation", "handoff_digest", "project", "assignment", "assignment_revision", "ownership_generation", "source_revision"],
+      "properties": {
+        "handoff_operation": {"type": "string", "minLength": 1},
+        "handoff_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "project": {"type": "string", "minLength": 1},
+        "assignment": {"type": "string", "minLength": 1},
+        "assignment_revision": {"type": "integer", "minimum": 1},
+        "ownership_generation": {"type": "integer", "minimum": 0},
+        "source_revision": {"type": "integer", "minimum": 1}
+      }}
+  }
+}

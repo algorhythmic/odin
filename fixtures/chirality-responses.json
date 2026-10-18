@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "examples": [
+    {
+      "schema_version": 1,
+      "round": 1,
+      "role": "fable",
+      "requested_model": "fable-fixture",
+      "resolved_model": "fable-fixture",
+      "packet_revision": 1,
+      "packet_digest": "b291bb148cbc907d032ff7cf79a7301190d9156c238977af6069d379bef17079",
+      "status": "complete",
+      "recommendation": "Proceed with the synthetic fixture",
+      "evidence": [
+        "fixture:requirements"
+      ],
+      "assumptions": [
+        "The fixture is synthetic"
+      ],
+      "objections": [
+        "No live Saga claim"
+      ],
+      "actual_microusd": 5,
+      "consultation_id": "consultation",
+      "invocation_id": "chirality:consultation:1:fable",
+      "requested_provider": "fixture-provider",
+      "requested_harness": "fixture-harness",
+      "requested_harness_version": "1",
+      "requested_effort": null,
+      "requested_config_revision": "fixture-model-roles-v1",
+      "resolved_provider": "fixture-provider",
+      "resolved_harness": "fixture-harness",
+      "resolved_harness_version": "1",
+      "resolved_effort": null
+    },
+    {
+      "schema_version": 1,
+      "round": 1,
+      "role": "astra",
+      "requested_model": "astra-fixture",
+      "resolved_model": "astra-fixture",
+      "packet_revision": 1,
+      "packet_digest": "b291bb148cbc907d032ff7cf79a7301190d9156c238977af6069d379bef17079",
+      "status": "complete",
+      "recommendation": "Hold for another check",
+      "evidence": [
+        "fixture:interface"
+      ],
+      "assumptions": [
+        "The fixture is synthetic"
+      ],
+      "objections": [
+        "Evidence is incomplete"
+      ],
+      "actual_microusd": 7,
+      "consultation_id": "consultation",
+      "invocation_id": "chirality:consultation:1:astra",
+      "requested_provider": "fixture-provider",
+      "requested_harness": "fixture-harness",
+      "requested_harness_version": "1",
+      "requested_effort": "bounded",
+      "requested_config_revision": "fixture-model-roles-v1",
+      "resolved_provider": "fixture-provider",
+      "resolved_harness": "fixture-harness",
+      "resolved_harness_version": "1",
+      "resolved_effort": "bounded"
+    }
+  ]
+}

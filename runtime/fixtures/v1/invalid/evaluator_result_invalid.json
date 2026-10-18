@@ -1,0 +1,14 @@
+{
+  "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+  "rev": 1,
+  "created_at": "2026-10-16T12:00:00Z",
+  "updated_at": "2026-10-16T12:00:00Z",
+  "evaluator": "journal_attention_v1",
+  "model": "jev-fixture",
+  "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "result": "routine",
+  "p": 1.1,
+  "status": "ok",
+  "consequence": "deferred",
+  "outcome": null
+}

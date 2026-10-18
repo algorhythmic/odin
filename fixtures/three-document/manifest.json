@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "label": "synthetic fixture",
+  "documents": [
+    {
+      "path": "requirements.md",
+      "digest": "26d8ca2375c116a51a214c98716c64cac487f8bbe59809354b06ec64316b25a0",
+      "version": "v1"
+    },
+    {
+      "path": "interface.md",
+      "digest": "92601f75a865587fee7a0795049f2aa2f46de019e94c9b97cdf67c14ebedd99e",
+      "version": "v1"
+    },
+    {
+      "path": "acceptance.md",
+      "digest": "93cfde0cff8941678d6ba122ffd3e72e67be1cd56b34bca20dc9dfd74c2b4a9c",
+      "version": "v1"
+    }
+  ],
+  "streams": [
+    {
+      "name": "requirements",
+      "input": "requirements.md",
+      "criterion": "Synthetic requirements stream check passes"
+    },
+    {
+      "name": "interface",
+      "input": "interface.md",
+      "criterion": "Synthetic interface stream check passes"
+    },
+    {
+      "name": "acceptance",
+      "input": "acceptance.md",
+      "criterion": "Synthetic acceptance stream check passes"
+    }
+  ],
+  "integration_criterion": "All components agree on the interface and the assembled result passes its independent check"
+}

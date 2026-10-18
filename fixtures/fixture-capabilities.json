@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "adapter": "fixture-host",
+  "version": "1",
+  "mode": "fixture",
+  "capabilities": {
+    "start": true,
+    "resume": true,
+    "inject_mid_turn": false,
+    "interrupt": true,
+    "budget": false,
+    "model": false,
+    "effort": false,
+    "transcript": true,
+    "hooks": false,
+    "profile_enforcement": true,
+    "attachable_view": false,
+    "permission_prompt_relay": false,
+    "native_children": false,
+    "child_confinement": false,
+    "aggregate_hard_budget": false
+  },
+  "boundaries": {
+    "conversation": "synthetic records only",
+    "process": "same Python process; no isolation claim",
+    "filesystem": "no tools or models launched"
+  },
+  "limits": {
+    "budget": "reservation arithmetic only; real hard cap unverified",
+    "concurrency": "single service writer",
+    "depth": "native children disabled"
+  },
+  "evidence": [
+    "tests/test_runtime.py"
+  ],
+  "gaps": [
+    "Claude Agent SDK adapter and real profile confinement untested",
+    "X-12 credential lineage undecided",
+    "X-15 native child lifecycle and hard cost bounds unverified"
+  ]
+}

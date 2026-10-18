@@ -1,0 +1,372 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:orchestration-config:1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "config_rev": {
+      "type": "string",
+      "minLength": 1
+    },
+    "experimental": {
+      "const": true
+    },
+    "live_enabled": {
+      "const": false
+    },
+    "roles": {
+      "type": "object",
+      "properties": {
+        "fable": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "provider": {
+              "type": "string",
+              "minLength": 1
+            },
+            "harness": {
+              "type": "string",
+              "minLength": 1
+            },
+            "harness_version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "cli_observed_version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "effort": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "execution_path": {
+              "enum": [
+                "service_session",
+                "saga_api"
+              ]
+            },
+            "required_capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "credential_ref": {
+              "type": "null"
+            },
+            "billing_ref": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "model",
+            "provider",
+            "harness",
+            "harness_version",
+            "cli_observed_version",
+            "effort",
+            "execution_path",
+            "required_capabilities",
+            "credential_ref",
+            "billing_ref"
+          ],
+          "additionalProperties": false
+        },
+        "astra": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "provider": {
+              "type": "string",
+              "minLength": 1
+            },
+            "harness": {
+              "type": "string",
+              "minLength": 1
+            },
+            "harness_version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "cli_observed_version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "effort": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "execution_path": {
+              "enum": [
+                "service_session",
+                "saga_api"
+              ]
+            },
+            "required_capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "credential_ref": {
+              "type": "null"
+            },
+            "billing_ref": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "model",
+            "provider",
+            "harness",
+            "harness_version",
+            "cli_observed_version",
+            "effort",
+            "execution_path",
+            "required_capabilities",
+            "credential_ref",
+            "billing_ref"
+          ],
+          "additionalProperties": false
+        },
+        "opus": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "provider": {
+              "type": "string",
+              "minLength": 1
+            },
+            "harness": {
+              "type": "string",
+              "minLength": 1
+            },
+            "harness_version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "cli_observed_version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "effort": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "execution_path": {
+              "enum": [
+                "service_session",
+                "saga_api"
+              ]
+            },
+            "required_capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "credential_ref": {
+              "type": "null"
+            },
+            "billing_ref": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "model",
+            "provider",
+            "harness",
+            "harness_version",
+            "cli_observed_version",
+            "effort",
+            "execution_path",
+            "required_capabilities",
+            "credential_ref",
+            "billing_ref"
+          ],
+          "additionalProperties": false
+        },
+        "sol": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "provider": {
+              "type": "string",
+              "minLength": 1
+            },
+            "harness": {
+              "type": "string",
+              "minLength": 1
+            },
+            "harness_version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "cli_observed_version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "effort": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "execution_path": {
+              "enum": [
+                "service_session",
+                "saga_api"
+              ]
+            },
+            "required_capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "credential_ref": {
+              "type": "null"
+            },
+            "billing_ref": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "model",
+            "provider",
+            "harness",
+            "harness_version",
+            "cli_observed_version",
+            "effort",
+            "execution_path",
+            "required_capabilities",
+            "credential_ref",
+            "billing_ref"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "fable",
+        "astra",
+        "opus",
+        "sol"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "config_rev",
+    "experimental",
+    "live_enabled",
+    "roles"
+  ],
+  "additionalProperties": false
+}

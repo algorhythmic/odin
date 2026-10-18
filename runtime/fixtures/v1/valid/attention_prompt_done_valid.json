@@ -1,0 +1,34 @@
+{
+  "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+  "rev": 1,
+  "created_at": "2026-10-16T12:00:00Z",
+  "updated_at": "2026-10-16T12:00:00Z",
+  "effect": "01ARZ3NDEKTSV4RRFFQ69G5FAW",
+  "project": "01ARZ3NDEKTSV4RRFFQ69G5FAX",
+  "subject": {
+    "kind": "commitment",
+    "id": "01ARZ3NDEKTSV4RRFFQ69G5FAW"
+  },
+  "proposal": "Review synthetic work",
+  "evidence": [
+    "evid:synthetic-1"
+  ],
+  "surface": "notifications",
+  "rule": "fixture_rule@1",
+  "coalescing_key": "fixture",
+  "mode": "live",
+  "cap_state": {
+    "surface_today": 0,
+    "all_today": 0
+  },
+  "expires_at": "2026-10-16T12:00:00Z",
+  "state": "responded",
+  "response": {
+    "kind": "done",
+    "reason": null,
+    "until": null,
+    "by": "operator:fixture",
+    "at": "2026-10-16T12:00:00Z",
+    "source_event": "fixture:1"
+  }
+}

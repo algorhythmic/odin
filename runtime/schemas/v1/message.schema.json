@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/schemas/v1/message.schema.json",
+  "title": "Message",
+  "description": "Durable message row. Dense per-chat i, UTF-8 byte size and append-only behavior are runtime checks.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "updated_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "chat": {
+      "type": "string",
+      "minLength": 1
+    },
+    "i": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "operator",
+        "verdict",
+        "odin",
+        "fleet",
+        "host",
+        "work",
+        "request",
+        "tool",
+        "echo",
+        "note"
+      ]
+    },
+    "src": {
+      "type": "string",
+      "minLength": 1
+    },
+    "text": {
+      "type": "string"
+    },
+    "size": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "date": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "ref": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "chat",
+    "i",
+    "kind",
+    "src",
+    "text",
+    "size",
+    "date",
+    "ref"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Odin stable documentation identifiers",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "groups"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "groups": {
+      "type": "object",
+      "required": [
+        "AC",
+        "DC",
+        "EC"
+      ],
+      "properties": {
+        "AC": {
+          "type": "object",
+          "required": [
+            "document",
+            "ids"
+          ],
+          "properties": {
+            "document": {
+              "const": "docs/design/ODIN-ACCEPTANCE-SCENARIOS.md"
+            },
+            "ids": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "status"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^AC-[0-9]{2,}$"
+                  },
+                  "status": {
+                    "enum": [
+                      "active",
+                      "withdrawn"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "DC": {
+          "type": "object",
+          "required": [
+            "document",
+            "ids"
+          ],
+          "properties": {
+            "document": {
+              "const": "docs/design/ODIN-ACCEPTANCE-SCENARIOS.md"
+            },
+            "ids": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "status"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^DC-[0-9]{2,}$"
+                  },
+                  "status": {
+                    "enum": [
+                      "active",
+                      "withdrawn"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "EC": {
+          "type": "object",
+          "required": [
+            "document",
+            "ids"
+          ],
+          "properties": {
+            "document": {
+              "const": "docs/design/ODIN-ECOSYSTEM-INTEGRATION.md"
+            },
+            "ids": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "status"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^EC-[0-9]{2,}$"
+                  },
+                  "status": {
+                    "enum": [
+                      "active",
+                      "withdrawn"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

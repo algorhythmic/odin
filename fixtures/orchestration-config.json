@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "config_rev": "fixture-model-roles-v1",
+  "experimental": true,
+  "live_enabled": false,
+  "roles": {
+    "fable": {
+      "model": "claude-fable-5-1",
+      "provider": "Anthropic",
+      "harness": "Claude Agent SDK",
+      "harness_version": null,
+      "cli_observed_version": "2.1.296",
+      "effort": null,
+      "execution_path": "service_session",
+      "required_capabilities": [
+        "start",
+        "resume",
+        "interrupt",
+        "transcript",
+        "profile_enforcement"
+      ],
+      "credential_ref": null,
+      "billing_ref": null
+    },
+    "astra": {
+      "model": "gpt-6-astra",
+      "provider": "OpenAI",
+      "harness": "Codex app-server",
+      "harness_version": "0.162.1",
+      "cli_observed_version": null,
+      "effort": "high",
+      "execution_path": "service_session",
+      "required_capabilities": [
+        "start",
+        "resume",
+        "interrupt",
+        "transcript",
+        "profile_enforcement"
+      ],
+      "credential_ref": null,
+      "billing_ref": null
+    },
+    "opus": {
+      "model": "claude-opus-5-5",
+      "provider": "Anthropic",
+      "harness": "Saga API",
+      "harness_version": null,
+      "cli_observed_version": null,
+      "effort": null,
+      "execution_path": "saga_api",
+      "required_capabilities": [
+        "idempotent_request",
+        "run_record",
+        "bounded_execution"
+      ],
+      "credential_ref": null,
+      "billing_ref": null
+    },
+    "sol": {
+      "model": "gpt-6-sol",
+      "provider": "OpenAI",
+      "harness": "Saga API",
+      "harness_version": null,
+      "cli_observed_version": null,
+      "effort": "high",
+      "execution_path": "saga_api",
+      "required_capabilities": [
+        "idempotent_request",
+        "run_record",
+        "bounded_execution"
+      ],
+      "credential_ref": null,
+      "billing_ref": null
+    }
+  }
+}

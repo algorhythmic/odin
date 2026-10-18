@@ -280,8 +280,11 @@ position's findings. One review and at most one corrective re-review precede
 escalation. Service code combines the verdicts: approval requires both positions
 to approve; any `REJECT` or `INSUFFICIENT_EVIDENCE`, or a disagreement that
 survives the corrective re-review, goes to the operator with both positions and
-their evidence. `APPROVE_UNCHANGED` is a first-class outcome, and agreement
-passes into the log without an operator message. Roles are assigned per
+their evidence. Any pair containing `FLAG` also escalates under Saga ADM-7;
+the action-level table is in I/O contract §10. `APPROVE_UNCHANGED` is a
+first-class outcome. Only matching approving pairs pass into the log without
+an operator message; mixed `APPROVE`/`APPROVE_UNCHANGED` stays pending with
+no signed combined verdict until its I0 schema mapping is defined. Roles are assigned per
 project: one planning owner and one standing reviewer position, which may swap
 between projects. The reviewer signer records the combined verdict under the
 reviewer identity key, in the format Saga verifies; Saga accepting per-position
@@ -325,6 +328,10 @@ hook. Defer only on a validated routine probability with adequate evidence
 and no contradictory typed state; otherwise take the baseline path. Haiku
 agreement is not ground truth. Operator target bindings remain explicit;
 session class, model and effort are selected in code, stable across resumes.
+The validated workload-class configuration belongs to I/O contract §5 and
+its schema and fixtures are I0 work. Its classes are distinct from tool
+capability profiles and service/process roles; the examples define no model
+default or fixed enum.
 Each code-made selection records the chosen class, the rejected candidate
 classes with their deterministic reasons, the inputs and the configuration
 revision (ODIN-ADR-014), so that an independent outcome assessment can judge it
@@ -341,17 +348,17 @@ non-production, is labelled as fixture work, and does not delay the core proof.
 
 | Increment | Phase (D15) | Deliverable | Exit evidence |
 |---|---|---|---|
-| I0: contracts and fixtures | B (non-production) | Versioned event envelope and namespaces (EC-01, ODIN-ADR-006); record schemas with the ODIN-ADR-007, 009, 013 and 014 changes and the mapping from heimdall's record types; fixtures for the duplicate, stale and unknown cases, validated by the Go and the Python implementation against the same set (ODIN-ADR-008) | Both implementations validate the same fixtures; duplicate/stale/unknown cases have explicit semantics; no peer API is invented as implemented |
+| I0: contracts and fixtures | B (non-production) | Versioned event envelope and namespaces (EC-01, ODIN-ADR-006); record schemas with the ODIN-ADR-007, 009, 013 and 014 changes, workload-class configuration schema, and the mapping from heimdall's record types; fixtures for the duplicate, stale and unknown cases, validated by the Go and the Python implementation against the same set (ODIN-ADR-008). Envelope and unaffected schemas can start while X-7 remains open | Both implementations validate the same fixtures; duplicate/stale/unknown cases have explicit semantics; X-7 is resolved before Review/guidance schemas are written; no peer API is invented as implemented |
 | I1: service foundation | B (non-production) | Transactional state, event intake/cursors, outbox, scheduling, direct stop, CLI; moved from I0: capability matrix, fake Saga backend, synthetic three-document fixture, ownership mapping | Restart/replay produces one logical action and retains unknown outcomes; the execution-ledger mirror stays read-only (X-11) |
 | I2: first harness | C (non-production) | Claude Code adapter and integration package; briefing/zoom; session lifecycle; capability profiles with the planner tool-isolation check; workstation daemon v0: session host, environment probe, `host_offline`, compositor and Herdr observers, capture module with a local durable spool | One bounded assignment survives replacement of its session; unsupported operations are explicit; an offline host leaves its sessions unavailable, not failed, and resume reconciles first (proposed AC-37); captured batches append atomically per checkpoint with gaps visible (proposed AC-41) |
 | I3: governed project | C (requires Phase B exit) | Saga Phase B boundary, operator channel, selective Mimir, verification; read-only Herdr inspection (overview, attachable sessions where supported) | One real project passes admission and finishes with evidence; CLI and Odin face the same refusal rules |
-| I4: parallel workspace | D | Second project, full Herdr adapter with explicit bindings, scoped planning owners, adopt and takeover; one-time import of heimdall's task layer into commitments; human view v0 | Projects remain separate, bindings are explicit, no pane state is mistaken for completion; the import is idempotent with a receipt (proposed AC-38) |
+| I4: parallel workspace | D | Second project, full Herdr adapter with explicit bindings, scoped planning owners, adopt and takeover; one-time import of heimdall's task layer into commitments; human view v0 | Projects remain separate, bindings are explicit, no pane state is mistaken for completion; the import is idempotent with a receipt, and source-side edits are enforceably refused under EC-13/G-10 (proposed AC-38) |
 | I5: portability and context | E | Second harness adapter; controlled memory comparison with identical fixture retrieval | Capability differences and unavailable-peer behavior pass the acceptance scenarios; memory evidence labelled fixture-based |
 | I6: optional optimizations and integrations | F | Braid `recall` as an in-process library; the capture module, built on skald's capture library, as the transcript-namespace module (source enrollment, archive ingestion) and history (`archive` scope); repeat memory comparison with live retrieval; shadow evaluator, controlled activation; attention prompts out of shadow on outcome evidence; Odin's own package export with receipts (ODIN-ADR-012) | Routing benefit measured; export receipts distinguish copied locally, committed and confirmed on the remote; archive coverage gaps visible; integrated memory evidence recorded |
 | I7: desktop workflow | G, by operator decision | Guarded desktop input as a gated process of the workstation daemon holding the seat lease (EC-10's shared seat broker; ODIN-ADR-011); dedicated desktop worker; human takeover; bounded textual classifier experiment | No cooperating agents input concurrently; uncertain effects reconcile; end-to-end outcomes measured |
 
 Under Odin's sequencing interpretation (D15; X-1, still awaiting producer
-reconciliation), I0–I2 may use a fake Saga backend for development (it implements the I/O
+reconciliation), I0 uses fixtures; I1–I2 may use a fake Saga backend for development (it implements the I/O
 contract's Appendix B and is never presented as Saga); that work is
 non-production and establishes no production readiness. I3, every production
 delegated run and every live Saga submission require Phase B's exit criterion and
@@ -378,6 +385,19 @@ use an API key, never the subscription or Pi's Anthropic OAuth path. No common
 adapter framework is extracted until both adapters exist; full second-adapter
 delivery and Phase E's exit remain I5. X-1's cross-repository sequencing
 question remains open.
+
+**Evaluation and subagent checks** (ODIN-ADR-020). I1 defines validated
+evaluation metadata and the extended child capability matrix (I/O
+contract §11); it does not widen I0. I2 checks profile inheritance across
+native child paths, partial/stale result handling and observational class
+records (AC-42–AC-43, AC-36). Shared cap and child lifecycle enforcement
+must be designed under X-15 before child dispatch, then checked by
+AC-44/AC-23. The Pi control repeats relevant checks with its exact runtime
+and extension set. Acceptance §3 separates models from harnesses, advice
+from execution and whole-task cost from root savings; its final
+comparisons remain Phase G. No new framework, model default or learned
+router is selected. These are pending implementation tasks, not runtime
+evidence.
 
 The [consolidation plan](CONSOLIDATION-PLAN.md) is a proposal. Its phases P0 to
 P7 map onto these increments and do not replace them; where it places an item

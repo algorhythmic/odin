@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 import re
@@ -13,6 +14,19 @@ from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 ERRORS: list[str] = []
+STABLE_ID_DOCUMENTS = {
+    "AC": "docs/design/ODIN-ACCEPTANCE-SCENARIOS.md",
+    "DC": "docs/design/ODIN-ACCEPTANCE-SCENARIOS.md",
+    "EC": "docs/design/ODIN-ECOSYSTEM-INTEGRATION.md",
+}
+# These identifiers existed when the registry was introduced. The registry may
+# grow, but removing an existing entry must not make its definition optional.
+BASELINE_ID_COUNTS = {"AC": 50, "DC": 8, "EC": 16}
+FROZEN_RESEARCH_DIRS = {
+    Path("docs/research/harness-research-2026-10"),
+    Path("docs/research/consolidation-2026-10"),
+    Path("docs/research/model-orchestration-2026-10"),
+}
 
 
 def check(condition: bool, message: str) -> None:
@@ -98,6 +112,65 @@ def anchors(path: Path) -> set[str]:
     return found
 
 
+def validate_stable_ids(snapshot_root: Path) -> None:
+    registry_path = ROOT / "docs/provenance/STABLE-IDS.json"
+    registry = read_json(registry_path)
+    schema = read_json(ROOT / "docs/provenance/STABLE-IDS.schema.json")
+    if not isinstance(registry, dict) or not isinstance(schema, dict):
+        ERRORS.append("stable IDs: registry and schema must be objects")
+        return
+    validate_schema(registry, schema, "stable IDs")
+    check(registry.get("schema_version") == 1, "stable IDs schema_version must be 1")
+    groups = registry.get("groups", {})
+    if not isinstance(groups, dict):
+        return
+    check(set(groups) == set(STABLE_ID_DOCUMENTS), "stable IDs: wrong groups")
+
+    # A definition is the ID in the first cell of a Markdown table row.
+    # Mentions elsewhere, including prose and other cells, are references.
+    definitions: dict[str, list[str]] = {}
+    for document in set(STABLE_ID_DOCUMENTS.values()):
+        path = ROOT / document
+        if not path.is_file():
+            ERRORS.append(f"missing stable-ID document: {document}")
+            continue
+        definitions[document] = re.findall(r"^\|\s*((?:AC|DC|EC)-[^|\s]+)\s*\|", path.read_text(), re.M)
+
+    registered: set[str] = set()
+    for prefix, document in STABLE_ID_DOCUMENTS.items():
+        group = groups.get(prefix, {})
+        if not isinstance(group, dict):
+            continue
+        check(group.get("document") == document, f"stable IDs: wrong canonical document for {prefix}")
+        entries = group.get("ids", [])
+        if not isinstance(entries, list):
+            continue
+        values = [entry.get("id") for entry in entries if isinstance(entry, dict) and isinstance(entry.get("id"), str)]
+        for identifier, count in Counter(values).items():
+            check(count == 1, f"duplicate registry ID: {identifier}")
+        baseline = {f"{prefix}-{n:02}" for n in range(1, BASELINE_ID_COUNTS[prefix] + 1)}
+        check(baseline <= set(values), f"missing baseline registry IDs: {sorted(baseline - set(values))}")
+        for identifier in values:
+            registered.add(identifier)
+            check(bool(re.fullmatch(rf"{prefix}-\d{{2,}}", identifier)), f"wrong registry ID group: {identifier}")
+            rows = definitions.get(document, [])
+            count = rows.count(identifier)
+            check(count == 1, f"{document}: expected one defining row for {identifier}, found {count}")
+
+    for document, rows in definitions.items():
+        for identifier, count in Counter(rows).items():
+            check(identifier in registered, f"unknown defining ID: {document}: {identifier}")
+            check(STABLE_ID_DOCUMENTS.get(identifier.split("-", 1)[0]) == document,
+                  f"wrong canonical document: {document}: {identifier}")
+            check(count == 1, f"duplicate defining ID: {document}: {identifier}")
+
+    design_names = ["ODIN-IO-CONTRACT.md", "ODIN-IMPLEMENTATION-BLUEPRINT.md",
+                    "ODIN-ECOSYSTEM-INTEGRATION.md", "ODIN-ACCEPTANCE-SCENARIOS.md"]
+    source_text = "\n".join((snapshot_root / "docs/design" / name).read_text() for name in design_names)
+    source_ids = set(re.findall(r"\b(?:AC|DC|EC)-\d{2}\b", source_text))
+    check(source_ids <= registered, f"lost inherited acceptance identifiers: {sorted(source_ids - registered)}")
+
+
 def main() -> int:
     manifest = read_json(ROOT / "docs/provenance/EXTRACTION-MANIFEST.json")
     validate_schema(manifest, read_json(ROOT / "docs/provenance/EXTRACTION-MANIFEST.schema.json"), "manifest")
@@ -140,15 +213,7 @@ def main() -> int:
     mapping = mapping_path.read_text() if mapping_path.is_file() else ""
     for n in range(25):
         check(bool(re.search(rf"SAGA-2026-10-D{n}(?!\d)", mapping)), f"missing decision mapping D{n}")
-    design_names = ["ODIN-IO-CONTRACT.md", "ODIN-IMPLEMENTATION-BLUEPRINT.md",
-                    "ODIN-ECOSYSTEM-INTEGRATION.md", "ODIN-ACCEPTANCE-SCENARIOS.md"]
-    source_text = "\n".join((snapshot_root / "docs/design" / name).read_text() for name in design_names)
-    live_text = "\n".join((ROOT / "docs/design" / name).read_text() for name in design_names)
-    ids = lambda text: set(re.findall(r"\b(?:AC|DC|EC)-\d{2}\b", text))
-    check(ids(source_text) <= ids(live_text), f"lost acceptance identifiers: {sorted(ids(source_text) - ids(live_text))}")
-    for prefix, count in (("AC", 30), ("DC", 8), ("EC", 12)):
-        for n in range(1, count + 1):
-            check(f"{prefix}-{n:02}" in ids(live_text), f"missing {prefix}-{n:02}")
+    validate_stable_ids(snapshot_root)
 
     pins = list((ROOT / "docs/contracts/saga").glob("*/SNAPSHOT.json"))
     check(bool(pins), "no pinned Saga contract metadata")
@@ -165,8 +230,10 @@ def main() -> int:
     checked = 0
     for path in sorted(ROOT.rglob("*.md")):
         relative = path.relative_to(ROOT)
-        if ".git" in relative.parts or path in snapshots or str(relative).startswith("docs/research/"):
-            continue  # Frozen and dated research links are inventoried in the historical wrapper.
+        if ".git" in relative.parts or path in snapshots:
+            continue
+        if relative.parent in FROZEN_RESEARCH_DIRS and relative.name != "README.md":
+            continue  # Dated evidence links are inventoried in the editable wrappers.
         checked += 1
         for target in links(path.read_text()):
             parsed = urlsplit(target)
@@ -186,7 +253,7 @@ def main() -> int:
             print(f"- {error}")
         return 1
     print(f"PASS: {len(records)} frozen files, source/output hashes, D0–D24 mapping presence, "
-          f"AC/DC/EC preservation, {len(pins)} producer pin(s), and local links in {checked} live documents.")
+          f"AC/DC/EC defining rows, {len(pins)} producer pin(s), and local links in {checked} live documents.")
     print("This checks documentation integrity, not semantic completeness or runtime behavior.")
     return 0
 

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "name": {
+      "enum": [
+        "planner",
+        "reviewer",
+        "subagent"
+      ]
+    },
+    "allowed_tools": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "records.read",
+          "history.read",
+          "evidence.read",
+          "work.report"
+        ]
+      }
+    },
+    "native_children": {
+      "const": false
+    },
+    "shell": {
+      "const": false
+    },
+    "credential_access": {
+      "const": false
+    },
+    "filesystem": {
+      "const": "none"
+    },
+    "mode": {
+      "const": "fixture"
+    }
+  },
+  "required": [
+    "schema_version",
+    "name",
+    "allowed_tools",
+    "native_children",
+    "shell",
+    "credential_access",
+    "filesystem",
+    "mode"
+  ],
+  "additionalProperties": false
+}

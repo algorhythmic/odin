@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "consultation_id", "invocation_id", "round", "role", "requested_provider", "requested_harness", "requested_harness_version", "requested_model", "requested_effort", "requested_config_revision", "resolved_provider", "resolved_harness", "resolved_harness_version", "resolved_model", "resolved_effort", "packet_revision", "packet_digest", "status", "recommendation", "evidence", "assumptions", "objections", "actual_microusd"],
+  "properties": {
+    "schema_version": {"const": 1}, "round": {"type": "integer", "minimum": 1, "maximum": 2},
+    "consultation_id": {"type": "string", "minLength": 1},
+    "invocation_id": {"type": "string", "minLength": 1},
+    "role": {"enum": ["fable", "astra"]},
+    "requested_provider": {"type": "string", "minLength": 1},
+    "requested_harness": {"type": "string", "minLength": 1},
+    "requested_harness_version": {"type": ["string", "null"], "minLength": 1},
+    "requested_model": {"type": "string", "minLength": 1},
+    "requested_effort": {"type": ["string", "null"], "minLength": 1},
+    "requested_config_revision": {"type": "string", "minLength": 1},
+    "resolved_provider": {"type": ["string", "null"]},
+    "resolved_harness": {"type": ["string", "null"]},
+    "resolved_harness_version": {"type": ["string", "null"]},
+    "resolved_model": {"type": ["string", "null"]},
+    "resolved_effort": {"type": ["string", "null"]},
+    "packet_revision": {"type": "integer", "minimum": 1},
+    "packet_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "status": {"enum": ["complete", "partial", "failed", "unavailable", "timeout", "unknown"]},
+    "recommendation": {"type": "string"},
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "assumptions": {"type": "array", "items": {"type": "string"}},
+    "objections": {"type": "array", "items": {"type": "string"}},
+    "actual_microusd": {"type": ["integer", "null"], "minimum": 0}
+  }
+}

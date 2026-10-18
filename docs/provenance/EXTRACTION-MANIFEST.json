@@ -28,8 +28,8 @@
       "untracked": false,
       "destination_path": "README.md",
       "treatment": "adapted",
-      "adapted_output_sha256": "cfbf0f74e9e4d808a30e078fd747578a9739b775cf2bd025393bcf6560c97246",
-      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14)."
+      "adapted_output_sha256": "d667e2211239bd3a30ad98d8e5770bb65b9fb8973aa2fb588fe45e533ada66df",
+      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14). 2026-10-16 audit corrections: Clarify current documentation-only state, validator regressions, and the X-7 I0 review-schema dependency. Frozen source unchanged. 2026-10-16 partial I0 implementation: Record the partial I0 contract implementation and link its runnable Go/Python checks; Review/guidance and service work remain gated. Source metadata unchanged. 2026-10-16 local integration: reconcile the local service foundation from Odin 0b3d19e with the audit corrections and implement the ODIN-ADR-022 experimental coordination protocol. Preserve X-7 and all live/producer gates; synthetic tests are not full acceptance. Frozen source and source metadata unchanged."
     },
     {
       "source_path": "docs/DECISIONS.md",
@@ -40,8 +40,8 @@
       "untracked": false,
       "destination_path": "docs/DECISIONS.md",
       "treatment": "split",
-      "adapted_output_sha256": "49b5a8953ad4cc06eaf26a821afd087f337f73dd359d635853151427ba4711c4",
-      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-15: inspect pinned OptChat cache correction, state exact merge priority and completion of source review; retain runtime checks and compactor-context issue X-10 as open. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14)."
+      "adapted_output_sha256": "81b62b1ca88f5439b625a67f285923afc66106171e0e0b2d0343fef290c91699",
+      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-15: inspect pinned OptChat cache correction, state exact merge priority and completion of source review; retain runtime checks and compactor-context issue X-10 as open. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14). 2026-10-16 audit corrections: Clarify X-7 sequencing, FLAG escalation, source-side migration refusal, workload-class configuration, and the B-12 producer event gap; preserve open decisions. Frozen source unchanged. 2026-10-16 local integration: reconcile the local service foundation from Odin 0b3d19e with the audit corrections and implement the ODIN-ADR-022 experimental coordination protocol. Preserve X-7 and all live/producer gates; synthetic tests are not full acceptance. Frozen source and source metadata unchanged."
     },
     {
       "source_path": "docs/ROADMAP.md",
@@ -52,8 +52,8 @@
       "untracked": false,
       "destination_path": "docs/ROADMAP.md",
       "treatment": "split",
-      "adapted_output_sha256": "68ca1e8989998bc77e1e4f68e8dfb906321b122b442b4666868b525f15376cb2",
-      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-15: inspect pinned OptChat cache correction, state exact merge priority and completion of source review; retain runtime checks and compactor-context issue X-10 as open. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14)."
+      "adapted_output_sha256": "5c815b81b8c084e5a60c72074b8f45fdf904d1433eeb62235875a8055a2c319d",
+      "transformation": "Derived Odin-specific live entry point or authority from frozen joint source; see DECISION-MAP.md for clause ownership. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-15: inspect pinned OptChat cache correction, state exact merge priority and completion of source review; retain runtime checks and compactor-context issue X-10 as open. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14). 2026-10-16 audit corrections: Expose X-7, X-11/G2 and X-10/isolation gates; correct withdrawn peer work and record the B-12 producer gap. Frozen source unchanged. 2026-10-16 partial I0 implementation: Record the implemented I0 envelope, unaffected schemas and shared contract fixtures without claiming the full I0 exit or later increments. Source metadata unchanged. 2026-10-16 local integration: reconcile the local service foundation from Odin 0b3d19e with the audit corrections and implement the ODIN-ADR-022 experimental coordination protocol. Preserve X-7 and all live/producer gates; synthetic tests are not full acceptance. Frozen source and source metadata unchanged."
     },
     {
       "source_path": "docs/design/HARNESS-LANDSCAPE-2026-10.md",
@@ -76,8 +76,8 @@
       "untracked": false,
       "destination_path": "docs/design/ODIN-ACCEPTANCE-SCENARIOS.md",
       "treatment": "adapted",
-      "adapted_output_sha256": "c66ba9df17c3f24b58e3d55672d9cb19001aaabfc39b992669c527759f720a47",
-      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14)."
+      "adapted_output_sha256": "94308c425239c9cf3dfb6ff0ec38535db9b58ae3c201547069625b57f763a11f",
+      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14). 2026-10-16 audit corrections: Align AC-38 with enforceable source retirement and AC-40 with every review-result pair, preserving open admission semantics. Frozen source unchanged. 2026-10-16 local integration: reconcile the local service foundation from Odin 0b3d19e with the audit corrections and implement the ODIN-ADR-022 experimental coordination protocol. Preserve X-7 and all live/producer gates; synthetic tests are not full acceptance. Frozen source and source metadata unchanged."
     },
     {
       "source_path": "docs/design/ODIN-ECOSYSTEM-INTEGRATION.md",
@@ -88,8 +88,8 @@
       "untracked": false,
       "destination_path": "docs/design/ODIN-ECOSYSTEM-INTEGRATION.md",
       "treatment": "adapted",
-      "adapted_output_sha256": "7e7b8f86de8281a7530050bf5cffc785c6e9976e032624b489b9171f413fef50",
-      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14)."
+      "adapted_output_sha256": "6f7129ade291f503973c798352dd0615b6d0ed04274d55f804d81e3758288791",
+      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14). 2026-10-16 audit corrections: Require enforceable source-side task edit refusal under EC-13/G-10; ignored edits do not complete migration. Frozen source unchanged."
     },
     {
       "source_path": "docs/design/ODIN-IMPLEMENTATION-BLUEPRINT.md",
@@ -100,8 +100,8 @@
       "untracked": false,
       "destination_path": "docs/design/ODIN-IMPLEMENTATION-BLUEPRINT.md",
       "treatment": "adapted",
-      "adapted_output_sha256": "93f77db367a1214d078ee2f718ba072694aa25d495870bd8859a799d69e9c99f",
-      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14)."
+      "adapted_output_sha256": "acdb8f36deb674d236dcd5d99da7ad3e69911d17ec03c0d6420ab0596c609be2",
+      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14). 2026-10-16 audit corrections: Align review actions, I0 schema dependencies and workload-class configuration, migration exit, and fake-backend sequencing. Frozen source unchanged. 2026-10-16 local integration: reconcile the local service foundation from Odin 0b3d19e with the audit corrections and implement the ODIN-ADR-022 experimental coordination protocol. Preserve X-7 and all live/producer gates; synthetic tests are not full acceptance. Frozen source and source metadata unchanged."
     },
     {
       "source_path": "docs/design/ODIN-IO-CONTRACT.md",
@@ -112,8 +112,8 @@
       "untracked": false,
       "destination_path": "docs/design/ODIN-IO-CONTRACT.md",
       "treatment": "adapted",
-      "adapted_output_sha256": "69959d9ca1a967edae8b9cfae142eadf5f955d68306d40ffeb69d28302d59d5f",
-      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-15: inspect pinned OptChat cache correction, state exact merge priority and completion of source review; retain runtime checks and compactor-context issue X-10 as open. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14)."
+      "adapted_output_sha256": "1a35fc9e8cbfe3228e8de5660f1dc2e5eaf36605aaeb6a71923a317ce0a73a22",
+      "transformation": "Transferred live ownership to Odin; adapted links and provenance; Saga producer details governed by pinned producer contract. Follow-up 2026-10-14: operator-directed documentation corrections; reconcile sequencing provenance and producer pin status, record Apache-2.0 choice, typed journal triage and staged memory evaluation as applicable. Frozen source unchanged. Routing/Haiku follow-up: ADR-004\u2013005, conservative journal attention, stable session classes, compactor effort/failure checks and request token accounting, with source-qualified claims as applicable. 2026-10-15: inspect pinned OptChat cache correction, state exact merge priority and completion of source review; retain runtime checks and compactor-context issue X-10 as open. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14). 2026-10-16 audit corrections: Specify complete review-pair actions, enforceable migration refusal, canonical workload-class configuration and required worker-event delivery gaps; distinguish I0 fixtures from I1-I2 fake-backend work. Frozen source unchanged. 2026-10-16 partial I0 implementation: Link the implemented I0 schema subset and distinguish contract-test evidence from the unimplemented service, harness and gated Review/guidance schemas. Source metadata unchanged. 2026-10-16 local integration: reconcile the local service foundation from Odin 0b3d19e with the audit corrections and implement the ODIN-ADR-022 experimental coordination protocol. Preserve X-7 and all live/producer gates; synthetic tests are not full acceptance. Frozen source and source metadata unchanged."
     },
     {
       "source_path": "docs/design/ODIN-REPOSITORY-EXTRACTION.md",
@@ -352,8 +352,8 @@
       "untracked": false,
       "destination_path": "docs/provenance/LEGACY-REQUIREMENTS.md",
       "treatment": "split",
-      "adapted_output_sha256": "2c3fbc43273a3118498387bb645ef37bdbbced1542a1cdf8c0d607cc11d151b7",
-      "transformation": "Selected legacy requirements triaged into current milestones; historical phase numbers do not create new commitments. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14)."
+      "adapted_output_sha256": "a68b1ff94d8beda61f17aeb10e26167998e6d2f81faa0c3728698c43f1e6df3b",
+      "transformation": "Selected legacy requirements triaged into current milestones; historical phase numbers do not create new commitments. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14). 2026-10-16 audit corrections: Correct L-OP-10 guidance, L-TS-2 local lifecycle events and L-DI-5 in-process braid dispositions without changing source history. Frozen source unchanged."
     },
     {
       "source_path": "docs/features/spec-development.md",
@@ -364,8 +364,8 @@
       "untracked": false,
       "destination_path": "docs/provenance/LEGACY-REQUIREMENTS.md",
       "treatment": "split",
-      "adapted_output_sha256": "2c3fbc43273a3118498387bb645ef37bdbbced1542a1cdf8c0d607cc11d151b7",
-      "transformation": "Selected legacy requirements triaged into current milestones; historical phase numbers do not create new commitments. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14)."
+      "adapted_output_sha256": "a68b1ff94d8beda61f17aeb10e26167998e6d2f81faa0c3728698c43f1e6df3b",
+      "transformation": "Selected legacy requirements triaged into current milestones; historical phase numbers do not create new commitments. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14). 2026-10-16 audit corrections: Correct L-OP-10 guidance, L-TS-2 local lifecycle events and L-DI-5 in-process braid dispositions without changing source history. Frozen source unchanged."
     },
     {
       "source_path": "docs/features/voice-telegram.md",
@@ -376,8 +376,8 @@
       "untracked": false,
       "destination_path": "docs/provenance/LEGACY-REQUIREMENTS.md",
       "treatment": "split",
-      "adapted_output_sha256": "2c3fbc43273a3118498387bb645ef37bdbbced1542a1cdf8c0d607cc11d151b7",
-      "transformation": "Selected legacy requirements triaged into current milestones; historical phase numbers do not create new commitments. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14)."
+      "adapted_output_sha256": "a68b1ff94d8beda61f17aeb10e26167998e6d2f81faa0c3728698c43f1e6df3b",
+      "transformation": "Selected legacy requirements triaged into current milestones; historical phase numbers do not create new commitments. 2026-10-16: revised under ODIN-ADR-006 to 015 (operator consolidation direction; Odin-owned clauses only; Saga-owned clauses untouched, see DECISIONS.md X-14). 2026-10-16 audit corrections: Correct L-OP-10 guidance, L-TS-2 local lifecycle events and L-DI-5 in-process braid dispositions without changing source history. Frozen source unchanged."
     },
     {
       "source_path": "journal/JOURNAL-FORMAT.md",
