@@ -445,6 +445,15 @@ formal handoff. See [DECISIONS.md §4](../DECISIONS.md#4-odin-decisions-odin-adr
 ODIN-ADR-015 replaces the earlier Codex adapter proposal in ROADMAP Phase C
 with a fixture-only Pi RPC control; full second-adapter delivery remains I5.
 
+## Local product implementation
+
+ODIN-ADR-023 records the operator-requested local continuity and memory slice.
+It operationalizes D6/D7/D18 and ADR-009/010/020/022, with a local view during
+I1/I2 preparation. It does not supersede the full I4 view/import, I5 memory
+comparison, I6 retrieval, producer contracts or live launch gates. See
+[execution status](../PRODUCT-IMPLEMENTATION-STATUS.md) and
+[ADR-023](../DECISIONS.md#odin-adr-023--local-continuity-and-attributed-memory).
+
 ## Clauses superseded or amended by Odin ADRs (2026-10-16)
 
 The extraction superseded no clause on its merits. The operator's

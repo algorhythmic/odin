@@ -32,7 +32,7 @@ software, research or infrastructure projects who is willing to run a
 local service. General life administration is out of scope. Desktop
 control is an optional later capability.
 
-## Status (2026-10-16)
+## Status
 
 The documentation bootstrap is complete: design documents, decisions,
 acceptance criteria, research, provenance, developer instructions, and a
@@ -50,6 +50,12 @@ intents are fixture records, and Herdr layout is visibility only. No model,
 audio, Herdr process, workstation daemon or live harness runs. I0's full exit
 still requires X-7 and the Review/guidance schemas. See
 [implementation status](docs/IMPLEMENTATION-STATUS.md) for commands and limits.
+
+The additional local product slice provides durable resume and prepared
+decisions, attributed memory with freshness and redaction checks, session-host
+protocol mocks and offline evaluation. See
+[product implementation status](docs/PRODUCT-IMPLEMENTATION-STATUS.md) for
+current commands, evidence and outstanding launch gates.
 
 On 2026-10-16, ODIN-ADR-006 to 015 recorded the operator's consolidation
 direction for the inherited clauses Odin owns
@@ -97,6 +103,9 @@ Details, exit evidence and dependency gates are in
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Documentation
+
+`python -m odin capabilities` exposes the local capability inventory when
+run with `PYTHONPATH=python` and the pinned dependencies.
 
 Start at [`docs/README.md`](docs/README.md), which gives the reading
 order and authority:

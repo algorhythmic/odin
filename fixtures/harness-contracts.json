@@ -1,0 +1,108 @@
+{
+  "cases": [
+    {
+      "name": "valid_start",
+      "schema": "harness-command",
+      "valid": true,
+      "value": {
+        "action": "start",
+        "assignment": "assignment-1",
+        "assignment_revision": 2,
+        "budget_ref": "budget-1",
+        "credential_ref": "odin-harness:lineage-1",
+        "data_policy_ref": "policy-1",
+        "deadline": "2027-01-01T00:00:00Z",
+        "generation": 1,
+        "grant_id": "grant-1",
+        "host": "host-1",
+        "operation_id": "operation-1",
+        "ownership_generation": 3,
+        "profile": "planner",
+        "required_capabilities": [
+          "start",
+          "interrupt"
+        ],
+        "schema_version": 1,
+        "session": "session-1"
+      }
+    },
+    {
+      "name": "valid_unknown_observation",
+      "schema": "harness-observation",
+      "valid": true,
+      "value": {
+        "evidence": [],
+        "native_session_id": null,
+        "operation_id": "operation-1",
+        "schema_version": 1,
+        "state": "unknown",
+        "usage_state": "unknown"
+      }
+    },
+    {
+      "name": "invalid_development_credential",
+      "schema": "harness-command",
+      "valid": false,
+      "value": {
+        "action": "start",
+        "assignment": "assignment-1",
+        "assignment_revision": 2,
+        "budget_ref": "budget-1",
+        "credential_ref": "developer-login",
+        "data_policy_ref": "policy-1",
+        "deadline": "2027-01-01T00:00:00Z",
+        "generation": 1,
+        "grant_id": "grant-1",
+        "host": "host-1",
+        "operation_id": "operation-1",
+        "ownership_generation": 3,
+        "profile": "planner",
+        "required_capabilities": [
+          "start"
+        ],
+        "schema_version": 1,
+        "session": "session-1"
+      }
+    },
+    {
+      "name": "invalid_observation_unrecognized_state",
+      "schema": "harness-observation",
+      "valid": false,
+      "value": {
+        "evidence": [],
+        "native_session_id": null,
+        "operation_id": "operation-1",
+        "schema_version": 1,
+        "state": "running_unverified",
+        "usage_state": "unknown"
+      }
+    },
+    {
+      "name": "invalid_observation_extra_secret",
+      "schema": "harness-observation",
+      "valid": false,
+      "value": {
+        "credential_token": "synthetic-secret-claim",
+        "evidence": [],
+        "native_session_id": null,
+        "operation_id": "operation-1",
+        "schema_version": 1,
+        "state": "unknown",
+        "usage_state": "unknown"
+      }
+    },
+    {
+      "name": "invalid_observation_missing_usage_state",
+      "schema": "harness-observation",
+      "valid": false,
+      "value": {
+        "evidence": [],
+        "native_session_id": null,
+        "operation_id": "operation-1",
+        "schema_version": 1,
+        "state": "unknown"
+      }
+    }
+  ],
+  "schema_version": 1
+}

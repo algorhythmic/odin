@@ -1610,6 +1610,60 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
 - **Evaluation and limits:** Store exact requested and resolved model/harness/provider versions, profile, tools, packet revision, resource policy and outcomes. Apply ADR-020's paired controls and complete episode accounting; configuration examples are not empirical rankings. Local fake-backend tests establish only protocol behavior. X-7, X-12, X-13, X-15, X-1 and Saga Phase B remain open. No live external effect or cross-provider data transfer follows from this decision.
 - **Inherited relationship:** Amends Odin's D10/D19 single-project planning scope only to allow a portfolio coordinator above independent project owners; it does not amend Saga-owned interfaces. It refines D5–D8 and ADR-009/010/014/020 for packet, authority, surface and evaluation checks. It supersedes any Odin reading of D19 that every project must share one planning session; each project still has one accountable planning owner. This is not a replacement for Odin's service loop or Saga's worker boundary.
 
+### ODIN-ADR-023 — Local continuity and attributed memory
+
+- **Status:** local implementation defaults under the operator's request to
+  implement the product plan with GPT-6-Sol subagents. These choices authorize
+  synthetic development, not live credentials, provider disclosure or cutover.
+- **Baseline:** integrate the reviewed source prototype as local commit
+  `47e074e`, with the file inventory in
+  [the integration receipt](provenance/PROTOTYPE-INTEGRATION.md).
+  ADR-020/021/022 retain their local experimental scope. No producer contract
+  or frozen extraction source changes.
+- **Continuity:** build a deterministic resume and prepared-decision view
+  during I1/I2 preparation. Canonical commitments and HumanRequest records
+  remain authoritative; delivery and explicit acknowledgement are separate.
+  Project scope, evidence revisions, current service policy and view
+  dependencies are checked in code. An answer records a response and does
+  not itself grant authority or close its commitment. Numeric page offsets
+  require a matching revision token so a changing project cannot skip work.
+  Canonical request history uses generic prompts and stable choice handles;
+  prepared wording is a removable projection, revalidated before display.
+- **Memory:** add attributed source revisions, statements, relationships,
+  reader restrictions, processing coverage and freshness policy in the
+  service's namespace. Service-stamped learning time is distinct from source
+  observation/effective time. Reported success and proposals retain their
+  status; accepted decision statements must reference the matching canonical
+  decision. Unresolved competing claims remain visible. A correction,
+  permission change or tombstone invalidates dependent views before rebuild.
+  A local redaction receipt stays pending until SQLite cleanup confirms it;
+  external destination confirmations remain independent. No model extractor,
+  summary tree or external deletion executor is established by this work.
+  Prepared questions depend conservatively on the project's memory revision;
+  redaction invalidates them while retaining their commitments. Legacy history
+  with full question text requires separate migration and stays pending.
+- **Session boundary:** a local workstation journal reserves operation and
+  session identity before dispatch, rechecks current service authority,
+  preserves unknown starts/stops, and requires observation after reconnect.
+  The Claude Agent SDK options/lifecycle binding is tested with protocol mocks
+  only. The actual SDK, dedicated credential store, authenticated daemon,
+  tool isolation and limits remain launch prerequisites. Native children and
+  live transports stay disabled. Earlier production Codex integration is
+  still a proposal; ADR-015 and I5 sequencing stand.
+- **Evidence and improvement:** offline experiments keep semantic-memory,
+  compactor and orchestration comparisons separate; inferred preferences or
+  proposed procedure text never install authority. Local update proposals
+  require scoped evidence, reviewed disposition and regression receipts.
+- **Checks:** the product plan's PLAN-C01–PLAN-C12 map to local regression
+  suites in the [execution status](PRODUCT-IMPLEMENTATION-STATUS.md).
+  Existing full AC scenarios are not marked complete by component tests.
+- **Inherited relationship:** operationalizes Odin's D6/D7/D18 and
+  ADR-009/010/020/022. Adds an early local view alongside I1/I2 without
+  superseding I4's human view/import or I5/I6's memory comparisons and real
+  retrieval. The detailed compactor context, reuse, retention and live-data
+  choices under X-10 remain open. X-1, X-7, X-11 production isolation,
+  X-12/X-13/X-15, Saga Phase B and the handoff are not closed.
+
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that

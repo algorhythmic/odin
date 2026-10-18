@@ -1,0 +1,19 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"urn:odin:memory-statement:1",
+  "type":"object","additionalProperties":false,
+  "properties":{
+    "id":{"type":"string","minLength":1},"project":{"type":"string","minLength":1},
+    "kind":{"enum":["observation","claim","preference","proposal","report","decision"]},
+    "status":{"enum":["unverified","reported","proposed","accepted"]},
+    "text":{"type":"string","minLength":1,"maxLength":2048},"speaker":{"type":"string","minLength":1},
+    "source_refs":{"type":"array","minItems":1,"maxItems":16,"items":{"type":"object","additionalProperties":false,"properties":{"id":{"type":"string","minLength":1},"revision":{"type":"integer","minimum":1},"span":{"type":["string","null"]}},"required":["id","revision","span"]}},
+    "statement_refs":{"type":"array","uniqueItems":true,"maxItems":16,"items":{"type":"string","minLength":1}},
+    "recorded_at":{"type":"string","format":"date-time"},
+    "effective_from":{"type":["string","null"],"format":"date-time"},
+    "effective_to":{"type":["string","null"],"format":"date-time"},
+    "authority_ref":{"anyOf":[{"type":"null"},{"type":"object","additionalProperties":false,"properties":{"commitment":{"type":"string","minLength":1},"revision":{"type":"integer","minimum":1},"decision":{"type":"string","minLength":1}},"required":["commitment","revision","decision"]}]},
+    "extraction_config":{"type":"string","minLength":1}
+  },
+  "required":["id","project","kind","status","text","speaker","source_refs","statement_refs","recorded_at","effective_from","effective_to","authority_ref","extraction_config"]
+}

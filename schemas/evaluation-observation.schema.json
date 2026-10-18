@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["project", "episode", "source_revisions", "condition_evidence", "assessment", "attention"],
+  "properties": {
+    "project": {"type": "string", "minLength": 1},
+    "episode": {"type": "object"},
+    "source_revisions": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["source", "revision", "digest"], "properties": {"source": {"type": "string", "minLength": 1}, "revision": {"type": "integer", "minimum": 1}, "digest": {"type": "string", "minLength": 1}}}},
+    "condition_evidence": {"type": "object", "additionalProperties": false,
+      "required": ["ref", "compactor_digest", "memory_features", "orchestration"],
+      "properties": {
+        "ref": {"type": "string", "minLength": 1},
+        "compactor_digest": {"type": "string", "minLength": 1},
+        "memory_features": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "orchestration": {"type": "string", "minLength": 1}
+      }
+    },
+    "assessment": {"type": "object", "additionalProperties": false,
+      "required": ["ref", "assessor", "episode_id", "accepted", "evidence_digest", "usage_digest"],
+      "properties": {
+        "ref": {"type": "string", "minLength": 1},
+        "assessor": {"type": "string", "minLength": 1},
+        "episode_id": {"type": "string", "minLength": 1},
+        "accepted": {"type": "boolean"},
+        "evidence_digest": {"type": "string", "minLength": 1},
+        "usage_digest": {"type": "string", "minLength": 1}
+      }
+    },
+    "attention": {"type": "object", "additionalProperties": false,
+      "required": ["restatements", "corrections", "interruptions", "decision_wait_seconds", "missed_obligations", "stale_claims"],
+      "properties": {
+        "restatements": {"type": "integer", "minimum": 0},
+        "corrections": {"type": "integer", "minimum": 0},
+        "interruptions": {"type": "integer", "minimum": 0},
+        "decision_wait_seconds": {"type": "number", "minimum": 0},
+        "missed_obligations": {"type": "integer", "minimum": 0},
+        "stale_claims": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

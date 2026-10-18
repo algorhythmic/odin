@@ -1,6 +1,6 @@
 # Odin product implementation plan
 
-**Status: proposed delivery plan.** Based on the supplied *Odin Product
+**Status: local implementation underway; live gates remain open.** Based on the supplied *Odin Product
 Design* discussion and the repository baseline at `899df14`. This plan
 does not record new ADRs, close issues or change the existing I0–I7 gates.
 The [decisions](../DECISIONS.md), [I/O contract](ODIN-IO-CONTRACT.md),
@@ -13,6 +13,12 @@ operator, and identify stale or unavailable evidence. Then connect that
 continuity layer to Fable → Astra coordination and, after Saga's gates,
 bounded worker execution. Give memory explicit status, time and provenance
 before investing in a more elaborate compactor.
+
+Execution is recorded in [product implementation status](../PRODUCT-IMPLEMENTATION-STATUS.md).
+The prototype baseline is preserved at `47e074e`; ADR-023 records the local
+continuity/memory scope. The starting-point comparison below describes the
+original planning baseline, not the current file inventory. Component tests
+do not complete the live work packages.
 
 The first useful release should reduce repeated context and unnecessary
 interruptions. A sophisticated model hierarchy is an experiment within that
@@ -419,15 +425,15 @@ valid view and the unresolved records, disable the affected capability and
 show what is unavailable. Unknown in-flight effects must be reconciled
 before a replacement is dispatched.
 
-## First implementation batch
+## First implementation batch and its follow through
 
-The next engineering task should complete PLAN-01, then deliver the narrow
+The first batch targets PLAN-01 and the narrow
 PLAN-02/03/04 slice: one synthetic project, durable commitments and pending
 decisions, source revisions with freshness and provenance, and a restart-safe
 resume view. Add a second similarly named project to prove isolation.
 
-Prepare the portfolio/adapter-sequence and memory-semantics ADR proposals
-alongside that work. Gather the X-12/X-13 choices before real model launches.
+ADR-023 now records the local view and memory semantics; live adapter sequence
+and credential/data choices remain gated. Gather the X-12/X-13 choices before real model launches.
 The first demonstration should show an interrupted task, a changed
 requirement, an unresolved decision and an unavailable integration, then
 resume with a correct bounded briefing. This is a concrete useful target

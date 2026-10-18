@@ -665,6 +665,12 @@ is I7 work by operator decision (§13).
 
 ## 8. Memory: requirements, implementation, retention
 
+ODIN-ADR-023 supplies local source/statement provenance, service learning
+times, freshness and dependency checks alongside this interface. The
+[memory implementation note](MEMORY-IMPLEMENTATION.md) states their local
+scope. This does not establish the compactor hypothesis, live retrieval,
+retention defaults or external redaction delivery described below.
+
 The memory **interface** is stable: append a message, build summaries,
 render a briefing, zoom to source, import a note, redact, export. The
 requirements (D7) are: recover decisions with their sources; recognize

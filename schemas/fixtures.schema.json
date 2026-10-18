@@ -28,7 +28,19 @@
               "gateway-command",
               "surface-message",
               "layout-binding",
-              "layout-observation"
+              "layout-observation",
+              "memory-source",
+              "memory-statement",
+              "memory-relation",
+              "continuity-decision",
+              "harness-command",
+              "evaluation-run",
+              "improvement-proposal",
+              "improvement-review",
+              "evaluation-config",
+              "evaluation-observation",
+              "improvement-update",
+              "harness-observation"
             ]
           },
           "valid": {

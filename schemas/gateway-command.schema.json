@@ -30,7 +30,13 @@
         "session_intent",
         "layout_bind",
         "layout_observe",
-        "consult_usage"
+        "consult_usage",
+        "resume",
+        "prepare_decision",
+        "answer_decision",
+        "view_delivery",
+        "view_ack",
+        "memory_snapshot"
       ]
     },
     "payload": {

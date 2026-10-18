@@ -14,24 +14,72 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--state",
-        required=True,
+        required=False,
         help="private local state directory outside the checkout",
     )
     parser.add_argument(
         "action",
-        choices=["demo", "orchestration-demo", "serve", "status", "stop", "command"],
+        choices=[
+            "demo",
+            "orchestration-demo",
+            "continuity-demo",
+            "serve",
+            "status",
+            "stop",
+            "command",
+            "resume",
+            "acknowledge",
+            "memory",
+            "capabilities",
+            "evaluate",
+        ],
     )
     parser.add_argument("--reason", default="operator requested stop")
+    parser.add_argument("--request", help="gateway command or evaluation request JSON")
     parser.add_argument(
-        "--request", help="validated gateway command JSON, for the command action"
+        "--fixture-evidence",
+        action="store_true",
+        help="allow synthetic fixture evidence for offline evaluation only",
     )
     parser.add_argument("--surface", choices=["terminal", "voice"], default="terminal")
+    parser.add_argument("--project", help="explicit project ID for resume or memory")
+    parser.add_argument("--delivery", help="delivered view ID to acknowledge")
     parser.add_argument(
         "--config",
         help="experimental role configuration JSON; live dispatch remains disabled",
     )
     args = parser.parse_args()
     from pathlib import Path
+
+    if args.fixture_evidence and args.action != "evaluate":
+        parser.error("--fixture-evidence applies only to evaluate")
+    if args.action == "capabilities":
+        from .capabilities import inventory
+
+        print(canonical(inventory()))
+        return
+    if args.action == "evaluate":
+        from .contracts import Contracts
+        from .evaluation import evaluate
+
+        if not args.request:
+            parser.error(
+                "evaluate requires --request JSON with config and observations"
+            )
+        request = strict_loads(Path(args.request).read_bytes())
+        Contracts().validate("evaluation-request", request)
+        print(
+            canonical(
+                evaluate(
+                    request["config"],
+                    request["observations"],
+                    allow_fixture_evidence=args.fixture_evidence,
+                )
+            )
+        )
+        return
+    if not args.state:
+        parser.error("this action requires --state")
 
     state = Path(args.state).resolve()
     from .contracts import ROOT
@@ -41,9 +89,13 @@ def main():
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     if state.stat().st_mode & 0o077:
         parser.error("state directory must have mode 0700")
-    if args.action in ("demo", "orchestration-demo"):
+    if args.action in ("demo", "orchestration-demo", "continuity-demo"):
         if args.action == "demo":
             from .demo import run
+
+            result = run(state)
+        elif args.action == "continuity-demo":
+            from .continuity_demo import run
 
             result = run(state)
         else:
@@ -54,8 +106,34 @@ def main():
         print(canonical(result))
         return
     address = str(state / "service.sock")
-    if args.action in ("status", "stop", "command"):
-        if args.action == "command":
+    if args.action in ("status", "stop", "command", "resume", "acknowledge", "memory"):
+        if args.action in ("resume", "memory"):
+            if not args.project:
+                parser.error("resume and memory require --project; no implicit routing")
+            command = {
+                "surface": args.surface,
+                "command": {
+                    "schema_version": 1,
+                    "operation_id": identifier(),
+                    "action": "resume"
+                    if args.action == "resume"
+                    else "memory_snapshot",
+                    "payload": {"project": args.project},
+                },
+            }
+        elif args.action == "acknowledge":
+            if not args.delivery:
+                parser.error("acknowledge requires --delivery")
+            command = {
+                "surface": args.surface,
+                "command": {
+                    "schema_version": 1,
+                    "operation_id": identifier(),
+                    "action": "view_ack",
+                    "payload": {"delivery_id": args.delivery},
+                },
+            }
+        elif args.action == "command":
             if not args.request:
                 parser.error("command requires --request JSON file")
             from .contracts import Contracts

@@ -10,8 +10,10 @@ from datetime import datetime
 
 from .budgets import Budget
 from .chirality import Chirality
+from .continuity import Continuity
 from .contracts import canonical, strict_loads
 from .coordination import Actor, Coordination
+from .memory import Memory
 from .orchestration_config import OrchestrationConfig
 from .store import Conflict, digest, event, now
 
@@ -20,6 +22,9 @@ from .store import Conflict, digest, event, now
 class GatewayContext:
     surface: str
     actor: Actor
+    # Populated by the trusted service authentication layer, never message data.
+    # None means all local projects for the private operator socket only.
+    projects: tuple[str, ...] | None = None
 
 
 def fields(payload, required, optional=()):
@@ -36,6 +41,8 @@ class Gateway:
         self.coordination = Coordination(self.store)
         self.budget = Budget(self.store)
         self.chirality = Chirality(self.store, self.budget)
+        self.memory = Memory(self.store)
+        self.continuity = Continuity(self.store, self.memory)
         self.store.db.executescript("""
             CREATE TABLE IF NOT EXISTS gateway_commands
               (id TEXT PRIMARY KEY, digest TEXT NOT NULL, result TEXT NOT NULL);
@@ -52,9 +59,22 @@ class Gateway:
             or context.surface not in {"terminal", "voice", "harness", "adapter"}
         ):
             raise PermissionError("trusted gateway context required")
-        identity = {"surface": context.surface, "actor": asdict(context.actor)}
+        effective_projects = (
+            tuple(sorted(self._projects(context)))
+            if context.actor.role == "operator"
+            and context.surface in {"terminal", "voice"}
+            else tuple(sorted(context.projects or ()))
+        )
+        identity = {
+            "surface": context.surface,
+            "actor": asdict(context.actor),
+            "projects": effective_projects,
+        }
         fingerprint = digest({"command": command, "context": identity})
         with self.store.transaction():
+            self._check_operator_scope(
+                command["action"], command["payload"], context, effective_projects
+            )
             prior = self.store.db.execute(
                 "SELECT digest,result FROM gateway_commands WHERE id=?",
                 (command["operation_id"],),
@@ -62,7 +82,12 @@ class Gateway:
             if prior:
                 if prior[0] != fingerprint:
                     raise Conflict("command identity conflict")
-                return strict_loads(prior[1])
+                receipt = strict_loads(prior[1])
+                if receipt["result"].get("projection_not_cached"):
+                    raise Conflict(
+                        "historical projection receipt; request a fresh view"
+                    )
+                return receipt
             action = command["action"]
             if context.surface == "voice" and action not in {
                 "message",
@@ -82,14 +107,102 @@ class Gateway:
                 "result": value,
             }
             self.store.contracts.validate("gateway-receipt", result)
+            audit_command = command
+            if action == "view_delivery":
+                # A receipt never archives a private, derived briefing body.
+                audit_command = command | {
+                    "payload": {
+                        "issue_id": command["payload"]["briefing"]["issue_id"],
+                        "digest": digest(command["payload"]["briefing"]),
+                    }
+                }
+            elif action == "prepare_decision":
+                audit_command = command | {
+                    "payload": {
+                        "request_id": value["id"],
+                        "digest": digest(command["payload"]["decision"]),
+                    }
+                }
+            elif action == "answer_decision":
+                audit_command = command | {
+                    "payload": {
+                        "request_id": command["payload"]["request_id"],
+                        "response_digest": digest(command["payload"]["response"]),
+                    }
+                }
             self.store._history(
-                "gateway.command", {"command": command, "context": identity}
+                "gateway.command", {"command": audit_command, "context": identity}
             )
+            stored_result = result
+            if action in {
+                "resume",
+                "memory_snapshot",
+                "prepare_decision",
+                "answer_decision",
+            }:
+                stored_result = result | {"result": {"projection_not_cached": True}}
             self.store.db.execute(
                 "INSERT INTO gateway_commands VALUES(?,?,?)",
-                (command["operation_id"], fingerprint, canonical(result)),
+                (command["operation_id"], fingerprint, canonical(stored_result)),
             )
             return result
+
+    def _check_operator_scope(self, action, payload, context, effective_projects):
+        """Check current trusted scope before serving even an old receipt."""
+        if context.actor.role != "operator" or context.surface not in {
+            "terminal",
+            "voice",
+        }:
+            return
+        restricted = context.projects is not None
+        if action in {"status", "stop"}:
+            if restricted:
+                raise PermissionError("global operator action requires global scope")
+            return
+        project = None
+        if action in {"resume", "memory_snapshot"}:
+            project = payload.get("project")
+        elif action == "prepare_decision":
+            project = payload.get("decision", {}).get("project")
+        elif action == "answer_decision":
+            project, _ = self.continuity._request_meta(payload["request_id"])
+        elif action == "view_delivery":
+            project = payload.get("briefing", {}).get("project", {}).get("id")
+        elif action == "view_ack":
+            row = self.store.db.execute(
+                "SELECT project FROM continuity_deliveries WHERE id=?",
+                (payload["delivery_id"],),
+            ).fetchone()
+            project = row[0] if row else None
+        elif action in {"message", "grant", "layout_bind"}:
+            project = payload.get("project")
+        elif action == "revoke":
+            row = self.store.db.execute(
+                "SELECT body FROM coordination_grants WHERE id=?",
+                (payload["grant_id"],),
+            ).fetchone()
+            project = strict_loads(row[0])["project"] if row else None
+        elif action == "layout_observe":
+            row = self.store.db.execute(
+                "SELECT body FROM gateway_layouts WHERE session=?",
+                (payload["session"],),
+            ).fetchone()
+            project = strict_loads(row[0])["project"] if row else None
+        if project is None:
+            if restricted:
+                raise PermissionError("unscoped operator action denied")
+        elif project not in effective_projects:
+            raise PermissionError("project command denied")
+
+    def _projects(self, context):
+        self._operator(context)
+        if context.projects is not None:
+            return context.projects
+        return tuple(p["id"] for p in self.store.records("Project"))
+
+    def _authority_revision(self):
+        # The service supplies current policy, not the operator's old answer.
+        return digest(self.config.data)
 
     @staticmethod
     def _operator(context):
@@ -155,6 +268,64 @@ class Gateway:
 
     def _dispatch(self, action, payload, context, operation):
         actor = context.actor
+        if action in {
+            "resume",
+            "prepare_decision",
+            "answer_decision",
+            "view_delivery",
+            "view_ack",
+            "memory_snapshot",
+        }:
+            self._operator(context)
+            scope = self._projects(context)
+            common = {"principal": actor.subject, "permitted_projects": scope}
+            if action == "resume":
+                fields(
+                    payload,
+                    ("project",),
+                    (
+                        "detail_bytes",
+                        "obligation_offset",
+                        "obligation_page_token",
+                        "obligation_limit",
+                        "decision_offset",
+                        "decision_limit",
+                    ),
+                )
+                return self.continuity.resume(**payload, **common)
+            if action == "prepare_decision":
+                fields(payload, ("decision",))
+                prepared = payload["decision"] | {
+                    "recipient": actor.subject,
+                    "authority_revision": self._authority_revision(),
+                }
+                return self.continuity.prepare_decision(prepared, **common)
+            if action == "answer_decision":
+                fields(
+                    payload,
+                    ("request_id", "response", "expected_rev", "evidence_digest"),
+                )
+                return self.continuity.respond_decision(
+                    **payload,
+                    authority_revision=self._authority_revision(),
+                    channel="text",
+                    **common,
+                )
+            if action == "view_delivery":
+                fields(payload, ("briefing",))
+                delivery = self.continuity.record_delivery(
+                    payload["briefing"], delivery_id=operation, **common
+                )
+                return {"delivery_id": delivery}
+            if action == "view_ack":
+                fields(payload, ("delivery_id",))
+                return {
+                    "acknowledged_seq": self.continuity.acknowledge(**payload, **common)
+                }
+            fields(payload, ("project",), ("at", "limit", "max_bytes"))
+            if payload["project"] not in scope:
+                raise PermissionError("project view denied")
+            return self.memory.snapshot(**payload, principal=actor.subject)
         if action in {
             "message",
             "status",

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "id", "kind", "project", "scope", "source", "correction_digest", "proposed_text", "regression_case", "expected_version", "proposer"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"type": "string", "minLength": 1},
+    "kind": {"enum": ["fact", "preference", "procedure", "authority"]},
+    "project": {"type": "string", "minLength": 1},
+    "scope": {"enum": ["project_fact", "response_style", "workflow_notes", "authority_request"]},
+    "source": {"type": "object", "additionalProperties": false, "required": ["id", "revision", "digest"], "properties": {"id": {"type": "string", "minLength": 1}, "revision": {"type": "integer", "minimum": 1}, "digest": {"type": "string", "minLength": 1}}},
+    "correction_digest": {"type": "string", "minLength": 1},
+    "proposed_text": {"type": "string", "minLength": 1},
+    "regression_case": {"type": "string", "minLength": 1},
+    "expected_version": {"type": "integer", "minimum": 0},
+    "proposer": {"type": "string", "minLength": 1}
+  }
+}

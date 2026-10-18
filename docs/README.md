@@ -43,6 +43,9 @@ Read in this order. Where two disagree, the earlier one wins.
 
 Alongside them:
 
+- [`PRODUCT-IMPLEMENTATION-STATUS.md`](PRODUCT-IMPLEMENTATION-STATUS.md):
+  current product-plan execution, commands, regression evidence and remaining
+  operator/producer dependencies; ODIN-ADR-023 records its local scope.
 - [`design/ODIN-PRODUCT-IMPLEMENTATION-PLAN.md`](design/ODIN-PRODUCT-IMPLEMENTATION-PLAN.md):
   product implementation plan, prioritizing resume, prepared decisions,
   memory provenance and then governed orchestration. Its execution status

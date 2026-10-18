@@ -172,6 +172,13 @@ def validate_stable_ids(snapshot_root: Path) -> None:
 
 
 def main() -> int:
+    receipt = read_json(ROOT / "docs/provenance/PROTOTYPE-INTEGRATION.json")
+    validate_schema(receipt, read_json(ROOT / "docs/provenance/PROTOTYPE-INTEGRATION.schema.json"), "prototype integration")
+    imported_paths = [entry.get("path") for entry in receipt.get("files", [])]
+    check(len(imported_paths) == len(set(imported_paths)), "duplicate prototype source path")
+    for path in imported_paths:
+        check(isinstance(path, str) and not Path(path).is_absolute() and ".." not in Path(path).parts,
+              "invalid prototype source path")
     manifest = read_json(ROOT / "docs/provenance/EXTRACTION-MANIFEST.json")
     validate_schema(manifest, read_json(ROOT / "docs/provenance/EXTRACTION-MANIFEST.schema.json"), "manifest")
     check(manifest.get("schema_version") == 1, "manifest schema_version must be 1")

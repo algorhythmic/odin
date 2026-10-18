@@ -1,5 +1,10 @@
 # Odin roadmap
 
+The [product implementation status](PRODUCT-IMPLEMENTATION-STATUS.md)
+tracks the ADR-023 local continuity, memory and session-boundary slice.
+It supplies additional component evidence; full I2/I3 exits and the
+producer/operator gates below remain open.
+
 Progress against the inherited sequence. The phases (A to G) and their
 exit criteria are decided in D15; the increments (I0 to I7) are the
 [blueprint's](design/ODIN-IMPLEMENTATION-BLUEPRINT.md) §7; the
@@ -66,8 +71,8 @@ their own table below.
 
 The source review's gaps `G1` to `G7` may stay open now but must close
 before the work named in the last column ships. Saga carries its parts
-as `IG-1` to `IG-7` in its contract (§18). None is closed; nothing here
-is designed or implemented beyond the documents. R-S1 was raised while
+as `IG-1` to `IG-7` in its contract (§18). None is closed by the local fixture implementations; the producer-defined
+mechanisms and live evidence remain outstanding. R-S1 was raised while
 scoping Saga's record and is carried the same way.
 
 | Gate | Subject | Owner | Must close before |

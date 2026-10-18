@@ -6,11 +6,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
+from odin.capabilities import inventory  # noqa: E402
 from odin.contracts import Contracts, strict_loads  # noqa: E402
 from odin.transitions import transition  # noqa: E402
 
 contracts = Contracts()
-count = contracts.fixtures(ROOT / "fixtures/contracts.json")
+inventory()
+fixture_paths = [
+    ROOT / "fixtures/contracts.json",
+    *sorted((ROOT / "fixtures").glob("*-contracts.json")),
+]
+count = sum(contracts.fixtures(path) for path in fixture_paths)
 contracts.validate(
     "examples", strict_loads((ROOT / "fixtures/examples.json").read_text())
 )
@@ -22,6 +28,7 @@ for case in transitions["cases"]:
 for name, path in [
     ("capabilities", "fixture-capabilities.json"),
     ("evaluation-episode", "evaluation-episode.json"),
+    ("evaluation-request", "synthetic-evaluation-request.json"),
     ("three-document", "three-document/manifest.json"),
     ("orchestration-config", "orchestration-config.json"),
     ("chirality-config", "chirality-config.json"),

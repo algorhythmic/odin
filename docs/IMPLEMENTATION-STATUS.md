@@ -1,5 +1,10 @@
 # Local implementation — 2026-10-16
 
+This records the integrated prototype baseline. The subsequent continuity,
+memory and session-boundary work is tracked in
+[product implementation status](PRODUCT-IMPLEMENTATION-STATUS.md), with
+current commands, evidence and remaining gates.
+
 The repository now contains executable contract validators and a local,
 credential-free service foundation. Every workflow result is **fake-backend
 evidence**. This is not completion of I2–I7, a live Saga adapter, or a deployed

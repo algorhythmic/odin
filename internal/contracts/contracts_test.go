@@ -3,6 +3,7 @@ package contracts
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -17,6 +18,17 @@ func TestSharedFixtures(t *testing.T) {
 	}
 	if count < 53 {
 		t.Fatal("missing fixture coverage")
+	}
+	paths, err := filepath.Glob("../../fixtures/*-contracts.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range paths {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			if _, err := suite.Fixtures(path); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 	raw, err := os.ReadFile("../../fixtures/examples.json")
 	if err != nil {
