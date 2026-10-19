@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/schemas/v1/human_request.schema.json",
+  "title": "Human Request",
+  "description": "Run-raised requests are Saga-owned; this Odin record is a projection. Odin-raised ask_operator requests are Odin-owned. For a Saga-run request, source_request_id preserves Saga's opaque request identity; id remains Odin's projection ULID.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "updated_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "assignment": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "run": {
+      "$ref": "common.schema.json#/$defs/opaque_id"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "clarification",
+        "plan_approval",
+        "delegation_change",
+        "principle_change",
+        "desktop_action"
+      ]
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "authorizes": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proposal_digest": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "recipient": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expires_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "open",
+        "delivered",
+        "answered",
+        "consumed",
+        "closed",
+        "expired",
+        "cancelled"
+      ]
+    },
+    "response": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "type": "string",
+              "minLength": 1
+            },
+            "by": {
+              "type": "string",
+              "minLength": 1
+            },
+            "at": {
+              "$ref": "common.schema.json#/$defs/utc_timestamp"
+            },
+            "source_event": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "answer",
+            "by",
+            "at",
+            "source_event"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "channel": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "source_request_id": {
+      "$ref": "common.schema.json#/$defs/opaque_id"
+    }
+  },
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "assignment",
+    "kind",
+    "question",
+    "options",
+    "authorizes",
+    "proposal_digest",
+    "recipient",
+    "expires_at",
+    "state",
+    "response",
+    "channel"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "run"
+        ]
+      },
+      "then": {
+        "required": [
+          "source_request_id"
+        ]
+      }
+    }
+  ]
+}

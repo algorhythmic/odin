@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:session-intent:1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "config_rev": {
+      "type": "string",
+      "minLength": 1
+    },
+    "role": {
+      "enum": [
+        "fable",
+        "astra",
+        "opus",
+        "sol"
+      ]
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1
+    },
+    "session": {
+      "type": "string",
+      "minLength": 1
+    },
+    "incarnation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "mode": {
+      "enum": [
+        "plan",
+        "advice",
+        "implementation"
+      ]
+    },
+    "requested_model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requested_provider": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requested_harness": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requested_harness_version": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "requested_effort": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "execution_path": {
+      "enum": [
+        "service_session",
+        "saga_api"
+      ]
+    },
+    "required_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "live_enabled": {
+      "const": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "config_rev",
+    "role",
+    "project",
+    "session",
+    "incarnation",
+    "mode",
+    "requested_model",
+    "requested_provider",
+    "requested_harness",
+    "requested_harness_version",
+    "requested_effort",
+    "execution_path",
+    "required_capabilities",
+    "live_enabled"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "observation": {
+      "type": "object",
+      "properties": {
+        "intent": {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "config_rev": {
+              "type": "string",
+              "minLength": 1
+            },
+            "role": {
+              "enum": [
+                "fable",
+                "astra",
+                "opus",
+                "sol"
+              ]
+            },
+            "project": {
+              "type": "string",
+              "minLength": 1
+            },
+            "session": {
+              "type": "string",
+              "minLength": 1
+            },
+            "incarnation": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "mode": {
+              "enum": [
+                "plan",
+                "advice",
+                "implementation"
+              ]
+            },
+            "requested_model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "requested_provider": {
+              "type": "string",
+              "minLength": 1
+            },
+            "requested_harness": {
+              "type": "string",
+              "minLength": 1
+            },
+            "requested_harness_version": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "requested_effort": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "execution_path": {
+              "enum": [
+                "service_session",
+                "saga_api"
+              ]
+            },
+            "required_capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "live_enabled": {
+              "const": false
+            }
+          },
+          "required": [
+            "schema_version",
+            "config_rev",
+            "role",
+            "project",
+            "session",
+            "incarnation",
+            "mode",
+            "requested_model",
+            "requested_provider",
+            "requested_harness",
+            "requested_harness_version",
+            "requested_effort",
+            "execution_path",
+            "required_capabilities",
+            "live_enabled"
+          ],
+          "additionalProperties": false
+        },
+        "resolved_model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resolved_provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resolved_harness": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resolved_harness_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resolved_effort": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution_path": {
+          "enum": [
+            "service_session",
+            "saga_api"
+          ]
+        },
+        "cli_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "native_session_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "intent",
+        "resolved_model",
+        "resolved_provider",
+        "resolved_harness",
+        "resolved_harness_version",
+        "resolved_effort",
+        "execution_path",
+        "cli_version",
+        "capabilities",
+        "native_session_id",
+        "run_id",
+        "request_id"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "operation_id", "state", "native_session_id", "evidence", "usage_state"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "operation_id": {"type": "string", "minLength": 1},
+    "state": {"enum": ["active", "idle", "retired", "partial", "failed", "unknown"]},
+    "native_session_id": {"type": ["string", "null"]},
+    "evidence": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "usage_state": {"enum": ["known", "unknown"]}
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["config", "observations"],
+  "properties": {
+    "config": {"type": "object"},
+    "observations": {"type": "array", "minItems": 1, "items": {"type": "object"}}
+  }
+}

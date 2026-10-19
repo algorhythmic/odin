@@ -145,8 +145,10 @@ Instead:
 - **Import, not bridge.** Heimdall's tasks, checkpoints and decisions are
   imported once into commitments, each with its original identity and revision
   as provenance, and the import writes a receipt; a second run on the same
-  database adds nothing (AC-38). After the import, heimdall-side edits are
-  refused, or ignored with a visible record. The mapping from heimdall's record
+  database adds nothing (AC-38). After the import, heimdall-side edits to the
+  imported task state are refused. If heimdall cannot enforce retirement and
+  refusal, the migration remains incomplete under EC-13 and G-10; a visible
+  record of an ignored edit does not satisfy this exit. The mapping from heimdall's record
   types is kept with the record schemas. Delegations, approvals, verdicts and
   run states stay Saga's records.
 - **Sensors are to move to the workstation daemon.** Heimdall's surface sensors
@@ -165,8 +167,9 @@ Instead:
   EC-05 is withdrawn from Odin's plan.
 
 **Acceptance:** a repeated import yields one set of commitments and one
-receipt; a later heimdall-side edit never changes a commitment and leaves a
-visible record; heimdall's absence hides no task state.
+receipt; a later heimdall-side edit to imported task state is refused;
+heimdall's absence hides no task state. This acceptance requires the
+heimdall-owned retirement decision and enforcement under EC-13/G-10.
 
 The 2026-10-14 proposal follows, kept for traceability. Where it conflicts
 with the paragraphs above, they win.

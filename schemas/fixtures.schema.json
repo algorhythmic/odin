@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "schema": {
+            "enum": [
+              "records",
+              "event",
+              "coordination-grant",
+              "coordination-handoff",
+              "coordination-result",
+              "orchestration-config",
+              "chirality-config",
+              "chirality-packet",
+              "chirality-response",
+              "gateway-command",
+              "surface-message",
+              "layout-binding",
+              "layout-observation",
+              "memory-source",
+              "memory-statement",
+              "memory-relation",
+              "continuity-decision",
+              "harness-command",
+              "evaluation-run",
+              "improvement-proposal",
+              "improvement-review",
+              "evaluation-config",
+              "evaluation-observation",
+              "improvement-update",
+              "harness-observation"
+            ]
+          },
+          "valid": {
+            "type": "boolean"
+          },
+          "value": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "name",
+          "schema",
+          "valid",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "schema_version",
+    "cases"
+  ],
+  "additionalProperties": false
+}

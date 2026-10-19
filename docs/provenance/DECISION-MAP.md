@@ -2,7 +2,7 @@
 
 Status: candidate, written for the documentation handoff of extraction
 snapshot `2026-10-14-14fdab3`; part of the D14 handoff gate, which is
-under independent review. The handoff is **not yet recorded**.
+awaiting independent re-review. The handoff is **not yet recorded**.
 
 This map resolves every inherited decision reference. Findings of the
 source review ([`SOURCE-REVIEW.md`](SOURCE-REVIEW.md)) are tracked in
@@ -172,7 +172,7 @@ joint Saga and Odin decision record frozen at
 | D8.1 | When: review where mistakes multiply; routine operations get mechanical checks | Odin | DECISIONS.md D8; BP §6; IO §6 `publish_guidance` | default | Replaces "review every project-shaping decision" (§2). Guidance: routine gets mechanical checks, material its required review, unresolved held (review B4); which results authorize publication open (issue X-7) |
 | D8.2 | Mechanical checks first; results given to Mimir as evidence | Odin | IO §10 Mimir | default | — |
 | D8.3 | Evidence, not narrative; no exposure to Odin's reasoning; no perpetual reviewer memory; prior verdicts attached deterministically | Odin | IO §10 Mimir | default | Replaces the earlier "precedent view" mode (§2). ODIN-ADR-013 supersedes the single-reviewer reading: two positions, same evidence pack, no view of each other's findings |
-| D8.4 | Bounded, actionable findings; five verdicts including `INSUFFICIENT_EVIDENCE`; one review and at most one re-review | Odin | IO §10 Mimir | default | ODIN-ADR-013 keeps the verdict set and bounded rounds; disagreement after the re-review escalates with both positions |
+| D8.4 | Bounded, actionable findings; five verdicts including `INSUFFICIENT_EVIDENCE`; one review and at most one re-review | Odin | IO §10 Mimir | default | ODIN-ADR-013 keeps the verdict set and bounded rounds; every `FLAG` pair escalates under Saga ADM-7, as do negative results and persistent disagreement. Mixed approving-result serialization awaits I0 |
 | D8.5 | Model per review type; Sonnet default; "cheap" earned by evaluation | Odin | IO §10 Mimir | default | Model choice open (§5.2). **Superseded for Odin by ODIN-ADR-013** (hypothesis): two reviewer positions on different model families; model per position open (§5.2) |
 | D8.6 | Hard daily caps on review spend and interrupt-class turns | Odin | IO §4 caps | default | — |
 | D8.7 | Measured comparison: Odin alone, Odin with equivalent verification budget, Odin plus Mimir | Odin | AS §3 | default | — |
@@ -432,18 +432,27 @@ formal handoff. See [DECISIONS.md §4](../DECISIONS.md#4-odin-decisions-odin-adr
 | ODIN-ADR-004 | default design; activation still gated | Refines D9.3–D9.6, D20.8–D20.9 and ADR-002; retains four hooks/operator exclusion; code selects stable session classes under D7/D24 | IO §5–§6, BP §6, ROADMAP I6, AC-33/AC-36 |
 | ODIN-ADR-005 | default experiment configuration | Adds trial settings and failure/request-budget checks for D7.9–D7.10 and D18; cache-fix source inspected at `3c190e0`, runtime regressions pending; compactor context scope open (X-10); no transferred cache claims or proven effort optimum | IO §8/§12, BP §6, ROADMAP I2/I3, AC-34–AC-35, AS §3; OPTCHAT-CACHE-REVIEW.md |
 | ODIN-ADR-006 | default design | Amends D10.1 and D10.2 delivery modes; preserves D4, D6.5, D7.11–D7.12, D22.2, X-4 reading; execution ledger mirrored read-only, never written by Odin | IO §1, §3, §9, Appendix A; EI preamble; X-11; proposed AC-41 |
-| ODIN-ADR-007 | locked direction; migration not designed | Supersedes D20.10 for Odin; amends D10.5; consistent with §1.b, D7.11; EC-05 and AC-20 withdrawn (ids kept) | IO §2, §14, Appendix A; BP §3; EI §5; EC-13; proposed AC-38 |
+| ODIN-ADR-007 | locked direction; migration not designed | Supersedes D20.10 for Odin; amends D10.5; consistent with §1.b, D7.11; EC-05 and AC-20 withdrawn (ids kept); source-side edit refusal required for retirement under EC-13/G-10 | IO §2, §14, Appendix A; BP §3; EI §5; EC-13; proposed AC-38 |
 | ODIN-ADR-008 | locked sequencing | Within D14.4 and D15; restates X-9; no phase or gate change | BP §7; IO §13; ROADMAP I0/I1; README; AGENTS.md §1 |
 | ODIN-ADR-009 | default design | Clarifies D7.2, D20.1–D20.2; amends D24.3 for Odin's classes; preserves D24.4a, D24.6, D23.3 | IO §2, §5, §7, §11, Appendix A; BP §2; X-12; proposed AC-37 |
 | ODIN-ADR-010 | default design; voice backlog | Supersedes D20.5 "two interfaces" in part; amends D20.8; redefines L-PU-1; preserves D9.3, D9.5, D20.9, D20.11, ADR-002/004 | IO §3, §4, §6, Appendix C; BP §5; LEGACY-REQUIREMENTS L-PU-1, L-VT; X-13; proposed AC-39 |
 | ODIN-ADR-011 | default; disabled until §5.9 | Amends D10.4 placement; implements D21.4; preserves D0.5, D2.3, D21.5–D21.7, D23.4 | EI §8; EC-10, EC-16; ROADMAP I7; DC-01–DC-08 |
 | ODIN-ADR-012 | locked direction; carrier undecided | Supersedes D22.3 and D22.5 for Odin; preserves D22.1, D22.2 (ownership moves with capture), D22.4; EC-08/EC-09 withdrawn (ids kept) | EI §9; ROADMAP Phase F; AC-24/AC-25 retargeted |
-| ODIN-ADR-013 | hypothesis | Supersedes D8.5 and the single-reviewer reading of D8.3–D8.4; keeps D8.1–D8.2, D8.6–D8.7; D2.5 unchanged (its "Mimir" reads as the reviewer positions; separate-process option taken); D19.3 kept | IO §10 review; BP §6; AS §3; D24.2a; X-13; AC-22 re-scoped; proposed AC-40 |
-| ODIN-ADR-014 | default; evidence only | Amends ODIN-ADR-004; keeps four hooks, no silent downshift, no learned router | IO §5, Appendix A; AS §3 |
+| ODIN-ADR-013 | hypothesis | Supersedes D8.5 and the single-reviewer reading of D8.3–D8.4; keeps D8.1–D8.2, D8.6–D8.7; D2.5 unchanged (its "Mimir" reads as the reviewer positions; separate-process option taken); D19.3 kept; FLAG pairs escalate under Saga ADM-7 | IO §10 review; BP §6; AS §3; D24.2a; X-13; AC-22 re-scoped; proposed AC-40 |
+| ODIN-ADR-014 | default; evidence only | Amends ODIN-ADR-004; keeps four hooks, no silent downshift, no learned router; I0 defines the workload-class configuration schema | IO §5, Appendix A; AS §3 |
 | ODIN-ADR-015 | locked experiment placement; fixture-only | Amends D15.Eb timing for a control only; honours D7.6; satisfies D19.5; replaces the roadmap's Codex proposal | ROADMAP Phase C; IO §11, §13; BP §7 |
 
 ODIN-ADR-015 replaces the earlier Codex adapter proposal in ROADMAP Phase C
 with a fixture-only Pi RPC control; full second-adapter delivery remains I5.
+
+## Local product implementation
+
+ODIN-ADR-023 records the operator-requested local continuity and memory slice.
+It operationalizes D6/D7/D18 and ADR-009/010/020/022, with a local view during
+I1/I2 preparation. It does not supersede the full I4 view/import, I5 memory
+comparison, I6 retrieval, producer contracts or live launch gates. See
+[execution status](../PRODUCT-IMPLEMENTATION-STATUS.md) and
+[ADR-023](../DECISIONS.md#odin-adr-023--local-continuity-and-attributed-memory).
 
 ## Clauses superseded or amended by Odin ADRs (2026-10-16)
 

@@ -1,0 +1,10 @@
+{
+  "schema_version": 1, "mode": "fixture", "enabled": true,
+  "branches": [
+    {"role": "fable", "provider": "fixture-provider", "harness": "fixture-harness", "harness_version": "1", "requested_model": "fable-fixture", "effort": null, "config_revision": "fixture-model-roles-v1", "max_microusd": 20},
+    {"role": "astra", "provider": "fixture-provider", "harness": "fixture-harness", "harness_version": "1", "requested_model": "astra-fixture", "effort": "bounded", "config_revision": "fixture-model-roles-v1", "max_microusd": 30}
+  ],
+  "synthesis_max_microusd": 10, "max_rounds": 2, "depth": 0,
+  "deadline_at": "2099-01-01T00:00:00Z",
+  "limits": {"recommendation": 300, "evidence": 200, "assumptions": 200, "objections": 200, "items": 4}
+}

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/schemas/v1/project.schema.json",
+  "title": "Project",
+  "description": "Odin-owned project. Saga delegation IDs remain opaque references.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "updated_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "locator": {
+            "type": "string",
+            "minLength": 1
+          },
+          "digest": {
+            "$ref": "common.schema.json#/$defs/digest"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "registered_at": {
+            "$ref": "common.schema.json#/$defs/utc_timestamp"
+          }
+        },
+        "required": [
+          "locator",
+          "digest",
+          "version",
+          "registered_at"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "delegations": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/opaque_id"
+      },
+      "minItems": 0
+    },
+    "interface_decision_owner": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    }
+  },
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "name",
+    "sources",
+    "delegations",
+    "interface_decision_owner"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "label": {
+      "const": "fake-backend evidence"
+    },
+    "condition": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attempted": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "accepted": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "known_cost_microusd": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "missing_cost_episodes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "cost_per_accepted_microusd": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "elapsed_seconds": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "minimum": 0
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "label",
+    "condition",
+    "attempted",
+    "accepted",
+    "known_cost_microusd",
+    "missing_cost_episodes",
+    "cost_per_accepted_microusd",
+    "elapsed_seconds",
+    "failures"
+  ],
+  "additionalProperties": false
+}

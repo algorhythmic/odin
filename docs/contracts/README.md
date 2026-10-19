@@ -35,7 +35,7 @@ created or changed.
 
 | Producer | Pinned path | Producer source | Commit / digest | Status |
 |---|---|---|---|---|
-| Saga | [`saga/2026-10-14-14fdab3/SAGA-SERVICE.md`](saga/2026-10-14-14fdab3/SAGA-SERVICE.md) with [`SNAPSHOT.json`](saga/2026-10-14-14fdab3/SNAPSHOT.json) | `saga:docs/contracts/SAGA-SERVICE.md` | base `14fdab3`; producer commit `a84f9ac28a6b4de651fccc057d33a335472f9773`; digest in `SNAPSHOT.json` | **Pinned draft** (`0.1.1-draft`; documentation review candidate; target API unimplemented, per its metadata). The snapshot name identifies the extraction handoff, not the commit that first contains the contract. The pinned bytes match the corrected canonical `0.1.1-draft`; Appendix B was checked against that canonical text at document level, gaps recorded per capability (`DECISIONS.md` issue X-3). Repinning follows the X-14 decisions in Saga's record |
+| Saga | [`saga/2026-10-14-14fdab3/SAGA-SERVICE.md`](saga/2026-10-14-14fdab3/SAGA-SERVICE.md) with [`SNAPSHOT.json`](saga/2026-10-14-14fdab3/SNAPSHOT.json) | `saga:docs/contracts/SAGA-SERVICE.md` | base `14fdab3`; producer commit `a84f9ac28a6b4de651fccc057d33a335472f9773`; digest in `SNAPSHOT.json` | **Pinned draft** (`0.1.1-draft`; documentation review candidate; target API unimplemented, per its metadata). The snapshot name identifies the extraction handoff, not the commit that first contains the contract. The pinned bytes match the corrected canonical `0.1.1-draft`; Appendix B was checked against that canonical text at document level, including B-12's worker-event notification gap against EV-4 (`DECISIONS.md` issue X-3). Producer publication and repinning are required to close the gap; X-14 decisions in Saga's record are also pending |
 | Herdr | — | — | — | Unavailable: to be driven through its CLI (locally by the workstation daemon, or `herdr --machine` over SSH from the service; ODIN-ADR-009); automation API still unreviewed (`DECISIONS.md` §3 item 8); installed 0.8.2 observed |
 | heimdall | — | — | — | Task layer to be retired by import into Odin's commitments, with no projection bridge (EC-05 withdrawn; ODIN-ADR-007); sensors to move to the workstation daemon (ODIN-ADR-009); peer-side recording pending (EC-13) |
 | skald | — | — | — | Capture library to be embedded as a module with a Sink interface and spool (ODIN-ADR-006); archive remains a standalone sink; retrieval and exports unfinished (EC-06); EC-04 re-scoped, EC-14 pending |
@@ -59,3 +59,8 @@ complete executable contract. Each pinned copy is checked against the
 I/O contract's Appendix B (B-00 to B-17), whose last column records the
 result and every gap (`DECISIONS.md` issue X-3); repeat the check
 whenever a new snapshot is pinned.
+For B-12, the pinned EV-4 does not expressly promise cursor delivery of
+worker journals, per-iteration status, plateau signals or alerts. B-03/B-06
+reads are not delivery guarantees. This is a document-level gap, not an
+observation about a running Saga service; it requires a producer contract
+update and a new pin with compatibility checks.

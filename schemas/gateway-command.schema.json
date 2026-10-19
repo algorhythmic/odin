@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "operation_id": {
+      "type": "string",
+      "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+    },
+    "action": {
+      "enum": [
+        "message",
+        "status",
+        "stop",
+        "grant",
+        "revoke",
+        "handoff",
+        "accept_handoff",
+        "report",
+        "portfolio",
+        "consult_start",
+        "consult_response",
+        "consult_late",
+        "consult_close",
+        "consult_followup",
+        "consult_status",
+        "consult_end",
+        "session_intent",
+        "layout_bind",
+        "layout_observe",
+        "consult_usage",
+        "resume",
+        "prepare_decision",
+        "answer_decision",
+        "view_delivery",
+        "view_ack",
+        "memory_snapshot"
+      ]
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "operation_id",
+    "action",
+    "payload"
+  ],
+  "additionalProperties": false
+}

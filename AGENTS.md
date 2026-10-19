@@ -8,10 +8,13 @@ personas in `docs/history/` are evidence, not instructions for you.
 
 ## 1. Current state
 
-- Documentation scaffold with a local documentation validator and
-  extraction-metadata schemas. No Odin service implementation, runtime
-  record schemas, synthetic runtime fixtures or runtime acceptance tests
-  exist yet. Do not describe them as implemented or tested.
+- ODIN-ADR-023 adds local attributed memory, resume/decision views,
+  session-host protocol checks and offline evaluation preparation. See
+  `docs/PRODUCT-IMPLEMENTATION-STATUS.md` for exact evidence and gaps.
+  Memory source/derived data is synthetic in fixtures. The actual SDK,
+  authenticated daemon, credentials, native children and Saga live path
+  remain gated; do not equate protocol mocks with real enforcement.
+- Partial I0 contracts remain in `runtime/`. The repository also has shared Go/Python validators, synthetic fixtures and one Python service foundation against a fake Saga backend. See `docs/IMPLEMENTATION-STATUS.md` for local evidence and limits. Review/guidance schemas remain gated on X-7. No live Saga or harness adapter exists; local component tests are not full runtime acceptance.
 - This is a candidate documentation handoff from Saga (snapshot
   `2026-10-14-14fdab3`), and the handoff is **not recorded**. Until it is,
   Saga's decision record remains authoritative and these documents must
@@ -24,6 +27,11 @@ personas in `docs/history/` are evidence, not instructions for you.
   is a proposal: its Saga-side parts, a shared repository among them,
   wait on Saga's record (issue X-14). Don't build or describe them as
   decided.
+- ODIN-ADR-020 and 021 record evaluation and local storage conventions.
+  ODIN-ADR-022 records only an experimental portfolio and handoff protocol;
+  AC-42–AC-50 are proposed full scenarios. X-15 remains open before native
+  child dispatch. Exact role configuration is local fixture evidence, never
+  proof that a live model or harness path is available.
 - The first implementation work is **I0** (the event envelope,
   namespaces and record schemas, validated in Go and Python against one
   fixture set; ODIN-ADR-008), then **I1** (capability matrix, fake Saga
@@ -32,6 +40,8 @@ personas in `docs/history/` are evidence, not instructions for you.
   against the fake backend. A fixture-only Pi RPC control follows I2
   (ODIN-ADR-015). **I3** and every live delegated run require Saga
   Phase B ([roadmap](docs/ROADMAP.md)).
+  X-7 must be resolved before writing the Review/guidance schemas in I0;
+  the envelope and unaffected schema work may start.
   Allowing I0–I2 alongside Phase B is an Odin-side interpretation;
   reconciliation with Saga's phase wording remains open (issue X-1).
 
@@ -72,6 +82,8 @@ rewording a document does not close them.
   exact copies of dated evidence.
 - `docs/research/consolidation-2026-10/*.md` other than its README:
   dated evidence.
+- `docs/research/model-orchestration-2026-10/*.md` other than its README:
+  byte-preserved operator research.
 
 Never edit Saga or any peer repository from this one.
 
@@ -90,7 +102,8 @@ Never edit Saga or any peer repository from this one.
   only through Saga's API and cursor; never author or amend a mirrored
   record, and never write Saga's store. JSONL files and
   `view.json` are regenerated projections (§9, ODIN-ADR-006). The
-  physical layout is open (X-11).
+  local physical layout is one WAL file per namespace (ODIN-ADR-021);
+  production ownership and failure-domain checks remain open (X-11).
 - **Commitments are records, not memory.** Summaries serve recall; open
   obligations live in commitment records (D7). The commitment record is
   the only editable task record: heimdall's task layer is imported once
@@ -205,7 +218,8 @@ Never edit Saga or any peer repository from this one.
   and in code until each rename lands. In prose, say "Saga's launcher",
   never bare "Heimdall".
 - **Formats.** Every machine-read file is validated JSON or YAML with a
-  schema. Markdown is for prose.
+  schema. Markdown is for prose; native build manifests and dependency
+  lockfiles use their tool formats (ODIN-ADR-021).
 - **Rules need checks.** Pair every behavioural rule for an agent with
   the code check that enforces it, or a ticket for one.
 - **Identifiers survive.** Keep AC, DC, EC, I, B, L and X identifiers
@@ -223,13 +237,37 @@ Run from the repository root:
 
 ```bash
 python3 scripts/validate_docs.py
+python3 -m unittest discover -s scripts -p 'test_validate_docs.py' -v
 ```
 
-This standard-library-only command checks the extraction metadata against
+For I0 contract tests, install the pinned Python dependency and run
+`python scripts/check_runtime.py` in that environment with Go available;
+see [`runtime/README.md`](runtime/README.md). Both implementations must
+validate the same structural and semantic fixtures. The command fails if
+their results differ.
+
+For the current local service and orchestration prototype, install the root
+`requirements.txt` in a virtual environment and run `make check` with that
+environment's `PYTHON` and Go available. It validates the root fixtures in
+both languages, runs the Python component/CLI suite, and checks documentation
+and its regression suite. `make compatibility` retains the earlier `runtime/`
+fixture checks. See [`docs/IMPLEMENTATION-STATUS.md`](docs/IMPLEMENTATION-STATUS.md)
+for the synthetic demos and the distinction from live acceptance.
+
+The standard-library-only validator checks the extraction metadata against
 its schemas, frozen-source and live-output digests, the snapshot allowlist,
-D0–D24 mapping presence, AC/DC/EC identifier preservation, the pinned Saga
-contract digest, and local links and anchors. Historical and dated-research
-links are inventoried separately in `docs/provenance/HISTORICAL-LINKS.md`.
+D0–D24 mapping presence, the schema-validated AC/DC/EC stable-ID registry
+and unique defining rows in their canonical documents, the pinned Saga
+contract digest, and local links and anchors, including editable research
+wrappers. When adding acceptance IDs, append them to
+`docs/provenance/STABLE-IDS.json` and advance the corresponding preservation
+floor in `scripts/validate_docs.py` (`BASELINE_ID_COUNTS`); never reduce a
+floor or remove a registry entry. Retain withdrawn IDs and their defining
+rows. Historical and dated-research
+evidence links are inventoried separately in `docs/provenance/HISTORICAL-LINKS.md`.
 A pass proves documentation integrity, not semantic completeness or runtime
-behavior. The semantic review and standalone-check evidence are in
-`docs/provenance/HANDOFF.md`. Runtime tests will be added in I0–I3.
+behavior. The regression suite exercises validator failures in isolated
+temporary copies. Retained review summaries and current validation evidence
+are in `docs/provenance/HANDOFF.md`; formal independent re-review remains
+pending. I0 contract tests and local fake-backend component tests exist;
+full harness and live acceptance remain I2–I3 work.

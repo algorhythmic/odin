@@ -1,0 +1,17 @@
+{
+  "id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+  "envelope": 1,
+  "namespace": "odin_history",
+  "producer": "saga",
+  "kind": "run.state",
+  "scope": {
+    "run": "saga-run-1"
+  },
+  "source_seq": 9007199254740992,
+  "received_at": "2026-10-16T12:00:00Z",
+  "causation": "saga-run-1",
+  "correlation": "run:saga-run-1",
+  "payload_ref": "evid:synthetic-1",
+  "dedupe_key": "saga:1",
+  "wake": "wake"
+}

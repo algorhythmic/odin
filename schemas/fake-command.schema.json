@@ -1,0 +1,332 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "const": "run.submit"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "digest": {
+              "type": "string",
+              "minLength": 1
+            },
+            "approval": {
+              "type": "string",
+              "minLength": 1
+            },
+            "review": {
+              "type": "string",
+              "minLength": 1
+            },
+            "delegation": {
+              "type": "string",
+              "minLength": 1
+            },
+            "delegation_version": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "criteria": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "required": [
+            "id",
+            "request_id",
+            "digest",
+            "approval",
+            "review",
+            "delegation",
+            "delegation_version",
+            "criteria"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "operation",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "const": "run.cancel"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "run": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "run"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "operation",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "const": "request.answer"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "string",
+              "minLength": 1
+            },
+            "answer": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "request",
+            "answer"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "operation",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "const": "review.record"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "digest": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reviewer": {
+              "const": "synthetic-reviewer"
+            },
+            "result": {
+              "enum": [
+                "APPROVE",
+                "APPROVE_UNCHANGED",
+                "REJECT",
+                "INSUFFICIENT_EVIDENCE"
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "request_id",
+            "digest",
+            "reviewer",
+            "result"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "operation",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "const": "approval.record"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "digest": {
+              "type": "string",
+              "minLength": 1
+            },
+            "operator": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id",
+            "request_id",
+            "digest",
+            "operator"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "operation",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "const": "delegation.record"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "revoked": {
+              "type": "boolean"
+            },
+            "concurrency": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "id",
+            "version",
+            "revoked",
+            "concurrency"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "operation",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "const": "task.request"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "task": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "id",
+            "task"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "operation",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "const": "stop"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "const": "all"
+            }
+          },
+          "required": [
+            "scope"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "operation",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "const": "guidance"
+        },
+        "data": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "operation",
+        "data"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "intake_first",
+      "operation": "intake",
+      "input": {
+        "last_sequence": null,
+        "incoming_sequence": 1,
+        "dedupe_seen": false
+      },
+      "expected": "new"
+    },
+    {
+      "name": "intake_gap_is_new",
+      "operation": "intake",
+      "input": {
+        "last_sequence": 1,
+        "incoming_sequence": 4,
+        "dedupe_seen": false
+      },
+      "expected": "new"
+    },
+    {
+      "name": "intake_duplicate_key",
+      "operation": "intake",
+      "input": {
+        "last_sequence": 1,
+        "incoming_sequence": 2,
+        "dedupe_seen": true
+      },
+      "expected": "duplicate"
+    },
+    {
+      "name": "intake_replayed_sequence",
+      "operation": "intake",
+      "input": {
+        "last_sequence": 4,
+        "incoming_sequence": 4,
+        "dedupe_seen": false
+      },
+      "expected": "duplicate"
+    },
+    {
+      "name": "intake_older_sequence",
+      "operation": "intake",
+      "input": {
+        "last_sequence": 4,
+        "incoming_sequence": 3,
+        "dedupe_seen": false
+      },
+      "expected": "duplicate"
+    },
+    {
+      "name": "intake_without_source_sequence",
+      "operation": "intake",
+      "input": {
+        "last_sequence": null,
+        "incoming_sequence": null,
+        "dedupe_seen": false
+      },
+      "expected": "new"
+    },
+    {
+      "name": "revision_match",
+      "operation": "revision",
+      "input": {
+        "expected": 2,
+        "actual": 2
+      },
+      "expected": "ok"
+    },
+    {
+      "name": "revision_stale",
+      "operation": "revision",
+      "input": {
+        "expected": 1,
+        "actual": 2
+      },
+      "expected": "stale_revision"
+    },
+    {
+      "name": "owner_match",
+      "operation": "owner",
+      "input": {
+        "expected_generation": 2,
+        "actual_generation": 2
+      },
+      "expected": "ok"
+    },
+    {
+      "name": "owner_stale",
+      "operation": "owner",
+      "input": {
+        "expected_generation": 1,
+        "actual_generation": 2
+      },
+      "expected": "stale_owner"
+    },
+    {
+      "name": "reconcile_completed",
+      "operation": "reconcile",
+      "input": {
+        "status": "completed"
+      },
+      "expected": {
+        "state": "delivered",
+        "action": "none"
+      }
+    },
+    {
+      "name": "reconcile_pending",
+      "operation": "reconcile",
+      "input": {
+        "status": "pending"
+      },
+      "expected": {
+        "state": "unknown",
+        "action": "wait"
+      }
+    },
+    {
+      "name": "reconcile_failed",
+      "operation": "reconcile",
+      "input": {
+        "status": "failed"
+      },
+      "expected": {
+        "state": "failed",
+        "action": "none"
+      }
+    },
+    {
+      "name": "reconcile_superseded",
+      "operation": "reconcile",
+      "input": {
+        "status": "superseded"
+      },
+      "expected": {
+        "state": "superseded",
+        "action": "none"
+      }
+    },
+    {
+      "name": "reconcile_absent",
+      "operation": "reconcile",
+      "input": {
+        "status": "absent"
+      },
+      "expected": {
+        "state": "unknown",
+        "action": "retry_after_revalidation"
+      }
+    },
+    {
+      "name": "reconcile_unknown_expired",
+      "operation": "reconcile",
+      "input": {
+        "status": "unknown_expired"
+      },
+      "expected": {
+        "state": "unknown",
+        "action": "surface_to_operator"
+      }
+    },
+    {
+      "name": "revision_integral_decimal",
+      "operation": "revision",
+      "input": {
+        "expected": 2.0,
+        "actual": 2
+      },
+      "expected": "ok"
+    },
+    {
+      "name": "owner_integral_exponent",
+      "operation": "owner",
+      "input": {
+        "expected_generation": 2e0,
+        "actual_generation": 2
+      },
+      "expected": "ok"
+    },
+    {
+      "name": "intake_integral_decimal",
+      "operation": "intake",
+      "input": {
+        "last_sequence": 2.0,
+        "incoming_sequence": 3,
+        "dedupe_seen": false
+      },
+      "expected": "new"
+    }
+  ]
+}

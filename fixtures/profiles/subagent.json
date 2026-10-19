@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "name": "subagent",
+  "allowed_tools": [
+    "records.read",
+    "evidence.read",
+    "work.report"
+  ],
+  "native_children": false,
+  "shell": false,
+  "credential_access": false,
+  "filesystem": "none",
+  "mode": "fixture"
+}

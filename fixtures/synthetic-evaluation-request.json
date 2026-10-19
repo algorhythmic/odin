@@ -1,0 +1,247 @@
+{
+  "config": {
+    "conditions": [
+      {
+        "adapter_version": "1",
+        "compactor_digest": "compactor-1",
+        "effort": null,
+        "harness": "fixture-host",
+        "harness_version": "1",
+        "memory_features": [],
+        "model": "fixture/no-model",
+        "name": "baseline",
+        "orchestration": "solo",
+        "provider": "fixture/no-provider",
+        "resource_policy_digest": "6423d4b407cdb66cbf18a4f70c1a2b36bf851ba7612e92b12af918aeb3aed19c",
+        "retriever_digest": "retriever-1",
+        "tools": [
+          "records.read"
+        ]
+      },
+      {
+        "adapter_version": "1",
+        "compactor_digest": "compactor-1",
+        "effort": null,
+        "harness": "fixture-host",
+        "harness_version": "1",
+        "memory_features": [
+          "status",
+          "time",
+          "provenance"
+        ],
+        "model": "fixture/no-model",
+        "name": "typed",
+        "orchestration": "solo",
+        "provider": "fixture/no-provider",
+        "resource_policy_digest": "6423d4b407cdb66cbf18a4f70c1a2b36bf851ba7612e92b12af918aeb3aed19c",
+        "retriever_digest": "retriever-1",
+        "tools": [
+          "records.read"
+        ]
+      }
+    ],
+    "experiment": "semantic_memory",
+    "fixture_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+    "frozen_revision": "fixture-revision-1",
+    "run_id": "synthetic-run",
+    "schema_version": 1
+  },
+  "observations": [
+    {
+      "assessment": {
+        "accepted": true,
+        "assessor": "independent-reviewer",
+        "episode_id": "baseline-1",
+        "evidence_digest": "743aaba1ae78de93de268e5131d5bead0e90e98f4b69cca9212d9d3b4e49a234",
+        "ref": "fixture:assessment:baseline:1",
+        "usage_digest": "50adb2ccb14729b1f5148b5feac1d6f13ffcfa7f21cc8b068734ffd810528ad4"
+      },
+      "attention": {
+        "corrections": 1,
+        "decision_wait_seconds": 5,
+        "interruptions": 0,
+        "missed_obligations": 0,
+        "restatements": 1,
+        "stale_claims": 0
+      },
+      "condition_evidence": {
+        "compactor_digest": "compactor-1",
+        "memory_features": [],
+        "orchestration": "solo",
+        "ref": "fixture:condition:baseline"
+      },
+      "episode": {
+        "acceptance_evidence": [
+          "independent-check-1"
+        ],
+        "accepted": true,
+        "attempt": 1,
+        "billing": {
+          "mode": "fixture",
+          "price_snapshot": null,
+          "repriced": false
+        },
+        "condition": "baseline",
+        "context": {
+          "briefing_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "retrieval_digest": "retriever-1",
+          "tools": [
+            "records.read"
+          ]
+        },
+        "cost_components": [
+          {
+            "cache_read_tokens": null,
+            "cache_write_tokens": null,
+            "context_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+            "cost_microusd": 7,
+            "identity": {
+              "adapter_version": "1",
+              "effort": null,
+              "harness": "fixture-host",
+              "harness_version": "1",
+              "model_alias": "fixture/no-model",
+              "provider": "fixture/no-provider",
+              "resolved_model": null
+            },
+            "includes_operations": [],
+            "input_tokens": null,
+            "missing_reason": null,
+            "operation": "baseline-1-call",
+            "output_tokens": null,
+            "role": "parent",
+            "tools": [
+              "records.read"
+            ]
+          }
+        ],
+        "cost_microusd": 7,
+        "deadline_seconds": 20,
+        "elapsed_seconds": 11,
+        "episode_id": "baseline-1",
+        "failure": null,
+        "fixture_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "limits": {
+          "budget_microusd": 0,
+          "concurrency": 1,
+          "depth": 0,
+          "enforcement": "fixture only; no model call",
+          "turns": 1
+        },
+        "operator_seconds": 3,
+        "result_status": "complete",
+        "schema_version": 1,
+        "split": "development",
+        "task_lineage": "synthetic-three-document"
+      },
+      "project": "project-1",
+      "source_revisions": [
+        {
+          "digest": "source-digest-2",
+          "revision": 2,
+          "source": "requirements"
+        }
+      ]
+    },
+    {
+      "assessment": {
+        "accepted": true,
+        "assessor": "independent-reviewer",
+        "episode_id": "typed-1",
+        "evidence_digest": "743aaba1ae78de93de268e5131d5bead0e90e98f4b69cca9212d9d3b4e49a234",
+        "ref": "fixture:assessment:typed:1",
+        "usage_digest": "2fe26c1aa444a33dc2b83b9c478391f25275c298a9b91fe2b8117be0f304808e"
+      },
+      "attention": {
+        "corrections": 0,
+        "decision_wait_seconds": 5,
+        "interruptions": 0,
+        "missed_obligations": 0,
+        "restatements": 0,
+        "stale_claims": 0
+      },
+      "condition_evidence": {
+        "compactor_digest": "compactor-1",
+        "memory_features": [
+          "status",
+          "time",
+          "provenance"
+        ],
+        "orchestration": "solo",
+        "ref": "fixture:condition:typed"
+      },
+      "episode": {
+        "acceptance_evidence": [
+          "independent-check-1"
+        ],
+        "accepted": true,
+        "attempt": 1,
+        "billing": {
+          "mode": "fixture",
+          "price_snapshot": null,
+          "repriced": false
+        },
+        "condition": "typed",
+        "context": {
+          "briefing_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "retrieval_digest": "retriever-1",
+          "tools": [
+            "records.read"
+          ]
+        },
+        "cost_components": [
+          {
+            "cache_read_tokens": null,
+            "cache_write_tokens": null,
+            "context_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+            "cost_microusd": 7,
+            "identity": {
+              "adapter_version": "1",
+              "effort": null,
+              "harness": "fixture-host",
+              "harness_version": "1",
+              "model_alias": "fixture/no-model",
+              "provider": "fixture/no-provider",
+              "resolved_model": null
+            },
+            "includes_operations": [],
+            "input_tokens": null,
+            "missing_reason": null,
+            "operation": "typed-1-call",
+            "output_tokens": null,
+            "role": "parent",
+            "tools": [
+              "records.read"
+            ]
+          }
+        ],
+        "cost_microusd": 7,
+        "deadline_seconds": 20,
+        "elapsed_seconds": 11,
+        "episode_id": "typed-1",
+        "failure": null,
+        "fixture_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "limits": {
+          "budget_microusd": 0,
+          "concurrency": 1,
+          "depth": 0,
+          "enforcement": "fixture only; no model call",
+          "turns": 1
+        },
+        "operator_seconds": 3,
+        "result_status": "complete",
+        "schema_version": 1,
+        "split": "development",
+        "task_lineage": "synthetic-three-document"
+      },
+      "project": "project-1",
+      "source_revisions": [
+        {
+          "digest": "source-digest-2",
+          "revision": 2,
+          "source": "requirements"
+        }
+      ]
+    }
+  ]
+}

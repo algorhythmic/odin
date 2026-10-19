@@ -1,0 +1,79 @@
+{
+  "label": "synthetic fixture templates; replace IDs and revisions with stored records",
+  "grant": {
+    "schema_version": 1,
+    "id": "01K7M00000000000000000005",
+    "issuer": "operator-1",
+    "subject_role": "coordinator",
+    "subject": "Fable",
+    "project": "01K7M00000000000000000001",
+    "actions": [
+      "handoff",
+      "portfolio"
+    ],
+    "resources": [
+      "01K7M00000000000000000001",
+      "shared-budget:synthetic"
+    ],
+    "issued_at": "2026-10-16T00:00:00Z",
+    "expires_at": "2099-01-01T00:00:00Z",
+    "authority_ref": "operator-command:synthetic"
+  },
+  "handoff": {
+    "schema_version": 1,
+    "operation_id": "01K7M00000000000000000006",
+    "project": "01K7M00000000000000000001",
+    "project_rev": 1,
+    "commitment": "01K7M00000000000000000003",
+    "commitment_rev": 1,
+    "assignment": "01K7M00000000000000000004",
+    "assignment_rev": 1,
+    "ownership_generation": 1,
+    "from_subject": "Fable",
+    "to_subject": "Astra",
+    "to_session": "01K7M00000000000000000002",
+    "to_incarnation": 1,
+    "requirements": {
+      "objective": "synthetic",
+      "criteria": [
+        {
+          "id": "synthetic",
+          "text": "synthetic"
+        }
+      ]
+    },
+    "evidence_refs": [],
+    "artifact_refs": [],
+    "repository_revision": "repo:abc123",
+    "grant_id": "01K7M00000000000000000005",
+    "budget_ref": "shared-budget:synthetic",
+    "deadline": "2099-01-01T00:00:00Z",
+    "model_config_rev": "models:1",
+    "issued_at": "2026-10-16T00:00:00Z"
+  },
+  "result": {
+    "schema_version": 1,
+    "operation_id": "01K7M00000000000000000006",
+    "project": "01K7M00000000000000000001",
+    "commitment": "01K7M00000000000000000003",
+    "assignment": "01K7M00000000000000000004",
+    "session": "01K7M00000000000000000002",
+    "incarnation": 1,
+    "status": "complete",
+    "evidence": [
+      {
+        "criterion": "synthetic",
+        "refs": [
+          {
+            "ref": "artifact:proof",
+            "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      }
+    ],
+    "artifact_refs": [],
+    "repository_revision": "repo:def456",
+    "reported_at": "2026-10-16T00:00:00Z",
+    "report_id": "01K7M000000000000000000007"
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:coordination-portfolio:1",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "project": {
+        "type": "string",
+        "minLength": 1
+      },
+      "project_rev": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "planning_owner": {
+        "anyOf": [
+          {
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "commitments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rev": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "state": {
+              "enum": [
+                "open",
+                "blocked",
+                "satisfied",
+                "closed",
+                "abandoned"
+              ]
+            },
+            "owner": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ownership_generation": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "objective": {
+              "type": "string",
+              "minLength": 1
+            },
+            "next_trigger": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "open_decisions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "raised_by": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "id",
+                  "text",
+                  "raised_by"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "id",
+            "rev",
+            "state",
+            "owner",
+            "ownership_generation",
+            "objective",
+            "next_trigger",
+            "open_decisions"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "assignments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "rev": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "state": {
+              "enum": [
+                "drafted",
+                "approved",
+                "dispatched",
+                "active",
+                "completed",
+                "failed",
+                "cancelled"
+              ]
+            },
+            "backend": {
+              "enum": [
+                "saga",
+                "local",
+                "desktop"
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "rev",
+            "state",
+            "backend"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "handoffs": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "required": [
+      "project",
+      "project_rev",
+      "planning_owner",
+      "commitments",
+      "assignments",
+      "handoffs"
+    ],
+    "additionalProperties": false
+  }
+}

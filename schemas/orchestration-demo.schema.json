@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "label": {
+      "const": "fake-backend evidence"
+    },
+    "models_executed": {
+      "const": false
+    },
+    "handoff": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "consultation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "advice_state": {
+      "enum": [
+        "advice_ready",
+        "escalated",
+        "followup_available"
+      ]
+    },
+    "disagreement_preserved": {
+      "type": "boolean"
+    },
+    "assignment_state": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "worker_execution_path": {
+      "const": "saga_api"
+    },
+    "unknown_cost_reservations": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "receipt_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "portfolio_projects": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "restart_replay": {
+      "const": true
+    },
+    "voice_approval_refused": {
+      "const": true
+    },
+    "stop_recorded": {
+      "const": true
+    }
+  },
+  "required": [
+    "schema_version",
+    "label",
+    "models_executed",
+    "handoff",
+    "consultation",
+    "advice_state",
+    "disagreement_preserved",
+    "assignment_state",
+    "worker_execution_path",
+    "unknown_cost_reservations",
+    "receipt_count",
+    "portfolio_projects",
+    "restart_replay",
+    "voice_approval_refused",
+    "stop_recorded"
+  ],
+  "additionalProperties": false
+}
