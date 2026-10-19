@@ -39,6 +39,11 @@ Read in this order. Where two disagree, the earlier one wins.
 
 Alongside them:
 
+- [Odin Heimdall and Skald consolidated work plan](design/ODIN-HEIMDALL-SKALD-WORK-PLAN.md):
+  proposed delivery sequence for task-authority migration, shared capture,
+  retained Skald browsing and one continuity experience. It distinguishes
+  this scaffold from the newer committed Odin implementation and preserves
+  producer ownership and existing live gates.
 - [`design/ODIN-ACCEPTANCE-SCENARIOS.md`](design/ODIN-ACCEPTANCE-SCENARIOS.md):
   AC-01 to AC-41 (AC-37 to AC-41 proposed), DC-01 to DC-08 and the
   evaluation design. It must agree with documents 1 and 2; a conflict
