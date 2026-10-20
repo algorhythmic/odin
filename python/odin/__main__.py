@@ -138,7 +138,11 @@ def main():
         elif args.action == "executive-new-session":
             print(canonical(executive_runtime.new_session(state)))
         else:
-            sys.exit(executive_runtime.start(state, resume=args.resume_session))
+            try:
+                result = executive_runtime.start(state, resume=args.resume_session)
+            except executive_runtime.ResumeRequired as error:
+                parser.exit(2, f"odin: {error}\n")
+            sys.exit(result)
         return
     if args.action in (
         "demo",

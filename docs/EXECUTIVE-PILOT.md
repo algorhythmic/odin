@@ -105,6 +105,21 @@ prepared session, using its retained native ID and the same project binding:
 arbitrary conversation from the development profile. Resume is a separate
 live check, not a claim made by the saved session ID.
 
+With the prepared workstation launcher, reopen from any terminal, including
+Herdr's terminal, with:
+
+```bash
+~/.local/state/odin-executive-pilot/run executive-start --resume-session
+```
+
+The launcher selects the workspace, dedicated login, tools and saved session;
+no `cd` is needed. Running bare `claude` from that workspace bypasses those
+settings and can load the development profile's hooks. An error such as
+`heimdall: json: unknown field "scratchpad_dir"` from that ordinary profile
+is a separate hook compatibility issue, not an Odin resume error. The Odin
+launcher disables inherited hooks. A repeated `executive-start` now prints
+the explicit resume instruction without a Python traceback.
+
 If a launch ended before Claude created a resumable session, or the operator
 intends to start a fresh conversation, allocate a new native ID explicitly:
 

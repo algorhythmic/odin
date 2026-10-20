@@ -456,19 +456,27 @@ def _foreground(spec, locks):
                 continue
 
 
+class ResumeRequired(PermissionError):
+    """A saved launch needs the explicit resume command, not a new session."""
+
+
 def start(state, *, resume=False):
     """Run a foreground pilot. Its native UI reports login/model/RC outcomes."""
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise PermissionError("start the executive pilot in a foreground terminal")
     with _owned_runtime(state) as (manifest, base, runtime_lock, credential_lock):
+        receipt = base / "launch.json"
+        if receipt.exists() and not resume:
+            raise ResumeRequired(
+                "A prior launch is recorded; use explicit resume: "
+                "executive-start --resume-session through the same Odin launcher. "
+                "No directory change is needed."
+            )
         if manifest["enable_mcp"]:
             _socket_ready(manifest["state"], manifest["project"])
         capability = probe(state)
         if capability["missing_flags"]:
             raise PermissionError("installed Claude Code lacks required pilot flags")
-        receipt = base / "launch.json"
-        if receipt.exists() and not resume:
-            raise PermissionError("a prior launch was attempted; use explicit resume")
         _write(
             receipt,
             "executive-pilot-launch",

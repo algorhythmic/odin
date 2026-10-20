@@ -1,5 +1,6 @@
 """Local launcher policy only: no login, model call or Remote Control claim."""
 
+import io
 import json
 import os
 import stat
@@ -7,7 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
@@ -413,6 +414,44 @@ class ExecutiveRuntimeTests(unittest.TestCase):
                 runtime.start(self.state)
             foreground.assert_not_called()
         self.assertIsNone(runtime.status(self.state)["last_launch"])
+
+    def test_reopen_cli_prints_resume_instruction_without_launching_or_traceback(self):
+        from odin.__main__ import main
+
+        manifest = self.prepare(enable_mcp=False)
+        with (
+            patch.object(sys.stdin, "isatty", return_value=True),
+            patch.object(sys.stdout, "isatty", return_value=True),
+            patch.object(runtime, "probe", return_value={"missing_flags": []}),
+            patch.object(runtime, "_foreground", return_value=0),
+        ):
+            runtime.start(self.state)
+        receipt = runtime.status(self.state)["last_launch"]
+        error_output = io.StringIO()
+        with (
+            patch.object(
+                sys, "argv", ["odin", "--state", str(self.state), "executive-start"]
+            ),
+            patch.object(sys.stdin, "isatty", return_value=True),
+            patch.object(sys.stdout, "isatty", return_value=True),
+            patch.object(runtime, "probe") as probe,
+            patch.object(runtime, "_socket_ready") as bridge,
+            patch.object(runtime, "_foreground") as foreground,
+            redirect_stderr(error_output),
+            self.assertRaises(SystemExit) as stopped,
+        ):
+            main()
+        self.assertEqual(stopped.exception.code, 2)
+        self.assertIn("executive-start --resume-session", error_output.getvalue())
+        self.assertNotIn("Traceback", error_output.getvalue())
+        probe.assert_not_called()
+        bridge.assert_not_called()
+        foreground.assert_not_called()
+        current = runtime.status(self.state)
+        self.assertEqual(current["last_launch"], receipt)
+        self.assertEqual(
+            current["configuration"]["native_session_id"], manifest["native_session_id"]
+        )
 
 
 if __name__ == "__main__":
