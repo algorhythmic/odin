@@ -444,6 +444,7 @@ formal handoff. See [DECISIONS.md §4](../DECISIONS.md#4-odin-decisions-odin-adr
 | ODIN-ADR-024 | operator-authorized bounded pilot; launch restrictions superseded by ADR-026 for version 3 | Amends D7.2 invocation and D7.7 transport only for native Fable executive conversation; retains service record authority, credential separation and worker/producer gates | [Executive pilot](../EXECUTIVE-PILOT.md), AGENTS.md §1/§4 |
 | ODIN-ADR-025 | operator-authorized pilot extension; native restriction superseded by ADR-026 for version 3 | Refines ADR-024's tool boundary and ADR-023's synthetic-memory scope for read-only checkout access and operator-selected committed repository evidence | [Executive pilot](../EXECUTIVE-PILOT.md), AGENTS.md §1 |
 | ODIN-ADR-026 | operator-authorized native development profile | Supersedes ADR-024/025 launch and proposal-only restrictions and ADR-022/023 native-child restrictions for version 3; amends Odin-owned D7.2/D7.7, D19.7/D23.1–D23.3 routing and D24.3 process isolation; preserves Saga producer authority and MCP record semantics | [Executive pilot](../EXECUTIVE-PILOT.md), IO §7/§11, AGENTS.md §1/§4/§5/§6 |
+| ODIN-ADR-027 | operator-authorized local delegation path | Amends ADR-024's no-delegated-execution bridge rule for the version 3 executive's local-backend sessions; applies D23.3, D7.11 and D19.4; does not deliver ADR-009's managed session host, X-15 child dispatch, ADR-015 or I5 | [Executive pilot](../EXECUTIVE-PILOT.md), IO §2/§11, AGENTS.md §1 |
 
 ODIN-ADR-015 replaces the earlier Codex adapter proposal in ROADMAP Phase C
 with a fixture-only Pi RPC control; full second-adapter delivery remains I5.
@@ -479,6 +480,14 @@ service-managed worker, while MCP reports, exact evidence and Saga's own
 interfaces retain their semantics. See
 [ADR-026](../DECISIONS.md#odin-adr-026--native-executive-development-access).
 
+ODIN-ADR-027 adds the executive's delegation path on the D23.3 local backend:
+one accountable planning session per project, commitments and local
+assignments owned by it, detached non-interactive Claude Code or Codex turns,
+explicit executive acceptance and recovery after restart. It states its
+missing guarantees and leaves the managed session host, child dispatch and
+second-adapter gates open. See
+[ADR-027](../DECISIONS.md#odin-adr-027--executive-delegation-sessions-on-the-local-backend).
+
 ## Clauses superseded or amended by Odin ADRs
 
 The extraction superseded no clause on its merits. The operator's
@@ -492,6 +501,7 @@ carry the same supersession in their last column.
 | D7.2 invocation; D7.7 interactive-only exclusion | amended for native conversation and development executive profiles | ODIN-ADR-024/026 |
 | D19.7; D23.1–D23.3 Odin routing; D24.3 Odin process isolation | amended for version 3 native development only; Saga guarantees unchanged | ODIN-ADR-026 |
 | ADR-024/025 restricted launch and proposal-only rules; ADR-022/023 native-child restriction | superseded for version 3 native development only | ODIN-ADR-026 |
+| ADR-024 bridge rule excluding delegated execution | amended for the version 3 executive's local-backend delegation sessions only | ODIN-ADR-027 |
 | D8.5; single-reviewer reading of D8.3–D8.4 | superseded (hypothesis) | ODIN-ADR-013 |
 | D10.1, D10.2 delivery modes | amended | ODIN-ADR-006 |
 | D10.4 placement | amended | ODIN-ADR-011 |

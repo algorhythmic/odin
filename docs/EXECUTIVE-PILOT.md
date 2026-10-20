@@ -31,14 +31,15 @@ make this distinction explicit; it does not confer live Saga guarantees.
 | Improvement | Inspect, edit, execute commands/tests and use native agents for operator-directed development; report evidence and resulting changes |
 | Authority | `fable-executive` is a coordinator bound by the service to one project; model tool arguments cannot select a different principal |
 | Execution | Normal native development execution with permission bypass; the added MCP bridge does not itself expose Saga worker launch or approval/grant tools |
+| Delegation | Six `odin_delegation_*` tools under ADR-027 open one accountable local-backend session per project, assign owned commitments, run detached Claude Code or Codex turns, send follow-ups, collect unverified returns and record executive acceptance; no Saga launch, approval or grant |
 | Runtime | An operator-launched local pilot; the authenticated homelab/workstation daemon and full SDK lifecycle remain future work |
 
 There is no service-enforced model cost or turn budget in this pilot. Native
 account limits and operator control are not evidence of Odin budget
 enforcement; `executive-status` reports this boundary explicitly.
 
-The bridge does not yet let Fable create or edit canonical commitments.
-Those records remain in Odin's existing service paths. Ordinary chat stays
+The bridge lets Fable create commitments only through delegation assignments
+(ADR-027); other commitment edits remain in Odin's existing service paths. Ordinary chat stays
 in Claude Code's native transcript; it is not automatically captured into
 Odin memory, interpreted as progress, or recorded as an authenticated
 operator command. A statement relayed by the model is a model report.
@@ -202,6 +203,87 @@ intends to start a fresh conversation, allocate a new native ID explicitly:
 The reset requires the launch/credential locks to be free, archives launch
 metadata and retains native transcripts. It does not erase project records
 or recover a failed operation by silently replaying it.
+
+## Delegate work through Odin
+
+Version 3 has two delegation paths. Native subagents (the Agent tool) suit
+quick bounded work whose result the executive integrates in the same
+conversation. The Odin delegation tools suit work that must persist as a
+project commitment, run detached as a resumable Claude Code or Codex session,
+survive the conversation or a service restart, or be collected and accepted
+later. ODIN-ADR-027 records the decision.
+
+Enable the path once per state directory, then restart `serve` so it loads
+the configuration:
+
+```bash
+~/.local/state/odin-executive-pilot/run delegation-configure \
+  --claude-config ~/.local/state/odin-executive-pilot/claude-login \
+  --workspace-root ~/.local/state/odin-executive-pilot/workspaces
+```
+
+The file names the harness binaries, the Claude configuration directory the
+workers use, an optional `CODEX_HOME`, default models and the directories
+under which session workspaces may live. Workers inherit the operator
+environment plus those settings. Pointing workers at the executive's own
+dedicated login shares that credential lineage between the executive and
+its workers; this is an interim operator choice while X-12 remains open, not
+managed credential isolation.
+
+The cycle, with every mutating call carrying a fresh ULID `operation_id`
+that is safe to replay with identical arguments:
+
+1. `odin_delegation_session` `create` with harness, workspace, briefing and
+   options opens the project's one active session (a `PlanningSession`,
+   binding and host `Environment` record) and makes it the planning owner.
+2. `odin_delegation_assign` records an open `Commitment` with acceptance
+   criteria and a `backend: local` `Assignment`, and queues the first turn.
+   Claude Code turns pass `--max-turns` and `--max-budget-usd`; Codex offers
+   no such options, so an assignment there requires
+   `allow_unenforced_limits`. Odin records limits and reported usage; it
+   enforces no ceiling.
+3. The service launches a detached runner on its next tick. The runner
+   executes `claude -p --output-format json --session-id` (later
+   `--resume`) or `codex exec --json` (later `codex exec resume`), forwards
+   interrupts, applies the wall-clock limit and writes `result.json` under
+   `STATE/delegations/SESSION/TURN/` with the prompt, argv and logs.
+4. `odin_delegation_status` ingests finished runners and shows session,
+   assignment and turn states (`queued`, `launching`, `running`,
+   `interrupting`, `returned`, `failed`, `interrupted`, `lost`), runner
+   liveness, known cost and turns whose cost is unknown.
+5. `odin_delegation_followup` sends another message into the same native
+   conversation for an open assignment; it is refused while a turn runs.
+6. `odin_delegation_result` returns a finished turn's full final text and
+   transcript paths within `max_bytes`, or says the text is larger.
+7. `odin_delegation_close` records `accepted` (evidence references for every
+   criterion; the assignment completes and the commitment closes as
+   executive-attributed acceptance) or `cancelled` (the commitment is
+   abandoned). A returned turn never closes anything by itself.
+8. `odin_delegation_session` `stop` signals a running turn and retires the
+   session; the remote outcome stays unconfirmed until the runner reports.
+   A service restart retires an active session; `resume` opens a new
+   incarnation and binding when no turn is running. A runner that exits
+   without a result is `lost`, never retried. A new session adopts open
+   commitments left by a retired one with a new ownership generation.
+
+Observed on 2026-10-20 with Claude Code 2.1.303: a `-p` worker under
+`permission_mode: acceptEdits` can edit files but every shell command returns
+"This command requires approval", so a worker that must run tests needs
+`bypassPermissions` (the launcher then adds `--dangerously-skip-permissions`)
+or the executive runs the checks in the worker's workspace itself before
+accepting. Codex workers run under the configured sandbox (`read-only` or
+`workspace-write`) and report usage without cost; their native thread id is
+known only after the first turn returns.
+
+Delegated commitments appear in `odin_resume` as open obligations until
+closed. Refusals reach the executive as fixed codes such as
+`project_already_has_active_session`, `turn_still_running`,
+`limits_not_enforceable_on_harness` or `delegation_not_configured`.
+`tests/test_delegation.py` covers the cycle with synthetic harness binaries
+and real detached runners. Live Claude Code and Codex receipts are operator
+evidence outside the repository; they are local-backend evidence without
+isolation or Saga guarantees. Tools added after a conversation started are
+visible only after that conversation exits and resumes.
 
 ## Repository evidence and the retained read-only profile
 

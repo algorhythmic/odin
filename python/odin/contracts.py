@@ -85,6 +85,12 @@ class Contracts:
         canonical(value)  # Reject NaN/Infinity even when passed as Python values.
         self.validators[name].validate(value)
 
+    def validate_definition(self, name: str, definition: str, value) -> None:
+        """Validate against one self-contained `$defs` entry of a schema."""
+        canonical(value)
+        fragment = self.validators[name].schema["$defs"][definition]
+        Draft202012Validator(fragment, format_checker=FORMATS).validate(value)
+
     def fixtures(self, path: Path) -> int:
         data = strict_loads(path.read_text())
         self.validate("fixtures", data)

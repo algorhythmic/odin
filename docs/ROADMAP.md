@@ -226,6 +226,12 @@ minimal Codex adapter experiment (the two may run side by side if both are
 wanted); it does not resolve X-1 or authorize live execution before
 Phase B.
 
+ODIN-ADR-024 to 027 add the operator's native executive pilot beside this
+phase: native conversation, repository evidence, the version 3 development
+profile and local-backend delegation sessions. They are operator
+development paths with stated missing guarantees; they do not complete I2's
+session host, child dispatch or any live Saga gate.
+
 ## Phase D — richer policy (Saga), second project (Odin)
 
 - [ ] **I3 → I4:** second project; adopt-into-supervision and

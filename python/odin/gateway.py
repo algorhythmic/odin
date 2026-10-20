@@ -13,9 +13,19 @@ from .chirality import Chirality
 from .continuity import Continuity
 from .contracts import ROOT, canonical, strict_loads
 from .coordination import Actor, Coordination
+from .delegation import Delegation
 from .memory import Memory
 from .orchestration_config import OrchestrationConfig
 from .store import Conflict, digest, event, now
+
+DELEGATION_ACTIONS = {
+    "delegation_session": "odin_delegation_session",
+    "delegation_assign": "odin_delegation_assign",
+    "delegation_followup": "odin_delegation_followup",
+    "delegation_status": "odin_delegation_status",
+    "delegation_result": "odin_delegation_result",
+    "delegation_close": "odin_delegation_close",
+}
 
 
 @dataclass(frozen=True)
@@ -35,7 +45,7 @@ def fields(payload, required, optional=()):
 
 
 class Gateway:
-    def __init__(self, service, config=None):
+    def __init__(self, service, config=None, *, delegation_config=None):
         self.service, self.store = service, service.store
         self.config = config or OrchestrationConfig()
         self.coordination = Coordination(self.store)
@@ -43,6 +53,11 @@ class Gateway:
         self.chirality = Chirality(self.store, self.budget)
         self.memory = Memory(self.store)
         self.continuity = Continuity(self.store, self.memory)
+        # Local delegation is enabled only by an explicit operator configuration
+        # file in the state directory; without it every delegation tool refuses.
+        self.delegation = Delegation(
+            self.store, service.directory, delegation_config
+        )
         self.store.db.executescript("""
             CREATE TABLE IF NOT EXISTS gateway_commands
               (id TEXT PRIMARY KEY, digest TEXT NOT NULL, result TEXT NOT NULL);
@@ -154,6 +169,8 @@ class Gateway:
                 "prepare_decision",
                 "answer_decision",
                 "executive_reports",
+                "delegation_status",
+                "delegation_result",
             }:
                 stored_result = result | {"result": {"projection_not_cached": True}}
             self.store.db.execute(
@@ -171,7 +188,7 @@ class Gateway:
             or not context.projects
             or action not in {
                 "resume", "memory_snapshot", "memory_source_read",
-                "executive_report", "executive_reports",
+                "executive_report", "executive_reports", *DELEGATION_ACTIONS,
             }
             or payload.get("project") not in context.projects
         ):
@@ -191,7 +208,10 @@ class Gateway:
                 raise PermissionError("global operator action requires global scope")
             return
         project = None
-        if action in {"resume", "memory_snapshot", "memory_source_read", "executive_reports", "repository_import"}:
+        if action in {
+            "resume", "memory_snapshot", "memory_source_read", "executive_reports",
+            "repository_import", *DELEGATION_ACTIONS,
+        }:
             project = payload.get("project")
         elif action == "prepare_decision":
             project = payload.get("decision", {}).get("project")
@@ -311,6 +331,40 @@ class Gateway:
 
     def _dispatch(self, action, payload, context, operation):
         actor = context.actor
+        if action in DELEGATION_ACTIONS:
+            if actor.subject == "fable-executive":
+                self._executive_scope(action, payload, context)
+            else:
+                self._operator(context)
+            self.coordination._live()
+            project = payload["project"]
+            arguments = {k: v for k, v in payload.items() if k != "project"}
+            if action not in {"delegation_status", "delegation_result"}:
+                # The bridge carries the stable operation_id on the command
+                # envelope; the tool definition requires the same value.
+                if arguments.setdefault("operation_id", operation) != operation:
+                    raise Conflict("delegation operation identity mismatch")
+            self.store.contracts.validate_definition(
+                "executive-tool-input", DELEGATION_ACTIONS[action], arguments
+            )
+            arguments.pop("operation_id", None)
+            if action == "delegation_status":
+                return self.delegation.status(arguments, project=project)
+            if action == "delegation_result":
+                return self.delegation.result(arguments, project=project)
+            common = {"project": project, "actor": actor.subject, "operation": operation}
+            if action == "delegation_session":
+                method = {
+                    "create": self.delegation.open_session,
+                    "resume": self.delegation.resume_session,
+                    "stop": self.delegation.stop_session,
+                }[arguments["action"]]
+                return method(arguments, **common)
+            if action == "delegation_assign":
+                return self.delegation.assign(arguments, **common)
+            if action == "delegation_followup":
+                return self.delegation.followup(arguments, **common)
+            return self.delegation.close(arguments, **common)
         if action == "repository_import":
             from .repository_memory import import_batch
 

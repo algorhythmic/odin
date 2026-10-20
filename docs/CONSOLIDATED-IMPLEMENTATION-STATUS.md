@@ -50,6 +50,7 @@ Odin service does not block native startup. Selecting the profile and observing 
 | Repository evidence | [committed-text importer](../python/odin/repository_memory.py), operator gateway action and exact catalog reads; [tests](../tests/test_repository_memory.py) | Explicit committed selection, project-bound readers, replay-safe batches and no live checkout watcher; no semantic statements are invented |
 | Native repository reads | Retained version 2 profile preserves session identity on explicit resume; [tests](../tests/test_executive_runtime.py) | Read-only boundaries describe version 2 only; version 3 supersedes them |
 | Native development | Version 3 uses the normal native tool set, permission bypass, real checkout cwd/HOME and inherited environment; dedicated login/session and MCP bridge retained | Startup changes require exit/resume; actual model/tool behavior requires live observation; no claim of managed isolation, budgets or Saga guarantees |
+| Executive delegation | [delegation module](../python/odin/delegation.py), detached [runner](../python/odin/delegation_runner.py), six `odin_delegation_*` bridge tools and `delegation-configure`; [tests](../tests/test_delegation.py) | One local-backend session per project; Claude Code turns carry harness budget/turn options, Codex turns require explicitly unenforced limits; returns are unverified until executive acceptance; no isolation, managed session host, X-15 child dispatch or Saga guarantees |
 
 Exact-read results are not cached in gateway receipts, so old commands
 cannot replay content after access changes. The recorded command retains
@@ -64,7 +65,7 @@ or enlarge their own project scope in the payload.
 | OHS-01 | Implementation baseline integrated and reproduced | Browser-retention and early-pilot dispositions, plus producer-owned EC-13/14 records, remain separate work |
 | OHS-03 | Odin-local exact-read request/result schemas and synthetic contract cases added | Published Skald/Heimdall contracts and complete task-import mapping; local schemas are not peer wire contracts |
 | OHS-04 | First continuity slice implemented and exercised | Portfolio presentation, typed checkpoint/progress admission, source enrollment/health before first capture, and full omission/pagination coverage |
-| OHS-05 | Native executive conversation under ADR-024, repository evidence under ADR-025 and native development profile under ADR-026; operator reports an active session | Version 3 activation/live tool checks; full managed profile isolation, authenticated host transport and Saga Phase B gates remain separate |
+| OHS-05 | Native executive conversation under ADR-024, repository evidence under ADR-025, native development profile under ADR-026 and local-backend delegation sessions under ADR-027; operator reports an active session | Managed SDK session host, profile isolation, authenticated host transport, X-15 child dispatch and Saga Phase B gates remain separate |
 | OHS-06/07 | Synthetic demonstrations only | Reviewed task migration, enforceable old-writer retirement, pinned producer feeds and their existing live gates |
 | OHS-08/09 | Executive diagnosis persists; repository evidence and version 3 native development support reconciliation and direct improvement | Independently verified Fable/remote dialogue, measured improvement, connected feeds and managed cutover acceptance |
 

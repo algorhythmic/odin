@@ -57,6 +57,7 @@ def main():
             "executive-enable-repository-reads",
             "executive-enable-development",
             "repository-import",
+            "delegation-configure",
         ],
     )
     parser.add_argument("--reason", default="operator requested stop")
@@ -90,6 +91,16 @@ def main():
         "--config",
         help="experimental role configuration JSON; live dispatch remains disabled",
     )
+    parser.add_argument(
+        "--workspace-root",
+        action="append",
+        default=[],
+        help="directory under which delegation workspaces may be created (repeatable)",
+    )
+    parser.add_argument("--codex-home", help="CODEX_HOME for delegated Codex workers")
+    parser.add_argument("--claude-model", default="claude-sonnet-5-5", help="default delegated Claude Code model")
+    parser.add_argument("--codex-model", help="default delegated Codex model")
+    parser.add_argument("--turn-timeout", type=int, default=1800, help="delegated turn wall-clock limit in seconds")
     args = parser.parse_args()
     from pathlib import Path
 
@@ -204,6 +215,27 @@ def main():
         print(canonical(result))
         return
     address = str(state / "service.sock")
+    if args.action == "delegation-configure":
+        from .delegation import default_config, write_config
+
+        if not args.workspace_root:
+            parser.error("delegation-configure requires at least one --workspace-root")
+        try:
+            config = default_config(
+                claude_config_dir=args.claude_config,
+                workspace_roots=args.workspace_root,
+                codex_home=args.codex_home,
+                claude_model=args.claude_model,
+                codex_model=args.codex_model,
+                turn_timeout_seconds=args.turn_timeout,
+            )
+            path = write_config(state, config)
+        except (ValueError, PermissionError, OSError) as error:
+            parser.exit(2, f"odin: {error}\n")
+        print(canonical({"written": str(path), "harnesses": sorted(config["harnesses"]),
+                         "workspace_roots": config["workspace_roots"],
+                         "activation": "restart serve to load this configuration"}))
+        return
     if args.action == "repository-import":
         from .repository_memory import prepare
 
@@ -303,10 +335,14 @@ def main():
     with Service(state) as service:
         service.recover()
         from .coordination import Actor
+        from .delegation import load_config
         from .gateway import Gateway, GatewayContext
         from .orchestration_config import OrchestrationConfig
 
-        gateway = Gateway(service, OrchestrationConfig(args.config))
+        delegation_config = load_config(state)
+        gateway = Gateway(
+            service, OrchestrationConfig(args.config), delegation_config=delegation_config
+        )
         if args.executive_project:
             gateway.coordination._project(args.executive_project)
         # The namespace lock proves no other service using this state is active.
@@ -364,14 +400,20 @@ def main():
                     if service.store.dispatch_enabled:
                         service.store.dispatch(service.backend)
                         service.mirror.refresh(service.backend)
+                    # Runner launches happen after the recorded command commits.
+                    gateway.delegation.launch_pending()
                 except Exception as error:
                     # Keep protocol errors bounded; never dump a schema or input body.
                     result = {"error": type(error).__name__, "label": service.label}
+                    from .delegation import DelegationRefused
+
+                    if isinstance(error, DelegationRefused):
+                        result["detail"] = str(error)
                 self.wfile.write((canonical(result) + "\n").encode())
 
-        from contextlib import ExitStack
         import selectors
         import stat
+        from contextlib import ExitStack
 
         addresses = [address]
         if args.executive_project:
@@ -391,10 +433,32 @@ def main():
                     server.executive_project = args.executive_project if path != address else None
                     selector.register(server, selectors.EVENT_READ)
                 print("Fixture service ready: " + address, flush=True)
+                # A detached service is stopped with SIGTERM; treat it like Ctrl-C
+                # so sockets are removed and the store closes cleanly.
+                import signal
+
+                def _terminate(*_):
+                    raise KeyboardInterrupt
+
+                signal.signal(signal.SIGTERM, _terminate)
+                if delegation_config is not None:
+                    print(
+                        "Delegation enabled for harnesses: "
+                        + ", ".join(sorted(delegation_config["harnesses"])),
+                        flush=True,
+                    )
                 while True:
                     for key, _ in selector.select(timeout=0.5):
                         key.fileobj._handle_request_noblock()
                     service.tick()
+                    try:
+                        gateway.delegation.tick()
+                    except Exception as error:  # Keep the service up; report it.
+                        print(
+                            "delegation tick failed: " + type(error).__name__,
+                            file=sys.stderr,
+                            flush=True,
+                        )
         except KeyboardInterrupt:
             pass
         finally:

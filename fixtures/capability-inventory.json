@@ -197,6 +197,22 @@
         "Real source enrollment, peer pins and live integration gates"
       ],
       "next_action": "Run integration-demo; use the shared human/machine projection and explicit coverage states"
+    },
+    {
+      "id": "executive_delegation",
+      "state": "usable now",
+      "evidence": [
+        "python/odin/delegation.py",
+        "python/odin/delegation_runner.py",
+        "tests/test_delegation.py",
+        "docs/EXECUTIVE-PILOT.md"
+      ],
+      "blockers": [
+        "X-12 worker credential lineage",
+        "X-15 managed child dispatch",
+        "No isolation or enforced ceilings beyond harness options"
+      ],
+      "next_action": "Configure delegation-configure, open one session per project, accept returns explicitly"
     }
   ]
 }

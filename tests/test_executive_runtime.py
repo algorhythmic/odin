@@ -584,6 +584,25 @@ class ExecutiveRuntimeTests(unittest.TestCase):
         self.assertFalse(result["delegated_execution_enabled"])
         self.assertFalse(result["service_budget_enforced"])
 
+    def test_status_reports_service_unavailable_without_socket(self):
+        self.prepare()
+        result = runtime.status(self.state)
+        self.assertEqual(result["service_reachability"], "unavailable")
+
+    def test_status_reports_service_reachable(self):
+        self.prepare()
+        with patch.object(runtime, "ExecutiveBridge") as bridge:
+            bridge.return_value.call.return_value = {"isError": False, "content": []}
+            result = runtime.status(self.state)
+        self.assertEqual(result["service_reachability"], "reachable")
+
+    def test_status_reports_service_unchecked_without_mcp(self):
+        self.prepare(enable_mcp=False)
+        with patch.object(runtime, "SocketGateway") as gateway:
+            result = runtime.status(self.state)
+        gateway.assert_not_called()
+        self.assertEqual(result["service_reachability"], "unchecked")
+
     def test_lineage_lease_refuses_a_second_owner(self):
         self.prepare()
         path = self.profile / ".odin-lineage.lock"

@@ -8,6 +8,15 @@ personas in `docs/history/` are evidence, not instructions for you.
 
 ## 1. Current state
 
+- ODIN-ADR-027 adds the executive's delegation path: six scoped bridge tools
+  open one accountable local-backend planning session per project, assign
+  work as owned commitments and local assignments, run detached
+  non-interactive Claude Code or Codex turns, send follow-ups, collect
+  unverified returns and record explicit acceptance. It needs an operator
+  `delegation-configure` file; it supplies no isolation, enforced ceilings or
+  Saga guarantees and does not deliver the managed session host, X-15 child
+  dispatch or the I5 second adapter. See
+  [`docs/EXECUTIVE-PILOT.md`](docs/EXECUTIVE-PILOT.md).
 - ODIN-ADR-026 authorizes the operator's native development executive profile
   (version 3). It uses Claude Code's normal tools and prompt, permission
   bypass, the actual checkout as cwd, and the inherited operator environment

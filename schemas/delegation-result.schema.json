@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:delegation-result:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "turn", "harness", "exit_code", "started_at", "finished_at", "timed_out",
+    "interrupted", "stdout_bytes", "stderr_tail", "native_session_id", "final_text", "is_error",
+    "stop_reason", "turns", "cost_usd", "usage", "permission_denials", "parse_error"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "turn": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+    "harness": {"enum": ["claude-code", "codex"]},
+    "exit_code": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+    "started_at": {"type": "string", "minLength": 1},
+    "finished_at": {"type": "string", "minLength": 1},
+    "timed_out": {"type": "boolean"},
+    "interrupted": {"type": "boolean"},
+    "stdout_bytes": {"type": "integer", "minimum": 0},
+    "stderr_tail": {"type": "string"},
+    "native_session_id": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+    "final_text": {"type": "string"},
+    "is_error": {"type": "boolean"},
+    "stop_reason": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+    "turns": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+    "cost_usd": {"anyOf": [{"type": "number", "minimum": 0}, {"type": "null"}]},
+    "usage": {"anyOf": [{"type": "object"}, {"type": "null"}]},
+    "permission_denials": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+    "parse_error": {"anyOf": [{"type": "string"}, {"type": "null"}]}
+  }
+}

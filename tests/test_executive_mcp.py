@@ -88,6 +88,12 @@ class ExecutiveMCPTests(unittest.TestCase):
                 "odin_read_evidence",
                 "odin_report",
                 "odin_reports",
+                "odin_delegation_session",
+                "odin_delegation_assign",
+                "odin_delegation_followup",
+                "odin_delegation_status",
+                "odin_delegation_result",
+                "odin_delegation_close",
             },
         )
         for tool in tools:
@@ -97,11 +103,24 @@ class ExecutiveMCPTests(unittest.TestCase):
                 {"project", "actor", "surface", "grant"}
                 & tool["inputSchema"]["properties"].keys()
             )
-        self.assertFalse(
-            next(tool for tool in tools if tool["name"] == "odin_report")[
-                "annotations"
-            ]["readOnlyHint"]
-        )
+        for name in (
+            "odin_report",
+            "odin_delegation_session",
+            "odin_delegation_assign",
+            "odin_delegation_followup",
+            "odin_delegation_close",
+        ):
+            self.assertFalse(
+                next(tool for tool in tools if tool["name"] == name)["annotations"][
+                    "readOnlyHint"
+                ]
+            )
+        for name in ("odin_delegation_status", "odin_delegation_result"):
+            self.assertTrue(
+                next(tool for tool in tools if tool["name"] == name)["annotations"][
+                    "readOnlyHint"
+                ]
+            )
 
     def test_fixed_project_and_new_read_operation_each_time(self):
         self.server.handle(request("odin_resume"))
@@ -318,7 +337,7 @@ class ExecutiveMCPTests(unittest.TestCase):
             )
         responses = [strict_loads(line) for line in completed.stdout.splitlines()]
         self.assertEqual([response["id"] for response in responses], [1, 2])
-        self.assertEqual(len(responses[1]["result"]["tools"]), 5)
+        self.assertEqual(len(responses[1]["result"]["tools"]), 11)
         self.assertEqual(completed.stderr, "")
 
 

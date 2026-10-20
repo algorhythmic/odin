@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:delegation-config:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "workspace_roots", "harnesses", "turn_timeout_seconds"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "workspace_roots": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {"type": "string", "minLength": 1, "pattern": "^/"}
+    },
+    "turn_timeout_seconds": {"type": "integer", "minimum": 30, "maximum": 86400},
+    "harnesses": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "claude-code": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["binary", "config_dir", "credential_ref", "refresh_owner", "default_model"],
+          "properties": {
+            "binary": {"type": "string", "minLength": 1, "pattern": "^/"},
+            "config_dir": {"type": "string", "minLength": 1, "pattern": "^/"},
+            "credential_ref": {"type": "string", "minLength": 8, "pattern": "^secret:"},
+            "refresh_owner": {"type": "string", "minLength": 1},
+            "default_model": {"type": "string", "minLength": 1, "maxLength": 128},
+            "default_permission_mode": {
+              "enum": ["default", "acceptEdits", "plan", "dontAsk", "bypassPermissions"]
+            }
+          }
+        },
+        "codex": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["binary", "credential_ref", "refresh_owner"],
+          "properties": {
+            "binary": {"type": "string", "minLength": 1, "pattern": "^/"},
+            "codex_home": {"anyOf": [{"type": "string", "minLength": 1, "pattern": "^/"}, {"type": "null"}]},
+            "credential_ref": {"type": "string", "minLength": 8, "pattern": "^secret:"},
+            "refresh_owner": {"type": "string", "minLength": 1},
+            "default_model": {"anyOf": [{"type": "string", "minLength": 1, "maxLength": 128}, {"type": "null"}]},
+            "default_sandbox": {"enum": ["read-only", "workspace-write", "danger-full-access"]}
+          }
+        }
+      }
+    }
+  }
+}

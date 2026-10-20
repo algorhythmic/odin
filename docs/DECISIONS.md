@@ -1853,6 +1853,70 @@ remain available in every profile.
   of the environment, not restrictions Odin can remove. Production gates
   and the cross-repository handoff remain open.
 
+### ODIN-ADR-027 — Executive delegation sessions on the local backend
+
+- **Date/status:** 2026-10-20; operator-authorized implementation. The
+  operator asked the version 3 executive to prioritize the missing
+  executive-to-project delegation path: an Odin tool that creates or resumes
+  an accountable project orchestration session, assigns work, inspects
+  progress, sends follow-ups and collects results, demonstrated with actual
+  sessions, persistence and recovery, with Claude Code and Codex support
+  reported separately.
+- **Decision:** add six scoped bridge tools (`odin_delegation_session`,
+  `odin_delegation_assign`, `odin_delegation_followup`,
+  `odin_delegation_status`, `odin_delegation_result`,
+  `odin_delegation_close`) and the matching recorded gateway actions. A
+  session is a canonical `PlanningSession` on the D23.3 local backend with a
+  `SessionBinding` and host `Environment` record; at most one is active per
+  project and it becomes the project's planning owner. Assigning work creates
+  an open `Commitment` with acceptance criteria owned by that session and a
+  `backend: local` `Assignment`. Each assignment or follow-up is one
+  non-interactive harness turn (`claude -p --session-id/--resume` or
+  `codex exec`/`codex exec resume`) run by a detached runner that writes a
+  spool the service ingests; the service stays the only writer of Odin
+  records. Enablement requires an explicit operator configuration file
+  (`delegation-configure`) naming the harness binaries, the worker credential
+  configuration and allowed workspace roots; without it every delegation tool
+  refuses.
+- **Semantics:** a returned turn is an unverified worker report. Only
+  `odin_delegation_close` with evidence for every criterion completes the
+  assignment and closes the commitment, recorded as executive-attributed
+  acceptance, never as Saga verification. Cancellation abandons the
+  commitment. Budget and iteration limits are passed as harness options where
+  the harness offers them (Claude Code) and must be explicitly allowed as
+  unenforced otherwise (Codex); Odin records requested limits and reported
+  usage but enforces no ceiling. Stop signals the running turn and retires the
+  session with the remote outcome marked unconfirmed until the runner reports.
+  A service restart retires an active session; an explicit resume starts a
+  new incarnation and binding, and a runner that exits without a result is
+  recorded as `lost`, never retried. A replacement session adopts open
+  commitments left by a retired one with a new ownership generation.
+- **Guidance to the executive:** use native subagents for quick bounded work
+  whose result is integrated in the same conversation; use delegation
+  sessions for work that must persist as a project commitment, run detached
+  in a resumable harness session, survive the conversation or a service
+  restart, or be collected and accepted later.
+- **Inherited relationship:** extends ADR-026's development exemption to the
+  bridge: it amends ADR-024's rule that the scoped bridge exposes no
+  delegated execution, for this local-backend path only. It applies D23.3
+  (local backend with stated missing guarantees), D7.11 (commitments carry
+  owner and assignments) and D19.4's capability statement per adapter. It does
+  not deliver the managed SDK/daemon session host (ADR-009, I2), service-
+  managed child dispatch (X-15), the ADR-015 Pi control or the I5 second
+  production adapter; the Codex path here is a local non-interactive worker
+  adapter, not that second adapter. Worker credentials follow the configured
+  Claude configuration directory and Codex home; sharing the executive's
+  dedicated login lineage with worker processes is an interim operator choice
+  under open X-12, not a resolution of it. Saga-owned interfaces, approvals
+  and guarantees are unchanged.
+- **Checks and evidence:** `tests/test_delegation.py` exercises the cycle
+  with synthetic harness binaries and real detached runners: open, assign,
+  launch, return, follow-up resume, restart, incarnation, stop/interrupt,
+  lost runner, failure visibility, unenforced-limit refusal, scope and
+  replay. Live receipts for actual Claude Code and Codex sessions belong in
+  the operator's private evidence directory, labelled as local-backend
+  evidence.
+
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that

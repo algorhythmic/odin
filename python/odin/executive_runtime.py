@@ -19,6 +19,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from .contracts import ROOT, Contracts, canonical, strict_loads
+from .executive_mcp import ExecutiveBridge, SocketGateway
 
 DEFAULT_MODEL = "claude-fable-5-1"
 MCP_TOOLS = (
@@ -498,7 +499,16 @@ def _development_prompt(manifest):
         "'fake-backend evidence' describes the Saga execution backend only. "
         "Native development commands run on this host and do not depend on Saga; "
         "their results do not establish Saga admission or guarantees. Keep claims "
-        "about changes and tests grounded in observed results."
+        "about changes and tests grounded in observed results. Two delegation "
+        "paths exist: native subagents (Agent tool) for quick bounded work whose "
+        "result you integrate yourself in this conversation, and the Odin "
+        "delegation tools (odin_delegation_session/assign/followup/status/result/"
+        "close) for accountable work that must persist as a project commitment, "
+        "run detached as a resumable Claude Code or Codex session, survive this "
+        "conversation or a service restart, or be collected later. Delegated "
+        "returns are unverified reports until you inspect the evidence and record "
+        "an accepted or cancelled disposition; they carry no isolation or Saga "
+        "guarantees."
     )
 
 
@@ -600,8 +610,6 @@ def _owned_runtime(state, *, hold_configuration=False):
 
 
 def _socket_ready(state, project):
-    from .executive_mcp import ExecutiveBridge, SocketGateway
-
     result = ExecutiveBridge(project, SocketGateway(state, timeout=2)).call(
         "odin_resume", {}
     )
@@ -780,6 +788,17 @@ def enable_repository_reads(state):
         }
 
 
+def _service_reachability(manifest):
+    if not manifest["enable_mcp"]:
+        return "unchecked"
+    try:
+        gateway = SocketGateway(manifest["state"], timeout=2)
+        result = ExecutiveBridge(manifest["project"], gateway).call("odin_resume", {})
+        return "unavailable" if result["isError"] else "reachable"
+    except Exception:
+        return "unavailable"
+
+
 def status(state):
     manifest, base = _load(state)
     pending = _pending_development(manifest, base)
@@ -811,4 +830,5 @@ def status(state):
         "sdk_adapter_enabled": False,
         "delegated_execution_enabled": False,
         "service_budget_enforced": False,
+        "service_reachability": _service_reachability(manifest),
     }

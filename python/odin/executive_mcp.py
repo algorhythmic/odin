@@ -35,7 +35,25 @@ TOOL_ACTIONS = {
     "odin_read_evidence": "memory_source_read",
     "odin_report": "executive_report",
     "odin_reports": "executive_reports",
+    "odin_delegation_session": "delegation_session",
+    "odin_delegation_assign": "delegation_assign",
+    "odin_delegation_followup": "delegation_followup",
+    "odin_delegation_status": "delegation_status",
+    "odin_delegation_result": "delegation_result",
+    "odin_delegation_close": "delegation_close",
 }
+READ_ONLY_TOOLS = frozenset(
+    {
+        "odin_resume",
+        "odin_memory_snapshot",
+        "odin_read_evidence",
+        "odin_reports",
+        "odin_delegation_status",
+        "odin_delegation_result",
+    }
+)
+MUTATING_TOOLS = frozenset(TOOL_ACTIONS) - READ_ONLY_TOOLS
+REFUSAL_CODE = re.compile(r"[a-z][a-z0-9_]{0,63}")
 TOOL_DESCRIPTIONS = {
     "odin_resume": (
         "Read the launch-bound project's current commitments, decisions, "
@@ -62,6 +80,46 @@ TOOL_DESCRIPTIONS = {
         "Read recent executive reports and proposals for the launch-bound "
         "project. These are unverified reports, separate from commitment truth."
     ),
+    "odin_delegation_session": (
+        "Create, resume or stop the project's one accountable local orchestration "
+        "session (a persisted Claude Code or Codex worker conversation in a "
+        "configured workspace). Use it for work that must outlive this "
+        "conversation, be resumed after restarts, or be accounted as a project "
+        "commitment; use ordinary native subagents for quick bounded tasks whose "
+        "result you will integrate yourself now. Records are local-backend "
+        "evidence with no isolation or Saga guarantees. Supply a new ULID "
+        "operation_id; replaying the same arguments is idempotent."
+    ),
+    "odin_delegation_assign": (
+        "Assign bounded work to the session: creates an open commitment with "
+        "acceptance criteria, a local assignment and the first worker turn. The "
+        "turn launches on the next service tick and runs detached. Budget and "
+        "iteration limits are harness options where available and must be "
+        "explicitly allowed as unenforced otherwise. Supply a new ULID "
+        "operation_id."
+    ),
+    "odin_delegation_followup": (
+        "Send a follow-up message into the session's native conversation for an "
+        "open assignment (a new turn that resumes the worker). Refused while a "
+        "turn is running. Supply a new ULID operation_id."
+    ),
+    "odin_delegation_status": (
+        "Inspect sessions, assignments and turns: launch/running/returned/failed/"
+        "interrupted/lost states, runner liveness, known cost and unknown-cost "
+        "counts. Reconciles finished runners first. Read-only; a returned turn "
+        "is an unverified worker report."
+    ),
+    "odin_delegation_result": (
+        "Collect a finished turn's full final text and transcript paths, bounded "
+        "by max_bytes (never truncated; oversize reports say so). Read-only "
+        "evidence of what the worker reported, not verification."
+    ),
+    "odin_delegation_close": (
+        "Record the executive's disposition of an assignment: accepted (every "
+        "criterion needs evidence references; closes the commitment as "
+        "executive-attributed acceptance, not Saga verification) or cancelled. "
+        "Supply a new ULID operation_id."
+    ),
 }
 
 
@@ -72,7 +130,7 @@ class ToolFailure(Exception):
 class SocketGateway:
     """One bounded request to a private, same-user executive service socket."""
 
-    def __init__(self, state, *, timeout=10):
+    def __init__(self, state, *, timeout=30):
         self.state = Path(state).resolve()
         if self.state == ROOT or ROOT in self.state.parents:
             raise ValueError("runtime state must be outside the repository")
@@ -132,7 +190,7 @@ class ExecutiveBridge:
                 "description": TOOL_DESCRIPTIONS[name],
                 "inputSchema": definitions[name],
                 "annotations": {
-                    "readOnlyHint": name != "odin_report",
+                    "readOnlyHint": name in READ_ONLY_TOOLS,
                     "destructiveHint": False,
                     "idempotentHint": True,
                     "openWorldHint": False,
@@ -153,9 +211,14 @@ class ExecutiveBridge:
             "action": TOOL_ACTIONS[name],
             "payload": payload | {"project": self.project},
         }
+        refusal = None
         try:
             receipt = self.gateway(command)
             if isinstance(receipt, dict) and "error" in receipt:
+                # Only a fixed refusal code is relayed, never an input or path.
+                detail = receipt.get("detail")
+                if isinstance(detail, str) and REFUSAL_CODE.fullmatch(detail):
+                    refusal = detail
                 raise ToolFailure("Executive service rejected the request.")
             self.contracts.validate("gateway-receipt", receipt)
             if receipt["operation_id"] != operation:
@@ -164,13 +227,17 @@ class ExecutiveBridge:
             if len(body.encode("utf-8")) > MAX_RESPONSE_BYTES // 2:
                 raise ToolFailure("Tool result exceeds the response budget.")
         except (ToolFailure, ValidationError, ValueError, OSError, RecursionError):
-            message = (
-                "Report outcome unavailable. It may already be recorded. "
-                "Reconcile using odin_reports or retry identical arguments with "
-                "the same operation_id; do not create a replacement ID."
-                if name == "odin_report"
-                else "Executive data unavailable or access denied. No data returned."
-            )
+            if name in MUTATING_TOOLS:
+                message = (
+                    "Write outcome unavailable. It may already be recorded. "
+                    "Reconcile using the matching read tool or retry identical "
+                    "arguments with the same operation_id; do not create a "
+                    "replacement ID."
+                )
+            else:
+                message = "Executive data unavailable or access denied. No data returned."
+            if refusal is not None:
+                message = f"Executive service refused the request: {refusal}."
             return {"content": [{"type": "text", "text": message}], "isError": True}
         return {"content": [{"type": "text", "text": body}], "isError": False}
 

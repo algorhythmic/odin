@@ -40,7 +40,13 @@
         "memory_source_read",
         "executive_report",
         "executive_reports",
-        "repository_import"
+        "repository_import",
+        "delegation_session",
+        "delegation_assign",
+        "delegation_followup",
+        "delegation_status",
+        "delegation_result",
+        "delegation_close"
       ]
     },
     "payload": {
