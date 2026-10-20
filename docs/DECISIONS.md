@@ -882,7 +882,9 @@ input is a third backend under D21.
 
 Ownership notes: Saga's guarantees are provided and defined by Saga;
 Odin owns the backend choice and must not advertise Saga guarantees for
-another backend.
+another backend. ODIN-ADR-026 amends D23.1–D23.3 for the operator's native
+executive development profile: direct development work does not require
+Saga or an Odin-managed backend and does not receive Saga guarantees.
 
 ### SAGA-2026-10-D24 — Authentication and billing as adapter configuration (locked; split)
 
@@ -1672,6 +1674,11 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
 
 ### ODIN-ADR-024 — Native Fable executive conversation pilot
 
+Current scope note: ADR-026 supersedes this decision's restricted launch and
+proposal-only improvement rules for native development profile version 3.
+The following records the original versions 1 and 2 and the unchanged MCP
+record semantics.
+
 - **Date/status:** 2026-10-19; operator-authorized bounded implementation.
   The operator requested subagent implementation toward Fable in the Claude
   Code harness, communicating through existing remote channels such as
@@ -1727,6 +1734,10 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
 
 ### ODIN-ADR-025 — Executive repository evidence access
 
+Current scope note: ADR-026 supersedes the native read-only boundary for
+profile version 3. Committed snapshot evidence and its provenance semantics
+remain available in every profile.
+
 - **Date/status:** 2026-10-19; operator-authorized pilot extension. The
   operator supplied the active executive's diagnosis that its MCP-only
   manifest and empty memory prevented document/implementation reconciliation,
@@ -1773,6 +1784,74 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   separation, I4's task migration, I5/I6's memory/retrieval work or Saga's
   D1/D4/D23 boundaries. Production isolation, X-12/X-13/X-15, live Saga and
   the cross-repository handoff remain open.
+
+### ODIN-ADR-026 — Native executive development access
+
+- **Date/status:** 2026-10-19; operator-authorized implementation. After the
+  initial executive could not investigate its filesystem, the operator
+  explicitly requested removal of the current runtime's imposed restrictions
+  and limitations so that it can self-improve. That instruction authorizes
+  this development profile; no additional approval or proposal-only stage is
+  introduced by this decision.
+- **Decision:** add native profile version 3, selected with
+  `executive-enable-development`. Launch the unmodified Claude Code harness
+  with its normal native tool set and system prompt, `bypassPermissions`, the
+  actual Odin checkout as cwd, the real HOME and inherited operator
+  environment. Append brief Odin context instead of replacing the harness
+  prompt. Do not apply Odin tool/path allowlists, restricted-directory mode,
+  MCP-only configuration, environment sanitization or disabling of hooks,
+  plugins, skills, native memory, discovery, browser tools or native agents.
+  Do not load the former generated restriction settings or require an Odin
+  service socket before launching native development. An unavailable service
+  makes its MCP operations unavailable without blocking the native tools.
+  Available integrations still depend on what the harness and operator
+  environment provide; configuring access does not install missing tools.
+- **Development authority:** the executive may inspect files, edit code and
+  configuration, run commands and tests, and use native agents to perform
+  operator-directed development and self-improvement. These actions are
+  ordinary native development work and do not wait for fake Saga, a proposal
+  disposition or the unfinished managed worker path. Instructions and
+  approval choices supplied by the operator still apply. The profile removes
+  Odin's runtime restrictions; it is not OS isolation or a claim of authority
+  over unrelated producer infrastructure.
+- **Continuity and activation:** retain the dedicated `CLAUDE_CONFIG_DIR`,
+  credential lineage, project binding, native session UUID and local records.
+  Selection writes a validated pending profile without interrupting a
+  running session or launching a second owner of its credentials. An
+  explicit exit and `executive-start --resume-session` normally activates it
+  as the next owned runtime operation under the existing ownership locks.
+  Status distinguishes current configuration
+  from pending development access; tests cover that staged transition. A retained dedicated login is continuity configuration, not an
+  assertion that the unrestricted process cannot reach other local files.
+- **Odin records and Saga:** preserve the additional scoped Odin MCP bridge.
+  Its model reports remain unverified and its proposals remain unapplied
+  records; native edits do not retroactively change their meaning or become
+  Saga-verified results. The local SQLite store persists independently of
+  the fake Saga execution backend. Native development work bypasses that
+  backend, not Saga's own API admission or ledger. Saga-owned interfaces,
+  identities, approvals, hosts, stores and guarantees are unchanged. The
+  full managed SDK/daemon/worker path and peer integration are not delivered
+  by this exception.
+- **Inherited relationship:** supersedes ADR-024's restricted launch and
+  proposal-only improvement rules, ADR-025's native read-only boundary, and
+  ADR-022/023's prohibition on native children for this development profile.
+  Amends Odin-owned D7.2/D7.7 invocation/interactive restrictions and
+  D19.7/D23.1–D23.3 routing rules so native development execution does not
+  require an Odin-managed backend. The I/O contract §6–§7 planner-only tool,
+  filesystem and environment isolation rules and §11 managed-child gates do
+  not apply to this profile. D24.3's Odin process-isolation requirement is
+  likewise waived here; keeping secrets out of committed source, prompts
+  and reports remains required. Dedicated login identity and single refresh
+  ownership under D24.4a/D24.6 are retained. None of these changes amends
+  Saga-owned interfaces or grants their guarantees to native development.
+- **Checks and evidence:** launch/schema regressions check normal native
+  tools, permission mode, real cwd/HOME, inherited environment, absence of
+  the former disable flags, identity preservation and deferred activation.
+  The [pilot guide](EXECUTIVE-PILOT.md) requires observed native tool use
+  after resume before reporting it as live. OS permissions, harness/provider
+  policy, account limits and installed capabilities remain actual properties
+  of the environment, not restrictions Odin can remove. Production gates
+  and the cross-repository handoff remain open.
 
 ## 5. Issues raised by the extraction
 

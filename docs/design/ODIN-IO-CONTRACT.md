@@ -44,6 +44,17 @@
 > synthetic fixtures; [implementation status](../IMPLEMENTATION-STATUS.md)
 > records their evidence and the remaining live gates.
 >
+> **Native development executive (2026-10-19).**
+> [ODIN-ADR-026](../DECISIONS.md#odin-adr-026--native-executive-development-access)
+> supersedes the restricted planner/tool/environment rules in this contract
+> for the operator's version 3 native executive only. It uses normal Claude
+> Code tools and prompt, permission bypass, the real checkout/HOME and
+> inherited environment. It may inspect, edit, execute tests/commands and use
+> native agents directly; that development work does not depend on fake Saga
+> or the unfinished managed worker path. The managed product requirements
+> below, Saga's interface/ledger guarantees and scoped MCP record semantics
+> remain separate. See the [pilot guide](../EXECUTIVE-PILOT.md).
+>
 > **Authority and reading order.** Odin's
 > [decision record](../DECISIONS.md) wins over this document; this
 > document wins over the [implementation blueprint](ODIN-IMPLEMENTATION-BLUEPRINT.md),
@@ -589,6 +600,16 @@ See [confidence](https://docs.typesafe.ai/confidence) and
 
 ## 7. Capability profiles
 
+**Scope exception (ODIN-ADR-026).** This section's restricted planner,
+read-only subagent, pre-tool denial and isolated environment requirements
+apply to the managed product profiles, not version 3 of the native
+executive. That development profile has the harness's normal tools,
+`bypassPermissions`, real checkout cwd and inherited HOME/environment; Odin
+adds no native-tool, path, plugin, hook or child-agent restriction. It is an
+operator-owned local development process with no claim of OS isolation,
+managed budgets or Saga execution guarantees. Its additional Odin MCP bridge
+still uses the fixed project/principal and truthful record semantics.
+
 Restricting Odin's wrapper tools is insufficient: the harness's native
 tools, loaded plugins and configuration must obey the same boundaries,
 enforced before tool execution. Each profile is applied by the runtime
@@ -1099,6 +1120,15 @@ conditional on a Saga-side decision (issue X-14); until it is recorded,
 this placement and route stand.
 
 ## 11. Runtime adapter
+
+The following describes the managed adapter. ADR-024 permits the native
+interactive conversation pilot, and ADR-026 additionally enables direct
+native development and agents in profile version 3. The latter uses the
+harness's normal system prompt with appended Odin context, loads the
+operator's available integrations normally, and preserves the dedicated
+Claude login and session identity. It does not wait for the SDK's managed
+child protocol to use native agents; it also does not establish that
+protocol's isolation, budgets, stop propagation or acceptance evidence.
 
 The service drives Claude Code through the Agent SDK, on the homelab
 or through the workstation session host (below): start a session

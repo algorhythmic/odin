@@ -85,6 +85,18 @@ REQUIRED_FLAGS = (
     "--system-prompt",
     "--system-prompt-snapshot",
 )
+DEVELOPMENT_REQUIRED_FLAGS = (
+    "--remote-control",
+    "--tools",
+    "--mcp-config",
+    "--session-id",
+    "--resume",
+    "--permission-mode",
+    "--model",
+    "--effort",
+    "--append-system-prompt",
+    "--system-prompt-snapshot",
+)
 
 
 def _private_directory(value, *, create=False):
@@ -287,8 +299,8 @@ def prepare(
         if (base / "manifest.json").exists():
             existing = _read(base / "manifest.json", "executive-pilot")
             manifest["native_session_id"] = existing["native_session_id"]
-            if existing["version"] == 2:
-                manifest.update(version=2, repository_root=str(ROOT))
+            if existing["version"] >= 2:
+                manifest.update(version=existing["version"], repository_root=str(ROOT))
             if existing != manifest:
                 raise ValueError(
                     "pilot already prepared with a different configuration"
@@ -324,7 +336,7 @@ def _load(state):
         _private_directory(base / name)
     _executable(manifest["claude_binary"])
     _executable(manifest["python_executable"])
-    if _read(
+    if manifest["version"] < 3 and _read(
         _settings_path(manifest, base), "executive-pilot-settings"
     ) != _manifest_settings(manifest):
         raise PermissionError("prepared settings differ from the narrow pilot policy")
@@ -336,6 +348,13 @@ def _load(state):
 
 
 def _environment(manifest, base):
+    if manifest["version"] == 3:
+        # This operator-authorized development profile uses the ordinary host
+        # environment. Retain the existing Claude login/session directory.
+        return os.environ | {
+            "HOME": pwd.getpwuid(os.getuid()).pw_dir,
+            "CLAUDE_CONFIG_DIR": manifest["config_dir"],
+        }
     # An allowlist prevents API keys, provider overrides, shell loaders,
     # developer SDK settings and unrelated service credentials from leaking.
     return {
@@ -390,10 +409,39 @@ def _prompt(project, *, repository_root=None):
 def launch_spec(state, *, resume=False):
     """Return exact argv/cwd/environment without connecting or starting Claude."""
     manifest, base = _load(state)
+    manifest = _pending_development(manifest, base) or manifest
     return _launch_spec(manifest, base, resume=resume)
 
 
 def _launch_spec(manifest, base, *, resume=False):
+    if manifest["version"] == 3:
+        argv = [
+            manifest["claude_binary"],
+            "--remote-control",
+            manifest["remote_name"],
+            "--model",
+            manifest["model"],
+            "--effort",
+            manifest["effort"],
+            "--tools",
+            "default",
+            "--permission-mode",
+            "bypassPermissions",
+            "--append-system-prompt",
+            _development_prompt(manifest),
+            # Old sessions must receive the new prompt when resumed.
+            "--system-prompt-snapshot",
+            "off",
+            "--resume" if resume else "--session-id",
+            manifest["native_session_id"],
+        ]
+        if manifest["enable_mcp"]:
+            argv.extend(["--mcp-config", str(base / "mcp.json")])
+        return {
+            "argv": argv,
+            "cwd": manifest["repository_root"],
+            "env": _environment(manifest, base),
+        }
     argv = [
         manifest["claude_binary"],
         "--remote-control",
@@ -434,6 +482,66 @@ def _launch_spec(manifest, base, *, resume=False):
     }
 
 
+def _development_prompt(manifest):
+    return (
+        "You are Odin's executive development agent. The operator has explicitly "
+        "removed the earlier conversation-only and read-only pilot restrictions "
+        "so you can investigate and improve Odin. Use the native Claude Code tools "
+        "to inspect files, edit code and documentation, execute commands and tests, "
+        "research, and delegate to native agents as the operator's work requires. "
+        f"The Odin checkout is {manifest['repository_root']}. "
+        "The old proposal-only pilot instructions are superseded for this runtime. "
+        "Implement authorized improvements and verify the resulting behavior. "
+        f"The additional Odin MCP bridge is bound to project {manifest['project']}; "
+        "it provides persistent local records and evidence. Its reports are "
+        "attributed reports, not automatic verification or approval. The label "
+        "'fake-backend evidence' describes the Saga execution backend only. "
+        "Native development commands run on this host and do not depend on Saga; "
+        "their results do not establish Saga admission or guarantees. Keep claims "
+        "about changes and tests grounded in observed results."
+    )
+
+
+def _pending_development(manifest, base):
+    path = base / "pending-development.json"
+    if not path.exists():
+        return None
+    pending = _read(path, "executive-pilot")
+    expected = manifest | {"version": 3, "repository_root": str(ROOT)}
+    if pending != expected:
+        raise PermissionError("pending development profile changed session identity")
+    return pending
+
+
+def enable_development(state):
+    """Stage the operator-authorized profile without disturbing a live session.
+
+    Activation happens under both ownership leases at the next launch. Only
+    profile/version and repository cwd change; login, native ID and records stay.
+    """
+    state = _private_directory(state)
+    base = _private_directory(state / "executive-pilot")
+    with _lease(base / "prepare.lock"):
+        manifest, base = _load(state)
+        if manifest["version"] != 3:
+            _write(
+                base / "pending-development.json",
+                "executive-pilot",
+                manifest | {"version": 3, "repository_root": str(ROOT)},
+            )
+        return {
+            "profile_version": 3,
+            "pending_activation": manifest["version"] != 3,
+            "effective_on_next_start": True,
+            "native_session_id": manifest["native_session_id"],
+            "repository_root": str(ROOT),
+            "native_tools": "default",
+            "permission_mode": "bypassPermissions",
+            "environment": "inherited_operator_environment",
+            "native_history_preserved": True,
+        }
+
+
 def login_spec(state):
     """Use exactly the same isolated HOME and credential lineage as the pilot."""
     manifest, base = _load(state)
@@ -465,7 +573,7 @@ class _LeaseBusy(PermissionError):
 
 
 @contextmanager
-def _owned_runtime(state):
+def _owned_runtime(state, *, hold_configuration=False):
     state = _private_directory(state)
     base = _private_directory(state / "executive-pilot")
     with _lease(base / "runtime.lock") as runtime_lock:
@@ -476,6 +584,18 @@ def _owned_runtime(state):
         with _lease(
             Path(manifest["config_dir"]) / ".odin-lineage.lock"
         ) as credential_lock:
+            with _lease(base / "prepare.lock"):
+                pending = _pending_development(manifest, base)
+                if pending:
+                    _write(base / "manifest.json", "executive-pilot", pending)
+                    (base / "pending-development.json").unlink()
+                    manifest = pending
+                if hold_configuration:
+                    # Identity/profile mutations must exclude concurrent staging.
+                    # Foreground sessions release this lock so an upgrade can be
+                    # requested while they remain active.
+                    yield manifest, base, runtime_lock, credential_lock
+                    return
             yield manifest, base, runtime_lock, credential_lock
 
 
@@ -492,6 +612,7 @@ def _socket_ready(state, project):
 def probe(state):
     """Read-only CLI help/version probe; no authentication or model request."""
     manifest, base = _load(state)
+    manifest = _pending_development(manifest, base) or manifest
     environment = _environment(manifest, base)
     results = []
     for flag in ("--version", "--help"):
@@ -505,7 +626,10 @@ def probe(state):
             check=True,
         )
         results.append(result.stdout)
-    missing = [flag for flag in REQUIRED_FLAGS if flag not in results[1]]
+    required = (
+        DEVELOPMENT_REQUIRED_FLAGS if manifest["version"] == 3 else REQUIRED_FLAGS
+    )
+    missing = [flag for flag in required if flag not in results[1]]
     if manifest["version"] == 2 and "--add-dir" not in results[1]:
         missing.append("--add-dir")
     return {
@@ -545,7 +669,7 @@ def start(state, *, resume=False):
                 "executive-start --resume-session through the same Odin launcher. "
                 "No directory change is needed."
             )
-        if manifest["enable_mcp"]:
+        if manifest["enable_mcp"] and manifest["version"] < 3:
             _socket_ready(manifest["state"], manifest["project"])
         capability = probe(state)
         if capability["missing_flags"]:
@@ -593,7 +717,12 @@ def new_session(state):
     This never infers whether Claude created a conversation. It retains the
     old UUID/launch observation and requires both ownership leases to be free.
     """
-    with _owned_runtime(state) as (manifest, base, _runtime_lock, _credential_lock):
+    with _owned_runtime(state, hold_configuration=True) as (
+        manifest,
+        base,
+        _runtime_lock,
+        _credential_lock,
+    ):
         previous = manifest["native_session_id"]
         receipt = base / "launch.json"
         observation = (
@@ -625,7 +754,12 @@ def enable_repository_reads(state):
     session must exit first: both ownership leases are acquired before loading
     or changing the profile, just as for start and native identity rotation.
     """
-    with _owned_runtime(state) as (manifest, base, _runtime_lock, _credential_lock):
+    with _owned_runtime(state, hold_configuration=True) as (
+        manifest,
+        base,
+        _runtime_lock,
+        _credential_lock,
+    ):
         if manifest["version"] == 1:
             manifest = {**manifest, "version": 2, "repository_root": str(ROOT)}
             _write(
@@ -637,7 +771,9 @@ def enable_repository_reads(state):
         return {
             "profile_version": manifest["version"],
             "repository_root": manifest["repository_root"],
-            "native_tools": list(REPOSITORY_TOOLS),
+            "native_tools": "default"
+            if manifest["version"] == 3
+            else list(REPOSITORY_TOOLS),
             "native_session_id": manifest["native_session_id"],
             "native_history_preserved": True,
             "effective_on_next_start": True,
@@ -646,6 +782,7 @@ def enable_repository_reads(state):
 
 def status(state):
     manifest, base = _load(state)
+    pending = _pending_development(manifest, base)
     running = False
     if (base / "runtime.lock").exists():
         try:
@@ -659,7 +796,10 @@ def status(state):
     return {
         "mode": "native-claude-code-executive-pilot",
         "configuration": manifest,
-        "repository_reads_enabled": manifest["version"] == 2,
+        "repository_reads_enabled": manifest["version"] >= 2,
+        "development_enabled": manifest["version"] == 3,
+        "pending_profile_version": pending["version"] if pending else None,
+        "pending_activation_requires_resume": pending is not None,
         "process_lease_held": running,
         "last_launch": receipt,
         "credential_file_present": (

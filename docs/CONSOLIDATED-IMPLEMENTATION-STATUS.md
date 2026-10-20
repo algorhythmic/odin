@@ -28,6 +28,15 @@ Read/Glob/Grep profile for the next explicit native session resume. Reports
 and imported evidence persist in local SQLite; the legacy fake-backend
 label describes the execution backend, not an ephemeral record store.
 
+The development-profile slice under ADR-026 removes the native pilot's
+Odin-imposed tool, directory and environment restrictions. Version 3 runs
+normal Claude Code tools and prompt with permission bypass, real checkout
+cwd/HOME, inherited environment and normal integration loading. It retains
+the dedicated login, session identity and additional Odin MCP bridge.
+Inspection, edits, commands, tests and native agents can perform development
+directly; the fake backend is not in that execution path, and an unavailable
+Odin service does not block native startup. Selecting the profile and observing it in a resumed live session are separate evidence.
+
 ## Delivered behavior
 
 | Area | Implementation and evidence | Boundary |
@@ -39,7 +48,8 @@ label describes the execution backend, not an ephemeral record store.
 | Continuity demonstration | [integration demo](../python/odin/integration_demo.py) and [integration tests](../tests/test_continuity_integration.py) | Attributed source changes, checkpoint, prepared decision, outage/recovery, restart and exact evidence; reported success leaves independent verification unmet |
 | Human and machine views | Human briefing renders the exact bounded `machine_view` from the demo | Both use an operator-authenticated local context; this does not establish a live planner/worker gateway route |
 | Repository evidence | [committed-text importer](../python/odin/repository_memory.py), operator gateway action and exact catalog reads; [tests](../tests/test_repository_memory.py) | Explicit committed selection, project-bound readers, replay-safe batches and no live checkout watcher; no semantic statements are invented |
-| Native repository reads | Opt-in versioned pilot profile preserves session identity on explicit resume; [tests](../tests/test_executive_runtime.py) | Claude-enforced Read/Glob/Grep only, private Read denies and best-effort search exclusions; not OS process isolation |
+| Native repository reads | Retained version 2 profile preserves session identity on explicit resume; [tests](../tests/test_executive_runtime.py) | Read-only boundaries describe version 2 only; version 3 supersedes them |
+| Native development | Version 3 uses the normal native tool set, permission bypass, real checkout cwd/HOME and inherited environment; dedicated login/session and MCP bridge retained | Startup changes require exit/resume; actual model/tool behavior requires live observation; no claim of managed isolation, budgets or Saga guarantees |
 
 Exact-read results are not cached in gateway receipts, so old commands
 cannot replay content after access changes. The recorded command retains
@@ -54,9 +64,9 @@ or enlarge their own project scope in the payload.
 | OHS-01 | Implementation baseline integrated and reproduced | Browser-retention and early-pilot dispositions, plus producer-owned EC-13/14 records, remain separate work |
 | OHS-03 | Odin-local exact-read request/result schemas and synthetic contract cases added | Published Skald/Heimdall contracts and complete task-import mapping; local schemas are not peer wire contracts |
 | OHS-04 | First continuity slice implemented and exercised | Portfolio presentation, typed checkpoint/progress admission, source enrollment/health before first capture, and full omission/pagination coverage |
-| OHS-05 | Native executive conversation pilot implemented under ADR-024, repository evidence added under ADR-025; operator reports an active session | End-to-end pilot acceptance; full profile isolation, authenticated host transport and Saga Phase B gates remain separate |
+| OHS-05 | Native executive conversation under ADR-024, repository evidence under ADR-025 and native development profile under ADR-026; operator reports an active session | Version 3 activation/live tool checks; full managed profile isolation, authenticated host transport and Saga Phase B gates remain separate |
 | OHS-06/07 | Synthetic demonstrations only | Reviewed task migration, enforceable old-writer retirement, pinned producer feeds and their existing live gates |
-| OHS-08/09 | Executive diagnosis recorded as an inert proposal; repository evidence can support reconciliation | Independently verified Fable/remote dialogue, governed changes, connected feeds and cutover acceptance |
+| OHS-08/09 | Executive diagnosis persists; repository evidence and version 3 native development support reconciliation and direct improvement | Independently verified Fable/remote dialogue, measured improvement, connected feeds and managed cutover acceptance |
 
 The OHS-02 repairs are in the user's separate Heimdall/Skald sessions. No
 peer repository, installed source configuration or desktop setting changed
@@ -135,6 +145,17 @@ full check passes 13 documentation regressions, 94 contract cases, 24
 transitions, Go tests and 73/19 shared parity fixtures. These are component
 checks; actual native Read/Glob/Grep behavior still needs an explicit pilot
 resume and observation.
+
+The ADR-026 full check passes 252 Python tests, including 42 executive-runtime
+tests and 8 new development-profile cases, plus documentation integrity,
+13 documentation regressions, 94 contract cases, 24 transitions, Go tests and
+73/19 shared parity fixtures. These checks cover launch construction, inherited environment,
+normal prompt/tool behavior in the prepared command, identity preservation
+and activation without interrupting the current process. Configuration locking
+also prevents profile staging from racing a native session identity rotation. Command construction
+is not proof of live tool behavior: record an actual read, edit/test or native
+agent invocation after resume separately. Earlier read-boundary checks apply
+only to retained version 2, not the unrestricted development profile.
 
 The implementation check commands are:
 

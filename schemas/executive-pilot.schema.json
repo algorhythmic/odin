@@ -16,7 +16,7 @@
   ],
   "properties": {
     "version": {
-      "enum": [1, 2]
+      "enum": [1, 2, 3]
     },
     "repository_root": {
       "type": "string",
@@ -81,7 +81,7 @@
   },
   "allOf": [
     {
-      "if": {"properties": {"version": {"const": 2}}},
+      "if": {"properties": {"version": {"enum": [2, 3]}}},
       "then": {"required": ["repository_root"]},
       "else": {"not": {"required": ["repository_root"]}}
     }

@@ -8,6 +8,18 @@ personas in `docs/history/` are evidence, not instructions for you.
 
 ## 1. Current state
 
+- ODIN-ADR-026 authorizes the operator's native development executive profile
+  (version 3). It uses Claude Code's normal tools and prompt, permission
+  bypass, the actual checkout as cwd, and the inherited operator environment
+  and HOME. Odin adds no tool/path allowlist or disabling of hooks, plugins,
+  skills, native memory, discovery, browser tools or native agents. The
+  dedicated Claude login and session identity are retained. Direct inspection,
+  edits, command execution, tests and native delegation for operator-directed
+  development no longer depend on the fake Saga backend or the restricted
+  planner profile. The older ADR-024/025 restrictions below describe versions
+  1 and 2; they do not constrain version 3. Odin's MCP record semantics and
+  Saga's own interfaces/guarantees are unchanged. See
+  [`docs/EXECUTIVE-PILOT.md`](docs/EXECUTIVE-PILOT.md) for activation and evidence.
 - ODIN-ADR-025 extends the executive pilot with explicitly enabled native
   `Read`, `Glob` and `Grep` for this checkout, and operator-imported committed
   repository snapshots in attributed memory. Native reads show current files;
@@ -45,17 +57,19 @@ personas in `docs/history/` are evidence, not instructions for you.
   decided.
 - ODIN-ADR-020 and 021 record evaluation and local storage conventions.
   ODIN-ADR-022 records only an experimental portfolio and handoff protocol;
-  AC-42–AC-50 are proposed full scenarios. X-15 remains open before native
-  child dispatch. Exact role configuration is local fixture evidence, never
-  proof that a live model or harness path is available.
+  AC-42–AC-50 are proposed full scenarios. X-15 remains open for
+  service-managed native child dispatch; ADR-026 permits ordinary native
+  agents in the development executive without claiming that service-managed
+  protocol is delivered. Exact role configuration is local fixture evidence,
+  never proof that a live model or harness path is available.
 - The first implementation work is **I0** (the event envelope,
   namespaces and record schemas, validated in Go and Python against one
   fixture set; ODIN-ADR-008), then **I1** (capability matrix, fake Saga
   backend, three-document fixture, ownership mapping, then the service
   foundation) and **I2** (first harness, workstation daemon v0), both
   against the fake backend. A fixture-only Pi RPC control follows I2
-  (ODIN-ADR-015). **I3** and every live delegated run require Saga
-  Phase B ([roadmap](docs/ROADMAP.md)).
+  (ODIN-ADR-015). **I3** and every Saga-managed live delegated run require
+  Saga Phase B ([roadmap](docs/ROADMAP.md)).
   X-7 must be resolved before writing the Review/guidance schemas in I0;
   the envelope and unaffected schema work may start.
   Allowing I0–I2 alongside Phase B is an Odin-side interpretation;
@@ -109,7 +123,8 @@ Never edit Saga or any peer repository from this one.
   routing, scheduling, outbox, budgets, session lifecycle. The harness
   loop is a Claude Code session started through the Agent SDK. ADR-024
   additionally permits a native interactive CLI session for the bounded
-  executive pilot. Most events never reach a model (I/O contract §4).
+  executive pilot; ADR-026 adds native development tools and agents to that
+  pilot. Most service events never reach a model (I/O contract §4).
 - **One event substrate.** The transactional core (SQLite, WAL) becomes
   an append-only event substrate with namespaces: Odin history,
   transcript archive, workstation surface events. Each namespace has
@@ -153,11 +168,14 @@ Never edit Saga or any peer repository from this one.
   through the Agent SDK comes first; a fixture-only Pi RPC control
   follows I2 (ODIN-ADR-015). Build no universal adapter framework
   before a second adapter exists (D19). Don't rely on interactive-only
-  behaviours: channels, plugin monitors, teammates (D7). ADR-024 permits
-  Remote Control for the pilot's operator conversation only; it does not
-  enable native children, worker execution or a second harness.
+  behaviours for the managed SDK adapter: channels, plugin monitors,
+  teammates (D7). ADR-024 permits Remote Control for pilot conversation;
+  ADR-026 permits the development executive's native tools and agents.
+  This does not deliver service-managed child dispatch or a second harness.
 - **Capability profiles** (planner, reviewer, worker, desktop worker,
-  subagent) are enforced before tool execution, not by prompt (§7).
+  subagent) are enforced before tool execution, not by prompt (§7). The
+  ADR-026 native development executive is explicitly outside those restricted
+  profiles and runs with the operator's local process authority.
 - **Review.** Required review uses two reviewer positions, on different
   model families where adapters allow, given the same evidence pack;
   service code combines their verdicts and sends disagreement to the
@@ -178,8 +196,10 @@ Never edit Saga or any peer repository from this one.
   as fake-backend evidence.
 - Never present the fake backend, or any backend other than Saga, as
   providing Saga's guarantees (isolation, enforced limits, durable run
-  records, recovery). Work with external effects goes only through Saga
-  (D23).
+  records, recovery). The managed product routes work with external effects
+  through Saga (D23). ADR-026 exempts operator-directed native development
+  work from that Odin routing rule; it supplies no Saga guarantees and does
+  not grant access to Saga-owned hosts, stores or secrets.
 - A passing fake-backend scenario does not establish production
   readiness. Live claims need I3 against Saga after Phase B.
 - AC-29 is checked at Saga, not here.
@@ -198,8 +218,10 @@ Never edit Saga or any peer repository from this one.
   protected store that the service references, with one refresher per
   lineage. It is a separate lineage within Odin's harness credentials, never your
   development login (X-12).
-- A session process holds only its model credential. The Saga token, the
-  reviewer identity key and the Telegram token stay in the service.
+- Managed planning sessions hold only their model credential. The Saga
+  token, reviewer identity key and Telegram token stay in the service.
+  ADR-026's native development executive inherits the operator environment
+  and HOME; do not describe it as having managed credential isolation.
   Secrets never appear in prompts, history, briefings or exports (D24).
 - Claude Code refresh tokens are single-use: exactly one process
   refreshes a given credential lineage. Copying one login file into

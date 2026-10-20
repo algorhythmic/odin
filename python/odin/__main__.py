@@ -55,6 +55,7 @@ def main():
             "executive-start",
             "executive-new-session",
             "executive-enable-repository-reads",
+            "executive-enable-development",
             "repository-import",
         ],
     )
@@ -158,9 +159,14 @@ def main():
             sys.exit(executive_runtime.login(state))
         elif args.action == "executive-new-session":
             print(canonical(executive_runtime.new_session(state)))
-        elif args.action == "executive-enable-repository-reads":
+        elif args.action in ("executive-enable-repository-reads", "executive-enable-development"):
             try:
-                print(canonical(executive_runtime.enable_repository_reads(state)))
+                enable = (
+                    executive_runtime.enable_development
+                    if args.action == "executive-enable-development"
+                    else executive_runtime.enable_repository_reads
+                )
+                print(canonical(enable(state)))
             except PermissionError as error:
                 parser.exit(2, f"odin: {error}\n")
         else:

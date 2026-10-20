@@ -180,6 +180,189 @@ class ExecutiveRuntimeTests(unittest.TestCase):
         self.assertIn("fake Saga execution backend", prompt)
         self.assertTrue(runtime.status(self.state)["repository_reads_enabled"])
 
+    def test_development_can_be_staged_while_session_is_active_without_mutating_it(
+        self,
+    ):
+        original = self.prepare()
+        base = self.state / "executive-pilot"
+        manifest = (base / "manifest.json").read_bytes()
+        settings = (base / "settings.json").read_bytes()
+        with (
+            runtime._lease(base / "runtime.lock"),
+            runtime._lease(self.profile / ".odin-lineage.lock"),
+        ):
+            result = runtime.enable_development(self.state)
+            self.assertEqual(result, runtime.enable_development(self.state))
+            current = runtime.status(self.state)
+        self.assertTrue(result["pending_activation"])
+        self.assertEqual(result["native_session_id"], original["native_session_id"])
+        self.assertEqual((base / "manifest.json").read_bytes(), manifest)
+        self.assertEqual((base / "settings.json").read_bytes(), settings)
+        self.assertEqual(current["configuration"]["version"], 1)
+        self.assertEqual(current["pending_profile_version"], 3)
+        self.assertTrue(current["process_lease_held"])
+        self.assertFalse(current["development_enabled"])
+
+    def test_development_launch_uses_full_native_tools_environment_and_checkout(self):
+        original = self.prepare()
+        runtime.enable_development(self.state)
+        with patch.dict(
+            os.environ, {"ODIN_SYNTHETIC_ENV": "retained", "PATH": "/synthetic/bin"}
+        ):
+            spec = runtime.launch_spec(self.state, resume=True)
+        argv = spec["argv"]
+        self.assertEqual(argv[argv.index("--tools") + 1], "default")
+        self.assertEqual(argv[argv.index("--permission-mode") + 1], "bypassPermissions")
+        self.assertEqual(
+            argv[argv.index("--resume") + 1], original["native_session_id"]
+        )
+        self.assertEqual(argv[argv.index("--system-prompt-snapshot") + 1], "off")
+        for removed in (
+            "--restricted",
+            "--strict-mcp-config",
+            "--allowedTools",
+            "--settings",
+            "--setting-sources",
+            "--disable-slash-commands",
+            "--no-chrome",
+            "--system-prompt",
+        ):
+            self.assertNotIn(removed, argv)
+        self.assertIn("--mcp-config", argv)
+        self.assertEqual(spec["cwd"], str(ROOT))
+        self.assertEqual(spec["env"]["HOME"], runtime.pwd.getpwuid(os.getuid()).pw_dir)
+        self.assertEqual(spec["env"]["CLAUDE_CONFIG_DIR"], str(self.profile))
+        self.assertEqual(spec["env"]["ODIN_SYNTHETIC_ENV"], "retained")
+        self.assertEqual(spec["env"]["PATH"], "/synthetic/bin")
+        prompt = argv[argv.index("--append-system-prompt") + 1]
+        self.assertIn("edit code and documentation", prompt)
+        self.assertIn("old proposal-only pilot instructions are superseded", prompt)
+
+    def test_development_resume_activates_profile_even_when_odin_service_is_offline(
+        self,
+    ):
+        original = self.prepare()
+        runtime.enable_repository_reads(self.state)
+        runtime.enable_development(self.state)
+        with (
+            patch.object(sys.stdin, "isatty", return_value=True),
+            patch.object(sys.stdout, "isatty", return_value=True),
+            patch.object(runtime, "probe", return_value={"missing_flags": []}),
+            patch.object(
+                runtime, "_socket_ready", side_effect=PermissionError("offline")
+            ) as socket_ready,
+            patch.object(runtime, "_foreground", return_value=0) as foreground,
+        ):
+            self.assertEqual(runtime.start(self.state, resume=True), 0)
+        socket_ready.assert_not_called()
+        spec = foreground.call_args.args[0]
+        self.assertEqual(spec["cwd"], str(ROOT))
+        self.assertEqual(
+            spec["argv"][spec["argv"].index("--resume") + 1],
+            original["native_session_id"],
+        )
+        current = runtime.status(self.state)
+        self.assertTrue(current["development_enabled"])
+        self.assertIsNone(current["pending_profile_version"])
+        self.assertEqual(current["last_launch"]["exit_code"], 0)
+        self.assertEqual(self.prepare()["version"], 3)
+        self.assertFalse(runtime.enable_development(self.state)["pending_activation"])
+        self.assertEqual(
+            runtime.enable_repository_reads(self.state)["native_tools"], "default"
+        )
+
+    def test_development_activation_requires_both_session_ownership_leases(self):
+        self.prepare()
+        runtime.enable_development(self.state)
+        base = self.state / "executive-pilot"
+        for path in (base / "runtime.lock", self.profile / ".odin-lineage.lock"):
+            with (
+                runtime._lease(path),
+                patch.object(sys.stdin, "isatty", return_value=True),
+                patch.object(sys.stdout, "isatty", return_value=True),
+                self.assertRaisesRegex(PermissionError, "active owner"),
+            ):
+                runtime.start(self.state, resume=True)
+            self.assertEqual(runtime.status(self.state)["configuration"]["version"], 1)
+            self.assertTrue((base / "pending-development.json").exists())
+
+    def test_interrupted_development_activation_preserves_resumable_identity(self):
+        original = self.prepare(enable_mcp=False)
+        runtime.enable_development(self.state)
+        original_write = runtime._write
+
+        def fail_manifest(path, name, value):
+            if path.name == "manifest.json":
+                raise OSError("synthetic interrupted activation")
+            return original_write(path, name, value)
+
+        with (
+            patch.object(runtime, "_write", side_effect=fail_manifest),
+            patch.object(sys.stdin, "isatty", return_value=True),
+            patch.object(sys.stdout, "isatty", return_value=True),
+            self.assertRaisesRegex(OSError, "interrupted activation"),
+        ):
+            runtime.start(self.state, resume=True)
+        current = runtime.status(self.state)
+        self.assertEqual(
+            current["configuration"]["native_session_id"], original["native_session_id"]
+        )
+        self.assertEqual(current["configuration"]["version"], 1)
+        self.assertEqual(current["pending_profile_version"], 3)
+        with (
+            patch.object(sys.stdin, "isatty", return_value=True),
+            patch.object(sys.stdout, "isatty", return_value=True),
+            patch.object(runtime, "probe", return_value={"missing_flags": []}),
+            patch.object(runtime, "_foreground", return_value=0),
+        ):
+            runtime.start(self.state, resume=True)
+        self.assertTrue(runtime.status(self.state)["development_enabled"])
+
+    def test_pending_development_cannot_replace_the_saved_session_identity(self):
+        self.prepare()
+        runtime.enable_development(self.state)
+        path = self.state / "executive-pilot" / "pending-development.json"
+        pending = json.loads(path.read_text())
+        pending["native_session_id"] = str(runtime.uuid.uuid4())
+        path.write_text(json.dumps(pending))
+        with self.assertRaisesRegex(PermissionError, "changed session identity"):
+            runtime.launch_spec(self.state, resume=True)
+
+    def test_staging_cannot_race_native_identity_rotation(self):
+        original = self.prepare()
+        original_write = runtime._write
+        attempted = []
+
+        def concurrent_stage(path, name, value):
+            if path.name == "manifest.json":
+                attempted.append(True)
+                with self.assertRaisesRegex(PermissionError, "active owner"):
+                    runtime.enable_development(self.state)
+            return original_write(path, name, value)
+
+        with patch.object(runtime, "_write", side_effect=concurrent_stage):
+            rotated = runtime.new_session(self.state)
+        self.assertTrue(attempted)
+        self.assertNotEqual(rotated["native_session_id"], original["native_session_id"])
+        staged = runtime.enable_development(self.state)
+        self.assertEqual(staged["native_session_id"], rotated["native_session_id"])
+        self.assertEqual(runtime.status(self.state)["pending_profile_version"], 3)
+
+    def test_development_probe_checks_new_flags_without_requiring_old_restrictions(
+        self,
+    ):
+        self.prepare(enable_mcp=False)
+        runtime.enable_development(self.state)
+        outputs = [
+            subprocess.CompletedProcess([], 0, stdout="synthetic CLI\n"),
+            subprocess.CompletedProcess(
+                [], 0, stdout=" ".join(runtime.DEVELOPMENT_REQUIRED_FLAGS)
+            ),
+        ]
+        with patch.object(runtime.subprocess, "run", side_effect=outputs):
+            self.assertEqual(runtime.probe(self.state)["missing_flags"], [])
+        self.assertNotIn("--mcp-config", runtime.launch_spec(self.state)["argv"])
+
     def test_repository_settings_deny_mutation_secrets_and_runtime_state(self):
         self.prepare()
         runtime.enable_repository_reads(self.state)

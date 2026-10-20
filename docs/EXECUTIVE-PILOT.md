@@ -1,14 +1,18 @@
-# Fable executive conversation pilot
+# Fable executive development runtime
 
-Status: bounded implementation under
-[ODIN-ADR-024](DECISIONS.md#odin-adr-024--native-fable-executive-conversation-pilot)
+Status: native development profile under
+[ODIN-ADR-026](DECISIONS.md#odin-adr-026--native-executive-development-access),
+building on [ODIN-ADR-024](DECISIONS.md#odin-adr-024--native-fable-executive-conversation-pilot)
 and [ODIN-ADR-025](DECISIONS.md#odin-adr-025--executive-repository-evidence-access),
 2026-10-19. Preparation and component checks do not establish a live login,
 Fable entitlement, Remote Control connection or production readiness.
 
 This pilot gives the operator a persistent conversation with Fable in native
-Claude Code, with scoped access to Odin's local continuity records. It is a
-first place to test executive behavior and collect improvement proposals.
+Claude Code, with scoped access to Odin's local continuity records. The
+version 3 development profile also gives it the normal native tools and
+operator environment to inspect, implement, test and improve Odin directly.
+The older versions 1 and 2 remain restricted profiles; their limitations do
+not apply after the development upgrade.
 The local Odin service stores memory and reports in persistent SQLite. Its
 execution backend is still fake Saga, so results retain the compatibility
 label `fake-backend evidence` even when the conversation uses a live model.
@@ -22,11 +26,11 @@ make this distinction explicit; it does not confer live Saga guarantees.
 |---|---|
 | Conversation | Native interactive Claude Code, requesting `claude-fable-5-1`; Remote Control provides the human interface |
 | Continuity | Read the bound project's commitments, unresolved work, memory coverage and exact source revisions through the service |
-| Repository evidence | Opt-in native `Read`, `Glob`, `Grep` for current checkout files; operator-imported committed snapshots through the existing memory tools |
+| Repository and environment | Version 3 uses the normal native file, shell and edit tools with the real checkout cwd/HOME and inherited environment; committed snapshots remain available through Odin memory |
 | Progress | Record and read back explicitly unverified reports; a report does not close a commitment or verify an outcome |
-| Improvement | Record unapplied proposals for later evidence, review and regression work |
+| Improvement | Inspect, edit, execute commands/tests and use native agents for operator-directed development; report evidence and resulting changes |
 | Authority | `fable-executive` is a coordinator bound by the service to one project; model tool arguments cannot select a different principal |
-| Execution | No Saga worker launch, native child dispatch, shell or file-write tools, approval/grant tool, or policy/repository mutation through the bridge |
+| Execution | Normal native development execution with permission bypass; the added MCP bridge does not itself expose Saga worker launch or approval/grant tools |
 | Runtime | An operator-launched local pilot; the authenticated homelab/workstation daemon and full SDK lifecycle remain future work |
 
 There is no service-enforced model cost or turn budget in this pilot. Native
@@ -38,6 +42,67 @@ Those records remain in Odin's existing service paths. Ordinary chat stays
 in Claude Code's native transcript; it is not automatically captured into
 Odin memory, interpreted as progress, or recorded as an authenticated
 operator command. A statement relayed by the model is a model report.
+
+## Enable the development profile
+
+For the existing workstation runtime, select the version 3 profile with:
+
+```bash
+~/.local/state/odin-executive-pilot/run executive-enable-development
+~/.local/state/odin-executive-pilot/run executive-status
+```
+
+This writes a validated pending profile without interrupting the active
+Claude process. Status distinguishes the current configured profile from
+pending development access. Startup arguments cannot change the tool
+manifest of an already running conversation. Exit Claude when ready, then
+resume the same session:
+
+```bash
+~/.local/state/odin-executive-pilot/run executive-start --resume-session
+```
+
+The next owned runtime operation, normally this resume, activates the
+pending profile under the existing launch and credential-ownership locks. It preserves the native session UUID, dedicated
+login, project binding, conversation and local Odin records. The equivalent
+repository commands are:
+
+```bash
+.venv/bin/python -m odin --state "$ODIN_PILOT_STATE" executive-enable-development
+.venv/bin/python -m odin --state "$ODIN_PILOT_STATE" executive-start --resume-session
+```
+
+No additional development flag is needed on subsequent resumes.
+
+Version 3 uses Claude Code's normal native tools and system prompt, appends
+brief Odin context, selects `bypassPermissions`, starts in the actual Odin
+checkout, and inherits the real HOME and operator environment. Odin no longer
+restricts native tools or filesystem paths, limits MCP discovery to its own
+server, or disables hooks, plugins, skills, native memory, browser tools or
+native agents. The old generated settings files remain on disk but version
+3 does not load them or pass an overriding settings file. These capabilities
+load through the harness's normal configuration mechanisms; the upgrade does
+not install missing integrations.
+The dedicated `CLAUDE_CONFIG_DIR` is retained for the existing login and
+session history. It is not an isolation boundary from the rest of the local
+environment.
+
+The executive can now implement and test improvements directly. It does not
+need to wait for the fake Saga backend or obtain a proposal disposition to
+perform operator-directed native development. Existing project instructions
+and explicit operator choices still apply. Odin's MCP principal remains
+bound to its project, and recorded reports/proposals retain their existing
+meaning: a native edit is evidence of a change, not automatically a
+Saga-verified outcome or a rewritten approval record.
+
+An unavailable Odin service does not prevent version 3 from launching native
+development. Its added MCP reads/reports will be unavailable until the service
+is reachable; the runtime must report that condition without treating it as a
+loss of native coding capability.
+
+The actual source checkout is `/home/david/.codex/worktrees/23e7/odin`, with
+design documents under `docs/`. Current native files and committed Odin
+memory are different evidence: import a new commit to refresh the latter.
 
 ## Prepare the local pilot
 
@@ -90,9 +155,9 @@ In another terminal, with the same repository and Python environment:
 .venv/bin/python -m odin --state "$ODIN_PILOT_STATE" executive-start
 ```
 
-The executive uses the dedicated `executive.sock` service binding and its
-own prepared workspace. Native login, workspace-trust and Remote Control
-dialogs must be completed in Claude Code. Follow the session URL or QR code
+The executive uses the dedicated `executive.sock` service binding. Versions
+1 and 2 use a prepared workspace; version 3 starts in the actual checkout.
+Native login, workspace-trust and Remote Control dialogs must be completed in Claude Code. Follow the session URL or QR code
 shown there to connect from the Claude app or browser. Observe an actual
 Fable response and connected Remote Control state before describing either
 as working. A running process can coexist with a failed remote connection.
@@ -118,13 +183,13 @@ Herdr's terminal, with:
 ~/.local/state/odin-executive-pilot/run executive-start --resume-session
 ```
 
-The launcher selects the workspace, dedicated login, tools and saved session;
-no `cd` is needed. Running bare `claude` from that workspace bypasses those
-settings and can load the development profile's hooks. An error such as
-`heimdall: json: unknown field "scratchpad_dir"` from that ordinary profile
-is a separate hook compatibility issue, not an Odin resume error. The Odin
-launcher disables inherited hooks. A repeated `executive-start` now prints
-the explicit resume instruction without a Python traceback.
+The launcher selects the cwd, dedicated login, current/pending profile and
+saved session; no `cd` is needed. Running bare `claude` bypasses that identity
+and profile selection. Versions 1 and 2 disable inherited hooks; version 3
+loads hooks normally. An error such as
+`heimdall: json: unknown field "scratchpad_dir"` is a separate hook
+compatibility issue, not an Odin resume error. A repeated `executive-start`
+prints the explicit resume instruction without a Python traceback.
 
 If a launch ended before Claude created a resumable session, or the operator
 intends to start a fresh conversation, allocate a new native ID explicitly:
@@ -138,13 +203,19 @@ The reset requires the launch/credential locks to be free, archives launch
 metadata and retains native transcripts. It does not erase project records
 or recover a failed operation by silently replaying it.
 
-## Enable repository evidence
+## Repository evidence and the retained read-only profile
+
+Version 3 already exposes native file tools. The following version 2 upgrade
+is retained for an operator who specifically selects read-only access; it is
+not a prerequisite or restriction on the development profile. The committed
+snapshot import described below works independently of native tool access.
 
 The original profile intentionally exposes only five `odin_*` MCP tools. It
 does not hide the native read tools in a deferred pool: they were excluded
 from the launch. An empty memory snapshot means no sources have been
-imported for the project. The prepared conversation workspace is separate
-from the source checkout and is intentionally empty.
+imported for the project. The original prepared conversation workspace is
+separate from the source checkout and is intentionally empty; version 3 uses the
+checkout itself.
 
 For native reads, exit the Claude conversation first, then resume it with
 the workstation launcher:
@@ -171,8 +242,8 @@ prompt. For this pilot checkout it is
 current checkout contents, including any uncommitted edits. They are not
 automatically saved as Odin evidence.
 
-The launch uses Claude Code's restricted mode and an explicit additional
-repository directory. It enables only `Read`, `Glob` and `Grep` in addition
+The version 2 launch uses Claude Code's restricted mode and an explicit
+additional repository directory. It enables only `Read`, `Glob` and `Grep` in addition
 to the existing MCP bridge, with Read exclusions for private files and the
 runtime/credential directories. These are harness permission controls,
 not OS isolation. Search exclusions are best effort; verify actual native
@@ -219,13 +290,14 @@ which obligations, evidence and source coverage are available. An empty
 project should be reported as empty; it should not invent completed work or
 infer that peer feeds are connected.
 
-Then ask for a progress report and an improvement proposal, each with a
-short explanation of its basis. Read them back from the service and check
-that they remain `unverified` and `applied: false`. The first loop is:
-operator test, recorded observation/proposal, bounded implementation change,
-regression check, then another operator test. Proposals are not executable
-instructions. The existing reviewed-correction component is a later path
-for evidenced changes, not an automatic consumer of these pilot reports.
+For version 3, ask for an evidence-backed discrepancy, an implemented fix,
+and an appropriate test, then inspect the resulting diff and test output.
+That loop can run with the native development tools. Ask for a progress
+report or proposal when useful; service readback still marks that record
+`unverified` and `applied: false`. Those fields describe the report record,
+not a prohibition on separately authorized native implementation. The
+reviewed-correction component remains a separate managed path and does not
+automatically consume pilot reports or verify native edits.
 
 | Acceptance observation | Evidence required |
 |---|---|
@@ -235,17 +307,18 @@ for evidenced changes, not an automatic consumer of these pilot reports.
 | Reports persist | Unverified report/proposal readback after reconnect or service restart; no canonical completion or policy change |
 | Direct control works | Operator interrupt/exit stops the native session without waiting for a model decision |
 | Resume preserves continuity | Same intended session resumes, can read current service state, and does not duplicate or claim application of prior reports |
-| Repository tools are visible | After profile upgrade/resume, native `Read`, `Glob`, `Grep` appear and a read of the configured checkout succeeds |
+| Development tools are visible | After version 3 resume, inspect the native tool manifest and perform a real checkout read plus an operator-requested edit/test; observe native agents separately if used |
 | Repository evidence persists | Catalog discovery and exact source reads show the selected commit after service restart; no live-update claim is made |
-| Read boundaries hold | Actual native checks refuse out-of-scope/private reads and keep shell/edit tools unavailable; tests of launch arguments alone are insufficient |
+| Selected profile is active | Status distinguishes pending and active configuration; the resumed process uses the same session identity, real checkout and intended environment. Version 2 read-boundary checks apply only when that older profile is selected |
 | Failure is visible | Service outage, model refusal, missing login or Remote Control failure is distinguishable from success |
 
 These are pilot checks, not new completed AC scenarios. Keep live receipts
 outside the repository and avoid committing conversation, account or
 credential material. Synthetic tests of launch construction and the MCP
 boundary establish only the cases exercised. Full I2/I3, Saga Phase B,
-native children, peer feeds and production credential/process isolation
-remain separate gates.
+service-managed children, peer feeds and production credential/process
+isolation remain separate gates; ordinary version 3 native agents do not
+wait on that managed-child implementation.
 
 ## Supported transport and observed CLI
 
