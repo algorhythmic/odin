@@ -47,10 +47,11 @@ GIT_ENV = {
     "LC_ALL": "C",
     "HOME": "/nonexistent",
 }
-OUTCOMES = ("valid", "invalid", "missing", "mismatched")
+OUTCOMES = ("valid", "uncertain", "invalid", "missing", "mismatched")
 EVIDENCE_STATUSES = (
     "validated",
     "validated_unobserved",
+    "uncertain",
     "invalid",
     "missing",
     "mismatched",
@@ -65,11 +66,15 @@ SUMMARY_KEYS = (
     "collector_revision",
     "collector_matches_validator",
     "observed",
+    "observed_before",
+    "observed_after",
+    "after_reason",
     "root",
     "cwd",
     "head",
     "branch",
     "detached",
+    "clean_before",
     "clean",
     "worktree_identity",
     "argv_head",
@@ -96,30 +101,81 @@ def _clip(text, limit=200):
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
-def _sha256_file(path, *, limit=MAX_ARTIFACT_HASH_BYTES, private=False):
-    """Digest of a regular file through one descriptor; (None, size) if refused.
+_read = os.read  # patched by tests to simulate growth during inspection
 
-    ``private`` additionally requires ownership by this user and no group or
-    world permission bits, the rule for retained artifacts.
+
+def _inspect_file(path, *, limit, private=False, keep=False):
+    """Bounded, non-blocking inspection of one regular file via one descriptor.
+
+    Returns ``{"status", "size", "bytes", "sha256", "data"}``. ``status`` is
+    ``ok``, ``unreadable``, ``not_regular`` (FIFO, socket, device, directory;
+    never read, so a FIFO without a writer cannot block), ``not_private``,
+    ``too_large`` (initial size or actual bytes beyond ``limit``) or
+    ``changed`` (identity, size or mtime differed after the read). ``data``
+    holds the exact bytes that were hashed when ``keep`` is set, so callers
+    parse what they checked instead of reopening the path. The inspection is
+    point-in-time; it is not a snapshot of the file.
     """
+    result = {
+        "status": "unreadable",
+        "size": None,
+        "bytes": 0,
+        "sha256": None,
+        "data": None,
+    }
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW | os.O_CLOEXEC)
     except OSError:
-        return None, None
+        return result
     try:
         info = os.fstat(fd)
-        if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
-            return None, info.st_size
+        result["size"] = info.st_size
+        if not stat.S_ISREG(info.st_mode):
+            return result | {"status": "not_regular"}
         if private and (info.st_uid != os.getuid() or info.st_mode & 0o077):
-            return None, info.st_size
+            return result | {"status": "not_private"}
+        if info.st_size > limit:
+            return result | {"status": "too_large"}
         digest = hashlib.sha256()
-        while chunk := os.read(fd, 1 << 16):
+        chunks = []
+        total = 0
+        while chunk := _read(fd, min(1 << 16, limit + 1 - total)):
+            total += len(chunk)
+            if total > limit:
+                return result | {"status": "too_large", "bytes": total}
             digest.update(chunk)
-        return digest.hexdigest(), info.st_size
+            if keep:
+                chunks.append(chunk)
+        after = os.fstat(fd)
+        if total != info.st_size or (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+        ) != (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns):
+            return result | {"status": "changed", "bytes": total}
+        return result | {
+            "status": "ok",
+            "bytes": total,
+            "sha256": digest.hexdigest(),
+            "data": b"".join(chunks) if keep else None,
+        }
     except OSError:
-        return None, None
+        return result
     finally:
         os.close(fd)
+
+
+def _sha256_file(path, *, limit=MAX_ARTIFACT_HASH_BYTES, private=False):
+    """(sha256 or None, initial size) for callers that only need a digest."""
+    inspected = _inspect_file(path, limit=limit, private=private)
+    return inspected["sha256"], inspected["size"]
+
+
+def _timestamp(value):
+    return datetime.strptime(
+        value, "%Y-%m-%dT%H:%M:%S.%fZ" if "." in value else "%Y-%m-%dT%H:%M:%SZ"
+    )
 
 
 def _git(root, *arguments, binary=False, ok=(0,)):
@@ -455,8 +511,9 @@ def run(
         "limits": {
             "attribution": "self-attested by the executing user; same uid as the "
             "collector; no independent witness or registry",
-            "concurrency": "observations are point-in-time; concurrent writers between "
-            "before/after observations are detected only if the identity differs",
+            "concurrency": "observations and file inspections are point-in-time, not "
+            "snapshots; concurrent writers between before/after observations are detected "
+            "only if the identity differs; files that change during inspection are reported",
             "environment": "environment variables and credential files are not recorded",
             "outputs": "stdout/stderr retained verbatim; pass no secrets on argv or output",
         },
@@ -485,9 +542,123 @@ def _refused(outcome, path, problem):
         "path": str(path),
         "sha256": None,
         "observed": None,
+        "observed_before": None,
+        "observed_after": None,
         "problems": [_clip(problem, MAX_PROBLEM_BYTES)],
         "checks": [],
     }
+
+
+def _observation_contradictions(label, observation):
+    """Recompute the derived fields an observation claims; list disagreements."""
+    problems = []
+    if not observation.get("observed"):
+        return problems
+    identity = hashlib.sha256(
+        canonical(
+            {
+                "head": observation["head"],
+                "staged": observation["staged_digest"],
+                "unstaged": observation["unstaged_digest"],
+                "untracked": observation["untracked_digest"],
+                "untracked_coverage": observation["untracked_coverage"],
+            }
+        ).encode()
+    ).hexdigest()
+    if identity != observation["worktree_identity"]:
+        problems.append(
+            f"contradictory: {label} worktree_identity does not derive from its digests"
+        )
+    clean = (
+        not observation["staged"]
+        and not observation["unstaged"]
+        and observation["untracked_total"] == 0
+        and observation["untracked_coverage"] == "complete"
+    )
+    if clean != observation["clean"]:
+        problems.append(
+            f"contradictory: {label} clean flag disagrees with its listed changes"
+        )
+    if observation["detached"] != (observation["branch"] is None):
+        problems.append(
+            f"contradictory: {label} detached flag disagrees with its branch"
+        )
+    if observation["untracked_total"] < len(observation["untracked"]):
+        problems.append(
+            f"contradictory: {label} lists more untracked files than its total"
+        )
+    return problems
+
+
+def _consistency(receipt):
+    """Internal contradictions make a receipt invalid; uncertainty stays explicit."""
+    problems = []
+    execution = receipt["execution"]
+    if execution["succeeded"] != (execution["exit_status"] == 0):
+        problems.append("contradictory: succeeded disagrees with exit_status")
+    if execution["exit_status"] is None and not (
+        execution["timed_out"]
+        or execution["signal"] is not None
+        or execution["uncertainty"]
+    ):
+        problems.append(
+            "contradictory: exit_status is null without timeout, signal or uncertainty"
+        )
+    if execution["exit_status"] is not None and execution["signal"] is not None:
+        problems.append("contradictory: both exit_status and signal are set")
+    if execution["timed_out"] and not execution["uncertainty"]:
+        problems.append("contradictory: timed_out without recorded uncertainty")
+    try:
+        started, finished = (
+            _timestamp(execution["started_at"]),
+            _timestamp(execution["finished_at"]),
+        )
+    except ValueError:
+        problems.append("contradictory: unparseable execution timestamps")
+        started = finished = None
+    else:
+        if finished < started:
+            problems.append("contradictory: finished_at precedes started_at")
+    names = [artifact["name"] for artifact in receipt["artifacts"]]
+    for required in ("stdout", "stderr"):
+        if names.count(required) != 1:
+            problems.append(
+                f"contradictory: exactly one {required} artifact is required"
+            )
+    repository = receipt["repository"]
+    before, after = repository["before"], repository["after"]
+    problems += _observation_contradictions("before", before)
+    problems += _observation_contradictions("after", after)
+    if before.get("observed") and after.get("observed"):
+        if before["root"] != after["root"]:
+            problems.append(
+                "contradictory: before/after observations name different roots"
+            )
+        expected = before["worktree_identity"] != after["worktree_identity"]
+        if (
+            repository["changed_during_run"] is None
+            or repository["changed_during_run"] != expected
+        ):
+            problems.append(
+                "contradictory: changed_during_run disagrees with the two observations"
+            )
+    elif repository["changed_during_run"] is not None:
+        problems.append(
+            "contradictory: changed_during_run set without both observations"
+        )
+    if started is not None:
+        try:
+            if before.get("observed") and _timestamp(before["observed_at"]) > started:
+                problems.append(
+                    "contradictory: before observation is later than the command start"
+                )
+            if after.get("observed") and _timestamp(after["observed_at"]) < finished:
+                problems.append(
+                    "contradictory: after observation is earlier than the command end"
+                )
+        except ValueError:
+            problems.append("contradictory: unparseable observation timestamps")
+    return problems
 
 
 def validate(
@@ -495,15 +666,14 @@ def validate(
 ):
     """Deterministic validation of one receipt file; outcome is never a claim.
 
-    Outcomes: ``missing`` (receipt or a referenced artifact absent), ``invalid``
-    (unreadable, non-private, schema violation, budget exceeded), ``mismatched``
-    (declared receipt digest, artifact bytes, any ``expected`` identity, a run
-    that changed the worktree, or a receipt that predates ``not_before``
-    differs), ``valid``. ``expected`` may contain ``root``, ``head``,
-    ``branch``, ``detached``, ``clean``, ``exit_status``, ``succeeded``,
-    ``loop_id``, ``stage_id``. A declared-digest mismatch is reported alone and
-    the file's identity fields are not echoed. ``hash_budget`` is a mutable
-    ``{"remaining": int}`` shared across receipts of one validation.
+    Outcomes, in precedence order: ``invalid`` (unreadable, non-private, over
+    size, schema violation, internally contradictory, or over the hashing
+    budget), ``mismatched`` on a declared-digest mismatch (reported alone),
+    ``missing`` (a referenced artifact absent), ``mismatched`` (artifact bytes,
+    any ``expected`` identity, a run that changed the worktree, or a receipt
+    older than ``not_before`` differs), ``uncertain`` (exactly one repository
+    observation available, so an unchanged tree is not established), ``valid``.
+    The receipt is parsed from the exact bounded bytes whose digest was checked.
     """
     path = Path(path)
     try:
@@ -518,11 +688,14 @@ def validate(
         return _refused(
             "invalid", path, "receipt must be a private regular file owned by this user"
         )
-    if info.st_size > MAX_RECEIPT_BYTES:
-        return _refused("invalid", path, "receipt exceeds size limit")
-    actual_digest, _size = _sha256_file(path, limit=MAX_RECEIPT_BYTES, private=True)
-    if actual_digest is None:
-        return _refused("invalid", path, "receipt unreadable")
+    inspected = _inspect_file(path, limit=MAX_RECEIPT_BYTES, private=True, keep=True)
+    if inspected["status"] != "ok":
+        return _refused(
+            "invalid",
+            path,
+            f"receipt {inspected['status'].replace('_', ' ')} during inspection",
+        )
+    actual_digest = inspected["sha256"]
     if declared_sha256 is not None and declared_sha256 != actual_digest:
         result = _refused(
             "mismatched",
@@ -533,13 +706,17 @@ def validate(
         result["checks"] = ["reference_digest"]
         return result
     try:
-        receipt = strict_loads(path.read_bytes().decode("utf-8"))
+        receipt = strict_loads(inspected["data"].decode("utf-8"))
         Contracts().validate(SCHEMA, receipt)
     except Exception as error:  # noqa: BLE001 - every parse/schema failure is "invalid"
         return _refused(
             "invalid", path, f"{type(error).__name__}: {str(error).splitlines()[0]}"
         )
     checks = ["schema"] + (["reference_digest"] if declared_sha256 is not None else [])
+    contradictions = _consistency(receipt)
+    checks.append("consistency")
+    if contradictions:
+        return _finish(path, receipt, actual_digest, "invalid", contradictions, checks)
     problems = []
     missing = False
     budget = (
@@ -565,11 +742,26 @@ def validate(
         if artifact_info.st_size > budget["remaining"]:
             problems.append(f"artifact hashing budget exceeded at: {artifact['name']}")
             return _finish(path, receipt, actual_digest, "invalid", problems, checks)
-        budget["remaining"] -= artifact_info.st_size
-        current, size = _sha256_file(artifact_path, private=True)
-        if current is None:
-            problems.append(f"artifact unreadable or too large: {artifact['name']}")
-        elif current != artifact["sha256"] or size != artifact["bytes"]:
+        current = _inspect_file(
+            artifact_path,
+            limit=min(MAX_ARTIFACT_HASH_BYTES, budget["remaining"]),
+            private=True,
+        )
+        budget["remaining"] -= current["bytes"] or 0
+        if current["status"] == "too_large":
+            problems.append(
+                f"artifact exceeded the inspection limit: {artifact['name']}"
+            )
+        elif current["status"] == "changed":
+            problems.append(f"artifact changed during inspection: {artifact['name']}")
+        elif current["status"] != "ok":
+            problems.append(
+                f"artifact {current['status'].replace('_', ' ')}: {artifact['name']}"
+            )
+        elif (
+            current["sha256"] != artifact["sha256"]
+            or current["bytes"] != artifact["bytes"]
+        ):
             problems.append(f"artifact bytes changed: {artifact['name']}")
     checks.append("artifacts")
     execution, before = receipt["execution"], receipt["repository"]["before"]
@@ -598,17 +790,49 @@ def validate(
         checks.append("worktree_changed_during_run")
     if not_before is not None:
         checks.append("not_before")
-        if execution["started_at"] < not_before:
+        try:
+            predates = _timestamp(execution["started_at"]) < _timestamp(not_before)
+        except ValueError:
+            predates = True
+        if predates:
             problems.append(
                 f"receipt started at {execution['started_at']} predates {not_before}"
             )
-    outcome = "valid" if not problems else ("missing" if missing else "mismatched")
+    after = receipt["repository"]["after"]
+    uncertain = bool(before.get("observed")) != bool(after.get("observed"))
+    if uncertain:
+        side, reason = (
+            ("post-run", after.get("reason"))
+            if before.get("observed")
+            else ("pre-run", before.get("reason"))
+        )
+        problems.append(
+            f"uncertain: {side} repository observation unavailable ({_clip(reason or 'no reason', 120)}); "
+            "an unchanged tree is not established"
+        )
+        checks.append("observation_pair")
+    if any(not problem.startswith("uncertain:") for problem in problems):
+        outcome = "missing" if missing else "mismatched"
+    elif uncertain:
+        outcome = "uncertain"
+    else:
+        outcome = "valid"
     return _finish(path, receipt, actual_digest, outcome, problems, checks)
 
 
 def _finish(path, receipt, actual_digest, outcome, problems, checks):
-    before = receipt["repository"]["before"]
-    observed = bool(before.get("observed"))
+    before, after = receipt["repository"]["before"], receipt["repository"]["after"]
+    observed_before, observed_after = (
+        bool(before.get("observed")),
+        bool(after.get("observed")),
+    )
+    both = observed_before and observed_after
+    # An invalid (contradictory) receipt supports no derived claim at all.
+    unchanged = (
+        outcome != "invalid"
+        and both
+        and receipt["repository"].get("changed_during_run") is False
+    )
     argv = receipt["command"]["argv"]
     return {
         "outcome": outcome,
@@ -619,19 +843,29 @@ def _finish(path, receipt, actual_digest, outcome, problems, checks):
         "collector_revision": receipt["collector"]["odin_revision"],
         "collector_matches_validator": receipt["collector"]["source_sha256"]
         == module_source_sha256(),
-        "observed": observed,
-        "root": before.get("root") if observed else None,
+        "observed": both,
+        "observed_before": observed_before,
+        "observed_after": observed_after,
+        "after_reason": None if observed_after else after.get("reason"),
+        "root": before.get("root") if observed_before else None,
         "cwd": receipt["command"]["cwd"],
-        "head": before.get("head") if observed else None,
-        "branch": before.get("branch") if observed else None,
-        "detached": before.get("detached") if observed else None,
-        "clean": before.get("clean") if observed else None,
-        "worktree_identity": before.get("worktree_identity") if observed else None,
+        "head": before.get("head") if observed_before else None,
+        "branch": before.get("branch") if observed_before else None,
+        "detached": before.get("detached") if observed_before else None,
+        "clean_before": before.get("clean") if observed_before else None,
+        # Only an observed, unchanged run supports "clean": a missing post-run
+        # observation never establishes an unchanged committed tree.
+        "clean": before.get("clean") if unchanged else None,
+        "worktree_identity": before.get("worktree_identity")
+        if observed_before
+        else None,
         "argv_head": _clip(" ".join(argv), 160),
         "argv_digest": hashlib.sha256(canonical(argv).encode()).hexdigest(),
         "started_at": receipt["execution"]["started_at"],
         "exit_status": receipt["execution"]["exit_status"],
-        "succeeded": receipt["execution"]["succeeded"],
+        "succeeded": receipt["execution"]["succeeded"]
+        if outcome != "invalid"
+        else None,
         "uncertainty": receipt["execution"]["uncertainty"],
         "changed_during_run": receipt["repository"].get("changed_during_run"),
         "problems": [
@@ -651,10 +885,11 @@ def validate_references(
     not validated and not a failure. ``evidence[claims_key]`` (optional object)
     holds structured claims about the run (``head``, ``branch``, ``detached``,
     ``clean``, ``exit_status``, ``succeeded``) compared against every receipt.
-    ``validated`` requires every receipt to be valid and to carry an observed
-    repository; ``validated_unobserved`` means the files are consistent but no
-    repository identity was observed. ``commands_succeeded`` is reported
-    separately so a valid receipt of a failing command is never read as success.
+    Status precedence: ``invalid`` > ``missing`` > ``mismatched`` >
+    ``uncertain`` > ``validated_unobserved`` > ``validated``. ``validated``
+    requires every receipt valid with both repository observations present.
+    ``commands_succeeded`` is true only when every receipt is not invalid and
+    records a successful exit; an invalid receipt yields null.
     """
     empty = {"receipts": [], "problems": [], "commands_succeeded": None}
     if not isinstance(evidence, dict) or "receipts" not in evidence:
@@ -692,18 +927,18 @@ def validate_references(
     outcomes = {result["outcome"] for result in results}
     if not results:
         status = "missing"
-    elif outcomes == {"valid"}:
-        status = (
-            "validated"
-            if all(r["observed"] for r in results)
-            else "validated_unobserved"
-        )
     elif "invalid" in outcomes:
         status = "invalid"
     elif "missing" in outcomes:
         status = "missing"
-    else:
+    elif "mismatched" in outcomes:
         status = "mismatched"
+    elif "uncertain" in outcomes:
+        status = "uncertain"
+    elif all(r["observed"] for r in results):
+        status = "validated"
+    else:
+        status = "validated_unobserved"
     problems = [
         _clip(f"{result['path']}: {problem}", MAX_PROBLEM_BYTES)
         for result in results
@@ -711,15 +946,17 @@ def validate_references(
     ]
     if not results:
         problems.append("receipts list is empty")
+    if "invalid" in outcomes or not results:
+        commands_succeeded = None
+    else:
+        commands_succeeded = all(r.get("succeeded") is True for r in results)
     return {
         "status": status,
         "receipts": [
             {key: result.get(key) for key in SUMMARY_KEYS} for result in results
         ],
         "problems": problems[:MAX_PROBLEMS],
-        "commands_succeeded": all(r.get("succeeded") is True for r in results)
-        if results
-        else None,
+        "commands_succeeded": commands_succeeded,
     }
 
 
@@ -779,11 +1016,17 @@ def main(argv=None):
             "exit_status": receipt["execution"]["exit_status"],
             "succeeded": receipt["execution"]["succeeded"],
             "uncertainty": receipt["execution"]["uncertainty"],
-            "observed": bool(before.get("observed")),
+            "observed": bool(before.get("observed"))
+            and bool(receipt["repository"]["after"].get("observed")),
+            "observed_before": bool(before.get("observed")),
+            "observed_after": bool(receipt["repository"]["after"].get("observed")),
             "head": before.get("head"),
             "branch": before.get("branch"),
             "detached": before.get("detached"),
-            "clean": before.get("clean"),
+            "clean_before": before.get("clean"),
+            "clean": before.get("clean")
+            if receipt["repository"]["changed_during_run"] is False
+            else None,
             "changed_during_run": receipt["repository"]["changed_during_run"],
         }
         print(canonical(summary))

@@ -186,7 +186,8 @@ def dispatch(gateway, action, payload, context, operation):
                 "commands_succeeded": validation.get("commands_succeeded"),
                 "receipts": [
                     {key: item.get(key) for key in (
-                        "path", "outcome", "observed", "head", "branch", "detached", "clean",
+                        "path", "outcome", "observed", "observed_before", "observed_after",
+                        "after_reason", "head", "branch", "detached", "clean_before", "clean",
                         "exit_status", "succeeded", "changed_during_run", "uncertainty",
                     )}
                     for item in validation["receipts"]

@@ -509,6 +509,221 @@ class ExecutionReceiptTests(unittest.TestCase):
         self.assertIsNone(dispatch_argv(["status"]))
         self.assertIsNone(dispatch_argv([]))
 
+    def edit(self, mutate):
+        """Rewrite the retained receipt consistently and return a fresh reference."""
+        path = self.out / RECEIPT_NAME
+        body = strict_loads(path.read_text())
+        mutate(body)
+        path.write_text(canonical(body) + "\n")
+        return reference(path)
+
+    def assert_never_success(self, outcome):
+        self.assertNotIn(outcome["status"], ("validated", "validated_unobserved"))
+        self.assertIsNot(outcome["commands_succeeded"], True)
+        for item in outcome["receipts"]:
+            self.assertIsNot(item["succeeded"], True)
+            self.assertIsNone(item["clean"])
+
+    def test_contradictory_execution_fields_are_invalid_with_a_fresh_reference(self):
+        self.run_receipt([PY, "-c", "raise SystemExit(9)"])
+        ref = self.edit(lambda body: body["execution"].__setitem__("succeeded", True))
+        outcome = validate_references({"receipts": [ref]})
+        self.assertEqual(outcome["status"], "invalid")
+        self.assertIn("succeeded disagrees with exit_status", outcome["problems"][0])
+        self.assert_never_success(outcome)
+        ref = self.edit(
+            lambda body: body["execution"].update(exit_status=None, succeeded=False)
+        )
+        self.assertIn(
+            "exit_status is null without",
+            validate_references({"receipts": [ref]})["problems"][0],
+        )
+        ref = self.edit(
+            lambda body: body["execution"].update(
+                exit_status=0, succeeded=True, finished_at="2000-01-01T00:00:00Z"
+            )
+        )
+        self.assertIn(
+            "finished_at precedes started_at",
+            validate_references({"receipts": [ref]})["problems"][0],
+        )
+
+    def test_missing_or_duplicate_required_outputs_are_invalid(self):
+        self.run_receipt([PY, "-c", "print('x')"])
+        ref = self.edit(
+            lambda body: body["artifacts"].append(dict(body["artifacts"][0]))
+        )
+        duplicated = validate_references({"receipts": [ref]})
+        self.assertEqual(duplicated["status"], "invalid")
+        self.assertTrue(
+            any("exactly one stdout artifact" in p for p in duplicated["problems"])
+        )
+        ref = self.edit(lambda body: body.__setitem__("artifacts", []))
+        outcome = validate_references({"receipts": [ref]})
+        self.assertEqual(outcome["status"], "invalid")
+        self.assertTrue(
+            any("exactly one stderr artifact" in p for p in outcome["problems"])
+        )
+        self.assert_never_success(outcome)
+
+    def test_inconsistent_observations_and_change_flags_are_invalid(self):
+        self.run_receipt([PY, "-c", "pass"])
+        ref = self.edit(
+            lambda body: body["repository"]["after"].__setitem__("head", "0" * 40)
+        )
+        outcome = validate_references({"receipts": [ref]})
+        self.assertEqual(outcome["status"], "invalid")
+        self.assertTrue(
+            any("worktree_identity does not derive" in p for p in outcome["problems"])
+        )
+        ref = self.edit(
+            lambda body: body["repository"].__setitem__("changed_during_run", None)
+        )
+        self.assertTrue(
+            any(
+                "changed_during_run disagrees" in p
+                for p in validate_references({"receipts": [ref]})["problems"]
+            )
+        )
+        ref = self.edit(
+            lambda body: body["repository"]["before"].__setitem__("clean", False)
+        )
+        self.assertTrue(
+            any(
+                "clean flag disagrees" in p
+                for p in validate_references({"receipts": [ref]})["problems"]
+            )
+        )
+        ref = self.edit(lambda body: body["repository"]["before"].update(branch=None))
+        self.assertTrue(
+            any(
+                "detached flag disagrees" in p
+                for p in validate_references({"receipts": [ref]})["problems"]
+            )
+        )
+
+    def test_failed_post_run_observation_is_uncertain_not_clean(self):
+        # The command destroys the repository metadata, so the collector's
+        # post-run observation fails for real.
+        receipt = self.run_receipt(
+            [PY, "-c", "import shutil; shutil.rmtree('.git')"],
+            binding={"loop_id": identifier(), "stage_id": identifier()},
+        )
+        self.assertTrue(receipt["repository"]["before"]["observed"])
+        self.assertFalse(receipt["repository"]["after"]["observed"])
+        self.assertIsNone(receipt["repository"]["changed_during_run"])
+        result = validate(self.out / RECEIPT_NAME, {"clean": True, "succeeded": True})
+        self.assertEqual(result["outcome"], "uncertain")
+        self.assertTrue(result["observed_before"])
+        self.assertFalse(result["observed_after"])
+        self.assertTrue(result["after_reason"])
+        self.assertTrue(result["clean_before"])
+        self.assertIsNone(result["clean"])
+        self.assertIn(
+            "post-run repository observation unavailable", result["problems"][0]
+        )
+        outcome = validate_references(
+            {"receipts": [reference(self.out / RECEIPT_NAME)]},
+            expected=dict(receipt["binding"]),
+        )
+        self.assertEqual(outcome["status"], "uncertain")
+        self.assertTrue(outcome["commands_succeeded"])  # the command did succeed
+        self.assertIsNone(outcome["receipts"][0]["clean"])
+        self.assertEqual(
+            main(["validate", "--receipt", str(self.out / RECEIPT_NAME)]), 1
+        )
+
+    def test_untracked_fifo_cannot_block_observation(self):
+        os.mkfifo(self.repo / "pipe.fifo")
+        self.addCleanup(lambda: (self.repo / "pipe.fifo").unlink(missing_ok=True))
+        script = (
+            "import json, sys; sys.path.insert(0, %r); "
+            "from odin.execution_receipt import _inspect_file, observe_repository; "
+            "print(json.dumps({'fifo': _inspect_file(%r, limit=1024)['status'], "
+            "'observation': observe_repository(%r)}))"
+            % (str(ROOT / "python"), str(self.repo / "pipe.fifo"), str(self.repo))
+        )
+        # A hard deadline: a blocking open of the writer-less FIFO would hang here.
+        completed = subprocess.run(
+            [PY, "-c", script], capture_output=True, text=True, timeout=20, check=False
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        result = strict_loads(completed.stdout)
+        self.assertEqual(result["fifo"], "not_regular")
+        observation = result["observation"]
+        self.assertTrue(observation["observed"])
+        for entry in observation["untracked"]:
+            if entry["path"] == "pipe.fifo":
+                self.assertIsNone(entry["sha256"])
+                self.assertEqual(observation["untracked_coverage"], "partial")
+        receipt = self.run_receipt([PY, "-c", "pass"], timeout=20)
+        self.assertEqual(receipt["execution"]["exit_status"], 0)
+
+    def test_growing_file_is_bounded_and_reported(self):
+        from unittest import mock
+
+        from odin.execution_receipt import _inspect_file
+
+        target = self.root / "growing.log"
+        target.write_bytes(b"a" * 100)
+        target.chmod(0o600)
+        real = os.read
+
+        def grows(fd, size):
+            chunk = real(fd, size)
+            return chunk + b"b" * 50 if chunk else chunk
+
+        with mock.patch("odin.execution_receipt._read", grows):
+            self.assertEqual(_inspect_file(target, limit=120)["status"], "too_large")
+            self.assertEqual(_inspect_file(target, limit=10_000)["status"], "changed")
+        self.assertEqual(_inspect_file(target, limit=99)["status"], "too_large")
+        self.assertEqual(_inspect_file(target, limit=100)["status"], "ok")
+        # An artifact that grows between the receipt and validation is reported.
+        self.run_receipt([PY, "-c", "print('x')"])
+        with mock.patch("odin.execution_receipt._read", grows):
+            result = validate(self.out / RECEIPT_NAME)
+        self.assertEqual(
+            result["outcome"], "invalid"
+        )  # the receipt bytes themselves changed
+        self.assertIn("changed during inspection", result["problems"][0])
+
+    def test_receipt_is_parsed_from_the_hashed_bytes(self):
+        from unittest import mock
+
+        self.run_receipt([PY, "-c", "pass"])
+        with (
+            mock.patch.object(
+                Path, "read_bytes", side_effect=AssertionError("reopened")
+            ),
+            mock.patch.object(
+                Path, "read_text", side_effect=AssertionError("reopened")
+            ),
+        ):
+            result = validate(self.out / RECEIPT_NAME)
+        self.assertEqual(result["outcome"], "valid")
+
+    def test_cli_summary_never_reports_clean_without_a_post_observation(self):
+        out = self.root / "cli-uncertain"
+        with self.assertRaises(SystemExit) as stopped:
+            sys.exit(
+                main(
+                    [
+                        "run",
+                        "--out",
+                        str(out),
+                        "--cwd",
+                        str(self.repo),
+                        "--",
+                        PY,
+                        "-c",
+                        "import shutil; shutil.rmtree('.git')",
+                    ]
+                )
+            )
+        self.assertEqual(stopped.exception.code, 0)
+        summary = strict_loads((out / RECEIPT_NAME).read_text())
+        self.assertFalse(summary["repository"]["after"]["observed"])
+
     def test_cli_validate_reports_outcome_in_exit_status(self):
         self.run_receipt([PY, "-c", "pass"])
         path = str(self.out / RECEIPT_NAME)
@@ -639,6 +854,46 @@ class DevelopmentLoopReceiptTests(unittest.TestCase):
         self.assertTrue(any("stage_id" in p for p in problems))
         self.assertTrue(any("succeeded=True" in p for p in problems))
 
+    def test_uncertain_and_invalid_receipts_reach_ready_and_the_packet(self):
+        out = self.root / "uncertain"
+        run(
+            [PY, "-c", "import shutil; shutil.rmtree('.git')"],
+            out=out,
+            cwd=str(self.repo),
+            binding={"loop_id": self.stage["loop_id"], "stage_id": self.stage["id"]},
+        )
+        evidence = {
+            "receipts": [reference(out / RECEIPT_NAME)],
+            "claims": {"clean": True},
+        }
+        ready, packet = self.finish(evidence)
+        for validation in (ready["receipt_validation"], packet["receipt_validation"]):
+            self.assertEqual(validation["status"], "uncertain")
+            self.assertIsNone(validation["receipts"][0]["clean"])
+            self.assertFalse(validation["receipts"][0]["observed_after"])
+            self.assertTrue(validation["receipts"][0]["observed_before"])
+        self.store.contracts.validate("development-loop-packet", packet)
+
+    def test_contradictory_receipt_is_invalid_through_ready_and_capture(self):
+        out = self.root / "contradictory"
+        run(
+            [PY, "-c", "raise SystemExit(4)"],
+            out=out,
+            cwd=str(self.repo),
+            binding={"loop_id": self.stage["loop_id"], "stage_id": self.stage["id"]},
+        )
+        path = out / RECEIPT_NAME
+        body = strict_loads(path.read_text())
+        body["execution"]["succeeded"] = True
+        path.write_text(canonical(body) + "\n")
+        ready, packet = self.finish(
+            {"receipts": [reference(path)], "claims": {"succeeded": True}}
+        )
+        for validation in (ready["receipt_validation"], packet["receipt_validation"]):
+            self.assertEqual(validation["status"], "invalid")
+            self.assertIsNone(validation["commands_succeeded"])
+            self.assertIsNone(validation["receipts"][0]["succeeded"])
+
     def test_validator_exception_is_recorded_as_invalid_not_raised(self):
         def broken(evidence, *, expected=None, not_before=None):
             raise OSError("disk unavailable")
@@ -683,7 +938,11 @@ class DevelopmentLoopReceiptTests(unittest.TestCase):
         )
         path = out / RECEIPT_NAME
         body = strict_loads(path.read_text())
-        body["execution"]["started_at"] = "2000-01-01T00:00:00Z"
+        # Backdate the whole run consistently; only its age is wrong.
+        body["execution"]["started_at"] = "2000-01-01T00:00:01Z"
+        body["execution"]["finished_at"] = "2000-01-01T00:00:02Z"
+        body["repository"]["before"]["observed_at"] = "2000-01-01T00:00:00Z"
+        body["repository"]["after"]["observed_at"] = "2000-01-01T00:00:03Z"
         path.write_text(canonical(body) + "\n")
         ready, packet = self.finish({"receipts": [reference(path)]})
         self.assertEqual(ready["receipt_validation"]["status"], "mismatched")

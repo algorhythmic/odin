@@ -2063,9 +2063,14 @@ remain available in every profile.
   unbounded problem string that could raise out of `ready`, timeout leaving
   grandchildren writing after hashing, rename and non-ASCII path parsing,
   and the self-attestation gap; all but the registry were resolved in the
-  follow-up commit with tests. Live receipts for actual stages are retained
-  privately and are themselves subject to the evaluator's independent
-  inspection.
+  follow-up commit with tests. The evaluator's second-round assessment
+  found three further material gaps (contradictory fields accepted, a failed
+  post-run observation summarised as clean, blocking and unbounded file
+  inspection); the corrective commit adds recomputed consistency checks, the
+  `uncertain` outcome for a single available observation, and bounded
+  non-blocking inspection bound to the parsed bytes. Live receipts for
+  actual stages are retained privately and are themselves subject to the
+  evaluator's independent inspection.
 
 ## 5. Issues raised by the extraction
 

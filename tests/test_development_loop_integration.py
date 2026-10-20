@@ -47,7 +47,18 @@ if round_number:
     assert f"Synthetic stage {round_number} finished" in packet["executive_final_text"]
     validation = packet["receipt_validation"]
     if round_number == 1:
-        assert validation["status"] == "legacy_no_receipt", validation
+        # A contradictory receipt (nonzero exit marked succeeded) must be invalid and
+        # can never be summarised as success.
+        assert validation["status"] == "invalid", validation
+        assert validation["commands_succeeded"] is None, validation
+        assert validation["receipts"][0]["succeeded"] is None, validation
+        assert any("succeeded disagrees" in p for p in validation["problems"]), validation
+    elif round_number == 2:
+        # The command removed the repository metadata: post-run observation failed.
+        assert validation["status"] == "uncertain", validation
+        assert validation["receipts"][0]["observed_before"] is True, validation
+        assert validation["receipts"][0]["observed_after"] is False, validation
+        assert validation["receipts"][0]["clean"] is None, validation
     else:
         # The evaluator independently re-reads the retained receipt and its artifact.
         assert validation["status"] == "validated", validation
@@ -61,13 +72,13 @@ if round_number:
         assert validation["commands_succeeded"] is True
         stdout = [a for a in receipt["artifacts"] if a["name"] == "stdout"][0]
         assert hashlib.sha256(Path(stdout["path"]).read_bytes()).hexdigest() == stdout["sha256"]
-        assert Path(stdout["path"]).read_text() == "receipted stage 2\n"
+        assert Path(stdout["path"]).read_text() == "receipted stage 3\n"
         assert receipt["execution"]["exit_status"] == 0
 result = {
-    "decision": "complete" if round_number == 2 else "continue",
+    "decision": "complete" if round_number == 3 else "continue",
     "assessment": f"Independent synthetic assessment after round {round_number}",
     "findings": ["Synthetic evidence read by evaluator executable"],
-    "next_prompt": "" if round_number == 2 else f"Execute synthetic stage {round_number + 1}",
+    "next_prompt": "" if round_number == 3 else f"Execute synthetic stage {round_number + 1}",
     "evidence_refs": [{
         "ref": "fixture:result",
         "revision": str(round_number),
@@ -316,7 +327,7 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
             foreign.close()
 
         completed_texts = []
-        for round_number, notification in ((1, first), (2, None)):
+        for round_number, notification in ((1, first), (2, None), (3, None)):
             if notification is None:
                 notification = self.bridge.notification()
             self.assertIn(f"Execute synthetic stage {round_number}", notification["content"])
@@ -331,11 +342,12 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
                 "repository_revision": f"synthetic-revision-{round_number}",
                 "test_result": "synthetic test passed",
             }
-            if round_number == 2:
-                # Round two retains a real receipted command, run inside a
-                # synthetic git repository so branch and commit identity are
-                # exercised end to end and bound to this stage.
-                repo = Path(self.temp.name) / "synthetic-repo"
+            if round_number in (1, 2, 3):
+                # Every round retains a real receipted command run inside a
+                # synthetic git repository, bound to this stage. Round one is
+                # edited into a contradiction, round two destroys the repository
+                # metadata so the post-run observation fails, round three is sound.
+                repo = Path(self.temp.name) / f"synthetic-repo-{round_number}"
                 repo.mkdir(mode=0o700)
                 git_env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": "/nonexistent",
                            "GIT_AUTHOR_NAME": "Synthetic", "GIT_AUTHOR_EMAIL": "s@example.invalid",
@@ -345,24 +357,48 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
                 head = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], check=True,
                                       capture_output=True, text=True, env=git_env).stdout.strip()
                 out = Path(self.temp.name) / "receipts" / stage_id
+                script = {
+                    1: "raise SystemExit(5)",
+                    2: "import shutil; shutil.rmtree('.git')",
+                    3: "print('receipted stage 3')",
+                }[round_number]
                 receipt = run(
-                    [sys.executable, "-c", "print('receipted stage 2')"],
-                    out=out, cwd=str(repo),
+                    [sys.executable, "-c", script], out=out, cwd=str(repo),
                     binding={"loop_id": loop_id, "stage_id": stage_id},
                 )
+                if round_number == 1:
+                    body = strict_loads((out / RECEIPT_NAME).read_text())
+                    body["execution"]["succeeded"] = True  # the contradiction
+                    (out / RECEIPT_NAME).write_text(canonical(body) + "\n")
                 evidence_packet["receipts"] = [reference(out / RECEIPT_NAME)]
-                evidence_packet["claims"] = {"exit_status": 0, "head": head, "branch": "synthetic-branch", "clean": True}
+                evidence_packet["claims"] = (
+                    {"exit_status": 0, "head": head, "branch": "synthetic-branch", "clean": True}
+                    if round_number == 3 else {"succeeded": True}
+                )
                 self.assertTrue(receipt["repository"]["before"]["observed"])
+                self.assertEqual(receipt["repository"]["after"]["observed"], round_number != 2)
             ready = self.bridge.result("odin_loop_ready", {
                 "operation_id": identifier(), "loop_id": loop_id, "stage_id": stage_id,
                 "evidence_packet": evidence_packet,
             })
-            expected_status = "validated" if round_number == 2 else "legacy_no_receipt"
+            expected_status = {1: "invalid", 2: "uncertain", 3: "validated"}[round_number]
             self.assertEqual(ready["receipt_validation"]["status"], expected_status, canonical(ready))
-            if round_number == 2:
-                summary = ready["receipt_validation"]["receipts"][0]
+            summary = ready["receipt_validation"]["receipts"][0]
+            if round_number == 3:
                 self.assertEqual((summary["branch"], summary["head"], summary["succeeded"]), ("synthetic-branch", head, True))
                 self.assertTrue(ready["receipt_validation"]["commands_succeeded"])
+            elif round_number == 1:
+                # A contradictory receipt can never be summarised as success.
+                self.assertIsNone(summary["succeeded"])
+                self.assertIsNone(summary["clean"])
+                self.assertIsNone(ready["receipt_validation"]["commands_succeeded"])
+            else:
+                # The command itself succeeded, but a missing post-run observation
+                # never establishes a clean, unchanged tree.
+                self.assertFalse(summary["observed_after"])
+                self.assertTrue(summary["after_reason"])
+                self.assertIsNone(summary["clean"])
+                self.assertTrue(summary["clean_before"])
             final_text = f"Synthetic stage {round_number} finished.\n" + ready["completion_marker"]
             completed_texts.append(final_text)
             if round_number == 1:
@@ -387,7 +423,7 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
             time.sleep(0.1)
         else:
             self.fail("loop never completed: " + canonical(status))
-        self.assertEqual(loop["round"], 2)
+        self.assertEqual(loop["round"], 3)
         self.assertEqual(list((self.state / "executive-loop-spool").glob("*.json")), [])
         self.bridge.close()
         self.bridge = None
@@ -403,10 +439,14 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
                     "SELECT body FROM development_loop_jobs WHERE loop_id=?", (loop_id,)
                 )
             ]
-            self.assertEqual(len(jobs), 3)
+            self.assertEqual(len(jobs), 4)
             packets = {job["packet"]["round"]: job["packet"] for job in jobs}
             self.assertEqual(packets[1]["executive_final_text"], completed_texts[0])
             self.assertEqual(packets[2]["executive_final_text"], completed_texts[1])
+            self.assertEqual(packets[3]["executive_final_text"], completed_texts[2])
+            self.assertEqual(packets[1]["receipt_validation"]["status"], "invalid")
+            self.assertEqual(packets[2]["receipt_validation"]["status"], "uncertain")
+            self.assertEqual(packets[3]["receipt_validation"]["status"], "validated")
             self.assertTrue(all(job["state"] == "completed" for job in jobs))
 
 

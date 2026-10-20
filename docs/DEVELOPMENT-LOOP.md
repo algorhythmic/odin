@@ -309,16 +309,37 @@ in the evaluator packet:
 |---|---|
 | `validated` | Every referenced receipt is a private file whose bytes match the reference digest, validates against the schema, is bound to this loop and stage, was started after the stage was created, has private artifacts whose bytes match their digests, did not change the worktree during the run, agrees with every claim, and observed a git repository |
 | `validated_unobserved` | As `validated`, except the command ran where no repository could be observed; the receipt carries no revision or branch identity |
+| `uncertain` | Exactly one of the two repository observations is available (typically the post-run observation failed); the receipt is otherwise consistent, but an unchanged tree is not established, `clean` is null and only `clean_before` is reported |
 | `mismatched` | A declared digest, binding, claim, expected identity or start time disagrees with the receipt, or the worktree changed during the run; the problems list names each disagreement. A declared-digest mismatch is reported alone and the file's contents are not echoed |
 | `missing` | A referenced receipt or one of its artifacts is absent, or the list is empty |
-| `invalid` | A reference is malformed, a receipt is unreadable, not private or fails the schema, the artifact hashing budget (256 MiB per validation) was exceeded, or the validator itself failed |
+| `invalid` | A reference is malformed, a receipt is unreadable, not private, changed during inspection or fails the schema, the receipt is internally contradictory (see below), the artifact hashing budget (256 MiB per validation) was exceeded, or the validator itself failed |
 | `legacy_no_receipt` | The evidence has no `receipts` key: earlier or receipt-less evidence, recorded as unverified rather than failed |
 
 `commands_succeeded` is reported beside the status: a receipt of a command
 that exited nonzero is valid evidence of a failure, never success, and the
 bridge answer, stage record and packet all carry each receipt's
-`exit_status`, `succeeded`, `observed` and `changed_during_run` so that no
-summary can hide them. Validation establishes internal consistency and
+`exit_status`, `succeeded`, `observed_before`, `observed_after`,
+`after_reason`, `clean_before`, `clean` and `changed_during_run` so that no
+summary can hide them. An `invalid` receipt reports `succeeded: null` and
+`commands_succeeded: null`.
+
+Consistency is checked, not assumed. Before any artifact is hashed the
+validator recomputes what the format claims: `succeeded` must equal
+`exit_status == 0`; a null exit status needs a recorded timeout, signal or
+uncertainty; `finished_at` must not precede `started_at`; exactly one
+`stdout` and one `stderr` artifact must be listed; each observation's
+`worktree_identity`, `clean` and `detached` must derive from its own digests,
+lists and branch; two observations must name one root, bracket the command
+in time and agree with `changed_during_run`, which must be null when either
+observation is missing. Any contradiction makes the receipt `invalid`; a
+failing, signalled, timed-out or uncertain command with consistent fields
+stays `valid` evidence of that outcome. Timestamps are compared as
+timestamps. Retained files are inspected through one non-blocking
+descriptor: non-regular files such as a FIFO are never read, byte limits are
+enforced against the bytes actually read, a file whose identity, size or
+mtime differs after the read is reported as changed, and the receipt is
+parsed from the exact bytes whose digest was checked. These inspections are
+point-in-time, not snapshots. Validation establishes internal consistency and
 binding, not authorship: the executive principal runs as the same user as
 the collector and could write a receipt by hand; such a file is marked
 `collector_matches_validator: false` only when its collector digest differs

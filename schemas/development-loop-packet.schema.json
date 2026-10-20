@@ -54,7 +54,7 @@
       "additionalProperties": false,
       "required": ["status", "receipts", "problems", "commands_succeeded"],
       "properties": {
-        "status": {"enum": ["validated", "validated_unobserved", "invalid", "missing", "mismatched", "legacy_no_receipt"]},
+        "status": {"enum": ["validated", "validated_unobserved", "uncertain", "invalid", "missing", "mismatched", "legacy_no_receipt"]},
         "commands_succeeded": {"type": ["boolean", "null"]},
         "receipts": {"type": "array", "maxItems": 16, "items": {"type": "object"}},
         "problems": {"type": "array", "maxItems": 256, "items": {"type": "string", "maxLength": 1400}}
