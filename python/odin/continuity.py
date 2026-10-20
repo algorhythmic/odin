@@ -424,11 +424,15 @@ class Continuity:
             and r["state"] != "retired"
         ]
         try:
+            # Turn ids are time-ordered ULIDs; seq restarts per session, so an
+            # adopted assignment's turns are only ordered correctly by id.
             rows = self.store.db.execute(
-                "SELECT body FROM delegation_turns WHERE project=? ORDER BY seq",
+                "SELECT body FROM delegation_turns WHERE project=? ORDER BY id",
                 (project,),
             ).fetchall()
-        except sqlite3.OperationalError:
+        except sqlite3.OperationalError as error:
+            if "no such table" not in str(error):
+                raise
             rows = []
         turns = [strict_loads(row[0]) for row in rows]
         running = ("queued", "launching", "running", "interrupting")
@@ -445,6 +449,8 @@ class Continuity:
             commitment = commitment_of.get(assignment)
             if turn["state"] in running or commitment not in open_commitments:
                 continue
+            if turn["state"] == "interrupted" and turn.get("result") is None:
+                continue  # Cancelled before it ran: nothing to review.
             awaiting.append(
                 {
                     "assignment": assignment,
@@ -452,6 +458,7 @@ class Continuity:
                     "session": turn["session"],
                     "turn": turn["id"],
                     "state": turn["state"],
+                    "ran": turn.get("result") is not None,
                     "finished_at": turn.get("finished_at"),
                     "failure": turn.get("failure"),
                 }

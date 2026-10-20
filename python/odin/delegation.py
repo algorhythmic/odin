@@ -76,7 +76,7 @@ def _refuse(code):
 def _same_path(left, right):
     try:
         return Path(left).resolve() == Path(right).resolve()
-    except OSError:
+    except (OSError, RuntimeError):  # RuntimeError: symlink loops on 3.12
         return str(left) == str(right)
 
 
@@ -244,12 +244,20 @@ class Delegation:
         if name == "claude-code":
             home = Path(harness["config_dir"])
             executive = self._executive_config_dir()
-            shared_with = (
-                "executive"
-                if executive is not None and _same_path(home, executive)
-                else None
-            )
-            lock = str(home / ".odin-lineage.lock")
+            operator_logins = [Path.home() / ".claude"]
+            if os.environ.get("CLAUDE_CONFIG_DIR"):
+                operator_logins.append(Path(os.environ["CLAUDE_CONFIG_DIR"]))
+            if executive is not None and _same_path(home, executive):
+                shared_with = "executive"
+                lock = str(home / ".odin-lineage.lock")
+            elif any(_same_path(home, login) for login in operator_logins):
+                # The operator's own development login (CLAUDE.md): never a
+                # worker lineage, and never a place Odin creates lease files.
+                shared_with = "operator-claude-login"
+                lock = None
+            else:
+                shared_with = None
+                lock = str(home / ".odin-lineage.lock")
             credential = str(home / ".credentials.json")
         elif harness.get("codex_home"):
             home = Path(harness["codex_home"])
@@ -381,7 +389,7 @@ class Delegation:
     def _turns(self, *, session=None, assignment=None, project=None):
         rows = self.store.db.execute(
             "SELECT body FROM delegation_turns WHERE (? IS NULL OR session=?) "
-            "AND (? IS NULL OR assignment=?) AND (? IS NULL OR project=?) ORDER BY seq",
+            "AND (? IS NULL OR assignment=?) AND (? IS NULL OR project=?) ORDER BY id",
             (session, session, assignment, assignment, project, project),
         )
         return [strict_loads(row[0]) for row in rows]
@@ -882,6 +890,11 @@ class Delegation:
     def _spec(self, session, assignment, turn, prompt):
         harness = self._harness(session["harness"])
         options = self._options(session["id"])
+        lineage = self._lineage(session["harness"])
+        if lineage["shared_with"] and lineage["policy"] != "shared_accepted":
+            # The policy may have changed since the session opened; every
+            # launch re-applies it rather than trusting the opening check.
+            _refuse("lineage_shared_requires_acceptance")
         directory = self.spool / session["id"] / turn["id"]
         earlier = [
             t for t in self._turns(session=session["id"]) if t["id"] != turn["id"]
@@ -973,9 +986,7 @@ class Delegation:
             "output_format": output_format,
             "last_message_file": last_message,
             "lineage": {
-                key: value
-                for key, value in self._lineage(session["harness"]).items()
-                if key != "lease_enforced"
+                key: value for key, value in lineage.items() if key != "lease_enforced"
             },
         }
 
@@ -984,16 +995,22 @@ class Delegation:
         if not self.enabled():
             return []
         launched = []
-        busy = {
-            t["session"]
-            for t in self._turns()
-            if t["state"] in ("launching", "running", "interrupting")
-        }
+        busy = set()
+        busy_locks = set()
+        for t in self._turns():
+            if t["state"] in ("launching", "running", "interrupting"):
+                busy.add(t["session"])
+                busy_locks.add(self._lock_of(t["session"]))
         for turn in self._turns():
             if turn["state"] != "queued" or turn["session"] in busy:
                 continue
             session = self.store.get(turn["session"])
             if session["state"] not in ("idle", "active"):
+                continue
+            lock = self._lock_of(session["id"], session)
+            if lock is not None and lock in busy_locks:
+                # Another session's turn holds this credential lineage; stay
+                # queued instead of being refused by the runner's lease.
                 continue
             try:
                 launched.append(self._launch(turn, session))
@@ -1006,7 +1023,15 @@ class Delegation:
                         failure=f"launch failed: {type(error).__name__}: {error}"[:200],
                     )
             busy.add(turn["session"])
+            busy_locks.add(lock)
         return launched
+
+    def _lock_of(self, session_id, session=None):
+        session = session or self.store.get(session_id)
+        try:
+            return self._lineage(session["harness"])["lock"]
+        except DelegationRefused:
+            return None
 
     def _launch(self, turn, session):
         assignment = self.store.get(turn["assignment"])
