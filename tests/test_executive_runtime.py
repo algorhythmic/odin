@@ -596,6 +596,15 @@ class ExecutiveRuntimeTests(unittest.TestCase):
             result = runtime.status(self.state)
         self.assertEqual(result["service_reachability"], "reachable")
 
+    def test_status_reports_unavailable_when_probe_raises(self):
+        self.prepare()
+        with patch.object(runtime, "ExecutiveBridge") as bridge:
+            bridge.return_value.call.side_effect = RuntimeError("probe exploded")
+            result = runtime.status(self.state)
+        self.assertEqual(result["service_reachability"], "unavailable")
+        bridge.assert_called_once()
+        self.assertEqual(bridge.call_args.args[0], self.prepare()["project"])
+
     def test_status_reports_service_unchecked_without_mcp(self):
         self.prepare(enable_mcp=False)
         with patch.object(runtime, "SocketGateway") as gateway:

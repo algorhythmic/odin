@@ -27,6 +27,7 @@
     "cost_usd": {"anyOf": [{"type": "number", "minimum": 0}, {"type": "null"}]},
     "usage": {"anyOf": [{"type": "object"}, {"type": "null"}]},
     "permission_denials": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
-    "parse_error": {"anyOf": [{"type": "string"}, {"type": "null"}]}
+    "parse_error": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+    "error_summary": {"anyOf": [{"type": "string"}, {"type": "null"}]}
   }
 }

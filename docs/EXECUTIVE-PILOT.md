@@ -36,7 +36,14 @@ make this distinction explicit; it does not confer live Saga guarantees.
 
 There is no service-enforced model cost or turn budget in this pilot. Native
 account limits and operator control are not evidence of Odin budget
-enforcement; `executive-status` reports this boundary explicitly.
+enforcement; `executive-status` reports this boundary explicitly. It also
+reports `service_reachability`: `reachable` means one scoped `odin_resume`
+probe over `executive.sock` succeeded (two-second socket timeout per stage,
+not a total deadline), `unavailable` means the probe failed for any reason,
+including access denial or an invalid reply, and `unchecked` means the
+bridge is disabled in the manifest. It is a point-in-time probe, not a
+service-health guarantee, and for version 3 an unavailable Odin service is
+not a loss of native coding capability.
 
 The bridge lets Fable create commitments only through delegation assignments
 (ADR-027); other commitment edits remain in Odin's existing service paths. Ordinary chat stays

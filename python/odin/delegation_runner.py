@@ -53,13 +53,37 @@ def run(directory):
     result_path = directory / "result.json"
     if result_path.exists():
         return 0  # Idempotent: a finished turn is never executed twice.
+    try:
+        lock_fd = os.open(
+            directory / "runner.lock", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
+        )
+    except FileExistsError:
+        return 0  # Another runner already owns this turn; never run it twice.
+    os.close(lock_fd)
     environment = os.environ | {str(k): str(v) for k, v in spec.get("env", {}).items()}
     started_at = _now()
     interrupted = {"value": False}
     timed_out = False
+    process = None
+
+    def forward(signum, _frame):
+        interrupted["value"] = True
+        if process is not None:
+            try:
+                os.killpg(process.pid, signal.SIGINT)
+            except ProcessLookupError:
+                pass
+
+    # Handlers before spawn: a stop that lands early still reaches the harness.
+    signal.signal(signal.SIGTERM, forward)
+    signal.signal(signal.SIGINT, forward)
     with (
-        open(stdout_path, "ab") as stdout,
-        open(stderr_path, "ab") as stderr,
+        os.fdopen(
+            os.open(stdout_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600), "ab"
+        ) as stdout,
+        os.fdopen(
+            os.open(stderr_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600), "ab"
+        ) as stderr,
     ):
         process = subprocess.Popen(
             spec["argv"],
@@ -80,15 +104,8 @@ def run(directory):
             },
         )
 
-        def forward(signum, _frame):
-            interrupted["value"] = True
-            try:
-                os.killpg(process.pid, signal.SIGINT)
-            except ProcessLookupError:
-                pass
-
-        signal.signal(signal.SIGTERM, forward)
-        signal.signal(signal.SIGINT, forward)
+        if interrupted["value"]:
+            forward(signal.SIGTERM, None)
         deadline = time.monotonic() + float(spec.get("timeout_seconds", 1800))
         grace_until = None
         while True:
@@ -147,6 +164,9 @@ def run(directory):
         "usage": parsed.get("usage"),
         "permission_denials": parsed.get("permission_denials"),
         "parse_error": parsed.get("parse_error"),
+        "error_summary": ("; ".join(parsed["errors"])[:2048] or None)
+        if parsed.get("errors")
+        else None,
     }
     _write_json(result_path, result)
     return 0

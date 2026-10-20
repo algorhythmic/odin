@@ -45,7 +45,7 @@ def parse_claude_json(stdout):
         cost = body.get("total_cost_usd")
         return {
             "native_session_id": body.get("session_id")
-            if isinstance(body.get("session_id"), str)
+            if isinstance(body.get("session_id"), str) and body.get("session_id")
             else None,
             "final_text": _text(body.get("result")),
             "is_error": bool(body.get("is_error", False)),
@@ -55,7 +55,9 @@ def parse_claude_json(stdout):
             "turns": body.get("num_turns")
             if type(body.get("num_turns")) is int
             else None,
-            "cost_usd": float(cost) if isinstance(cost, (int, float)) else None,
+            "cost_usd": float(cost)
+            if isinstance(cost, (int, float)) and not isinstance(cost, bool)
+            else None,
             "usage": {
                 key: usage[key]
                 for key in (

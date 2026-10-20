@@ -89,6 +89,38 @@ def _pid_alive(pid):
         return True
 
 
+def _runner_alive(pid, directory):
+    """True only for a live runner process that belongs to this turn directory."""
+    if not _pid_alive(pid):
+        return False
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as handle:
+            cmdline = handle.read().split(b"\0")
+    except OSError:
+        return True  # Cannot verify identity; treat as alive conservatively.
+    return b"odin.delegation_runner" in cmdline and str(directory).encode() in cmdline
+
+
+def _kill_group(pid, signum):
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    try:
+        os.killpg(pid, signum)
+        return True
+    except (ProcessLookupError, PermissionError):
+        return False
+
+
+def _age_seconds(stamp):
+    from datetime import datetime, timezone
+
+    return (datetime.now(timezone.utc) - datetime.fromisoformat(stamp)).total_seconds()
+
+
+RUNNER_GRACE_SECONDS = 15
+DEADLINE_SLACK_SECONDS = 60
+
+
 def _version(binary):
     try:
         completed = subprocess.run(
@@ -560,7 +592,8 @@ class Delegation:
             for turn in self._turns(session=session["id"]):
                 if turn["state"] in ("launching", "running"):
                     pid = (turn.get("runner") or {}).get("pid")
-                    if pid and _pid_alive(pid):
+                    directory = self.spool / turn["session"] / turn["id"]
+                    if pid and _runner_alive(pid, directory):
                         try:
                             os.kill(pid, signal.SIGTERM)
                             signalled.append(turn["id"])
@@ -571,25 +604,16 @@ class Delegation:
                         | {
                             "state": "interrupting",
                             "stop_reason": payload.get("reason"),
-                        }
-                    )
-                elif turn["state"] == "queued":
-                    self._save_turn(
-                        turn
-                        | {
-                            "state": "interrupted",
-                            "stop_reason": payload.get("reason"),
-                            "finished_at": now(),
+                            "interrupt_requested_at": now(),
                         }
                     )
             session = self._put_session(session, state="retiring")
-            if not signalled and not any(
+            if not any(
                 t["state"] in ("launching", "running", "interrupting")
                 for t in self._turns(session=session["id"])
             ):
                 # Nothing is running: retire immediately and release ownership.
-                session = self._put_session(session, state="retired")
-                self._release_owner(session)
+                session = self._retire(session, reason=payload.get("reason"))
             self.store._history(
                 "delegation.session",
                 {
@@ -779,7 +803,9 @@ class Delegation:
         }
         self._save_turn(turn)
         directory = self.spool / session["id"] / turn["id"]
-        directory.mkdir(mode=0o700, parents=True, exist_ok=False)
+        for parent in (self.spool, self.spool / session["id"]):
+            parent.mkdir(mode=0o700, exist_ok=True)
+        directory.mkdir(mode=0o700, exist_ok=False)
         (directory / "prompt.txt").write_text(prompt)
         os.chmod(directory / "prompt.txt", 0o600)
         self.store._history(
@@ -799,13 +825,19 @@ class Delegation:
         harness = self._harness(session["harness"])
         options = self._options(session["id"])
         directory = self.spool / session["id"] / turn["id"]
-        first = not any(
-            t["state"] == "returned"
-            for t in self._turns(session=session["id"])
-            if t["id"] != turn["id"]
+        earlier = [
+            t for t in self._turns(session=session["id"]) if t["id"] != turn["id"]
+        ]
+        observed = any(
+            (t.get("result") or {}).get("native_session_id") for t in earlier
         )
+        first = not observed
         env = {}
         if session["harness"] == "claude-code":
+            if not observed and any(t["state"] != "queued" for t in earlier):
+                # An earlier launch may or may not have created the native
+                # session; never reuse its id. Rotate to a fresh identity.
+                session = self._rotate_native_session(session)
             argv = [
                 harness["binary"],
                 "-p",
@@ -900,74 +932,124 @@ class Delegation:
             session = self.store.get(turn["session"])
             if session["state"] not in ("idle", "active"):
                 continue
-            assignment = self.store.get(turn["assignment"])
-            directory = self.spool / turn["session"] / turn["id"]
-            prompt = (directory / "prompt.txt").read_text()
+            try:
+                launched.append(self._launch(turn, session))
+            except (DelegationRefused, OSError, ValueError, KeyError) as error:
+                # One unlaunchable turn must not block other sessions' turns.
+                with self.store.transaction():
+                    self._finish_turn(
+                        turn,
+                        "failed",
+                        failure=f"launch failed: {type(error).__name__}: {error}"[:200],
+                    )
+            busy.add(turn["session"])
+        return launched
+
+    def _launch(self, turn, session):
+        assignment = self.store.get(turn["assignment"])
+        directory = self.spool / turn["session"] / turn["id"]
+        prompt = (directory / "prompt.txt").read_text()
+        # 1. Commit the launch intent (and any native identity rotation) first,
+        #    so a crash between commit and spawn leaves a reconcilable record.
+        with self.store.transaction():
             spec = self._spec(session, assignment, turn, prompt)
             spec_path = directory / "spec.json"
             if not spec_path.exists():
                 spec_path.write_text(canonical(spec) + "\n")
                 os.chmod(spec_path, 0o600)
-            with self.store.transaction():
-                try:
-                    with open(directory / "runner.log", "ab") as log:
-                        process = subprocess.Popen(
-                            [
-                                self.python,
-                                "-m",
-                                "odin.delegation_runner",
-                                str(directory),
-                            ],
-                            cwd=str(directory),
-                            env=os.environ
-                            | {
-                                "PYTHONPATH": str(ROOT / "python"),
-                                "PYTHONNOUSERSITE": "1",
-                            },
-                            stdin=subprocess.DEVNULL,
-                            stdout=log,
-                            stderr=log,
-                            start_new_session=True,
-                        )
-                except OSError as error:
-                    updated = turn | {
-                        "state": "failed",
-                        "finished_at": now(),
-                        "failure": f"runner spawn failed: {type(error).__name__}",
-                    }
-                    self._save_turn(updated)
-                    continue
-                self._children.append(process)
-                updated = turn | {
-                    "state": "launching",
-                    "runner": {"pid": process.pid, "launched_at": now()},
-                }
-                self._save_turn(updated)
-                self._put_session(session, state="active")
-                if assignment["state"] == "dispatched":
-                    self.store._put(
-                        assignment
-                        | {
-                            "state": "active",
-                            "rev": assignment["rev"] + 1,
-                            "updated_at": now(),
-                        },
-                        assignment["rev"],
-                    )
-                self.store._history(
-                    "delegation.turn",
-                    {
-                        "turn": turn["id"],
-                        "session": turn["session"],
-                        "assignment": turn["assignment"],
-                        "state": "launching",
-                        "runner_pid": process.pid,
-                        "argv_digest": digest(spec["argv"]),
-                    },
+            self._save_turn(
+                turn
+                | {"state": "launching", "runner": None, "launch_committed_at": now()}
+            )
+        # 2. Spawn outside any transaction; the runner guards against doubles.
+        try:
+            log_fd = os.open(
+                directory / "runner.log", os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600
+            )
+            with os.fdopen(log_fd, "ab") as log:
+                process = subprocess.Popen(
+                    [self.python, "-m", "odin.delegation_runner", str(directory)],
+                    cwd=str(directory),
+                    env=os.environ
+                    | {"PYTHONPATH": str(ROOT / "python"), "PYTHONNOUSERSITE": "1"},
+                    stdin=subprocess.DEVNULL,
+                    stdout=log,
+                    stderr=log,
+                    start_new_session=True,
                 )
-            busy.add(turn["session"])
-            launched.append(turn["id"])
-        return launched
+        except OSError as error:
+            with self.store.transaction():
+                self._finish_turn(
+                    self._turn(turn["id"]),
+                    "failed",
+                    failure=f"runner spawn failed: {type(error).__name__}",
+                )
+            return turn["id"]
+        self._children.append(process)
+        # 3. Record the observed runner identity.
+        with self.store.transaction():
+            current = self._turn(turn["id"])
+            self._save_turn(
+                current | {"runner": {"pid": process.pid, "launched_at": now()}}
+            )
+            session = self.store.get(session["id"])
+            if session["state"] != "active":
+                self._put_session(session, state="active")
+            assignment = self.store.get(assignment["id"])
+            if assignment["state"] == "dispatched":
+                self.store._put(
+                    assignment
+                    | {
+                        "state": "active",
+                        "rev": assignment["rev"] + 1,
+                        "updated_at": now(),
+                    },
+                    assignment["rev"],
+                )
+            self.store._history(
+                "delegation.turn",
+                {
+                    "turn": turn["id"],
+                    "session": turn["session"],
+                    "assignment": turn["assignment"],
+                    "state": "launching",
+                    "runner_pid": process.pid,
+                    "argv_digest": digest(spec["argv"]),
+                },
+            )
+        return turn["id"]
+
+    def _rotate_native_session(self, session):
+        """Give a Claude Code session a fresh native id after an unobserved launch."""
+        environment = self._environment_record()
+        previous = self._current_binding(session["id"])
+        old = session["native_session_id"]
+        session = self._put_session(session, native_session_id=str(uuid.uuid4()))
+        if previous is not None and previous["state"] == "active":
+            self.store._put(
+                previous
+                | {
+                    "state": "invalidated",
+                    "rev": previous["rev"] + 1,
+                    "updated_at": now(),
+                },
+                previous["rev"],
+            )
+        self._bind(
+            session, environment, predecessor=previous["id"] if previous else None
+        )
+        self.store._history(
+            "delegation.session",
+            {
+                "action": "rotate_native_session",
+                "session": session["id"],
+                "project": session["project"],
+                "previous_native_session_id": old,
+                "native_session_id": session["native_session_id"],
+                "reason": "earlier launch never reported its native session",
+            },
+        )
+        return session
 
     def reconcile(self):
         """Ingest runner results and detect lost runners; never retries."""
@@ -986,15 +1068,37 @@ class Delegation:
                 )
             ):
                 with self.store.transaction():
-                    self._put_session(session, state="retired")
-                    self._release_owner(session)
+                    self._retire(session, reason="service recovery")
                 changed.append(session["id"])
+        timeout = (self.config or {}).get("turn_timeout_seconds", 1800)
         for turn in self._turns():
             if turn["state"] not in ("launching", "running", "interrupting"):
                 continue
             directory = self.spool / turn["session"] / turn["id"]
             result_path = directory / "result.json"
             started_path = directory / "started.json"
+            runner = turn.get("runner") or {}
+            launched_at = runner.get("launched_at") or turn.get("launch_committed_at")
+            overdue = launched_at is not None and _age_seconds(launched_at) > (
+                timeout + RUNNER_GRACE_SECONDS + DEADLINE_SLACK_SECONDS
+            )
+            stuck_interrupt = (
+                turn["state"] == "interrupting"
+                and turn.get("interrupt_requested_at")
+                and _age_seconds(turn["interrupt_requested_at"])
+                > (RUNNER_GRACE_SECONDS + DEADLINE_SLACK_SECONDS)
+            )
+            if (overdue or stuck_interrupt) and not result_path.exists():
+                self._kill_turn_processes(turn, directory)
+                with self.store.transaction():
+                    self._finish_turn(
+                        turn,
+                        "lost",
+                        failure="runner deadline exceeded; processes signalled; "
+                        "native outcome unknown",
+                    )
+                changed.append(turn["id"])
+                continue
             if result_path.exists():
                 try:
                     result = strict_loads(result_path.read_text())
@@ -1020,7 +1124,6 @@ class Delegation:
                     self._finish_turn(turn, state, result=result)
                 changed.append(turn["id"])
                 continue
-            runner = turn.get("runner") or {}
             if started_path.exists() and turn["state"] == "launching":
                 try:
                     started = strict_loads(started_path.read_text())
@@ -1040,15 +1143,47 @@ class Delegation:
                     )
                 changed.append(turn["id"])
                 continue
-            if not _pid_alive(runner.get("pid")):
+            if runner.get("pid") is None:
+                continue  # Launch committed but not yet spawned by this process.
+            if not _runner_alive(runner.get("pid"), directory):
+                killed = self._kill_turn_processes(turn, directory)
                 with self.store.transaction():
                     self._finish_turn(
                         turn,
                         "lost",
-                        failure="runner exited without a result; native outcome unknown",
+                        failure="runner exited without a result; native outcome unknown"
+                        + ("; harness process signalled" if killed else ""),
                     )
                 changed.append(turn["id"])
         return changed
+
+    def _kill_turn_processes(self, turn, directory):
+        """Signal a turn's runner and harness groups; identity-checked, best effort."""
+        runner = turn.get("runner") or {}
+        killed = False
+        if _runner_alive(runner.get("pid"), directory):
+            killed |= _kill_group(runner["pid"], signal.SIGKILL)
+        harness_pid = runner.get("harness_pid")
+        if harness_pid and _pid_alive(harness_pid):
+            killed |= _kill_group(harness_pid, signal.SIGKILL)
+        return killed
+
+    def _retire(self, session, *, reason=None):
+        """Retire a session: strand no queued turn, release project ownership."""
+        for turn in self._turns(session=session["id"]):
+            if turn["state"] == "queued":
+                self._save_turn(
+                    turn
+                    | {
+                        "state": "interrupted",
+                        "stop_reason": reason or "session_retired",
+                        "finished_at": now(),
+                    }
+                )
+        if session["state"] != "retired":
+            session = self._put_session(session, state="retired")
+        self._release_owner(session)
+        return session
 
     def _finish_turn(self, turn, state, *, result=None, failure=None):
         session = self.store.get(turn["session"])
@@ -1074,9 +1209,11 @@ class Delegation:
             if t["id"] != turn["id"]
         )
         if session["state"] == "retiring":
+            if changes:
+                session = self._put_session(session, **changes)
+                changes = {}
             if not still_running:
-                changes["state"] = "retired"
-                self._release_owner(session)
+                self._retire(session)
         elif session["state"] == "active" and not still_running:
             changes["state"] = "idle"
         if changes:
@@ -1134,6 +1271,7 @@ class Delegation:
             "usage": result.get("usage"),
             "permission_denials": result.get("permission_denials"),
             "parse_error": result.get("parse_error"),
+            "error_summary": result.get("error_summary"),
             "native_session_id": result.get("native_session_id"),
             "final_text_bytes": len(text.encode("utf-8")),
             "final_text_digest": digest(text),
@@ -1204,7 +1342,6 @@ class Delegation:
                 "sessions": [],
             }
         self.reconcile()
-        self.launch_pending()
         detail = payload.get("detail_bytes", 4096)
         sessions = [
             r
@@ -1254,6 +1391,9 @@ class Delegation:
                                 "created_at": t["created_at"],
                                 "finished_at": t.get("finished_at"),
                                 "failure": t.get("failure"),
+                                "native_session_mismatch": t.get(
+                                    "native_session_mismatch", False
+                                ),
                                 "runner": t.get("runner"),
                                 "result": {
                                     k: v
@@ -1313,7 +1453,16 @@ class Delegation:
             _refuse("turn_not_finished")
         body = None
         if result_path.exists():
-            body = strict_loads(result_path.read_text())
+            try:
+                body = strict_loads(result_path.read_text())
+            except (ValueError, OSError):
+                return {
+                    "turn": turn["id"],
+                    "state": turn["state"],
+                    "available": False,
+                    "reason": "result_unreadable",
+                    "transcript_paths": self._paths(directory),
+                }
         text = (body or {}).get("final_text", "") if body else ""
         limit = payload.get("max_bytes", 65536)
         encoded = text.encode("utf-8")
@@ -1359,13 +1508,25 @@ class Delegation:
         if assignment["state"] in ("completed", "failed", "cancelled"):
             _refuse("assignment_closed")
         self.reconcile()
-        if any(
-            t["state"] in RUNNING_TURN_STATES
-            for t in self._turns(assignment=assignment["id"])
+        turns = self._turns(assignment=assignment["id"])
+        if any(t["state"] in ("launching", "running", "interrupting") for t in turns):
+            _refuse("turn_still_running")
+        if payload["disposition"] == "accepted" and any(
+            t["state"] == "queued" for t in turns
         ):
             _refuse("turn_still_running")
         stamp = now()
         with self.store.transaction():
+            for t in turns:
+                if t["state"] == "queued":
+                    self._save_turn(
+                        t
+                        | {
+                            "state": "interrupted",
+                            "stop_reason": "assignment_cancelled",
+                            "finished_at": stamp,
+                        }
+                    )
             if payload["disposition"] == "accepted":
                 evidence = payload.get("evidence") or {}
                 required = {c["id"] for c in commitment["criteria"]}
@@ -1459,6 +1620,8 @@ class Delegation:
         if not self.enabled():
             return
         self.reconcile()
+        if self.store.stopped():
+            return  # An operator stop halts new launches; running turns reconcile.
         self.launch_pending()
 
 
@@ -1476,6 +1639,8 @@ def default_config(
     """Build an operator delegation configuration from explicit choices."""
     harnesses = {}
     claude = claude_binary or shutil.which("claude")
+    if claude is not None and not os.access(claude, os.X_OK):
+        claude = None
     if claude_config_dir:
         if claude is None:
             raise ValueError("Claude Code binary not found")
@@ -1488,7 +1653,7 @@ def default_config(
             "default_permission_mode": "acceptEdits",
         }
     codex = codex_binary or shutil.which("codex")
-    if codex is not None:
+    if codex is not None and os.access(codex, os.X_OK):
         harnesses["codex"] = {
             "binary": str(Path(codex).absolute()),
             "codex_home": str(Path(codex_home).absolute()) if codex_home else None,
@@ -1497,6 +1662,8 @@ def default_config(
             "default_model": codex_model,
             "default_sandbox": "workspace-write",
         }
+    if not harnesses:
+        raise ValueError("no delegation harness configured")
     return {
         "schema_version": 1,
         "workspace_roots": [str(Path(root).absolute()) for root in workspace_roots],

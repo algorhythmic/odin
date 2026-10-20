@@ -336,10 +336,11 @@ class Gateway:
                 self._executive_scope(action, payload, context)
             else:
                 self._operator(context)
-            self.coordination._live()
             project = payload["project"]
             arguments = {k: v for k, v in payload.items() if k != "project"}
             if action not in {"delegation_status", "delegation_result"}:
+                # Reads stay available during an operator stop; writes do not.
+                self.coordination._live()
                 # The bridge carries the stable operation_id on the command
                 # envelope; the tool definition requires the same value.
                 if arguments.setdefault("operation_id", operation) != operation:

@@ -69,12 +69,23 @@ FAKE_CODEX = textwrap.dedent(
     print(json.dumps({"type": "thread.started", "thread_id": thread}))
     print(json.dumps({"type": "turn.started"}))
     text = "codex says: " + prompt[-40:]
+    if "FAIL" in prompt:
+        print(json.dumps({"type": "turn.failed", "error": "synthetic provider failure"}))
+        sys.exit(1)
     print(json.dumps({"type": "item.completed", "item": {"id": "item_0", "type": "agent_message", "text": text}}))
     print(json.dumps({"type": "turn.completed", "usage": {"input_tokens": 7, "output_tokens": 3}}))
     if out:
         open(out, "w").write(text)
     """
 )
+
+
+def _alive(pid):
+    try:
+        with open(f"/proc/{pid}/stat") as handle:
+            return handle.read().rsplit(")", 1)[1].split()[0] != "Z"
+    except OSError:
+        return False
 
 
 def _script(path, body):
@@ -417,7 +428,6 @@ class DelegationCycleTests(unittest.TestCase):
             )
         )
         runner = state["turns"][0]["runner"]
-        os.kill(runner["harness_pid"], signal.SIGKILL)
         os.kill(runner["pid"], signal.SIGKILL)
         state = h.wait(
             lambda: (
@@ -426,6 +436,8 @@ class DelegationCycleTests(unittest.TestCase):
             )
         )
         self.assertIn("native outcome unknown", state["turns"][0]["failure"])
+        self.assertIn("harness process signalled", state["turns"][0]["failure"])
+        h.wait(lambda: not _alive(runner["harness_pid"]))
         self.assertEqual(h.gateway.delegation.launch_pending(), [])
         self.assertEqual(
             h.service.store.get(successor["session"]["id"])["state"], "idle"
@@ -438,7 +450,8 @@ class DelegationCycleTests(unittest.TestCase):
         h = self.harness
         session = self.open_session()["session"]["id"]
         stopped = h.call(
-            "delegation_session", {"action": "stop", "session_id": session, "reason": "done"}
+            "delegation_session",
+            {"action": "stop", "session_id": session, "reason": "done"},
         )
         self.assertEqual(stopped["session"]["state"], "retired")
         self.assertIsNone(h.service.store.get(h.project)["interface_decision_owner"])
@@ -664,7 +677,10 @@ class DelegationCycleTests(unittest.TestCase):
             try:
                 return submit_executive(h.gateway, {"command": command}, h.project)
             except Exception as error:
-                result = {"error": type(error).__name__, "label": "fake-backend evidence"}
+                result = {
+                    "error": type(error).__name__,
+                    "label": "fake-backend evidence",
+                }
                 if isinstance(error, DelegationRefused):
                     result["detail"] = str(error)
                 return result
@@ -688,9 +704,200 @@ class DelegationCycleTests(unittest.TestCase):
             arguments | {"operation_id": identifier()},
         )
         self.assertTrue(refused["isError"])
-        self.assertIn("project_already_has_active_session", refused["content"][0]["text"])
+        self.assertIn(
+            "project_already_has_active_session", refused["content"][0]["text"]
+        )
         status = bridge.call("odin_delegation_status", {"session_id": session})
         self.assertFalse(status["isError"])
+
+    def test_retiring_session_strands_no_queued_turn(self):
+        h = self.harness
+        session = self.open_session()["session"]["id"]
+        running = self.assign(session, "SLEEP 3 running")
+        h.gateway.delegation.launch_pending()
+        h.wait(
+            lambda: (
+                h.assignment_state(running["assignment"])["turns"][0]["state"]
+                == "running"
+            )
+        )
+        second = self.assign(session, "second queued")
+        self.assertEqual(
+            h.assignment_state(second["assignment"])["turns"][0]["state"], "queued"
+        )
+        h.restart()  # recovery marks the active session retiring
+        h.wait(
+            lambda: (
+                h.assignment_state(running["assignment"])["turns"][0]["state"]
+                == "returned"
+            )
+        )
+        self.assertEqual(h.service.store.get(session)["state"], "retired")
+        self.assertEqual(
+            h.assignment_state(second["assignment"])["turns"][0]["state"], "interrupted"
+        )
+        cancelled = h.call(
+            "delegation_close",
+            {
+                "assignment_id": second["assignment"],
+                "disposition": "cancelled",
+                "reason": "stranded",
+            },
+        )
+        self.assertEqual(cancelled["commitment_state"], "abandoned")
+
+    def test_cancel_with_only_queued_turn_is_allowed(self):
+        h = self.harness
+        session = self.open_session()["session"]["id"]
+        assigned = self.assign(session, "never launched")
+        cancelled = h.call(
+            "delegation_close",
+            {
+                "assignment_id": assigned["assignment"],
+                "disposition": "cancelled",
+                "reason": "changed mind",
+            },
+        )
+        self.assertEqual(cancelled["assignment_state"], "cancelled")
+        self.assertEqual(
+            h.assignment_state(assigned["assignment"])["turns"][0]["state"],
+            "interrupted",
+        )
+        self.assertEqual(h.gateway.delegation.launch_pending(), [])
+
+    def test_failed_first_turn_rotates_native_session_then_resumes(self):
+        h = self.harness
+        opened = self.open_session()
+        session = opened["session"]["id"]
+        first_native = opened["session"]["native_session_id"]
+        crashed = self.assign(session, "CRASH early")
+        h.gateway.delegation.launch_pending()
+        h.wait(
+            lambda: (
+                h.assignment_state(crashed["assignment"])["turns"][0]["state"]
+                == "failed"
+            )
+        )
+        retry = h.call(
+            "delegation_followup",
+            {
+                "session_id": session,
+                "assignment_id": crashed["assignment"],
+                "message": "try again",
+            },
+        )
+        h.gateway.delegation.launch_pending()
+        h.wait(
+            lambda: (
+                h.assignment_state(crashed["assignment"])["turns"][1]["state"]
+                == "returned"
+            )
+        )
+        rotated = h.service.store.get(session)["native_session_id"]
+        self.assertNotEqual(rotated, first_native)
+        spec = strict_loads(
+            (
+                h.state / "delegations" / session / retry["turn"] / "spec.json"
+            ).read_text()
+        )
+        self.assertEqual(spec["argv"][spec["argv"].index("--session-id") + 1], rotated)
+        bindings = [
+            b
+            for b in h.service.store.records("SessionBinding")
+            if b["subject"]["id"] == session
+        ]
+        self.assertEqual([b["state"] for b in bindings], ["invalidated", "active"])
+        third = h.call(
+            "delegation_followup",
+            {
+                "session_id": session,
+                "assignment_id": crashed["assignment"],
+                "message": "continue",
+            },
+        )
+        h.gateway.delegation.launch_pending()
+        h.wait(
+            lambda: (
+                h.assignment_state(crashed["assignment"])["turns"][2]["state"]
+                == "returned"
+            )
+        )
+        spec = strict_loads(
+            (
+                h.state / "delegations" / session / third["turn"] / "spec.json"
+            ).read_text()
+        )
+        self.assertEqual(spec["argv"][spec["argv"].index("--resume") + 1], rotated)
+
+    def test_overdue_runner_is_killed_and_marked_lost(self):
+        h = self.harness
+        session = self.open_session()["session"]["id"]
+        assigned = self.assign(session, "SLEEP 60 stuck")
+        h.gateway.delegation.launch_pending()
+        state = h.wait(
+            lambda: (
+                h.assignment_state(assigned["assignment"])["turns"][0]["state"]
+                == "running"
+                and h.assignment_state(assigned["assignment"])
+            )
+        )
+        runner = state["turns"][0]["runner"]
+        os.kill(runner["pid"], signal.SIGSTOP)  # a stuck runner never reports
+        turn = h.gateway.delegation._turn(assigned["turn"])
+        with h.service.store.transaction():
+            h.gateway.delegation._save_turn(
+                turn
+                | {"runner": turn["runner"] | {"launched_at": "2020-01-01T00:00:00Z"}}
+            )
+        state = h.wait(
+            lambda: (
+                h.assignment_state(assigned["assignment"])["turns"][0]["state"]
+                == "lost"
+                and h.assignment_state(assigned["assignment"])
+            )
+        )
+        self.assertIn("deadline exceeded", state["turns"][0]["failure"])
+        h.wait(lambda: not _alive(runner["pid"]) and not _alive(runner["harness_pid"]))
+        self.assertEqual(h.service.store.get(session)["state"], "idle")
+
+    def test_codex_failure_summary_and_unreadable_result(self):
+        h = self.harness
+        session = self.open_session("codex", model="fake-codex-model")["session"]["id"]
+        failed = self.assign(session, "please FAIL", allow_unenforced_limits=True)
+        h.gateway.delegation.launch_pending()
+        state = h.wait(
+            lambda: (
+                h.assignment_state(failed["assignment"])["turns"][0]["state"]
+                == "failed"
+                and h.assignment_state(failed["assignment"])
+            )
+        )
+        self.assertEqual(
+            state["turns"][0]["result"]["error_summary"], "synthetic provider failure"
+        )
+        path = h.state / "delegations" / session / failed["turn"] / "result.json"
+        path.write_text("{not json")
+        result = h.call("delegation_result", {"assignment_id": failed["assignment"]})
+        self.assertFalse(result["available"])
+        self.assertEqual(result["reason"], "result_unreadable")
+
+    def test_operator_stop_halts_new_launches(self):
+        h = self.harness
+        session = self.open_session()["session"]["id"]
+        assigned = self.assign(session, "after stop")
+        h.service.store.stop("operator requested stop")
+        h.gateway.delegation.tick()
+        self.assertEqual(
+            h.assignment_state(assigned["assignment"])["turns"][0]["state"], "queued"
+        )
+
+    def test_default_config_requires_a_harness(self):
+        with self.assertRaises(ValueError):
+            default_config(
+                claude_config_dir=None,
+                workspace_roots=[self.harness.workspace_root],
+                codex_binary="/nonexistent/codex",
+            )
 
     def test_replayed_operation_returns_receipt_without_second_session(self):
         h = self.harness

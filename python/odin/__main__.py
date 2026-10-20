@@ -400,8 +400,6 @@ def main():
                     if service.store.dispatch_enabled:
                         service.store.dispatch(service.backend)
                         service.mirror.refresh(service.backend)
-                    # Runner launches happen after the recorded command commits.
-                    gateway.delegation.launch_pending()
                 except Exception as error:
                     # Keep protocol errors bounded; never dump a schema or input body.
                     result = {"error": type(error).__name__, "label": service.label}
@@ -410,6 +408,18 @@ def main():
                     if isinstance(error, DelegationRefused):
                         result["detail"] = str(error)
                 self.wfile.write((canonical(result) + "\n").encode())
+                self.wfile.flush()
+                # Runner launches follow the recorded command and its reply;
+                # a launch problem is a turn failure, never a command failure.
+                try:
+                    if not service.store.stopped():
+                        gateway.delegation.launch_pending()
+                except Exception as error:
+                    print(
+                        "delegation launch failed: " + type(error).__name__,
+                        file=sys.stderr,
+                        flush=True,
+                    )
 
         import selectors
         import stat

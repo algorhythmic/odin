@@ -158,6 +158,17 @@ is not proof of live tool behavior: record an actual read, edit/test or native
 agent invocation after resume separately. Earlier read-boundary checks apply
 only to retained version 2, not the unrestricted development profile.
 
+The ADR-027 delegation check passes 273 Python tests, including 17 delegation
+tests that run real detached runners against synthetic harness binaries
+(open, assign, launch, return, follow-up resume, restart, native-id
+rotation, stop/interrupt, lost and overdue runners, failure visibility,
+unenforced-limit refusal, scope, replay and the bridge envelope), plus
+documentation integrity, 13 documentation regressions, 94 contract cases,
+24 transitions, Go tests and 73/19 shared parity fixtures. Live Claude Code
+and Codex delegation turns were observed on the operator's host on
+2026-10-20 and are recorded as local-backend evidence outside the
+repository; they establish no isolation, enforced ceiling or Saga guarantee.
+
 The implementation check commands are:
 
 ```bash
