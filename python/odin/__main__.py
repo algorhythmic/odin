@@ -23,6 +23,7 @@ def main():
             "demo",
             "orchestration-demo",
             "continuity-demo",
+            "integration-demo",
             "serve",
             "status",
             "stop",
@@ -30,6 +31,7 @@ def main():
             "resume",
             "acknowledge",
             "memory",
+            "evidence",
             "capabilities",
             "evaluate",
         ],
@@ -42,7 +44,19 @@ def main():
         help="allow synthetic fixture evidence for offline evaluation only",
     )
     parser.add_argument("--surface", choices=["terminal", "voice"], default="terminal")
-    parser.add_argument("--project", help="explicit project ID for resume or memory")
+    parser.add_argument(
+        "--project", help="explicit project ID for resume, memory or evidence"
+    )
+    parser.add_argument("--source", help="exact local memory source ID for evidence")
+    parser.add_argument(
+        "--revision", type=int, help="exact source revision for evidence"
+    )
+    parser.add_argument(
+        "--max-bytes",
+        type=int,
+        default=65536,
+        help="maximum exact evidence response size; evidence is never truncated",
+    )
     parser.add_argument("--delivery", help="delivered view ID to acknowledge")
     parser.add_argument(
         "--config",
@@ -89,13 +103,22 @@ def main():
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     if state.stat().st_mode & 0o077:
         parser.error("state directory must have mode 0700")
-    if args.action in ("demo", "orchestration-demo", "continuity-demo"):
+    if args.action in (
+        "demo",
+        "orchestration-demo",
+        "continuity-demo",
+        "integration-demo",
+    ):
         if args.action == "demo":
             from .demo import run
 
             result = run(state)
         elif args.action == "continuity-demo":
             from .continuity_demo import run
+
+            result = run(state)
+        elif args.action == "integration-demo":
+            from .integration_demo import run
 
             result = run(state)
         else:
@@ -106,19 +129,42 @@ def main():
         print(canonical(result))
         return
     address = str(state / "service.sock")
-    if args.action in ("status", "stop", "command", "resume", "acknowledge", "memory"):
-        if args.action in ("resume", "memory"):
+    if args.action in (
+        "status",
+        "stop",
+        "command",
+        "resume",
+        "acknowledge",
+        "memory",
+        "evidence",
+    ):
+        if args.action in ("resume", "memory", "evidence"):
             if not args.project:
-                parser.error("resume and memory require --project; no implicit routing")
+                parser.error(
+                    "resume, memory and evidence require --project; no implicit routing"
+                )
+            payload = {"project": args.project}
+            if args.action == "evidence":
+                if not args.source or args.revision is None or args.revision < 1:
+                    parser.error("evidence requires --source and a positive --revision")
+                if not 2048 <= args.max_bytes <= 1048576:
+                    parser.error("--max-bytes must be between 2048 and 1048576")
+                payload.update(
+                    source_id=args.source,
+                    revision=args.revision,
+                    max_bytes=args.max_bytes,
+                )
             command = {
                 "surface": args.surface,
                 "command": {
                     "schema_version": 1,
                     "operation_id": identifier(),
-                    "action": "resume"
-                    if args.action == "resume"
-                    else "memory_snapshot",
-                    "payload": {"project": args.project},
+                    "action": {
+                        "resume": "resume",
+                        "memory": "memory_snapshot",
+                        "evidence": "memory_source_read",
+                    }[args.action],
+                    "payload": payload,
                 },
             }
         elif args.action == "acknowledge":

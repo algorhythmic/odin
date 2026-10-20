@@ -168,6 +168,32 @@ class Continuity:
             raise KeyError(request_id)
         return row[0], strict_loads(row[1])
 
+    @staticmethod
+    def _decision_expired(request, *, at=None):
+        return request["state"] == "expired" or _time(at or now()) >= _time(
+            request["expires_at"]
+        )
+
+    def _validate_decision_dependencies(self, request, prepared, principal, *, at=None):
+        """Check the dependencies shared by display and response admission."""
+        if self._decision_expired(request, at=at):
+            raise Conflict("request expired")
+        commitment_ids = {ref["id"] for ref in prepared["commitments"]}
+        for ref in prepared["record_refs"] + prepared["commitments"]:
+            current = self.store.get(ref["id"])
+            # Preparation adds an open-decision link to each commitment.
+            allowed_rev = ref["rev"] + (1 if ref["id"] in commitment_ids else 0)
+            if current["rev"] != allowed_rev:
+                raise Conflict("bound record changed")
+        if prepared["memory_revision"] != self._memory_revision(prepared["project"]):
+            raise Conflict("evidence dependency changed")
+        resolved = self.store.db.execute(
+            "SELECT resolved_digest FROM continuity_evidence WHERE request_id=?",
+            (request["id"],),
+        ).fetchone()
+        if not resolved or resolved[0] != self._resolve_evidence(prepared, principal):
+            raise Conflict("resolved evidence changed")
+
     def prepare_decision(self, item, *, principal, permitted_projects):
         """Persist a prepared request and its canonical obligation link atomically.
 
@@ -307,29 +333,13 @@ class Continuity:
                 "delivered",
             ):
                 raise Conflict("stale or inactive request")
-            if _time(now()) >= _time(request["expires_at"]):
-                raise Conflict("request expired")
             if evidence_digest != digest(meta["evidence"]):
                 raise Conflict("evidence changed")
-            resolved = self.store.db.execute(
-                "SELECT resolved_digest FROM continuity_evidence WHERE request_id=?",
-                (request_id,),
-            ).fetchone()
-            if not resolved or resolved[0] != self._resolve_evidence(meta, principal):
-                raise Conflict("resolved evidence changed")
+            self._validate_decision_dependencies(request, meta, principal)
             # This is a trusted caller's current policy revision. The answer
             # remains non-authorizing even when the revision matches.
             if authority_revision != meta["authority_revision"]:
                 raise Conflict("authority revision changed")
-            commitment_ids = {r["id"] for r in meta["commitments"]}
-            for ref in meta["record_refs"] + meta["commitments"]:
-                current = self.store.get(ref["id"])
-                # The preparation itself adds an open-decision link to commitments.
-                allowed_rev = ref["rev"] + (1 if ref["id"] in commitment_ids else 0)
-                if current["rev"] != allowed_rev:
-                    raise Conflict("bound record changed")
-            if meta["memory_revision"] != self._memory_revision(project):
-                raise Conflict("evidence dependency changed")
             if response not in meta["options"]:
                 raise Conflict("response outside prepared options")
             # An answer is an auditable response. Separate command admission
@@ -415,6 +425,7 @@ class Continuity:
         decision_offset=0,
         decision_limit=4,
         obligation_page_token=None,
+        decision_page_token=None,
     ):
         record = self._scope(project, principal, permitted_projects)
         if (
@@ -439,6 +450,18 @@ class Continuity:
                 raise Conflict("stale or missing obligation page token")
         elif obligation_page_token is not None:
             raise ValueError("page token requires nonzero offset")
+        decision_revision = {
+            "project": project,
+            "principal": principal,
+            "revision": project_digest,
+            "memory_revision": self._memory_revision(project),
+        }
+        if decision_offset:
+            expected_token = digest(decision_revision | {"offset": decision_offset})
+            if decision_page_token != expected_token:
+                raise Conflict("stale or missing decision page token")
+        elif decision_page_token is not None:
+            raise ValueError("decision page token requires nonzero offset")
         last = self.store.db.execute(
             "SELECT history_seq FROM continuity_ack WHERE principal=? AND project=?",
             (principal, project),
@@ -497,6 +520,7 @@ class Continuity:
             for c in page_records
         ]
         requests = []
+        view_time = now()
         for row in self.store.db.execute(
             "SELECT request_id,body FROM continuity_decisions WHERE project=? ORDER BY request_id",
             (project,),
@@ -504,21 +528,11 @@ class Continuity:
             req = self.store.get(row[0])
             if req["state"] in ("open", "delivered", "expired"):
                 prepared = strict_loads(row[1])
-                resolved = self.store.db.execute(
-                    "SELECT resolved_digest FROM continuity_evidence WHERE request_id=?",
-                    (row[0],),
-                ).fetchone()
-                stale = prepared.get("memory_revision") != self._memory_revision(
-                    project
-                )
-                if not stale:
-                    try:
-                        stale = not resolved or resolved[0] != self._resolve_evidence(
-                            prepared, principal
-                        )
-                    except (Conflict, PermissionError, KeyError, TypeError):
-                        stale = True
-                if stale:
+                try:
+                    self._validate_decision_dependencies(
+                        req, prepared, principal, at=view_time
+                    )
+                except (Conflict, PermissionError, KeyError, TypeError):
                     req = req | {
                         "question": "Prepared decision unavailable",
                         "options": [],
@@ -528,7 +542,9 @@ class Continuity:
                             "request": req,
                             "prepared": {
                                 "unavailable": True,
-                                "reason": "evidence invalidated; reissue request",
+                                "reason": "request expired; reissue request"
+                                if self._decision_expired(req, at=view_time)
+                                else "evidence invalidated; reissue request",
                             },
                         }
                     )
@@ -540,7 +556,19 @@ class Continuity:
             if r["request"]["state"] in ("open", "delivered")
             and not r["prepared"].get("unavailable")
         ]
-        unavailable_requests = any(r["prepared"].get("unavailable") for r in requests)
+        unavailable_requests = any(
+            r["prepared"].get("unavailable")
+            and not self._decision_expired(r["request"], at=view_time)
+            for r in requests
+        )
+        expired_requests = any(
+            self._decision_expired(r["request"], at=view_time) for r in requests
+        )
+        next_decision_offset = (
+            decision_offset + decision_limit
+            if decision_offset + decision_limit < len(requests)
+            else None
+        )
         changes = []
         related_count = 0
         first_omitted = None
@@ -630,8 +658,11 @@ class Continuity:
             "assignments": assignments,
             "decisions": requests[decision_offset : decision_offset + decision_limit],
             "decision_count": len(requests),
-            "next_decision_offset": decision_offset + decision_limit
-            if decision_offset + decision_limit < len(requests)
+            "next_decision_offset": next_decision_offset,
+            "next_decision_page_token": digest(
+                decision_revision | {"offset": next_decision_offset}
+            )
+            if next_decision_offset is not None
             else None,
             "blockers": [c["id"] for c in page if c["state"] == "blocked"],
             "next_triggers": [
@@ -646,7 +677,7 @@ class Continuity:
                 "reissue an unavailable decision request"
                 if unavailable_requests
                 else "reissue an expired decision request"
-                if any(r["request"]["state"] == "expired" for r in requests)
+                if expired_requests
                 else "resolve a blocker"
                 if any(c["state"] == "blocked" for c in active)
                 else "continue the first open commitment"

@@ -6,6 +6,11 @@ and retain Skald's standalone session browser. Import Heimdall's task,
 checkpoint and decision records into Odin, then retire that task writer.
 Reuse its useful sensors through the workstation daemon.
 
+Odin implementation has started under this plan; see the
+[execution status](../CONSOLIDATED-IMPLEMENTATION-STATUS.md) for delivered
+local behavior and remaining gates. Peer decisions and the proposed earlier
+live pilot remain separate from this implementation start.
+
 The first product outcome is a dependable answer to: **What changed, what
 remains owed, what needs my attention, and where is the evidence?** Humans
 and agents receive scoped views of the same records. Session browsing remains
@@ -41,7 +46,7 @@ the standalone archive; ADR-007 already establishes Odin's task destination.
 
 | Repository or checkout | Observed baseline on 2026-10-19 | Reuse and remaining work |
 |---|---|---|
-| This Odin checkout | `899df14`; documentation scaffold | Keep its authority and provenance constraints. It contains no runtime implementation. |
+| Planning baseline of this Odin checkout | `899df14`; documentation scaffold before OHS-01 integration | Preserve its authority and provenance constraints; current implementation progress is recorded in the execution status above. |
 | Newer Odin checkout | `a9f22a1`, clean; includes prototype integration `47e074e` | Reuse the committed local service, deterministic continuity, attributed memory, protocol checks and synthetic fixtures after integration review. Full I0/I1 exits, real harness enforcement, authenticated transport and live Saga remain open. |
 | Heimdall | `3ca80b5`; local change in `internal/core/materialize_test.go` | Reuse task invariants, checkpoints, decisions, dependency semantics and sensor designs. Preserve the local change. Startup/recovery release gates remain; its independent planner is unstarted. |
 | Skald | `22114dd`, clean | Reuse shared capture/record packages, archive, bounded reads, backup/restore and TUI. Complete relevant capture/recovery release gates and publish EC-14. Braid retrieval is future work. |

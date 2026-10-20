@@ -36,7 +36,8 @@
         "answer_decision",
         "view_delivery",
         "view_ack",
-        "memory_snapshot"
+        "memory_snapshot",
+        "memory_source_read"
       ]
     },
     "payload": {

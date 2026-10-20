@@ -1,5 +1,9 @@
 # Product implementation status
 
+The [consolidated implementation status](CONSOLIDATED-IMPLEMENTATION-STATUS.md)
+tracks the subsequent Odin-side work begun on 2026-10-19: exact local evidence
+reads, decision-view corrections and a synthetic integration demonstration.
+
 The product plan now has a runnable local continuity slice: durable prepared
 decisions, restart-safe resume views, source-attributed memory, freshness and
 access checks, and explicit delivery/acknowledgement. The session host and

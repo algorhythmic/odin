@@ -712,6 +712,16 @@ class Memory:
         ).fetchall()
         if not pending:
             return True
+        # Access revisions can retain the same evidence bytes. Identity-level
+        # read quarantine does not physically remove those sibling revisions;
+        # require explicit redaction of each before confirming local cleanup.
+        if db.execute(
+            """SELECT 1 FROM memory_sources AS s
+               JOIN memory_redaction AS r ON r.source=s.id
+               WHERE r.destination='local_storage' AND r.state='pending'
+                 AND s.redacted=0 LIMIT 1"""
+        ).fetchone():
+            return False
         if db.execute(
             "SELECT 1 FROM memory_redaction WHERE destination='legacy_history' AND state='pending' LIMIT 1"
         ).fetchone():
@@ -764,6 +774,106 @@ class Memory:
             )
         ]
 
+    def _source_freshness(self, source, clock):
+        retrieval = self.store.db.execute(
+            "SELECT retrieved_at FROM memory_retrieval WHERE source=? AND revision=?",
+            (source["id"], source["revision"]),
+        ).fetchone()
+        policy = self.store.db.execute(
+            "SELECT max_age_seconds,action FROM memory_freshness WHERE source_class=?",
+            (source["source_class"],),
+        ).fetchone()
+        max_age, action = (policy[0], policy[1]) if policy else (None, "warn")
+        age = max(0, int((clock - _instant(source["observed_at"])).total_seconds()))
+        return {
+            "source": source["id"],
+            "revision": source["revision"],
+            "observed_at": source["observed_at"],
+            "retrieved_at": retrieval[0] if retrieval else source["retrieved_at"],
+            "age_seconds": age,
+            "stale": max_age is not None and age > max_age,
+            "action": action,
+        }
+
+    def read_source(
+        self,
+        project,
+        source_id,
+        revision,
+        *,
+        principal,
+        permitted_projects,
+        max_bytes=65536,
+    ):
+        """Read exact local evidence, independently of the bounded snapshot.
+
+        The requested revision and the latest access policy must both permit
+        the reader. Any redaction quarantines the identity for this endpoint:
+        selecting a different revision must not recover removed material.
+        Current access checks and evidence resolution share one transaction.
+        The caller supplies its trusted scope; this is not authentication or
+        a producer API. A successful read grants no decision authority.
+        """
+        if any(
+            not isinstance(value, str) or not value
+            for value in (project, source_id, principal)
+        ):
+            raise ValueError(
+                "project, source_id and principal must be nonempty strings"
+            )
+        if not isinstance(permitted_projects, (list, tuple, set, frozenset)) or any(
+            not isinstance(value, str) or not value for value in permitted_projects
+        ):
+            raise ValueError("permitted_projects must contain project identifiers")
+        if type(revision) is not int or not 1 <= revision <= 9223372036854775807:
+            raise ValueError("revision must be a positive SQLite integer")
+        if type(max_bytes) is not int or not 2048 <= max_bytes <= 1048576:
+            raise ValueError("max_bytes must be 2048..1048576")
+        if project not in permitted_projects:
+            raise PermissionError("project view denied")
+        db = self.store.db
+        with self.store.transaction():
+            self._project(project)
+            latest = db.execute(
+                "SELECT revision,body FROM memory_sources WHERE project=? AND id=? ORDER BY revision DESC LIMIT 1",
+                (project, source_id),
+            ).fetchone()
+            if (
+                not latest
+                or db.execute(
+                    "SELECT 1 FROM memory_sources WHERE project=? AND id=? AND redacted=1 LIMIT 1",
+                    (project, source_id),
+                ).fetchone()
+            ):
+                raise Conflict("source unavailable")
+            current = strict_loads(latest[1])
+            if principal not in current["readers"]:
+                raise Conflict("source unavailable")
+            requested = db.execute(
+                "SELECT body FROM memory_sources WHERE project=? AND id=? AND revision=?",
+                (project, source_id, revision),
+            ).fetchone()
+            if not requested:
+                raise Conflict("source unavailable")
+            source = strict_loads(requested[0])
+            if principal not in source["readers"]:
+                raise Conflict("source unavailable")
+            # Return the original revision verbatim; retrieval metadata is a
+            # separate freshness observation and never rewrites its provenance.
+            result = {
+                "schema_version": 1,
+                "project": project,
+                "source": source,
+                "current_revision": latest[0],
+                "revision_status": "current" if revision == latest[0] else "superseded",
+                "historical": revision != latest[0],
+                "freshness": self._source_freshness(source, datetime.now(timezone.utc)),
+            }
+            if len(canonical(result).encode()) > max_bytes:
+                raise ValueError("exact source exceeds byte budget")
+            self.store.contracts.validate("memory-source-read-result", result)
+        return result
+
     def snapshot(self, project, principal, at=None, limit=32, max_bytes=65536):
         if type(limit) is not int or not 1 <= limit <= 128:
             raise ValueError("limit must be 1..128")
@@ -791,13 +901,17 @@ class Memory:
             source = strict_loads(row[0])
             if _instant(row[2]) <= known:
                 all_sources[source["id"]] = (source, row[1])
-        # A historical knowledge cutoff never resurrects a revoked reader.
+        # A historical cutoff never resurrects revoked access or a redacted
+        # identity. Access revisions can contain copies of earlier evidence.
         current_access = {}
+        quarantined = set()
         for row in db.execute(
             "SELECT body,redacted FROM memory_sources WHERE project=? ORDER BY id,revision",
             (project,),
         ):
             current = strict_loads(row[0])
+            if row[1]:
+                quarantined.add(current["id"])
             current_access[current["id"]] = (
                 not row[1] and principal in current["readers"]
             )
@@ -805,6 +919,7 @@ class Memory:
         for sid, (source, redacted) in all_sources.items():
             if (
                 current_access.get(sid)
+                and sid not in quarantined
                 and not redacted
                 and principal in source["readers"]
                 and (
@@ -881,29 +996,7 @@ class Memory:
         freshness = []
         clock = datetime.now(timezone.utc)
         for source in sources:
-            retrieval = db.execute(
-                "SELECT retrieved_at FROM memory_retrieval WHERE source=? AND revision=?",
-                (source["id"], source["revision"]),
-            ).fetchone()
-            row = db.execute(
-                "SELECT max_age_seconds,action FROM memory_freshness WHERE source_class=?",
-                (source["source_class"],),
-            ).fetchone()
-            max_age, action = (row[0], row[1]) if row else (None, "warn")
-            age = max(0, int((clock - _instant(source["observed_at"])).total_seconds()))
-            freshness.append(
-                {
-                    "source": source["id"],
-                    "revision": source["revision"],
-                    "observed_at": source["observed_at"],
-                    "retrieved_at": retrieval[0]
-                    if retrieval
-                    else source["retrieved_at"],
-                    "age_seconds": age,
-                    "stale": max_age is not None and age > max_age,
-                    "action": action,
-                }
-            )
+            freshness.append(self._source_freshness(source, clock))
         permitted_producers = {source["producer"] for source in visible.values()}
         coverage = []
         for r in db.execute(

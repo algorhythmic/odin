@@ -137,6 +137,7 @@ class Gateway:
             if action in {
                 "resume",
                 "memory_snapshot",
+                "memory_source_read",
                 "prepare_decision",
                 "answer_decision",
             }:
@@ -160,7 +161,7 @@ class Gateway:
                 raise PermissionError("global operator action requires global scope")
             return
         project = None
-        if action in {"resume", "memory_snapshot"}:
+        if action in {"resume", "memory_snapshot", "memory_source_read"}:
             project = payload.get("project")
         elif action == "prepare_decision":
             project = payload.get("decision", {}).get("project")
@@ -275,6 +276,7 @@ class Gateway:
             "view_delivery",
             "view_ack",
             "memory_snapshot",
+            "memory_source_read",
         }:
             self._operator(context)
             scope = self._projects(context)
@@ -289,10 +291,14 @@ class Gateway:
                         "obligation_page_token",
                         "obligation_limit",
                         "decision_offset",
+                        "decision_page_token",
                         "decision_limit",
                     ),
                 )
                 return self.continuity.resume(**payload, **common)
+            if action == "memory_source_read":
+                self.store.contracts.validate("memory-source-read", payload)
+                return self.memory.read_source(**payload, **common)
             if action == "prepare_decision":
                 fields(payload, ("decision",))
                 prepared = payload["decision"] | {

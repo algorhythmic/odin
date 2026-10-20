@@ -30,6 +30,8 @@
               "layout-binding",
               "layout-observation",
               "memory-source",
+              "memory-source-read",
+              "memory-source-read-result",
               "memory-statement",
               "memory-relation",
               "continuity-decision",

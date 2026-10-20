@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:memory-source-read-result:1",
+  "description": "Exact Odin-local source evidence under requested and current access policy; no producer transport or completion authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "producer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "span": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "readers": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "permissions_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "event_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "effective_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "retrieved_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ingest_seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 8192
+        }
+      },
+      "required": [
+        "id",
+        "project",
+        "revision",
+        "digest",
+        "producer",
+        "source_class",
+        "locator",
+        "span",
+        "readers",
+        "permissions_revision",
+        "event_at",
+        "effective_at",
+        "observed_at",
+        "retrieved_at",
+        "ingest_seq",
+        "content"
+      ]
+    },
+    "current_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "revision_status": {
+      "enum": [
+        "current",
+        "superseded"
+      ]
+    },
+    "historical": {
+      "type": "boolean"
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "retrieved_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "age_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stale": {
+          "type": "boolean"
+        },
+        "action": {
+          "enum": [
+            "warn",
+            "hold",
+            "refresh"
+          ]
+        }
+      },
+      "required": [
+        "source",
+        "revision",
+        "observed_at",
+        "retrieved_at",
+        "age_seconds",
+        "stale",
+        "action"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "project",
+    "source",
+    "current_revision",
+    "revision_status",
+    "historical",
+    "freshness"
+  ],
+  "oneOf": [
+    {
+      "properties": {
+        "revision_status": {
+          "const": "current"
+        },
+        "historical": {
+          "const": false
+        }
+      }
+    },
+    {
+      "properties": {
+        "revision_status": {
+          "const": "superseded"
+        },
+        "historical": {
+          "const": true
+        }
+      }
+    }
+  ]
+}

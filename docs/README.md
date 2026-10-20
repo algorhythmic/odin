@@ -43,6 +43,10 @@ Read in this order. Where two disagree, the earlier one wins.
 
 Alongside them:
 
+- [Consolidated implementation status](CONSOLIDATED-IMPLEMENTATION-STATUS.md):
+  first Odin delivery under the three-repository work plan, with exact local
+  evidence reads, continuity checks, a synthetic demonstration and peer
+  dependencies kept explicit.
 - [Odin Heimdall and Skald consolidated work plan](design/ODIN-HEIMDALL-SKALD-WORK-PLAN.md):
   proposed delivery sequence for task-authority migration, shared capture,
   retained Skald browsing and one continuity experience. It identifies the

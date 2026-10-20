@@ -4,8 +4,10 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 from odin.continuity import Continuity
+from odin.memory import Memory
 from odin.service import fixture_record
 from odin.store import Conflict, Store, digest
 
@@ -73,6 +75,24 @@ class ContinuityTest(unittest.TestCase):
             "authority_revision": "policy:1",
             "expires_at": future(),
         }
+
+    def prepare_choices(self, count, memory_revision=None):
+        choices = {}
+        for index in range(count):
+            commitment = fixture_record(
+                "Commitment", project=self.project["id"], objective=f"Choice {index}"
+            )
+            self.store.create(commitment)
+            item = self.item() | {
+                "dedupe_key": f"choice:{index}",
+                "commitments": [{"id": commitment["id"], "rev": commitment["rev"]}],
+                "memory_revision": memory_revision,
+            }
+            request = self.co.prepare_decision(
+                item, principal="operator-1", permitted_projects=self.scope
+            )
+            choices[request["id"]] = item
+        return choices
 
     def test_restart_lost_delivery_and_expiry_preserve_obligation(self):
         item = self.item()
@@ -205,6 +225,14 @@ class ContinuityTest(unittest.TestCase):
         self.store.update(
             current["id"], {"objective": "Changed requirement"}, current["rev"]
         )
+        view = self.co.resume(
+            self.project["id"], principal="operator-1", permitted_projects=self.scope
+        )
+        self.assertTrue(view["decisions"][0]["prepared"]["unavailable"])
+        self.assertEqual(view["decisions"][0]["request"]["options"], [])
+        self.assertEqual(
+            view["recommended_next_action"], "reissue an unavailable decision request"
+        )
         with self.assertRaises(Conflict):
             self.co.respond_decision(
                 req["id"],
@@ -214,6 +242,118 @@ class ContinuityTest(unittest.TestCase):
                 authority_revision="policy:1",
                 principal="operator-1",
                 permitted_projects=self.scope,
+            )
+
+    def test_bound_record_change_hides_prepared_wording(self):
+        item = self.item() | {
+            "record_refs": [{"id": self.project["id"], "rev": self.project["rev"]}]
+        }
+        self.co.prepare_decision(
+            item, principal="operator-1", permitted_projects=self.scope
+        )
+        self.store.update(
+            self.project["id"], {"name": "Revised Atlas"}, self.project["rev"]
+        )
+        view = self.co.resume(
+            self.project["id"], principal="operator-1", permitted_projects=self.scope
+        )
+        self.assertTrue(view["decisions"][0]["prepared"]["unavailable"])
+        self.assertNotIn("question", view["decisions"][0]["prepared"])
+        self.assertEqual(view["decisions"][0]["request"]["options"], [])
+
+    def test_expiry_hides_choices_before_expiration_sweep(self):
+        item = self.item()
+        request = self.co.prepare_decision(
+            item, principal="operator-1", permitted_projects=self.scope
+        )
+        with patch("odin.continuity.now", return_value=future(2)):
+            view = self.co.resume(
+                self.project["id"],
+                principal="operator-1",
+                permitted_projects=self.scope,
+            )
+            self.assertTrue(view["decisions"][0]["prepared"]["unavailable"])
+            self.assertEqual(view["decisions"][0]["request"]["options"], [])
+            self.assertEqual(
+                view["recommended_next_action"], "reissue an expired decision request"
+            )
+            with self.assertRaisesRegex(Conflict, "request expired"):
+                self.co.respond_decision(
+                    request["id"],
+                    response="A",
+                    expected_rev=1,
+                    evidence_digest=digest(item["evidence"]),
+                    authority_revision="policy:1",
+                    principal="operator-1",
+                    permitted_projects=self.scope,
+                )
+        self.assertEqual(self.store.get(request["id"])["state"], "open")
+        self.assertEqual(self.store.get(self.commitment["id"])["state"], "open")
+
+    def test_decision_pages_bind_scope_offset_and_current_records(self):
+        choices = self.prepare_choices(3)
+        common = {
+            "project": self.project["id"],
+            "principal": "operator-1",
+            "permitted_projects": self.scope,
+            "decision_limit": 1,
+        }
+        first = self.co.resume(**common)
+        continuation = common | {
+            "decision_offset": first["next_decision_offset"],
+            "decision_page_token": first["next_decision_page_token"],
+        }
+        second = self.co.resume(**continuation)
+        self.assertNotEqual(
+            first["decisions"][0]["request"]["id"],
+            second["decisions"][0]["request"]["id"],
+        )
+        for changed in (
+            {"decision_page_token": None},
+            {"decision_page_token": "forged"},
+            {"decision_offset": 2},
+            {"principal": "operator-2"},
+            {"project": self.other["id"], "permitted_projects": [self.other["id"]]},
+        ):
+            with self.subTest(changed=changed), self.assertRaises(Conflict):
+                self.co.resume(**(continuation | changed))
+        with self.assertRaises(ValueError):
+            self.co.resume(
+                **common, decision_page_token=first["next_decision_page_token"]
+            )
+        request = first["decisions"][0]["request"]
+        self.co.respond_decision(
+            request["id"],
+            response="A",
+            expected_rev=request["rev"],
+            evidence_digest=digest(choices[request["id"]]["evidence"]),
+            authority_revision="policy:1",
+            principal="operator-1",
+            permitted_projects=self.scope,
+        )
+        with self.assertRaisesRegex(Conflict, "decision page token"):
+            self.co.resume(**continuation)
+        refreshed = self.co.resume(**common)
+        self.assertEqual(refreshed["decision_count"], 2)
+        self.assertNotEqual(refreshed["decisions"][0]["request"]["id"], request["id"])
+
+    def test_decision_pages_invalidate_after_memory_change(self):
+        memory = Memory(self.store)
+        self.co = Continuity(self.store, memory, allow_fixture_evidence=True)
+        self.prepare_choices(2, memory.dependency_revision(self.project["id"]))
+        common = {
+            "project": self.project["id"],
+            "principal": "operator-1",
+            "permitted_projects": self.scope,
+            "decision_limit": 1,
+        }
+        first = self.co.resume(**common)
+        memory.processing(self.project["id"], "fixture-capture", availability="unknown")
+        with self.assertRaisesRegex(Conflict, "decision page token"):
+            self.co.resume(
+                **common,
+                decision_offset=first["next_decision_offset"],
+                decision_page_token=first["next_decision_page_token"],
             )
 
     def test_forged_delivery_and_paged_obligations(self):

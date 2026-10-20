@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "baseline_commit": "47e074e",
+  "baseline_commit": "a9f22a1",
   "label": "Local capability inventory; fixture evidence is not live acceptance",
   "capabilities": [
     {
@@ -47,7 +47,7 @@
       "blockers": [
         "Real-history migration and authenticated remote access"
       ],
-      "next_action": "Run continuity-demo; pilot after I3 migration gates"
+      "next_action": "Run integration-demo; connect real feeds only after producer and live gates"
     },
     {
       "id": "coordination",
@@ -170,6 +170,33 @@
         "I2 fidelity checks"
       ],
       "next_action": "Evaluate against rolling notes with equal retrieval"
+    },
+    {
+      "id": "exact_local_evidence",
+      "state": "fixture-tested",
+      "evidence": [
+        "python/odin/memory.py",
+        "schemas/memory-source-read.schema.json",
+        "tests/test_memory_evidence.py",
+        "tests/test_evidence_gateway.py"
+      ],
+      "blockers": [
+        "Published producer contracts and authenticated remote access"
+      ],
+      "next_action": "Read exact local source revisions; retain scope, current permissions and redaction checks"
+    },
+    {
+      "id": "synthetic_continuity_integration",
+      "state": "fixture-tested",
+      "evidence": [
+        "python/odin/integration_demo.py",
+        "tests/test_continuity_integration.py",
+        "docs/CONSOLIDATED-IMPLEMENTATION-STATUS.md"
+      ],
+      "blockers": [
+        "Real source enrollment, peer pins and live integration gates"
+      ],
+      "next_action": "Run integration-demo; use the shared human/machine projection and explicit coverage states"
     }
   ]
 }
