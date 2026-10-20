@@ -446,6 +446,7 @@ formal handoff. See [DECISIONS.md §4](../DECISIONS.md#4-odin-decisions-odin-adr
 | ODIN-ADR-026 | operator-authorized native development profile | Supersedes ADR-024/025 launch and proposal-only restrictions and ADR-022/023 native-child restrictions for version 3; amends Odin-owned D7.2/D7.7, D19.7/D23.1–D23.3 routing and D24.3 process isolation; preserves Saga producer authority and MCP record semantics | [Executive pilot](../EXECUTIVE-PILOT.md), IO §7/§11, AGENTS.md §1/§4/§5/§6 |
 | ODIN-ADR-027 | operator-authorized local delegation path | Amends ADR-024's no-delegated-execution bridge rule for the version 3 executive's local-backend sessions; applies D23.3, D7.11 and D19.4; does not deliver ADR-009's managed session host, X-15 child dispatch, ADR-015 or I5 | [Executive pilot](../EXECUTIVE-PILOT.md), IO §2/§11, AGENTS.md §1 |
 | ODIN-ADR-028 | operator-authorized development evaluator and loop | Extends ADR-026 and D7.7 transport; amends D9.3 planning/decomposition exclusion and D9.4 activation only for the configured development loop; preserves required Mimir review, Saga authority and direct operator control | [Development loop](../DEVELOPMENT-LOOP.md), AGENTS.md §1/§4 |
+| ODIN-ADR-029 | operator-authorized evidence format | Adds structured execution receipts and their validation to ADR-028's evidence workflow; preserves D7.11 commitment truth, D19.4 capability statements and every Saga/review boundary | [Development loop](../DEVELOPMENT-LOOP.md#execution-receipts), `schemas/execution-receipt.schema.json` |
 
 ODIN-ADR-015 replaces the earlier Codex adapter proposal in ROADMAP Phase C
 with a fixture-only Pi RPC control; full second-adapter delivery remains I5.
@@ -497,6 +498,13 @@ is separate from executive work and from Mimir's required-review role.
 Configuration and local tests do not prove channel availability or a live
 autonomous loop; see [the runbook](../DEVELOPMENT-LOOP.md) and
 [ADR-028](../DECISIONS.md#odin-adr-028--independent-development-evaluator-and-feedback-loop).
+
+ODIN-ADR-029 makes command execution evidence a versioned, schema-validated
+receipt collected from repository and process observations, validated
+deterministically by the loop controller and inspected independently by the
+evaluator. A receipt is attributed local evidence with documented coverage,
+privacy and concurrency limits; see
+[ADR-029](../DECISIONS.md#odin-adr-029--structured-execution-receipts-as-attributed-local-evidence).
 
 ## Clauses superseded or amended by Odin ADRs
 

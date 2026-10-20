@@ -35,7 +35,11 @@ describe the operator configuration, service turn records and detached
 runner results of ADR-027's local delegation sessions (a result's
 `lineage` block records the credential-lease outcome and content-free
 credential-file fingerprints); the
-`executive-tool-input` definitions bound each bridge tool's arguments. Fixture protocols
+`executive-tool-input` definitions bound each bridge tool's arguments. The
+`execution-receipt` schema (ADR-029) describes the attributed local
+execution receipt written by `odin receipt-run`, its compact `references`
+carried in development-loop evidence and the controller's `validation`
+outcome. Fixture protocols
 have no live transport. Schemas are loaded once per process; restart after
 editing them. Incompatible future state changes need an explicit migration;
 the current database version is 1.

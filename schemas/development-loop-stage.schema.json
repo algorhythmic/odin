@@ -98,6 +98,16 @@
       ],
       "maxLength": 128
     }
+,
+    "receipt_validation": {
+      "type": "object",
+      "required": ["status", "receipts", "problems"],
+      "properties": {
+        "status": {"enum": ["validated", "invalid", "missing", "mismatched", "legacy_no_receipt"]},
+        "receipts": {"type": "array"},
+        "problems": {"type": "array", "items": {"type": "string"}}
+      }
+    }
   },
   "required": [
     "schema_version",

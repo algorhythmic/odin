@@ -12,6 +12,7 @@ import secrets
 import uuid
 
 from .contracts import canonical, identifier, strict_loads
+from .execution_receipt import validate_references
 from .store import Conflict, digest, now
 
 FINAL = {"complete", "stopped"}
@@ -174,7 +175,42 @@ class DevelopmentLoop:
             raise Conflict("evidence packet must be an object within 64 KiB")
         return strict_loads(canonical(packet))
 
-    def _queue_evaluator(self, loop, evidence, final_text="", previous=None):
+    # Receipt validation reads retained files outside the store; it is
+    # injectable so synthetic tests can observe or replace it. Its outcome is
+    # recorded with the evidence and never raised as success.
+    validate_receipts = staticmethod(validate_references)
+
+    def _receipt_validation(self, evidence, loop_id, stage_id):
+        try:
+            result = self.validate_receipts(
+                evidence, expected={"loop_id": loop_id, "stage_id": stage_id}
+            )
+        except Exception as error:  # noqa: BLE001 - validation failure is evidence, not a crash
+            result = {
+                "status": "invalid",
+                "receipts": [],
+                "problems": [
+                    f"receipt validation failed: {type(error).__name__}: {error}"[:1400]
+                ],
+            }
+        self.store.contracts.validate_definition(
+            "execution-receipt", "validation", result
+        )
+        if len(canonical(result).encode()) > 65536:
+            result = {
+                "status": result["status"]
+                if result["status"] != "validated"
+                else "invalid",
+                "receipts": [],
+                "problems": [
+                    "receipt validation detail exceeded 64 KiB; see retained receipts"
+                ],
+            }
+        return result
+
+    def _queue_evaluator(
+        self, loop, evidence, final_text="", previous=None, stage_id=None
+    ):
         packet = {
             "schema_version": 1,
             "loop_id": loop["id"],
@@ -186,6 +222,12 @@ class DevelopmentLoop:
             "executive_final_text": final_text,
             "evidence": self._evidence(evidence),
             "previous_assessment": previous,
+            # Re-validated at capture time: artifacts may have changed since ready.
+            "receipt_validation": self._receipt_validation(
+                evidence, loop["id"], stage_id
+            )
+            if stage_id is not None
+            else {"status": "legacy_no_receipt", "receipts": [], "problems": []},
         }
         job = {
             "schema_version": 1,
@@ -467,6 +509,9 @@ class DevelopmentLoop:
                     evidence=evidence,
                     prompt_id=prompt_id,
                     completion_marker=f"<!-- odin-development-complete:{stage_id}:{secrets.token_hex(16)} -->",
+                    receipt_validation=self._receipt_validation(
+                        evidence, loop_id, stage_id
+                    ),
                 )
                 self._save_stage(stage)
                 self._advance(loop, "executive_ready")
@@ -474,6 +519,10 @@ class DevelopmentLoop:
                 "loop": loop,
                 "stage": stage,
                 "completion_marker": stage["completion_marker"],
+                "receipt_validation": stage.get(
+                    "receipt_validation",
+                    {"status": "legacy_no_receipt", "receipts": [], "problems": []},
+                ),
             }
 
         return self._mutate(operation_id, "ready", arguments, apply)
@@ -564,7 +613,9 @@ class DevelopmentLoop:
             )
             self._save_stage(stage)
             self._advance(loop, "evaluator_pending")
-            job = self._queue_evaluator(loop, stage["evidence"], final_text, previous)
+            job = self._queue_evaluator(
+                loop, stage["evidence"], final_text, previous, stage_id=stage["id"]
+            )
             return {
                 "captured": True,
                 "loop": loop,

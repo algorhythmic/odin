@@ -177,6 +177,18 @@ def dispatch(gateway, action, payload, context, operation):
                   "stage": {"id": result["stage"]["id"], "state": result["stage"]["state"]}}
         if "completion_marker" in result:
             answer["completion_marker"] = result["completion_marker"]
+        if "receipt_validation" in result:
+            # Compact so the executive can correct a mismatch before finishing;
+            # the full per-receipt detail stays on the stage and in the packet.
+            validation = result["receipt_validation"]
+            answer["receipt_validation"] = {
+                "status": validation["status"],
+                "receipts": [
+                    {"path": item.get("path"), "outcome": item.get("outcome")}
+                    for item in validation["receipts"]
+                ][:16],
+                "problems": [problem[:400] for problem in validation["problems"]][:32],
+            }
         return answer
     if action == "loop_capture":
         result = controller.capture_stop(

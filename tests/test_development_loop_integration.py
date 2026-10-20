@@ -17,6 +17,7 @@ import unittest
 from pathlib import Path
 
 from odin.contracts import ROOT, canonical, identifier, strict_loads
+from odin.execution_receipt import RECEIPT_NAME, reference, run
 from odin.executive_service import prepare_project
 from odin.service import Service
 from odin.development_loop import DevelopmentLoop
@@ -44,6 +45,21 @@ round_number = packet["round"]
 if round_number:
     assert packet["evidence"]["repository_revision"] == f"synthetic-revision-{round_number}"
     assert f"Synthetic stage {round_number} finished" in packet["executive_final_text"]
+    validation = packet["receipt_validation"]
+    if round_number == 1:
+        assert validation["status"] == "legacy_no_receipt", validation
+    else:
+        # The evaluator independently re-reads the retained receipt and its artifact.
+        assert validation["status"] == "validated", validation
+        receipt_ref = packet["evidence"]["receipts"][0]
+        raw = Path(receipt_ref["path"]).read_bytes()
+        assert hashlib.sha256(raw).hexdigest() == receipt_ref["sha256"]
+        receipt = json.loads(raw)
+        assert receipt["binding"]["stage_id"] == validation["receipts"][0]["binding"]["stage_id"]
+        stdout = [a for a in receipt["artifacts"] if a["name"] == "stdout"][0]
+        assert hashlib.sha256(Path(stdout["path"]).read_bytes()).hexdigest() == stdout["sha256"]
+        assert Path(stdout["path"]).read_text() == "receipted stage 2\n"
+        assert receipt["execution"]["exit_status"] == 0
 result = {
     "decision": "complete" if round_number == 2 else "continue",
     "assessment": f"Independent synthetic assessment after round {round_number}",
@@ -308,13 +324,27 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
             claimed = self.bridge.result("odin_loop_claim", claim_args)
             self.assertEqual(claimed, self.bridge.result("odin_loop_claim", claim_args))
             self.assertEqual(claimed["stage"]["state"], "claimed")
+            evidence_packet = {
+                "repository_revision": f"synthetic-revision-{round_number}",
+                "test_result": "synthetic test passed",
+            }
+            if round_number == 2:
+                # Round two retains a real receipted command bound to this stage.
+                out = Path(self.temp.name) / "receipts" / stage_id
+                receipt = run(
+                    [sys.executable, "-c", "print('receipted stage 2')"],
+                    out=out, cwd=self.temp.name,
+                    binding={"loop_id": loop_id, "stage_id": stage_id},
+                )
+                evidence_packet["receipts"] = [reference(out / RECEIPT_NAME)]
+                evidence_packet["claims"] = {"exit_status": 0}
+                self.assertFalse(receipt["repository"]["before"]["observed"])
             ready = self.bridge.result("odin_loop_ready", {
                 "operation_id": identifier(), "loop_id": loop_id, "stage_id": stage_id,
-                "evidence_packet": {
-                    "repository_revision": f"synthetic-revision-{round_number}",
-                    "test_result": "synthetic test passed",
-                },
+                "evidence_packet": evidence_packet,
             })
+            expected_status = "validated" if round_number == 2 else "legacy_no_receipt"
+            self.assertEqual(ready["receipt_validation"]["status"], expected_status)
             final_text = f"Synthetic stage {round_number} finished.\n" + ready["completion_marker"]
             completed_texts.append(final_text)
             if round_number == 1:

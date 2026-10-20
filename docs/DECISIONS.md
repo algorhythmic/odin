@@ -2011,6 +2011,51 @@ remain available in every profile.
   producer contract, Saga guarantee, Mimir review requirement, managed
   session-host gate, X-12/X-15 disposition or handoff is closed.
 
+### ODIN-ADR-029 — Structured execution receipts as attributed local evidence
+
+- **Date/status:** 2026-10-20; operator-authorized implementation under the
+  ADR-028 development loop's first implementation objective. The evaluator
+  observed that executive evidence was prose plus an unrestricted JSON
+  object, and that a merge-commit subject naming the wrong branch had been
+  reported as branch identity.
+- **Decision:** Odin records command execution evidence as a versioned,
+  schema-validated **execution receipt** (`execution-receipt` schema,
+  `odin.execution_receipt`, `receipt-run`/`receipt-validate` commands).
+  The collector executes the supplied command itself and derives every
+  field from repository and process observations: repository root and cwd,
+  actual branch or explicit detached HEAD, commit, staged/unstaged/untracked
+  identity digests observed before and after the run, argv, resolved
+  executable and interpreter, timestamps, exit status or explicit
+  uncertainty, retained output artifacts with byte digests, and the
+  collector's own source digest and Odin revision. Commit subjects are
+  recorded as text and explicitly marked as not branch evidence.
+- **Evidence workflow:** development-loop evidence may reference receipts
+  with compact typed references and structured claims. The controller
+  validates them deterministically at ready and at completion capture and
+  records `validated`, `mismatched`, `missing`, `invalid` or
+  `legacy_no_receipt` with the stage and in the evaluator packet. Only
+  `validated` is a passing check; failures are recorded, never raised as
+  success, and receipt-less evidence is labelled legacy rather than
+  rejected. The evaluator is instructed to read retained receipts itself,
+  compare executive prose with observed fields and recompute artifact
+  digests; a JSON success flag is not evidence.
+- **Trust limits:** a receipt is attributed local execution evidence. The
+  collector and the command run as the same user; observations are
+  point-in-time; untracked coverage is bounded and ignored files are
+  excluded; environment and credentials are never recorded, while argv and
+  output are retained verbatim in private storage outside the checkout.
+  Receipts confer no Saga verification, canonical acceptance, isolation or
+  required-review outcome (D7.11, D19.4, ADR-026/028 unchanged).
+- **Checks:** `tests/test_execution_receipt.py` covers success, failure,
+  timeout, the wrong-branch merge subject, detached HEAD, dirty-tree
+  identity and privacy, modification during the run, tampered/missing
+  artifacts and edited receipts, wrong revision/worktree/stage attribution,
+  unobserved repositories, environment exclusion, reference validation
+  outcomes and the ready/capture path into the evaluator packet; the
+  service/bridge integration test carries a receipted round through the
+  real channel. Live receipts for actual stages are retained privately and
+  are themselves subject to the evaluator's independent inspection.
+
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that

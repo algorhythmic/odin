@@ -232,6 +232,93 @@ truncating the response. Keep final responses concise and put larger
 evidence in retained artifacts with precise references. An oversized final
 can leave a stage awaiting capture and needs reconciliation.
 
+## Execution receipts
+
+Status: implementation under
+[ODIN-ADR-029](DECISIONS.md#odin-adr-029--structured-execution-receipts-as-attributed-local-evidence),
+2026-10-20. A receipt is attributed local execution evidence; it is not Saga
+verification, canonical commitment acceptance or required review.
+
+`odin receipt-run` executes one supplied command itself and derives a
+schema-validated receipt (`schemas/execution-receipt.schema.json`, version
+1) from observations the collector makes, never from a description of the
+command or a separately written log:
+
+```bash
+PYTHONPATH=python .venv/bin/python -m odin receipt-run \
+  --out "$PRIVATE_EVIDENCE/stage-STAGE_ULID/focused-tests" \
+  --cwd /absolute/path/to/odin --loop LOOP_ULID --stage STAGE_ULID \
+  --label "focused receipt tests" -- \
+  .venv/bin/python -m unittest -v test_execution_receipt
+PYTHONPATH=python .venv/bin/python -m odin receipt-validate \
+  --receipt "$PRIVATE_EVIDENCE/stage-STAGE_ULID/focused-tests/receipt.json" \
+  --expect '{"head":"COMMIT","branch":"BRANCH","clean":true,"succeeded":true}'
+```
+
+The receipt records the observed repository root and execution cwd; the
+actual branch, or `detached: true` with `branch: null`; the commit; staged,
+unstaged and untracked path lists with per-section diff digests and one
+combined `worktree_identity`; the executed `argv`, resolved executable and
+interpreter version where the executable is a Python; start and end
+timestamps; the exit status, or `exit_status: null` with an explicit
+`uncertainty` for a timeout, signal or spawn failure; and the retained
+`stdout.log`/`stderr.log` paths with exact byte SHA256 digests. The
+`collector` block binds it to the module source digest and the Odin commit
+that produced it; `binding` carries the run ULID and, when supplied, the
+loop and stage ULIDs. The repository is observed **before and after** the
+command and `changed_during_run` is set when the identity differs, so a run
+that modifies files cannot be presented as a run against the committed
+tree. `head_subject` is kept for reference only and is marked
+`head_subject_is_branch_evidence: false`: a merge subject naming another
+branch was the reporting defect that motivated this design.
+
+Coverage and privacy limits: staged and unstaged changes are compared
+against `HEAD` with `git diff`; untracked identity covers at most 256
+non-ignored files of at most 8 MiB each, recording path, size and content
+digest but never content; ignored files and submodule contents are not
+listed or read, so a secret kept in an ignored file is neither leaked nor
+covered. A failed observation (no git, timeout) is recorded as
+`observed: false` with a reason and **never** as a clean tree. Environment
+variables and credential files are never recorded; `argv` and the command's
+output are retained verbatim, so do not pass secrets through either.
+Attribution is local: the collector runs as the same user as the command,
+observations are point-in-time, and a concurrent writer that modifies and
+restores a file between the two observations is not detected. Nothing here
+claims an immutable or independently witnessed environment.
+
+The wrapper's own exit status is the wrapped command's success (`0`) or
+failure (`1`); a nonzero command exit is recorded in the receipt, printed in
+the summary and never concealed by the wrapper succeeding.
+
+### Receipts in the development loop
+
+`odin_loop_ready` evidence may carry `receipts`, a list of at most sixteen
+compact references `{"kind": "execution_receipt", "path": ..., "sha256": ...}`,
+and an optional `claims` object with structured assertions (`head`,
+`branch`, `detached`, `clean`, `exit_status`, `succeeded`). The controller
+validates deterministically at `ready` and again when the final response is
+captured, and records the outcome as `receipt_validation` on the stage and
+in the evaluator packet:
+
+| Status | Meaning |
+|---|---|
+| `validated` | Every referenced receipt is a private file whose bytes match the reference digest, validates against the schema, is bound to this loop and stage, has artifacts whose bytes match their digests, and agrees with every claim |
+| `mismatched` | A digest, binding, claim or expected identity disagrees with the receipt; the problems list names each disagreement |
+| `missing` | A referenced receipt or one of its artifacts is absent, or the list is empty |
+| `invalid` | A reference is malformed, a receipt is unreadable, not private or fails the schema, or the validator itself failed |
+| `legacy_no_receipt` | The evidence has no `receipts` key: earlier or receipt-less evidence, recorded as unverified rather than failed |
+
+Only `validated` is a successful check, and it establishes only that the
+retained files are what the executive referenced; it says nothing about
+what the command proved. The evaluator is instructed to read the retained
+receipt itself, compare the executive's prose with the receipt's observed
+fields and retained output, recompute artifact digests, and treat
+`legacy_no_receipt` as unverified. A validation failure is reported in the
+packet and never raised as success; a reference list that is structurally
+malformed is reported as `invalid` rather than refused, so the executive's
+return is still captured and assessed. Existing stages and packets without
+`receipt_validation` remain valid records.
+
 ## Failure, restart and operator control
 
 | Situation | Required controller behavior |
@@ -341,6 +428,7 @@ remains separate from this development loop's assessment.
 The focused local checks use synthetic model binaries and temporary state:
 
 ```bash
+PYTHONPATH=python:tests .venv/bin/python -m unittest test_execution_receipt -v
 PYTHONPATH=python .venv/bin/python -m unittest discover \
   -s tests -p 'test_development_*.py' -v
 PYTHONPATH=python .venv/bin/python -m unittest discover \
