@@ -48,6 +48,8 @@ class Gateway:
               (id TEXT PRIMARY KEY, digest TEXT NOT NULL, result TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS gateway_layouts
               (session TEXT PRIMARY KEY, body TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS executive_reports
+              (id TEXT PRIMARY KEY, project TEXT NOT NULL, body TEXT NOT NULL);
         """)
 
     def submit(self, command, *, context):
@@ -72,6 +74,8 @@ class Gateway:
         }
         fingerprint = digest({"command": command, "context": identity})
         with self.store.transaction():
+            if context.actor.subject == "fable-executive":
+                self._executive_scope(command["action"], command["payload"], context)
             self._check_operator_scope(
                 command["action"], command["payload"], context, effective_projects
             )
@@ -140,6 +144,7 @@ class Gateway:
                 "memory_source_read",
                 "prepare_decision",
                 "answer_decision",
+                "executive_reports",
             }:
                 stored_result = result | {"result": {"projection_not_cached": True}}
             self.store.db.execute(
@@ -147,6 +152,22 @@ class Gateway:
                 (command["operation_id"], fingerprint, canonical(stored_result)),
             )
             return result
+
+    def _executive_scope(self, action, payload, context):
+        """Pilot capabilities come from the service binding, never chat text."""
+        if (
+            context.surface != "harness"
+            or context.actor.role != "coordinator"
+            or context.actor.subject != "fable-executive"
+            or not context.projects
+            or action not in {
+                "resume", "memory_snapshot", "memory_source_read",
+                "executive_report", "executive_reports",
+            }
+            or payload.get("project") not in context.projects
+        ):
+            raise PermissionError("executive capability denied")
+        self.coordination._project(payload["project"])
 
     def _check_operator_scope(self, action, payload, context, effective_projects):
         """Check current trusted scope before serving even an old receipt."""
@@ -161,7 +182,7 @@ class Gateway:
                 raise PermissionError("global operator action requires global scope")
             return
         project = None
-        if action in {"resume", "memory_snapshot", "memory_source_read"}:
+        if action in {"resume", "memory_snapshot", "memory_source_read", "executive_reports"}:
             project = payload.get("project")
         elif action == "prepare_decision":
             project = payload.get("decision", {}).get("project")
@@ -269,6 +290,34 @@ class Gateway:
 
     def _dispatch(self, action, payload, context, operation):
         actor = context.actor
+        if action == "executive_report":
+            self._executive_scope(action, payload, context)
+            self.store.contracts.validate("executive-report", payload)
+            self.coordination._live()
+            report = payload | {
+                "id": operation, "actor": actor.subject, "recorded_at": now(),
+                "verification": "unverified", "applied": False,
+            }
+            self.store.db.execute(
+                "INSERT INTO executive_reports VALUES(?,?,?)",
+                (operation, payload["project"], canonical(report)),
+            )
+            self.store._history("executive.reported", report)
+            return {"report": report}
+        if action == "executive_reports":
+            if actor.subject == "fable-executive":
+                self._executive_scope(action, payload, context)
+            else:
+                self._operator(context)
+            fields(payload, ("project",), ("limit",))
+            limit = payload.get("limit", 10)
+            if type(limit) is not int or not 1 <= limit <= 20:
+                raise ValueError("invalid report limit")
+            rows = self.store.db.execute(
+                "SELECT body FROM executive_reports WHERE project=? "
+                "ORDER BY rowid DESC LIMIT ?", (payload["project"], limit),
+            )
+            return {"reports": [strict_loads(row[0]) for row in rows], "applied": False}
         if action in {
             "resume",
             "prepare_decision",
@@ -278,8 +327,12 @@ class Gateway:
             "memory_snapshot",
             "memory_source_read",
         }:
-            self._operator(context)
-            scope = self._projects(context)
+            if actor.subject == "fable-executive":
+                self._executive_scope(action, payload, context)
+                scope = context.projects
+            else:
+                self._operator(context)
+                scope = self._projects(context)
             common = {"principal": actor.subject, "permitted_projects": scope}
             if action == "resume":
                 fields(

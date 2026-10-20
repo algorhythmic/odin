@@ -1,0 +1,77 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "state",
+    "config_dir",
+    "project",
+    "model",
+    "effort",
+    "remote_name",
+    "enable_mcp",
+    "claude_binary",
+    "python_executable",
+    "native_session_id"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "state": {
+      "type": "string",
+      "pattern": "^/",
+      "minLength": 2,
+      "maxLength": 4096
+    },
+    "config_dir": {
+      "type": "string",
+      "pattern": "^/",
+      "minLength": 2,
+      "maxLength": 4096
+    },
+    "project": {
+      "type": "string",
+      "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+    },
+    "model": {
+      "type": "string",
+      "pattern": "^claude-[a-z0-9][a-z0-9.-]{1,100}$"
+    },
+    "effort": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    "remote_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[^\\x00-\\x1f]+$"
+    },
+    "enable_mcp": {
+      "type": "boolean"
+    },
+    "claude_binary": {
+      "type": "string",
+      "pattern": "^/",
+      "minLength": 2,
+      "maxLength": 4096
+    },
+    "python_executable": {
+      "type": "string",
+      "pattern": "^/",
+      "minLength": 2,
+      "maxLength": 4096
+    },
+    "native_session_id": {
+      "type": "string",
+      "format": "uuid"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

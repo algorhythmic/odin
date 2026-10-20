@@ -153,12 +153,12 @@ joint Saga and Odin decision record frozen at
 | Clause | Content | Owner | Odin location | Status | Supersession / notes |
 |---|---|---|---|---|---|
 | D7.1 | Runtime statement: build on Claude Code through supported interfaces; Odin owns memory, commitments, scheduling, delegation and review coordination; custom Messages API runtime only on measured unmet requirements | Odin | DECISIONS.md D7 | locked | Reverses the first record version's custom-runtime choice (§2) |
-| D7.2 | The service starts, resumes and retires sessions through the Agent SDK | Odin | IO §5, §11 | locked | ODIN-ADR-009 clarifies: the SDK call may originate in a workstation session host acting only on the service's command |
+| D7.2 | The service starts, resumes and retires sessions through the Agent SDK | Odin | IO §5, §11 | locked | ODIN-ADR-009 clarifies: the SDK call may originate in a workstation session host acting only on the service's command. ODIN-ADR-024 permits native interactive Claude Code invocation for the bounded executive pilot; full SDK/host delivery remains open |
 | D7.3 | Authentication per adapter launch configuration (D24); default planning credential an API key from the linked Console organization; subscription lineage supported | Odin | IO §11 | locked (runtime); default per D24.8a | Default confirmation is open (§5.12) |
 | D7.4 | Two loops: service outer loop in ordinary code, harness inner loop | Odin | IO §1; BP §2 | locked | — |
 | D7.5 | Resume while context is useful; replace with a fresh briefed session at boundaries | Odin | IO §5 | locked | — |
 | D7.6 | Narrow runtime adapter so a second harness can be added (D19); one implementation built and validated first | Odin | IO §11; BP §2 | locked | ODIN-ADR-015 places a fixture-only Pi RPC control after I2; full second adapter stays I5 |
-| D7.7 | Interactive-only behaviours (channels, plugin monitors, teammates) not relied on; the service supplies its own Telegram adapter and event intake | Odin | IO §11 | locked | — |
+| D7.7 | Interactive-only behaviours (channels, plugin monitors, teammates) not relied on; the service supplies its own Telegram adapter and event intake | Odin | IO §11 | locked | ODIN-ADR-024 permits Remote Control for pilot conversation; it is not an authenticated Odin command adapter and does not enable native child dispatch |
 | D7.8 | Memory interface and six requirements | Odin | IO §8 | locked | — |
 | D7.9 | UniiChat ideas adapted to the runtime boundary; not promised: fresh call per message, exact prompt layout, cache economics, constant context | Odin | IO §8, §11 | hypothesis | Victor Taelin's design; gist shows no license (§5.5) |
 | D7.10 | Implementation stays only if it beats the simpler baseline on D18 memory measures at comparable cost; "nothing is lost" means retained bytes | Odin | IO §8; AS §3 | hypothesis | ODIN-ADR-003 sets rolling summary plus notes and identical fixture retrieval at I5; repeat with live retrieval after I6. No outcome claimed |
@@ -441,6 +441,7 @@ formal handoff. See [DECISIONS.md §4](../DECISIONS.md#4-odin-decisions-odin-adr
 | ODIN-ADR-013 | hypothesis | Supersedes D8.5 and the single-reviewer reading of D8.3–D8.4; keeps D8.1–D8.2, D8.6–D8.7; D2.5 unchanged (its "Mimir" reads as the reviewer positions; separate-process option taken); D19.3 kept; FLAG pairs escalate under Saga ADM-7 | IO §10 review; BP §6; AS §3; D24.2a; X-13; AC-22 re-scoped; proposed AC-40 |
 | ODIN-ADR-014 | default; evidence only | Amends ODIN-ADR-004; keeps four hooks, no silent downshift, no learned router; I0 defines the workload-class configuration schema | IO §5, Appendix A; AS §3 |
 | ODIN-ADR-015 | locked experiment placement; fixture-only | Amends D15.Eb timing for a control only; honours D7.6; satisfies D19.5; replaces the roadmap's Codex proposal | ROADMAP Phase C; IO §11, §13; BP §7 |
+| ODIN-ADR-024 | operator-authorized bounded pilot | Amends D7.2 invocation and D7.7 transport only for native Fable executive conversation; retains service record authority, credential separation and worker/producer gates | [Executive pilot](../EXECUTIVE-PILOT.md), AGENTS.md §1/§4 |
 
 ODIN-ADR-015 replaces the earlier Codex adapter proposal in ROADMAP Phase C
 with a fixture-only Pi RPC control; full second-adapter delivery remains I5.
@@ -454,15 +455,25 @@ comparison, I6 retrieval, producer contracts or live launch gates. See
 [execution status](../PRODUCT-IMPLEMENTATION-STATUS.md) and
 [ADR-023](../DECISIONS.md#odin-adr-023--local-continuity-and-attributed-memory).
 
-## Clauses superseded or amended by Odin ADRs (2026-10-16)
+ODIN-ADR-024 adds a bounded live conversation path beyond ADR-023's synthetic
+scope: native Claude Code with Remote Control and a project-bound MCP bridge.
+Native messages are conversation, not authenticated Odin operator commands.
+The service's reports stay unverified and unapplied. The full SDK, daemon,
+worker execution, peer feeds and production acceptance remain open; see the
+[pilot runbook](../EXECUTIVE-PILOT.md) and
+[ADR-024](../DECISIONS.md#odin-adr-024--native-fable-executive-conversation-pilot).
+
+## Clauses superseded or amended by Odin ADRs
 
 The extraction superseded no clause on its merits. The operator's
-consolidation direction of 2026-10-16 did, for clauses Odin owns. The carried
+consolidation direction of 2026-10-16 and bounded pilot of 2026-10-19 did,
+for clauses Odin owns. The carried
 text in `DECISIONS.md` stays verbatim with an ownership note; the rows above
 carry the same supersession in their last column.
 
 | Clause | Effect | By |
 |---|---|---|
+| D7.2 invocation; D7.7 interactive-only exclusion | amended for bounded executive pilot only | ODIN-ADR-024 |
 | D8.5; single-reviewer reading of D8.3–D8.4 | superseded (hypothesis) | ODIN-ADR-013 |
 | D10.1, D10.2 delivery modes | amended | ODIN-ADR-006 |
 | D10.4 placement | amended | ODIN-ADR-011 |

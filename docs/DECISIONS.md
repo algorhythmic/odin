@@ -294,6 +294,12 @@ production retention defaults remain open.
 
 Ownership notes (2026-10-16): ODIN-ADR-009 clarifies D7.2 (the service may start a session through a workstation session host it commands; the SDK call still originates from Odin-controlled code); ODIN-ADR-015 honours D7.6 by starting its fixture-only Pi RPC control only after the Claude Code adapter is validated at I2. D7.1, D7.4 to D7.5 and D7.7 to D7.12 are unchanged.
 
+Ownership note (2026-10-19): ODIN-ADR-024 amends D7.2 and D7.7 for a
+bounded executive conversation pilot using native interactive Claude Code
+and Remote Control. D7.4's two loops and D7.11's commitment authority
+remain unchanged. The pilot's conversation is not an authenticated Odin
+operator-command adapter or the full SDK/session-host implementation.
+
 ### SAGA-2026-10-D8 — Mimir: selective, evidence-based, measured (default)
 
 - **When.** Review where mistakes multiply: a decomposition before
@@ -1663,6 +1669,61 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   retrieval. The detailed compactor context, reuse, retention and live-data
   choices under X-10 remain open. X-1, X-7, X-11 production isolation,
   X-12/X-13/X-15, Saga Phase B and the handoff are not closed.
+
+### ODIN-ADR-024 — Native Fable executive conversation pilot
+
+- **Date/status:** 2026-10-19; operator-authorized bounded implementation.
+  The operator requested subagent implementation toward Fable in the Claude
+  Code harness, communicating through existing remote channels such as
+  Remote Control, followed by functionality testing and improvement loops.
+  This authorizes the pilot and its preparation; it does not certify a
+  working login, model entitlement, remote connection or production runtime.
+- **Decision:** allow an Odin-prepared native interactive Claude Code
+  session requesting `claude-fable-5-1`, with `--remote-control`, for
+  executive conversation. The pilot uses the unmodified harness and its
+  native conversation/resume behavior. The full SDK adapter and managed
+  workstation lifecycle remain separate deliverables. The service remains
+  the writer of Odin records; the model receives a scoped MCP bridge.
+- **Operator and model authority:** the bridge binds `fable-executive` as a
+  coordinator to an explicit project scope. It permits continuity and exact
+  evidence reads, plus unverified progress reports and improvement proposals.
+  It exposes no grants, approvals, verified completion, delegated execution,
+  review/apply operations or native child dispatch. Remote Control carries
+  human conversation within Claude Code; it is not an authenticated Odin
+  operator command path. A model's paraphrase of an operator message remains
+  model-reported content. Privileged commands keep the service's existing
+  recorded operator path and required checks.
+- **Launch boundary:** use a dedicated protected Odin Claude configuration
+  and subscription login lineage, with one launch owner. Never copy or fall
+  back to the development login. Restrict the launch to the explicit bridge
+  and tools; isolate runtime state from the repository and sanitize inherited
+  configuration. Show requested model and process state separately from
+  observed model and Remote Control readiness. A CLI process starting does
+  not prove that the requested model or remote connection is working. Login,
+  workspace trust, pairing and any provider billing consent stay native
+  operator interactions; the launcher must not synthesize acceptance.
+- **Improvement:** initially collect attributed, unapplied reports/proposals
+  and use them to choose bounded experiments. Such text is not installed as
+  instructions or policy. Applying a correction requires the existing
+  evidence/review/regression path; authority changes are excluded from that
+  path. Automatic repository mutation or self-deployment is not part of
+  this pilot.
+- **Evidence and checks:** the [pilot runbook](EXECUTIVE-PILOT.md) separates
+  synthetic launch/MCP checks from live acceptance. The local service still
+  uses the fake Saga backend and labels its results accordingly. A live
+  Fable conversation establishes only the observed conversation behavior,
+  not Saga guarantees or full I2/I3 acceptance. Record remote message/reply,
+  scope refusal, durable report readback, stop and resume independently.
+- **Inherited relationship:** narrowly amends Odin-owned D7.2's SDK-only
+  invocation and D7.7's interactive-only exclusion for this pilot. It
+  refines ADR-009's eventual placement and ADR-022/023's previous synthetic
+  scope by permitting this bounded live conversation. D7.1, D7.4–D7.6,
+  D7.11–D7.12, D20.5's authoritative command rules, D24.6's credential
+  separation, Saga's D1/D4/D23 boundaries and the ADR-015 second-adapter
+  sequence stand. Remote Control selects D7.3's supported subscription
+  alternative for this pilot; it does not change the general planning
+  credential default. X-1, X-7, X-11 production isolation, X-12, X-13,
+  X-15, Saga Phase B and the cross-repository handoff remain open.
 
 ## 5. Issues raised by the extraction
 

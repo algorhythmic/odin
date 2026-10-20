@@ -1,0 +1,86 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "mcpServers"
+  ],
+  "properties": {
+    "mcpServers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "odin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "command",
+            "args",
+            "env"
+          ],
+          "properties": {
+            "type": {
+              "const": "stdio"
+            },
+            "command": {
+              "type": "string",
+              "pattern": "^/",
+              "minLength": 2,
+              "maxLength": 4096
+            },
+            "args": {
+              "type": "array",
+              "minItems": 6,
+              "maxItems": 6,
+              "prefixItems": [
+                {
+                  "const": "-m"
+                },
+                {
+                  "const": "odin.executive_mcp"
+                },
+                {
+                  "const": "--state"
+                },
+                {
+                  "type": "string",
+                  "pattern": "^/",
+                  "minLength": 2,
+                  "maxLength": 4096
+                },
+                {
+                  "const": "--project"
+                },
+                {
+                  "type": "string",
+                  "minLength": 1
+                }
+              ]
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "PYTHONPATH",
+                "PYTHONNOUSERSITE"
+              ],
+              "properties": {
+                "PYTHONPATH": {
+                  "type": "string",
+                  "pattern": "^/",
+                  "minLength": 2,
+                  "maxLength": 4096
+                },
+                "PYTHONNOUSERSITE": {
+                  "const": "1"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

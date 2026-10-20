@@ -1,0 +1,37 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "native_session_id",
+    "state",
+    "resume",
+    "exit_code"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "native_session_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "state": {
+      "enum": [
+        "launch_requested",
+        "process_exited",
+        "not_launched"
+      ]
+    },
+    "resume": {
+      "type": "boolean"
+    },
+    "exit_code": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

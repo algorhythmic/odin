@@ -37,7 +37,9 @@
         "view_delivery",
         "view_ack",
         "memory_snapshot",
-        "memory_source_read"
+        "memory_source_read",
+        "executive_report",
+        "executive_reports"
       ]
     },
     "payload": {

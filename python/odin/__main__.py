@@ -1,4 +1,4 @@
-"""Local development CLI. No live backend, credentials or model invocation."""
+"""Local service CLI and explicit native Claude Code executive pilot."""
 
 import argparse
 import os
@@ -34,6 +34,11 @@ def main():
             "evidence",
             "capabilities",
             "evaluate",
+            "executive-prepare",
+            "executive-status",
+            "executive-login",
+            "executive-start",
+            "executive-new-session",
         ],
     )
     parser.add_argument("--reason", default="operator requested stop")
@@ -58,6 +63,9 @@ def main():
         help="maximum exact evidence response size; evidence is never truncated",
     )
     parser.add_argument("--delivery", help="delivered view ID to acknowledge")
+    parser.add_argument("--claude-config", help="dedicated Odin Claude login directory")
+    parser.add_argument("--executive-project", help="bind private executive socket to this project")
+    parser.add_argument("--resume-session", action="store_true", help="resume the prepared native executive session")
     parser.add_argument(
         "--config",
         help="experimental role configuration JSON; live dispatch remains disabled",
@@ -103,6 +111,35 @@ def main():
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     if state.stat().st_mode & 0o077:
         parser.error("state directory must have mode 0700")
+    if args.action.startswith("executive-"):
+        from . import executive_runtime
+
+        if args.action == "executive-prepare":
+            if not args.claude_config:
+                parser.error("executive-prepare requires --claude-config")
+            from .executive_service import prepare_project
+
+            project = args.project
+            if (state / "executive-pilot" / "manifest.json").exists():
+                existing = executive_runtime.status(state)["configuration"]
+                project = project or existing["project"]
+            if args.project:
+                prepare_project(state, project)
+            project = project or identifier()
+            prepared = executive_runtime.prepare(
+                state, config_dir=args.claude_config, project=project,
+            )
+            prepare_project(state, project, create=not bool(args.project))
+            print(canonical(prepared))
+        elif args.action == "executive-status":
+            print(canonical(executive_runtime.status(state)))
+        elif args.action == "executive-login":
+            sys.exit(executive_runtime.login(state))
+        elif args.action == "executive-new-session":
+            print(canonical(executive_runtime.new_session(state)))
+        else:
+            sys.exit(executive_runtime.start(state, resume=args.resume_session))
+        return
     if args.action in (
         "demo",
         "orchestration-demo",
@@ -212,6 +249,8 @@ def main():
         from .orchestration_config import OrchestrationConfig
 
         gateway = Gateway(service, OrchestrationConfig(args.config))
+        if args.executive_project:
+            gateway.coordination._project(args.executive_project)
         # The namespace lock proves no other service using this state is active.
         if os.path.lexists(address):
             import stat
@@ -225,10 +264,18 @@ def main():
                 self.request.settimeout(5)
                 try:
                     raw = self.rfile.readline(1048577)
+                    if not raw:
+                        return
                     if len(raw) > 1048576 or not raw.endswith(b"\n"):
                         raise ValueError("invalid request frame")
                     request = strict_loads(raw)
-                    if set(request) == {"surface", "command"}:
+                    if getattr(self.server, "executive_project", None):
+                        from .executive_service import submit_executive
+
+                        result = submit_executive(
+                            gateway, request, self.server.executive_project
+                        )
+                    elif set(request) == {"surface", "command"}:
                         if request["surface"] not in ("terminal", "voice"):
                             raise ValueError("unsupported operator surface")
                         context = GatewayContext(
@@ -264,18 +311,37 @@ def main():
                     result = {"error": type(error).__name__, "label": service.label}
                 self.wfile.write((canonical(result) + "\n").encode())
 
-        with socketserver.UnixStreamServer(address, Handler) as server:
-            os.chmod(address, 0o600)
-            server.timeout = 0.5
-            print("Fixture service ready: " + address, flush=True)
-            try:
+        from contextlib import ExitStack
+        import selectors
+        import stat
+
+        addresses = [address]
+        if args.executive_project:
+            addresses.append(str(state / "executive.sock"))
+        created = []
+        try:
+            with ExitStack() as stack:
+                selector = stack.enter_context(selectors.DefaultSelector())
+                for path in addresses:
+                    if os.path.lexists(path):
+                        if not stat.S_ISSOCK(os.lstat(path).st_mode):
+                            raise ValueError("refusing to replace non-socket path")
+                        os.unlink(path)
+                    server = stack.enter_context(socketserver.UnixStreamServer(path, Handler))
+                    created.append(path)
+                    os.chmod(path, 0o600)
+                    server.executive_project = args.executive_project if path != address else None
+                    selector.register(server, selectors.EVENT_READ)
+                print("Fixture service ready: " + address, flush=True)
                 while True:
-                    server.handle_request()
+                    for key, _ in selector.select(timeout=0.5):
+                        key.fileobj._handle_request_noblock()
                     service.tick()
-            except KeyboardInterrupt:
-                pass
-            finally:
-                os.unlink(address)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            for path in created:
+                os.unlink(path)
 
 
 if __name__ == "__main__":

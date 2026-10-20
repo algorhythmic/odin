@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:executive-tool-input:1",
+  "type": "object",
+  "required": ["name", "arguments"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {"type": "string"},
+    "arguments": {"type": "object"}
+  },
+  "oneOf": [
+    {"properties": {"name": {"const": "odin_resume"}, "arguments": {"$ref": "#/$defs/odin_resume"}}},
+    {"properties": {"name": {"const": "odin_memory_snapshot"}, "arguments": {"$ref": "#/$defs/odin_memory_snapshot"}}},
+    {"properties": {"name": {"const": "odin_read_evidence"}, "arguments": {"$ref": "#/$defs/odin_read_evidence"}}},
+    {"properties": {"name": {"const": "odin_report"}, "arguments": {"$ref": "#/$defs/odin_report"}}},
+    {"properties": {"name": {"const": "odin_reports"}, "arguments": {"$ref": "#/$defs/odin_reports"}}}
+  ],
+  "$defs": {
+    "odin_resume": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "detail_bytes": {"type": "integer", "minimum": 0, "maximum": 16384},
+        "obligation_offset": {"type": "integer", "minimum": 0, "maximum": 1000000000},
+        "obligation_limit": {"type": "integer", "minimum": 1, "maximum": 32},
+        "obligation_page_token": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"},
+        "decision_offset": {"type": "integer", "minimum": 0, "maximum": 1000000000},
+        "decision_limit": {"type": "integer", "minimum": 1, "maximum": 4},
+        "decision_page_token": {"type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "odin_memory_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {"type": "integer", "minimum": 1, "maximum": 128},
+        "max_bytes": {"type": "integer", "minimum": 2048, "maximum": 65536}
+      }
+    },
+    "odin_read_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_id", "revision"],
+      "properties": {
+        "source_id": {"type": "string", "minLength": 1, "maxLength": 512},
+        "revision": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "max_bytes": {"type": "integer", "minimum": 2048, "maximum": 65536}
+      }
+    },
+    "odin_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation_id", "kind", "summary"],
+      "properties": {
+        "operation_id": {"type": "string", "minLength": 26, "maxLength": 26, "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+        "kind": {"enum": ["reported_progress", "proposal"]},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 8000}
+      }
+    },
+    "odin_reports": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {"type": "integer", "minimum": 1, "maximum": 20}
+      }
+    }
+  }
+}

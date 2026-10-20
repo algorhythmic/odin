@@ -43,6 +43,9 @@ Read in this order. Where two disagree, the earlier one wins.
 
 Alongside them:
 
+- [Fable executive pilot](EXECUTIVE-PILOT.md): native Claude Code Remote
+  Control launcher, dedicated login, scoped Odin tools and live acceptance
+  checklist under ADR-024. Authentication and remote dialogue remain unverified.
 - [Consolidated implementation status](CONSOLIDATED-IMPLEMENTATION-STATUS.md):
   first Odin delivery under the three-repository work plan, with exact local
   evidence reads, continuity checks, a synthetic demonstration and peer

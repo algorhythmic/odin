@@ -1,0 +1,60 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "permissions",
+    "disableAllHooks",
+    "autoMemoryEnabled",
+    "enabledPlugins"
+  ],
+  "properties": {
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allow",
+        "deny",
+        "defaultMode",
+        "disableBypassPermissionsMode"
+      ],
+      "properties": {
+        "allow": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "mcp__odin__odin_resume",
+              "mcp__odin__odin_memory_snapshot",
+              "mcp__odin__odin_read_evidence",
+              "mcp__odin__odin_report",
+              "mcp__odin__odin_reports"
+            ]
+          }
+        },
+        "deny": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "defaultMode": {
+          "const": "dontAsk"
+        },
+        "disableBypassPermissionsMode": {
+          "const": "disable"
+        }
+      }
+    },
+    "disableAllHooks": {
+      "const": true
+    },
+    "autoMemoryEnabled": {
+      "const": false
+    },
+    "enabledPlugins": {
+      "const": {}
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
