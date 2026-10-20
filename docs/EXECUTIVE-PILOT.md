@@ -88,7 +88,9 @@ checkout, and inherits the real HOME and operator environment. Odin no longer
 restricts native tools or filesystem paths, limits MCP discovery to its own
 server, or disables hooks, plugins, skills, native memory, browser tools or
 native agents. The old generated settings files remain on disk but version
-3 does not load them or pass an overriding settings file. These capabilities
+3 does not load those restrictive settings. The optional
+[development feedback loop](DEVELOPMENT-LOOP.md) adds its own completion
+hooks and custom MCP channel on an explicit resume under ADR-028. These capabilities
 load through the harness's normal configuration mechanisms; the upgrade does
 not install missing integrations.
 The dedicated `CLAUDE_CONFIG_DIR` is retained for the existing login and
@@ -102,6 +104,13 @@ and explicit operator choices still apply. Odin's MCP principal remains
 bound to its project, and recorded reports/proposals retain their existing
 meaning: a native edit is evidence of a change, not automatically a
 Saga-verified outcome or a rewritten approval record.
+
+For automatic next-test delivery, final-response capture and independent
+assessment between development rounds, use the
+[development evaluator runbook](DEVELOPMENT-LOOP.md). It retains this native
+session and Remote Control, with separate evaluator invocation and direct
+operator pause/stop controls. Configuration alone does not prove live
+channel delivery or a completed multi-round loop.
 
 An unavailable Odin service does not prevent version 3 from launching native
 development. Its added MCP reads/reports will be unavailable until the service

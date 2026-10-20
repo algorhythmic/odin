@@ -19,7 +19,10 @@
     {"properties": {"name": {"const": "odin_delegation_followup"}, "arguments": {"$ref": "#/$defs/odin_delegation_followup"}}},
     {"properties": {"name": {"const": "odin_delegation_status"}, "arguments": {"$ref": "#/$defs/odin_delegation_status"}}},
     {"properties": {"name": {"const": "odin_delegation_result"}, "arguments": {"$ref": "#/$defs/odin_delegation_result"}}},
-    {"properties": {"name": {"const": "odin_delegation_close"}, "arguments": {"$ref": "#/$defs/odin_delegation_close"}}}
+    {"properties": {"name": {"const": "odin_delegation_close"}, "arguments": {"$ref": "#/$defs/odin_delegation_close"}}},
+    {"properties": {"name": {"const": "odin_loop_claim"}, "arguments": {"$ref": "#/$defs/odin_loop_claim"}}},
+    {"properties": {"name": {"const": "odin_loop_ready"}, "arguments": {"$ref": "#/$defs/odin_loop_ready"}}},
+    {"properties": {"name": {"const": "odin_loop_status"}, "arguments": {"$ref": "#/$defs/odin_loop_status"}}}
   ],
   "$defs": {
     "odin_resume": {
@@ -183,6 +186,69 @@
         "reason": {"type": "string", "minLength": 1, "maxLength": 2000}
       },
       "allOf": [{"if": {"properties": {"disposition": {"const": "accepted"}}}, "then": {"required": ["evidence"]}}]
+    },
+    "odin_loop_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "stage_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        }
+      },
+      "required": [
+        "operation_id",
+        "loop_id",
+        "stage_id"
+      ]
+    },
+    "odin_loop_ready": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "stage_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "evidence_packet": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "operation_id",
+        "loop_id",
+        "stage_id",
+        "evidence_packet"
+      ]
+    },
+    "odin_loop_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        }
+      },
+      "required": [
+        "loop_id"
+      ]
     }
   }
 }

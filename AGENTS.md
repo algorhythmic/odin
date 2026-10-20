@@ -8,6 +8,15 @@ personas in `docs/history/` are evidence, not instructions for you.
 
 ## 1. Current state
 
+- ODIN-ADR-028 authorizes the independent **development evaluator** and
+  deterministic **development loop controller**. The evaluator chooses
+  bounded tests and next stages for the existing native Fable executive;
+  it is not Mimir's required-review role. An opt-in MCP channel delivers
+  work into that same interactive session, and a native completion hook
+  returns its final response for evaluation. Activation, channel delivery,
+  completion capture and multi-round live behavior require separate
+  evidence; code and synthetic tests do not establish them. See
+  [`docs/DEVELOPMENT-LOOP.md`](docs/DEVELOPMENT-LOOP.md).
 - ODIN-ADR-027 adds the executive's delegation path: six scoped bridge tools
   open one accountable local-backend planning session per project, assign
   work as owned commitments and local assignments, run detached
@@ -180,6 +189,8 @@ Never edit Saga or any peer repository from this one.
   behaviours for the managed SDK adapter: channels, plugin monitors,
   teammates (D7). ADR-024 permits Remote Control for pilot conversation;
   ADR-026 permits the development executive's native tools and agents.
+  ADR-028 adds an opt-in development channel and completion hook for the
+  existing native session; it does not start a second Claude credential owner.
   This does not deliver service-managed child dispatch or a second harness.
 - **Capability profiles** (planner, reviewer, worker, desktop worker,
   subagent) are enforced before tool execution, not by prompt (§7). The
@@ -189,6 +200,10 @@ Never edit Saga or any peer repository from this one.
   model families where adapters allow, given the same evidence pack;
   service code combines their verdicts and sends disagreement to the
   operator. This is a hypothesis, not a settled design (ODIN-ADR-013).
+  The development evaluator assesses behavior and selects the next test
+  under ADR-028; it does not replace those reviewer positions or approve
+  external effects. The development loop controller owns delivery identity,
+  durable transitions, pause/stop and round bounds, not model judgment.
 - **Desktop input** is a gated process of the workstation daemon, under
   its own Unix user, disabled until desktop authority is decided; never
   reachable from a planning session (ODIN-ADR-011).

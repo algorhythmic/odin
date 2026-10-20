@@ -1,6 +1,6 @@
 # Consolidated Odin implementation status
 
-**2026-10-19. Continuity slice and executive pilot under the
+**2026-10-20. Continuity, executive development and feedback loop under the
 [consolidated work plan](design/ODIN-HEIMDALL-SKALD-WORK-PLAN.md).**
 The committed Odin baseline through `a9f22a1` is integrated on
 `codex/odin-continuity-integration` by merge `ea164d2`. The work plan is
@@ -39,6 +39,16 @@ Odin service does not block native startup. Selecting the profile and observing 
 
 ## Delivered behavior
 
+The independent
+[development evaluator and loop controller](DEVELOPMENT-LOOP.md), authorized
+by ADR-028, adds durable rounds, a separately configured native evaluator,
+opt-in channel delivery into the existing Fable session, and final-response
+hook return with executive-submitted evidence. The evaluator selects the
+next stage within operator bounds. Native activation and live multi-round
+acceptance remain separate from the synthetic tests; no live loop success
+is claimed here. It retains Remote Control and does not add another process
+on the executive's credential lineage or replace Mimir review.
+
 | Area | Implementation and evidence | Boundary |
 |---|---|---|
 | Exact evidence | `Memory.read_source`, the `memory_source_read` gateway action and `evidence` CLI; [tests](../tests/test_memory_evidence.py), [gateway tests](../tests/test_evidence_gateway.py) | Requested source revision, digest and provenance are preserved; historical and current reader policy both apply; bounded reads fail instead of truncating |
@@ -51,6 +61,7 @@ Odin service does not block native startup. Selecting the profile and observing 
 | Native repository reads | Retained version 2 profile preserves session identity on explicit resume; [tests](../tests/test_executive_runtime.py) | Read-only boundaries describe version 2 only; version 3 supersedes them |
 | Native development | Version 3 uses the normal native tool set, permission bypass, real checkout cwd/HOME and inherited environment; dedicated login/session and MCP bridge retained | Startup changes require exit/resume; actual model/tool behavior requires live observation; no claim of managed isolation, budgets or Saga guarantees |
 | Executive delegation | [delegation module](../python/odin/delegation.py), detached [runner](../python/odin/delegation_runner.py), six `odin_delegation_*` bridge tools and `delegation-configure`; [tests](../tests/test_delegation.py) | One local-backend session per project; Claude Code turns carry harness budget/turn options, Codex turns require explicitly unenforced limits; returns are unverified until executive acceptance; no isolation, managed session host, X-15 child dispatch or Saga guarantees |
+| Development feedback loop | [controller](../python/odin/development_loop.py), [evaluator runner](../python/odin/development_evaluator.py), scoped [gateway](../python/odin/development_gateway.py), channel and durable native completion spool; [core tests](../tests/test_development_loop.py), [gateway tests](../tests/test_development_gateway.py) and [transport integration](../tests/test_development_loop_integration.py) | Opt-in native restart, dedicated evaluator configuration and actual channel permission are required; reports and evaluator conclusions are not canonical verification; native model and live Remote Control acceptance remain unproven |
 
 Exact-read results are not cached in gateway receipts, so old commands
 cannot replay content after access changes. The recorded command retains
@@ -67,7 +78,7 @@ or enlarge their own project scope in the payload.
 | OHS-04 | First continuity slice implemented and exercised | Portfolio presentation, typed checkpoint/progress admission, source enrollment/health before first capture, and full omission/pagination coverage |
 | OHS-05 | Native executive conversation under ADR-024, repository evidence under ADR-025, native development profile under ADR-026 and local-backend delegation sessions under ADR-027; operator reports an active session | Managed SDK session host, profile isolation, authenticated host transport, X-15 child dispatch and Saga Phase B gates remain separate |
 | OHS-06/07 | Synthetic demonstrations only | Reviewed task migration, enforceable old-writer retirement, pinned producer feeds and their existing live gates |
-| OHS-08/09 | Executive diagnosis persists; repository evidence and version 3 native development support reconciliation and direct improvement | Independently verified Fable/remote dialogue, measured improvement, connected feeds and managed cutover acceptance |
+| OHS-08/09 | Executive diagnosis persists; repository evidence, native development and the ADR-028 feedback controller support direct improvement and test selection | Live multi-round channel/hook/evaluator acceptance, measured improvement, connected feeds and managed cutover acceptance |
 
 The OHS-02 repairs are in the user's separate Heimdall/Skald sessions. No
 peer repository, installed source configuration or desktop setting changed

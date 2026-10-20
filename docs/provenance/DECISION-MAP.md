@@ -158,7 +158,7 @@ joint Saga and Odin decision record frozen at
 | D7.4 | Two loops: service outer loop in ordinary code, harness inner loop | Odin | IO §1; BP §2 | locked | — |
 | D7.5 | Resume while context is useful; replace with a fresh briefed session at boundaries | Odin | IO §5 | locked | — |
 | D7.6 | Narrow runtime adapter so a second harness can be added (D19); one implementation built and validated first | Odin | IO §11; BP §2 | locked | ODIN-ADR-015 places a fixture-only Pi RPC control after I2; full second adapter stays I5 |
-| D7.7 | Interactive-only behaviours (channels, plugin monitors, teammates) not relied on; the service supplies its own Telegram adapter and event intake | Odin | IO §11 | locked | ADR-024 permits Remote Control conversation; ADR-026 also permits native tools, integrations and agents for development. Neither turns model-relayed text into authenticated Odin operator commands |
+| D7.7 | Interactive-only behaviours (channels, plugin monitors, teammates) not relied on; the service supplies its own Telegram adapter and event intake | Odin | IO §11 | locked | ADR-024 permits Remote Control conversation; ADR-026 permits native development tools/integrations/agents; ADR-028 adds an opt-in development channel and completion hook. None turns model-relayed text into authenticated Odin operator commands |
 | D7.8 | Memory interface and six requirements | Odin | IO §8 | locked | — |
 | D7.9 | UniiChat ideas adapted to the runtime boundary; not promised: fresh call per message, exact prompt layout, cache economics, constant context | Odin | IO §8, §11 | hypothesis | Victor Taelin's design; gist shows no license (§5.5) |
 | D7.10 | Implementation stays only if it beats the simpler baseline on D18 memory measures at comparable cost; "nothing is lost" means retained bytes | Odin | IO §8; AS §3 | hypothesis | ODIN-ADR-003 sets rolling summary plus notes and identical fixture retrieval at I5; repeat with live retrieval after I6. No outcome claimed |
@@ -183,8 +183,8 @@ joint Saga and Odin decision record frozen at
 |---|---|---|---|---|---|
 | D9.1 | Statement: bounded judgments through an optional tool and approved evaluators; outputs cannot satisfy Saga approval requirements or waive required Mimir review | Odin | DECISIONS.md D9 | locked | Saga enforces approvals regardless (D2.1) |
 | D9.2 | `decide(state, questions)`: advisory, provider abstraction, explicit unavailable/invalid status, cannot execute | Odin | IO §6 | locked | — |
-| D9.3 | Evaluators: versioned, fixed configuration, registry of hook locations; unsupported locations; operator-intent hook withdrawn | Odin | IO §6 evaluators | locked | The operator-intent hook (also once in the blueprint) is withdrawn in the source |
-| D9.4 | `propose_decider(config)`: approval binds full configuration; replay and shadow before activation; revalidation; one-command rollback | Odin | IO §6 | locked | Renamed from `install_decider` (§2) |
+| D9.3 | Evaluators: versioned, fixed configuration, registry of hook locations; unsupported locations; operator-intent hook withdrawn | Odin | IO §6 evaluators | locked | The operator-intent hook remains withdrawn. ADR-028 permits next-test and stage planning only for the independent development evaluator; ordinary service-event hooks remain fixed |
+| D9.4 | `propose_decider(config)`: approval binds full configuration; replay and shadow before activation; revalidation; one-command rollback | Odin | IO §6 | locked | Renamed from `install_decider` (§2). ADR-028 permits direct opt-in activation of the operator-requested development loop; ordinary evaluator activation and required reviews remain unchanged |
 | D9.5 | Safety rules: mandatory checks first; bypass for operator and control messages; typed messages never classified; maximum deferral; confidence is not correctness; sensitivity follows content to the local provider | Odin | IO §4, §6; BP §6 | locked | ODIN-ADR-002 specifies typed triage, bounded digest and visible overdue state under caps; bypass rules unchanged |
 | D9.6 | First experiment: journal-attention evaluator in shadow mode against Haiku triage | Odin | IO §6; ROADMAP Phase F | locked | ODIN-ADR-002 clarifies the baseline triage path; shadow output cannot suppress its wakes |
 
@@ -445,6 +445,7 @@ formal handoff. See [DECISIONS.md §4](../DECISIONS.md#4-odin-decisions-odin-adr
 | ODIN-ADR-025 | operator-authorized pilot extension; native restriction superseded by ADR-026 for version 3 | Refines ADR-024's tool boundary and ADR-023's synthetic-memory scope for read-only checkout access and operator-selected committed repository evidence | [Executive pilot](../EXECUTIVE-PILOT.md), AGENTS.md §1 |
 | ODIN-ADR-026 | operator-authorized native development profile | Supersedes ADR-024/025 launch and proposal-only restrictions and ADR-022/023 native-child restrictions for version 3; amends Odin-owned D7.2/D7.7, D19.7/D23.1–D23.3 routing and D24.3 process isolation; preserves Saga producer authority and MCP record semantics | [Executive pilot](../EXECUTIVE-PILOT.md), IO §7/§11, AGENTS.md §1/§4/§5/§6 |
 | ODIN-ADR-027 | operator-authorized local delegation path | Amends ADR-024's no-delegated-execution bridge rule for the version 3 executive's local-backend sessions; applies D23.3, D7.11 and D19.4; does not deliver ADR-009's managed session host, X-15 child dispatch, ADR-015 or I5 | [Executive pilot](../EXECUTIVE-PILOT.md), IO §2/§11, AGENTS.md §1 |
+| ODIN-ADR-028 | operator-authorized development evaluator and loop | Extends ADR-026 and D7.7 transport; amends D9.3 planning/decomposition exclusion and D9.4 activation only for the configured development loop; preserves required Mimir review, Saga authority and direct operator control | [Development loop](../DEVELOPMENT-LOOP.md), AGENTS.md §1/§4 |
 
 ODIN-ADR-015 replaces the earlier Codex adapter proposal in ROADMAP Phase C
 with a fixture-only Pi RPC control; full second-adapter delivery remains I5.
@@ -488,6 +489,15 @@ missing guarantees and leaves the managed session host, child dispatch and
 second-adapter gates open. See
 [ADR-027](../DECISIONS.md#odin-adr-027--executive-delegation-sessions-on-the-local-backend).
 
+ODIN-ADR-028 adds an independent development evaluator and a deterministic
+development loop controller. It returns tests through an opt-in channel to
+the existing native executive and captures final responses through a native
+hook, with durable round identity and operator pause/stop. Evaluator judgment
+is separate from executive work and from Mimir's required-review role.
+Configuration and local tests do not prove channel availability or a live
+autonomous loop; see [the runbook](../DEVELOPMENT-LOOP.md) and
+[ADR-028](../DECISIONS.md#odin-adr-028--independent-development-evaluator-and-feedback-loop).
+
 ## Clauses superseded or amended by Odin ADRs
 
 The extraction superseded no clause on its merits. The operator's
@@ -502,6 +512,7 @@ carry the same supersession in their last column.
 | D19.7; D23.1–D23.3 Odin routing; D24.3 Odin process isolation | amended for version 3 native development only; Saga guarantees unchanged | ODIN-ADR-026 |
 | ADR-024/025 restricted launch and proposal-only rules; ADR-022/023 native-child restriction | superseded for version 3 native development only | ODIN-ADR-026 |
 | ADR-024 bridge rule excluding delegated execution | amended for the version 3 executive's local-backend delegation sessions only | ODIN-ADR-027 |
+| D9.3 planning/decomposition exclusion; D9.4 replay/shadow activation | amended only for the operator-configured development evaluator and loop | ODIN-ADR-028 |
 | D8.5; single-reviewer reading of D8.3–D8.4 | superseded (hypothesis) | ODIN-ADR-013 |
 | D10.1, D10.2 delivery modes | amended | ODIN-ADR-006 |
 | D10.4 placement | amended | ODIN-ADR-011 |

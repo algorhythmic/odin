@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:development-loop:1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32000
+    },
+    "status": {
+      "enum": [
+        "evaluator_pending",
+        "evaluator_running",
+        "executive_pending",
+        "executive_claimed",
+        "executive_ready",
+        "paused",
+        "unknown",
+        "needs_operator",
+        "complete",
+        "stopped"
+      ]
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "round": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "max_rounds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "no_progress_limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "no_progress_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "last_evidence_digest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "current_job": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "current_stage": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "paused_from": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 4096
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "project",
+    "session_id",
+    "goal",
+    "status",
+    "revision",
+    "round",
+    "max_rounds",
+    "no_progress_limit",
+    "no_progress_count",
+    "last_evidence_digest",
+    "current_job",
+    "current_stage",
+    "paused_from",
+    "reason",
+    "created_at",
+    "updated_at"
+  ],
+  "additionalProperties": false
+}

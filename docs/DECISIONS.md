@@ -393,6 +393,13 @@ Ownership notes (2026-10-16): ODIN-ADR-013 supersedes D8.5 and the single-review
 Ownership notes: Saga enforces approval requirements independently of
 anything an evaluator returns (D2.1).
 
+Ownership note (2026-10-20): ODIN-ADR-028 adds the operator-authorized
+development evaluator and development loop controller. It amends D9.3's
+exclusion of planning/decomposition and D9.4's replay/shadow activation
+sequence only for this bounded development loop. Required Mimir review,
+Saga approval and direct operator stop remain independent. The evaluator
+does not classify operator messages into new authority.
+
 ### SAGA-2026-10-D10 — The standalone tools stay separate (locked)
 
 | Tool | Role in the Odin plan | When |
@@ -1924,6 +1931,85 @@ remain available in every profile.
   replay. Live receipts for actual Claude Code and Codex sessions belong in
   the operator's private evidence directory, labelled as local-backend
   evidence.
+
+### ODIN-ADR-028 — Independent development evaluator and feedback loop
+
+- **Date/status:** 2026-10-20; operator-authorized implementation. The
+  operator requested an independent evaluator that designs the next tests,
+  assigns them to the existing interactive Fable executive, receives its
+  final response and evidence automatically, then chooses the next stage.
+  The executive may use its authorized native tools, subagents and code
+  changes under ADR-026. The objective is an autonomous development loop
+  without manual copying between conversations, not only a code review.
+- **Roles:** call the judgment role the **development evaluator** and the
+  deterministic module the **development loop controller**. The evaluator
+  assesses functionality, operator experience, evidence quality, reliability
+  and development progress, then chooses a bounded next test, completion or
+  a reason to pause. It receives the configured evidence pack separately
+  from the executive's working conversation. Independence means a distinct
+  evaluation invocation with its own inputs and recorded identity; it does
+  not imply independent credential or OS isolation. It is not Mimir and
+  cannot replace required reviewer positions or provide Saga approval.
+- **Transport:** add an explicitly enabled custom MCP channel to the
+  executive bridge and a native Stop completion hook. Send each round to
+  the existing native session, retaining its session ID, Remote Control and
+  dedicated Claude login. Activate the added channel/hook on one explicit
+  native restart/resume. Do not launch another Claude process on that
+  credential lineage to drive the loop. Channel connection, permitted
+  notification delivery, executive acknowledgement and completion capture
+  are separate observations. Tool visibility alone proves none of the latter.
+  Unchanged channel-inbox polling is an authenticated, project/session-scoped
+  transport read and creates no durable command or receipt per poll.
+  Stage creation, claims, completion and every controller transition remain
+  recorded; this exception does not turn a notification into authority.
+- **Control and persistence:** the controller validates the fixed loop
+  configuration and records scope, session, round, delivery and evaluation
+  identities. It owns durable state transitions, duplicate detection,
+  stale-result refusal, pause/stop and finite round bounds. A
+  model chooses the next test within those bounds; it does not alter them.
+  A lost delivery, interrupted turn, service restart or incomplete completion
+  capture must retain an explicit pending/unknown outcome until reconciled.
+  Never interpret process exit, a Stop event, or the word "done" as proof
+  that a test passed. Automatic retries retain the same operation identity;
+  uncertain work is not silently replaced with a fresh round.
+- **Evidence return:** the completion path returns the main executive's
+  final response and bounded, attributed evidence references for the active
+  round. It must distinguish an evaluator's task from unrelated operator
+  conversation, reject another session or stale round, and preserve missing
+  or unavailable evidence. Native subagent/background work is not complete
+  merely because the main agent stopped responding. The evaluator receives
+  the actual supported evidence pack, not an unlabelled claim that all
+  transcripts, artifacts or tests were independently verified. Runtime
+  conversations and artifacts remain outside committed source.
+- **Authority and development:** the operator's configured objective grants
+  the existing native development scope; the evaluator can select actions
+  inside it without a new manual approval on every round. Its output cannot
+  enlarge that scope, grant credentials, change Saga admission, suppress
+  operator controls, or satisfy a required review. Native edits and test
+  execution retain ADR-026's authority and missing isolation guarantees.
+  Ordinary reports, canonical commitments and Saga ledger results retain
+  their existing meanings. The controller's round bound limits automated
+  continuation, not the cost or native tool usage of a single turn.
+  The initial controller also stops continuation after the configured
+  number of consecutive repeated evidence-reference sets; this is a
+  stall signal, not a semantic proof of progress or a wall-clock deadline.
+- **Activation and checks:** opt in with schema-validated local configuration
+  and explicit transport activation. Invalid output, unavailable transport,
+  absent evidence or an exhausted bound must be visible without inventing
+  success. The [development-loop runbook](DEVELOPMENT-LOOP.md) states the
+  local tests and live acceptance separately. A passing synthetic channel,
+  hook or evaluator binary is not proof of a live unattended loop. Actual
+  acceptance requires at least two automatically connected rounds in the
+  intended session, real evidence return, and tested pause/stop/recovery.
+- **Inherited relationship:** extends ADR-026's native development scope and
+  D7.7's interactive transport exception. Amends Odin-owned D9.3 and D9.4
+  only to permit this explicitly requested development evaluator and its
+  direct opt-in activation; ordinary service-event evaluators retain their
+  registered hooks and evaluation/activation rules. D9.1's non-authority,
+  D9.5's direct operator/control routing, D6's at-least-once reconciliation,
+  D7.11's commitment truth and D24's retained refresh ownership stand. No
+  producer contract, Saga guarantee, Mimir review requirement, managed
+  session-host gate, X-12/X-15 disposition or handoff is closed.
 
 ## 5. Issues raised by the extraction
 

@@ -77,7 +77,18 @@ def _acquire_lineage(lineage):
     except BlockingIOError:
         os.close(fd)
         return None, "busy"
+    except OSError:
+        os.close(fd)
+        return None, "unavailable"
     return fd, "acquired"
+
+
+def _process_start(pid):
+    """Linux process-start identity for orphan reconciliation, never PID alone."""
+    try:
+        return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[19]
+    except (OSError, IndexError):
+        return None
 
 
 def _refused_result(spec, started_at, lineage):
@@ -102,7 +113,7 @@ def _refused_result(spec, started_at, lineage):
         "permission_denials": None,
         "parse_error": None,
         "error_summary": (
-            "credential lineage lease is held by another owner; turn refused "
+            "credential lineage lease is held or unavailable; turn refused "
             "under lineage policy exclusive (no harness process started)"
         ),
         "lineage": lineage,
@@ -142,7 +153,9 @@ def run(directory):
         "credential_after": None,
         "credential_changed": None,
     }
-    if lease == "busy" and lineage["policy"] != "shared_accepted":
+    if lease == "unavailable" or (
+        lease == "busy" and lineage["policy"] != "shared_accepted"
+    ):
         # Ownership is enforced, not just recorded: never refresh on a
         # lineage another process owns unless the operator accepted sharing.
         lineage["refused"] = True
@@ -176,6 +189,7 @@ def run(directory):
             stdout=stdout,
             stderr=stderr,
             start_new_session=True,
+            pass_fds=(lease_fd,) if lease_fd is not None else (),
         )
         _write_json(
             directory / "started.json",
@@ -183,6 +197,7 @@ def run(directory):
                 "schema_version": 1,
                 "runner_pid": os.getpid(),
                 "harness_pid": process.pid,
+                "harness_start": _process_start(process.pid),
                 "started_at": started_at,
             },
         )

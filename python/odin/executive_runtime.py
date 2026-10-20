@@ -232,10 +232,52 @@ def _manifest_settings(manifest):
     )
 
 
+def _mcp_path(manifest, base):
+    if manifest.get("development_loop"):
+        return base / f"mcp-development-loop-{manifest['native_session_id']}.json"
+    return base / "mcp.json"
+
+
+def _loop_settings_path(manifest, base):
+    return base / f"settings-development-loop-{manifest['native_session_id']}.json"
+
+
+def _loop_settings(manifest):
+    handler = {
+        "type": "command",
+        "command": "/usr/bin/env",
+        "args": [
+            "PYTHONPATH=" + str(ROOT / "python"),
+            "PYTHONNOUSERSITE=1",
+            manifest["python_executable"],
+            "-m",
+            "odin.executive_loop_hook",
+            "--state",
+            manifest["state"],
+            "--project",
+            manifest["project"],
+            "--session-id",
+            manifest["native_session_id"],
+        ],
+        "timeout": 5,
+    }
+    return {"hooks": {name: [{"hooks": [handler]}] for name in ("Stop", "StopFailure")}}
+
+
+def _prepare_loop_files(manifest, base):
+    if manifest.get("development_loop"):
+        _write(_mcp_path(manifest, base), "executive-pilot-mcp", _mcp(manifest))
+        _write(
+            _loop_settings_path(manifest, base),
+            "executive-pilot-loop-settings",
+            _loop_settings(manifest),
+        )
+
+
 def _mcp(manifest):
     if not manifest["enable_mcp"]:
         return {"mcpServers": {}}
-    return {
+    result = {
         "mcpServers": {
             "odin": {
                 "type": "stdio",
@@ -252,6 +294,11 @@ def _mcp(manifest):
             }
         }
     }
+    if manifest.get("development_loop"):
+        result["mcpServers"]["odin"]["args"].extend(
+            ["--development-loop", "--session-id", manifest["native_session_id"]]
+        )
+    return result
 
 
 def prepare(
@@ -302,6 +349,8 @@ def prepare(
             manifest["native_session_id"] = existing["native_session_id"]
             if existing["version"] >= 2:
                 manifest.update(version=existing["version"], repository_root=str(ROOT))
+            if existing.get("development_loop"):
+                manifest["development_loop"] = True
             if existing != manifest:
                 raise ValueError(
                     "pilot already prepared with a different configuration"
@@ -341,10 +390,14 @@ def _load(state):
         _settings_path(manifest, base), "executive-pilot-settings"
     ) != _manifest_settings(manifest):
         raise PermissionError("prepared settings differ from the narrow pilot policy")
-    if _read(base / "mcp.json", "executive-pilot-mcp") != _mcp(manifest):
+    if _read(_mcp_path(manifest, base), "executive-pilot-mcp") != _mcp(manifest):
         raise PermissionError(
             "prepared MCP configuration differs from the scoped bridge"
         )
+    if manifest.get("development_loop") and _read(
+        _loop_settings_path(manifest, base), "executive-pilot-loop-settings"
+    ) != _loop_settings(manifest):
+        raise PermissionError("prepared completion hooks differ from the scoped loop")
     return manifest, base
 
 
@@ -437,7 +490,16 @@ def _launch_spec(manifest, base, *, resume=False):
             manifest["native_session_id"],
         ]
         if manifest["enable_mcp"]:
-            argv.extend(["--mcp-config", str(base / "mcp.json")])
+            argv.extend(["--mcp-config", str(_mcp_path(manifest, base))])
+        if manifest.get("development_loop"):
+            argv.extend(
+                [
+                    "--dangerously-load-development-channels",
+                    "server:odin",
+                    "--settings",
+                    str(_loop_settings_path(manifest, base)),
+                ]
+            )
         return {
             "argv": argv,
             "cwd": manifest["repository_root"],
@@ -518,7 +580,11 @@ def _pending_development(manifest, base):
         return None
     pending = _read(path, "executive-pilot")
     expected = manifest | {"version": 3, "repository_root": str(ROOT)}
-    if pending != expected:
+    comparable = {key: value for key, value in pending.items() if key != "development_loop"}
+    expected.pop("development_loop", None)
+    if comparable != expected or (
+        "development_loop" in pending and manifest["version"] != 3
+    ):
         raise PermissionError("pending development profile changed session identity")
     return pending
 
@@ -549,6 +615,39 @@ def enable_development(state):
             "permission_mode": "bypassPermissions",
             "environment": "inherited_operator_environment",
             "native_history_preserved": True,
+        }
+
+
+def enable_development_loop(state, *, enabled=True):
+    """Stage channel and completion hooks; the current process is never changed."""
+    if type(enabled) is not bool:
+        raise ValueError("enabled must be a boolean")
+    state = _private_directory(state)
+    base = _private_directory(state / "executive-pilot")
+    with _lease(base / "prepare.lock"):
+        manifest, base = _load(state)
+        if manifest["version"] != 3 or not manifest["enable_mcp"]:
+            raise PermissionError("development loop requires the active v3 MCP profile")
+        pending = dict(manifest)
+        if enabled:
+            pending["development_loop"] = True
+        else:
+            pending.pop("development_loop", None)
+        if pending != manifest:
+            # Session-specific files make interruption before the manifest
+            # replacement harmless to the presently configured session.
+            _prepare_loop_files(pending, base)
+            _write(base / "pending-development.json", "executive-pilot", pending)
+        else:
+            (base / "pending-development.json").unlink(missing_ok=True)
+        return {
+            "development_loop_enabled": bool(manifest.get("development_loop")),
+            "requested_development_loop": enabled,
+            "pending_activation": pending != manifest,
+            "effective_on_next_start": True,
+            "native_session_id": manifest["native_session_id"],
+            "native_history_preserved": True,
+            "channel_delivery": "unverified_requires_native_startup_confirmation",
         }
 
 
@@ -597,6 +696,7 @@ def _owned_runtime(state, *, hold_configuration=False):
             with _lease(base / "prepare.lock"):
                 pending = _pending_development(manifest, base)
                 if pending:
+                    _prepare_loop_files(pending, base)
                     _write(base / "manifest.json", "executive-pilot", pending)
                     (base / "pending-development.json").unlink()
                     manifest = pending
@@ -640,6 +740,10 @@ def probe(state):
     missing = [flag for flag in required if flag not in results[1]]
     if manifest["version"] == 2 and "--add-dir" not in results[1]:
         missing.append("--add-dir")
+    if manifest.get("development_loop") and "--settings" not in results[1]:
+        missing.append("--settings")
+    # Development channels use a documented hidden native switch. Help cannot
+    # establish channel policy, interactive approval or delivery to this account.
     return {
         "version": results[0].strip()[:200],
         "missing_flags": missing,
@@ -746,6 +850,7 @@ def new_session(state):
         )
         _write(base / f"launch-{previous}.json", "executive-pilot-launch", observation)
         manifest["native_session_id"] = str(uuid.uuid4())
+        _prepare_loop_files(manifest, base)
         _write(base / "manifest.json", "executive-pilot", manifest)
         receipt.unlink(missing_ok=True)
     return {
@@ -817,6 +922,11 @@ def status(state):
         "configuration": manifest,
         "repository_reads_enabled": manifest["version"] >= 2,
         "development_enabled": manifest["version"] == 3,
+        "development_loop_enabled": bool(manifest.get("development_loop")),
+        "pending_development_loop": (
+            bool(pending.get("development_loop")) if pending else None
+        ),
+        "development_loop_delivery": "unverified",
         "pending_profile_version": pending["version"] if pending else None,
         "pending_activation_requires_resume": pending is not None,
         "process_lease_held": running,

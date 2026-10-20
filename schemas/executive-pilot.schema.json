@@ -62,6 +62,9 @@
     "enable_mcp": {
       "type": "boolean"
     },
+    "development_loop": {
+      "const": true
+    },
     "claude_binary": {
       "type": "string",
       "pattern": "^/",
@@ -80,6 +83,12 @@
     }
   },
   "allOf": [
+    {
+      "if": {"required": ["development_loop"]},
+      "then": {
+        "properties": {"version": {"const": 3}, "enable_mcp": {"const": true}}
+      }
+    },
     {
       "if": {"properties": {"version": {"enum": [2, 3]}}},
       "then": {"required": ["repository_root"]},

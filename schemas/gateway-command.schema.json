@@ -46,7 +46,16 @@
         "delegation_followup",
         "delegation_status",
         "delegation_result",
-        "delegation_close"
+        "delegation_close",
+        "loop_start",
+        "loop_status",
+        "loop_inbox",
+        "loop_claim",
+        "loop_ready",
+        "loop_capture",
+        "loop_control",
+        "loop_reconcile",
+        "loop_hold"
       ]
     },
     "payload": {

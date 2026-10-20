@@ -56,8 +56,13 @@ def main():
             "executive-new-session",
             "executive-enable-repository-reads",
             "executive-enable-development",
+            "executive-enable-development-loop",
             "repository-import",
             "delegation-configure",
+            "development-configure",
+            "development-start",
+            "development-status",
+            "development-control",
         ],
     )
     parser.add_argument("--reason", default="operator requested stop")
@@ -82,6 +87,9 @@ def main():
         help="maximum exact evidence response size; evidence is never truncated",
     )
     parser.add_argument("--delivery", help="delivered view ID to acknowledge")
+    parser.add_argument("--loop", help="exact development loop ID")
+    parser.add_argument("--control", choices=["pause", "resume", "stop"])
+    parser.add_argument("--operation-id", help="stable ID for a retried development command")
     parser.add_argument("--claude-config", help="dedicated Odin Claude login directory")
     parser.add_argument("--executive-project", help="bind private executive socket to this project")
     parser.add_argument("--resume-session", action="store_true", help="resume the prepared native executive session")
@@ -176,6 +184,11 @@ def main():
             sys.exit(executive_runtime.login(state))
         elif args.action == "executive-new-session":
             print(canonical(executive_runtime.new_session(state)))
+        elif args.action == "executive-enable-development-loop":
+            try:
+                print(canonical(executive_runtime.enable_development_loop(state)))
+            except PermissionError as error:
+                parser.exit(2, f"odin: {error}\n")
         elif args.action in ("executive-enable-repository-reads", "executive-enable-development"):
             try:
                 enable = (
@@ -221,6 +234,57 @@ def main():
         print(canonical(result))
         return
     address = str(state / "service.sock")
+    if args.action == "development-configure":
+        from .development_evaluator import configure
+
+        if not args.request:
+            parser.error("development-configure requires --request configuration JSON")
+        path = configure(state, strict_loads(Path(args.request).read_bytes()))
+        print(canonical({
+            "written": str(path),
+            "activation": "restart serve to load this configuration",
+        }))
+        return
+    if args.action in {"development-start", "development-status", "development-control"}:
+        from .contracts import Contracts
+
+        if args.action == "development-start":
+            if not args.request:
+                parser.error("development-start requires --request start payload JSON")
+            payload = strict_loads(Path(args.request).read_bytes())
+        else:
+            if not args.project:
+                parser.error("development commands require --project")
+            payload = {"project": args.project}
+            if args.loop:
+                payload["loop_id"] = args.loop
+            if args.action == "development-control":
+                if not args.loop or not args.control:
+                    parser.error("development-control requires --loop and --control")
+                payload["action"] = args.control
+        action = {
+            "development-start": "loop_start",
+            "development-status": "loop_status",
+            "development-control": "loop_control",
+        }[args.action]
+        Contracts().validate_definition("development-loop-command", action, payload)
+        command = {
+            "schema_version": 1, "operation_id": args.operation_id or identifier(),
+            "action": action, "payload": payload,
+        }
+        Contracts().validate("gateway-command", command)
+        try:
+            response = _socket_command(address, {"surface": "terminal", "command": command})
+        except (OSError, ValueError):
+            parser.exit(
+                2, "odin: development command outcome unavailable; inspect status or "
+                "retry identical arguments with --operation-id "
+                + command["operation_id"] + "\n",
+            )
+        print(canonical(response))
+        if "error" in response:
+            sys.exit(1)
+        return
     if args.action == "delegation-configure":
         from .delegation import default_config, write_config
 
@@ -343,13 +407,17 @@ def main():
         service.recover()
         from .coordination import Actor
         from .delegation import load_config
+        from .development_evaluator import EvaluatorRunner, load_config as evaluator_config
         from .gateway import Gateway, GatewayContext
         from .orchestration_config import OrchestrationConfig
 
         delegation_config = load_config(state)
+        development_config = evaluator_config(state)
         gateway = Gateway(
-            service, OrchestrationConfig(args.config), delegation_config=delegation_config
+            service, OrchestrationConfig(args.config), delegation_config=delegation_config,
+            evaluator_configured=development_config is not None,
         )
+        evaluator = EvaluatorRunner(gateway.development_loop, state, development_config)
         if args.executive_project:
             gateway.coordination._project(args.executive_project)
         # The namespace lock proves no other service using this state is active.
@@ -476,6 +544,32 @@ def main():
                             file=sys.stderr,
                             flush=True,
                         )
+                    if args.executive_project:
+                        from .executive_loop_hook import drain_spool
+                        from .executive_service import submit_executive
+
+                        def capture(command):
+                            # Keep a failed capture pending without blocking other
+                            # entries. Never reconnect to this single-threaded server.
+                            try:
+                                return submit_executive(
+                                    gateway, {"command": command}, args.executive_project
+                                )
+                            except Exception as error:
+                                return {"error": type(error).__name__}
+
+                        try:
+                            drain_spool(
+                                state, submit=capture, project=args.executive_project
+                            )
+                        except Exception as error:
+                            print("development capture failed: " + type(error).__name__,
+                                  file=sys.stderr, flush=True)
+                    try:
+                        evaluator.tick()
+                    except Exception as error:
+                        print("development evaluator tick failed: " + type(error).__name__,
+                              file=sys.stderr, flush=True)
         except KeyboardInterrupt:
             pass
         finally:

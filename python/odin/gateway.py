@@ -14,6 +14,9 @@ from .continuity import Continuity
 from .contracts import ROOT, canonical, strict_loads
 from .coordination import Actor, Coordination
 from .delegation import Delegation
+from .development_gateway import ACTIONS as LOOP_ACTIONS
+from .development_gateway import EXECUTIVE_ACTIONS as EXECUTIVE_LOOP_ACTIONS
+from .development_loop import DevelopmentLoop
 from .memory import Memory
 from .orchestration_config import OrchestrationConfig
 from .store import Conflict, digest, event, now
@@ -45,7 +48,8 @@ def fields(payload, required, optional=()):
 
 
 class Gateway:
-    def __init__(self, service, config=None, *, delegation_config=None):
+    def __init__(self, service, config=None, *, delegation_config=None,
+                 evaluator_configured=False):
         self.service, self.store = service, service.store
         self.config = config or OrchestrationConfig()
         self.coordination = Coordination(self.store)
@@ -58,6 +62,8 @@ class Gateway:
         self.delegation = Delegation(
             self.store, service.directory, delegation_config
         )
+        self.development_loop = DevelopmentLoop(self.store)
+        self.evaluator_configured = evaluator_configured
         self.store.db.executescript("""
             CREATE TABLE IF NOT EXISTS gateway_commands
               (id TEXT PRIMARY KEY, digest TEXT NOT NULL, result TEXT NOT NULL);
@@ -94,6 +100,26 @@ class Gateway:
             self._check_operator_scope(
                 command["action"], command["payload"], context, effective_projects
             )
+            if command["action"] in LOOP_ACTIONS:
+                from .development_gateway import check_scope
+
+                check_scope(self, command["action"], command["payload"])
+            if command["action"] == "loop_inbox":
+                # This internal transport poll observes durable stages; it is
+                # not an acknowledgement or a model command. Do not append a
+                # receipt and history entry every second while the channel is
+                # idle. Claims and every actual transition remain recorded.
+                if context.surface == "voice":
+                    raise PermissionError("voice cannot read the development inbox")
+                value = self._dispatch(
+                    command["action"], command["payload"], context, command["operation_id"]
+                )
+                result = {
+                    "schema_version": 1, "operation_id": command["operation_id"],
+                    "label": "fake-backend evidence", "result": value,
+                }
+                self.store.contracts.validate("gateway-receipt", result)
+                return result
             prior = self.store.db.execute(
                 "SELECT digest,result FROM gateway_commands WHERE id=?",
                 (command["operation_id"],),
@@ -102,6 +128,10 @@ class Gateway:
                 if prior[0] != fingerprint:
                     raise Conflict("command identity conflict")
                 receipt = strict_loads(prior[1])
+                if command["action"] in {"loop_claim", "loop_ready"}:
+                    current = self.development_loop.get(command["payload"]["loop_id"])
+                    if receipt["result"]["loop"]["revision"] != current["revision"]:
+                        raise Conflict("development acknowledgement revision changed")
                 if receipt["result"].get("projection_not_cached"):
                     raise Conflict(
                         "historical projection receipt; request a fresh view"
@@ -109,9 +139,7 @@ class Gateway:
                 return receipt
             action = command["action"]
             if context.surface == "voice" and action not in {
-                "message",
-                "status",
-                "stop",
+                "message", "status", "stop",
             }:
                 raise PermissionError("voice cannot authorize or dispatch work")
             # Keep raw rejected input out of durable history. A successful action
@@ -149,6 +177,13 @@ class Gateway:
                         "response_digest": digest(command["payload"]["response"]),
                     }
                 }
+            elif action in LOOP_ACTIONS:
+                audit_command = command | {
+                    "payload": {
+                        "project": command["payload"].get("project"),
+                        "digest": digest(command["payload"]),
+                    }
+                }
             elif action == "repository_import":
                 audit_command = command | {
                     "payload": {
@@ -171,6 +206,8 @@ class Gateway:
                 "executive_reports",
                 "delegation_status",
                 "delegation_result",
+                "loop_status",
+                "loop_inbox",
             }:
                 stored_result = result | {"result": {"projection_not_cached": True}}
             self.store.db.execute(
@@ -189,6 +226,7 @@ class Gateway:
             or action not in {
                 "resume", "memory_snapshot", "memory_source_read",
                 "executive_report", "executive_reports", *DELEGATION_ACTIONS,
+                *EXECUTIVE_LOOP_ACTIONS,
             }
             or payload.get("project") not in context.projects
         ):
@@ -210,7 +248,7 @@ class Gateway:
         project = None
         if action in {
             "resume", "memory_snapshot", "memory_source_read", "executive_reports",
-            "repository_import", *DELEGATION_ACTIONS,
+            "repository_import", *DELEGATION_ACTIONS, *LOOP_ACTIONS,
         }:
             project = payload.get("project")
         elif action == "prepare_decision":
@@ -331,6 +369,10 @@ class Gateway:
 
     def _dispatch(self, action, payload, context, operation):
         actor = context.actor
+        if action in LOOP_ACTIONS:
+            from .development_gateway import dispatch
+
+            return dispatch(self, action, payload, context, operation)
         if action in DELEGATION_ACTIONS:
             if actor.subject == "fable-executive":
                 self._executive_scope(action, payload, context)
@@ -435,7 +477,18 @@ class Gateway:
                 )
                 view = self.continuity.resume(**payload, **common)
                 if actor.subject == "fable-executive":
-                    return view | {"service_context": self._service_context()}
+                    loops = self.development_loop.for_project(payload["project"])
+                    active = [
+                        {key: loop[key] for key in (
+                            "id", "session_id", "status", "round", "revision",
+                            "current_job", "current_stage", "reason",
+                        )}
+                        for loop in loops if loop["status"] not in {"complete", "stopped"}
+                    ]
+                    return view | {
+                        "service_context": self._service_context(),
+                        "development_loops": active,
+                    }
                 return view
             if action == "memory_source_read":
                 self.store.contracts.validate("memory-source-read", payload)
