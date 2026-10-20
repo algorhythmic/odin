@@ -12,7 +12,7 @@ import time
 import unittest
 from pathlib import Path
 
-from odin.contracts import identifier, strict_loads
+from odin.contracts import canonical, identifier, strict_loads
 from odin.delegation import (
     CAPABILITIES,
     DelegationRefused,
@@ -38,6 +38,8 @@ FAKE_CLAUDE = textwrap.dedent(
         time.sleep(float(prompt.split("SLEEP")[1].split()[0]))
     if "CRASH" in prompt:
         sys.exit(3)
+    if "REFRESH" in prompt:  # imitate a credential refresh by the harness
+        open(os.path.join(os.environ["CLAUDE_CONFIG_DIR"], ".credentials.json"), "w").write('{"refreshed": true}')
     if "NOJSON" in prompt:
         print("not json"); sys.exit(0)
     body = {
@@ -107,8 +109,19 @@ class DelegationHarness:
         self.workspace.mkdir(mode=0o700)
         self.config_dir = self.root / "claude-login"
         self.config_dir.mkdir(mode=0o700)
+        (self.config_dir / ".credentials.json").write_text("{}")
+        (self.config_dir / ".credentials.json").chmod(0o600)
+        self.codex_home = self.root / "codex-home"
+        self.codex_home.mkdir(mode=0o700)
         self.claude = _script(self.root / "fake-claude", FAKE_CLAUDE)
         self.codex = _script(self.root / "fake-codex", FAKE_CODEX)
+        self.write_config()
+        self.project = prepare_project(self.state)
+        self.service = None
+        self.gateway = None
+        self.open()
+
+    def write_config(self, **extra):
         write_config(
             self.state,
             default_config(
@@ -116,13 +129,11 @@ class DelegationHarness:
                 workspace_roots=[self.workspace_root],
                 claude_binary=self.claude,
                 codex_binary=self.codex,
+                codex_home=self.codex_home,
                 turn_timeout_seconds=30,
+                **extra,
             ),
         )
-        self.project = prepare_project(self.state)
-        self.service = None
-        self.gateway = None
-        self.open()
 
     def open(self):
         from odin.delegation import load_config
@@ -257,6 +268,25 @@ class DelegationCycleTests(unittest.TestCase):
         self.assertEqual(h.service.store.get(session)["state"], "idle")
         self.assertEqual(state["state"], "active")  # Return never completes work.
         self.assertEqual(state["commitment_state"], "open")
+        # The resume view now carries the outstanding delegated return itself.
+        resume = h.call("resume", {})
+        self.assertEqual(resume["delegation"]["running_turn_count"], 0)
+        self.assertEqual([s["id"] for s in resume["delegation"]["sessions"]], [session])
+        self.assertEqual(
+            resume["delegation"]["awaiting_executive"],
+            [
+                {
+                    "assignment": assigned["assignment"],
+                    "commitment": assigned["commitment"],
+                    "session": session,
+                    "turn": turn["id"],
+                    "state": "returned",
+                    "finished_at": turn["finished_at"],
+                    "failure": None,
+                }
+            ],
+        )
+        self.assertEqual(resume["recommended_next_action"], "review a delegated return")
 
         result = h.call("delegation_result", {"assignment_id": assigned["assignment"]})
         self.assertTrue(result["available"])
@@ -898,6 +928,144 @@ class DelegationCycleTests(unittest.TestCase):
                 workspace_roots=[self.harness.workspace_root],
                 codex_binary="/nonexistent/codex",
             )
+
+    def test_runner_enforces_the_lineage_lease(self):
+        """The runner takes the executive's lineage flock; busy means refused."""
+        import fcntl
+
+        h = self.harness
+        session = self.open_session()["session"]["id"]
+        self.assertEqual(
+            h.call("delegation_status", {"session_id": session})["sessions"][0][
+                "options"
+            ]["lineage"],
+            {"policy": "exclusive", "shared_with": None, "lease_enforced": True},
+        )
+        lock = os.open(
+            h.config_dir / ".odin-lineage.lock", os.O_CREAT | os.O_RDWR, 0o600
+        )
+        self.addCleanup(os.close, lock)
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)  # another owner holds it
+        refused = self.assign(session, "would refresh")
+        h.gateway.delegation.launch_pending()
+        state = h.wait(
+            lambda: (
+                h.assignment_state(refused["assignment"])
+                if h.assignment_state(refused["assignment"])["turns"][0]["state"]
+                in ("failed", "returned")
+                else None
+            )
+        )
+        turn = state["turns"][0]
+        self.assertEqual(turn["state"], "failed")
+        self.assertIn("lineage lease", turn["failure"])
+        self.assertEqual(turn["result"]["exit_code"], None)  # no harness ran
+        self.assertEqual(turn["result"]["lineage"]["lease"], "busy")
+        self.assertTrue(turn["result"]["lineage"]["refused"])
+        self.assertFalse(
+            (h.state / "delegations" / session / turn["id"] / "started.json").exists()
+        )
+        fcntl.flock(lock, fcntl.LOCK_UN)
+        before = (h.config_dir / ".credentials.json").stat().st_mtime_ns
+        refreshed = self.assign(session, "REFRESH the token")
+        h.gateway.delegation.launch_pending()
+        state = h.wait(
+            lambda: (
+                h.assignment_state(refreshed["assignment"])
+                if h.assignment_state(refreshed["assignment"])["turns"][0]["state"]
+                == "returned"
+                else None
+            )
+        )
+        lineage = state["turns"][0]["result"]["lineage"]
+        self.assertEqual(lineage["lease"], "acquired")
+        self.assertFalse(lineage["refused"])
+        self.assertTrue(lineage["credential_changed"])
+        self.assertEqual(lineage["credential_before"]["mtime_ns"], before)
+        self.assertNotEqual(
+            lineage["credential_before"]["sha256"],
+            lineage["credential_after"]["sha256"],
+        )
+        self.assertNotIn("refreshed", canonical(lineage))  # digest only, no content
+        quiet = self.assign(session, "no refresh")
+        h.gateway.delegation.launch_pending()
+        state = h.wait(
+            lambda: (
+                h.assignment_state(quiet["assignment"])
+                if h.assignment_state(quiet["assignment"])["turns"][0]["state"]
+                == "returned"
+                else None
+            )
+        )
+        self.assertFalse(state["turns"][0]["result"]["lineage"]["credential_changed"])
+
+    def test_shared_executive_lineage_requires_explicit_acceptance(self):
+        import fcntl
+
+        h = self.harness
+        pilot = h.state / "executive-pilot"
+        pilot.mkdir(mode=0o700)
+        (pilot / "manifest.json").write_text(
+            canonical({"version": 3, "config_dir": str(h.config_dir)}) + "\n"
+        )
+        with self.assertRaises(DelegationRefused) as refused:
+            self.open_session()
+        self.assertEqual(str(refused.exception), "lineage_shared_requires_acceptance")
+        h.write_config(lineage_policy="shared_accepted")
+        h.restart()
+        opened = self.open_session()
+        session = opened["session"]["id"]
+        view = h.call("delegation_status", {"session_id": session})["sessions"][0]
+        self.assertEqual(
+            view["options"]["lineage"],
+            {
+                "policy": "shared_accepted",
+                "shared_with": "executive",
+                "lease_enforced": True,
+            },
+        )
+        lock = os.open(
+            h.config_dir / ".odin-lineage.lock", os.O_CREAT | os.O_RDWR, 0o600
+        )
+        self.addCleanup(os.close, lock)
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)  # the executive owns it
+        assigned = self.assign(session, "runs on a shared lineage")
+        h.gateway.delegation.launch_pending()
+        state = h.wait(
+            lambda: (
+                h.assignment_state(assigned["assignment"])
+                if h.assignment_state(assigned["assignment"])["turns"][0]["state"]
+                == "returned"
+                else None
+            )
+        )
+        lineage = state["turns"][0]["result"]["lineage"]
+        self.assertEqual(lineage["lease"], "busy")  # recorded, accepted, not owned
+        self.assertEqual(lineage["shared_with"], "executive")
+        self.assertFalse(lineage["refused"])
+
+    def test_codex_without_codex_home_is_the_operator_lineage(self):
+        h = self.harness
+        config = strict_loads((h.state / "delegation.json").read_text())
+        config["harnesses"]["codex"]["codex_home"] = None
+        write_config(h.state, config)
+        h.restart()
+        with self.assertRaises(DelegationRefused) as refused:
+            self.open_session(harness="codex")
+        self.assertEqual(str(refused.exception), "lineage_shared_requires_acceptance")
+        config["lineage_policy"] = "shared_accepted"
+        write_config(h.state, config)
+        h.restart()
+        opened = self.open_session(harness="codex")
+        view = h.call("delegation_status", {"session_id": opened["session"]["id"]})
+        self.assertEqual(
+            view["sessions"][0]["options"]["lineage"],
+            {
+                "policy": "shared_accepted",
+                "shared_with": "operator-codex-login",
+                "lease_enforced": False,
+            },
+        )
 
     def test_replayed_operation_returns_receipt_without_second_session(self):
         h = self.harness

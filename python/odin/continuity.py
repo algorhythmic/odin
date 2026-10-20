@@ -6,6 +6,7 @@ This module checks that scope again, but is not an authentication service.
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import datetime
 
 from .contracts import canonical, identifier, strict_loads
@@ -413,6 +414,67 @@ class Continuity:
                 expected_rev,
             )
 
+    def _delegation_summary(self, project, open_commitments):
+        """Outstanding ADR-027 delegated work, so resume needs no second call."""
+        sessions = [
+            r
+            for r in self.store.records("PlanningSession")
+            if r["project"] == project
+            and r.get("adapter") in ("claude-code-print", "codex-exec")
+            and r["state"] != "retired"
+        ]
+        try:
+            rows = self.store.db.execute(
+                "SELECT body FROM delegation_turns WHERE project=? ORDER BY seq",
+                (project,),
+            ).fetchall()
+        except sqlite3.OperationalError:
+            rows = []
+        turns = [strict_loads(row[0]) for row in rows]
+        running = ("queued", "launching", "running", "interrupting")
+        latest = {}
+        for turn in turns:
+            latest[turn["assignment"]] = turn  # ordered by seq; last wins
+        commitment_of = {
+            a["id"]: a["commitment"]
+            for a in self.store.records("Assignment")
+            if a.get("backend") == "local"
+        }
+        awaiting = []
+        for assignment, turn in latest.items():
+            commitment = commitment_of.get(assignment)
+            if turn["state"] in running or commitment not in open_commitments:
+                continue
+            awaiting.append(
+                {
+                    "assignment": assignment,
+                    "commitment": commitment,
+                    "session": turn["session"],
+                    "turn": turn["id"],
+                    "state": turn["state"],
+                    "finished_at": turn.get("finished_at"),
+                    "failure": turn.get("failure"),
+                }
+            )
+        return {
+            "sessions": [
+                {
+                    "id": s["id"],
+                    "harness": s["harness"],
+                    "state": s["state"],
+                    "running_turns": sum(
+                        1
+                        for t in turns
+                        if t["session"] == s["id"] and t["state"] in running
+                    ),
+                }
+                for s in sessions
+            ][:8],
+            "running_turn_count": sum(1 for t in turns if t["state"] in running),
+            "awaiting_executive": awaiting[:16],
+            "awaiting_count": len(awaiting),
+        }
+
     def resume(
         self,
         project,
@@ -626,6 +688,7 @@ class Continuity:
                 "reason": "memory adapter absent",
                 "dependency_revision": None,
             }
+        delegation = self._delegation_summary(project, {c["id"] for c in active})
         issue_id = identifier()
         briefing = {
             "project": {
@@ -671,6 +734,7 @@ class Continuity:
                 if c["next_trigger"]
             ],
             "memory": memory,
+            "delegation": delegation,
             "recommended_next_action": "answer a prepared decision"
             if actionable_requests
             else (
@@ -678,6 +742,8 @@ class Continuity:
                 if unavailable_requests
                 else "reissue an expired decision request"
                 if expired_requests
+                else "review a delegated return"
+                if delegation["awaiting_count"]
                 else "resolve a blocker"
                 if any(c["state"] == "blocked" for c in active)
                 else "continue the first open commitment"

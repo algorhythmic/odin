@@ -73,6 +73,13 @@ def _refuse(code):
     raise DelegationRefused(code)
 
 
+def _same_path(left, right):
+    try:
+        return Path(left).resolve() == Path(right).resolve()
+    except OSError:
+        return str(left) == str(right)
+
+
 def _pid_alive(pid):
     if not isinstance(pid, int) or pid <= 0:
         return False
@@ -216,6 +223,51 @@ class Delegation:
         if name not in self.config["harnesses"]:
             _refuse("harness_not_configured")
         return self.config["harnesses"][name]
+
+    def _executive_config_dir(self):
+        """The running executive's own login directory, when this host has one."""
+        manifest = self.state / "executive-pilot" / "manifest.json"
+        try:
+            value = strict_loads(manifest.read_text())
+            return Path(value["config_dir"])
+        except (OSError, ValueError, KeyError, TypeError):
+            return None
+
+    def _lineage(self, name):
+        """Credential lineage facts for a harness: lease path, file, sharing.
+
+        Ownership is enforced by the runner through the same `.odin-lineage.lock`
+        flock the executive runtime holds; labels alone prove nothing.
+        """
+        harness = self._harness(name)
+        policy = self.config.get("lineage_policy", "exclusive")
+        if name == "claude-code":
+            home = Path(harness["config_dir"])
+            executive = self._executive_config_dir()
+            shared_with = (
+                "executive"
+                if executive is not None and _same_path(home, executive)
+                else None
+            )
+            lock = str(home / ".odin-lineage.lock")
+            credential = str(home / ".credentials.json")
+        elif harness.get("codex_home"):
+            home = Path(harness["codex_home"])
+            shared_with = None
+            lock = str(home / ".odin-lineage.lock")
+            credential = str(home / "auth.json")
+        else:
+            home = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex")
+            shared_with = "operator-codex-login"
+            lock = None  # Never create lease files inside the operator's own login.
+            credential = str(home / "auth.json")
+        return {
+            "policy": policy,
+            "shared_with": shared_with,
+            "lock": lock,
+            "credential_file": credential,
+            "lease_enforced": lock is not None,
+        }
 
     def _workspace(self, value):
         path = Path(value)
@@ -373,7 +425,13 @@ class Delegation:
         model = payload.get("model") or harness.get("default_model")
         if payload["harness"] == "claude-code" and not model:
             _refuse("model_required")
+        lineage = self._lineage(payload["harness"])
+        if lineage["shared_with"] and lineage["policy"] != "shared_accepted":
+            _refuse("lineage_shared_requires_acceptance")
         options = {
+            "lineage": {
+                key: lineage[key] for key in ("policy", "shared_with", "lease_enforced")
+            },
             "workspace": workspace,
             "model": model,
             "effort": payload.get("effort"),
@@ -914,6 +972,11 @@ class Delegation:
             "timeout_seconds": self.config.get("turn_timeout_seconds", 1800),
             "output_format": output_format,
             "last_message_file": last_message,
+            "lineage": {
+                key: value
+                for key, value in self._lineage(session["harness"]).items()
+                if key != "lease_enforced"
+            },
         }
 
     def launch_pending(self):
@@ -1120,8 +1183,14 @@ class Delegation:
                     state = "failed"
                 else:
                     state = "returned"
+                failure = (
+                    result.get("error_summary")
+                    if state == "failed"
+                    and (result.get("lineage") or {}).get("refused")
+                    else None
+                )
                 with self.store.transaction():
-                    self._finish_turn(turn, state, result=result)
+                    self._finish_turn(turn, state, result=result, failure=failure)
                 changed.append(turn["id"])
                 continue
             if started_path.exists() and turn["state"] == "launching":
@@ -1272,6 +1341,7 @@ class Delegation:
             "permission_denials": result.get("permission_denials"),
             "parse_error": result.get("parse_error"),
             "error_summary": result.get("error_summary"),
+            "lineage": result.get("lineage"),
             "native_session_id": result.get("native_session_id"),
             "final_text_bytes": len(text.encode("utf-8")),
             "final_text_digest": digest(text),
@@ -1635,6 +1705,7 @@ def default_config(
     claude_model="claude-sonnet-5-5",
     codex_model=None,
     turn_timeout_seconds=1800,
+    lineage_policy="exclusive",
 ):
     """Build an operator delegation configuration from explicit choices."""
     harnesses = {}
@@ -1668,5 +1739,6 @@ def default_config(
         "schema_version": 1,
         "workspace_roots": [str(Path(root).absolute()) for root in workspace_roots],
         "turn_timeout_seconds": turn_timeout_seconds,
+        "lineage_policy": lineage_policy,
         "harnesses": harnesses,
     }

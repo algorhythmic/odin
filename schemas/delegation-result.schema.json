@@ -28,6 +28,38 @@
     "usage": {"anyOf": [{"type": "object"}, {"type": "null"}]},
     "permission_denials": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
     "parse_error": {"anyOf": [{"type": "string"}, {"type": "null"}]},
-    "error_summary": {"anyOf": [{"type": "string"}, {"type": "null"}]}
+    "error_summary": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+    "lineage": {"$ref": "#/$defs/lineage"}
+  },
+  "$defs": {
+    "fingerprint": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mtime_ns", "size", "sha256"],
+          "properties": {
+            "mtime_ns": {"type": "integer", "minimum": 0},
+            "size": {"type": "integer", "minimum": 0},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        }
+      ]
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "shared_with", "lease", "refused", "credential_before", "credential_after", "credential_changed"],
+      "properties": {
+        "policy": {"enum": ["exclusive", "shared_accepted"]},
+        "shared_with": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+        "lease": {"enum": ["acquired", "busy", "unavailable", "not_applicable"]},
+        "refused": {"type": "boolean"},
+        "credential_before": {"$ref": "#/$defs/fingerprint"},
+        "credential_after": {"$ref": "#/$defs/fingerprint"},
+        "credential_changed": {"anyOf": [{"type": "boolean"}, {"type": "null"}]}
+      }
+    }
   }
 }

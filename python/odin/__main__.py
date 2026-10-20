@@ -101,6 +101,12 @@ def main():
     parser.add_argument("--claude-model", default="claude-sonnet-5-5", help="default delegated Claude Code model")
     parser.add_argument("--codex-model", help="default delegated Codex model")
     parser.add_argument("--turn-timeout", type=int, default=1800, help="delegated turn wall-clock limit in seconds")
+    parser.add_argument(
+        "--lineage-policy",
+        choices=["exclusive", "shared_accepted"],
+        default="exclusive",
+        help="refuse (exclusive) or accept worker turns on a credential lineage another process owns",
+    )
     args = parser.parse_args()
     from pathlib import Path
 
@@ -228,6 +234,7 @@ def main():
                 claude_model=args.claude_model,
                 codex_model=args.codex_model,
                 turn_timeout_seconds=args.turn_timeout,
+                lineage_policy=args.lineage_policy,
             )
             path = write_config(state, config)
         except (ValueError, PermissionError, OSError) as error:

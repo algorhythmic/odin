@@ -32,7 +32,9 @@ The other schemas validate fixture commands, host results, capture batches,
 profiles, capabilities, evaluation episodes and reports. The
 `delegation-config`, `delegation-turn` and `delegation-result` schemas
 describe the operator configuration, service turn records and detached
-runner results of ADR-027's local delegation sessions; the
+runner results of ADR-027's local delegation sessions (a result's
+`lineage` block records the credential-lease outcome and content-free
+credential-file fingerprints); the
 `executive-tool-input` definitions bound each bridge tool's arguments. Fixture protocols
 have no live transport. Schemas are loaded once per process; restart after
 editing them. Incompatible future state changes need an explicit migration;

@@ -1905,10 +1905,18 @@ remain available in every profile.
   managed child dispatch (X-15), the ADR-015 Pi control or the I5 second
   production adapter; the Codex path here is a local non-interactive worker
   adapter, not that second adapter. Worker credentials follow the configured
-  Claude configuration directory and Codex home; sharing the executive's
-  dedicated login lineage with worker processes is an interim operator choice
-  under open X-12, not a resolution of it. Saga-owned interfaces, approvals
-  and guarantees are unchanged.
+  Claude configuration directory and Codex home. Refresh ownership is
+  enforced with the executive runtime's own `.odin-lineage.lock` lease
+  (D24.4a, one refresher per lineage): the runner must hold it for the
+  worker's lineage while a harness runs, a busy lease refuses the turn
+  under the default `exclusive` policy, and a session on the executive's
+  own login or the operator's `~/.codex` login is refused unless the
+  operator configures `lineage_policy: shared_accepted`; every turn result
+  records the lease outcome and a content-free credential-file fingerprint
+  before and after the run (2026-10-20 amendment). Sharing the executive's
+  dedicated login lineage with worker processes under `shared_accepted` is
+  an interim operator choice under open X-12, not a resolution of it.
+  Saga-owned interfaces, approvals and guarantees are unchanged.
 - **Checks and evidence:** `tests/test_delegation.py` exercises the cycle
   with synthetic harness binaries and real detached runners: open, assign,
   launch, return, follow-up resume, restart, incarnation, stop/interrupt,

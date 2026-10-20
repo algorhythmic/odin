@@ -13,6 +13,7 @@
       "items": {"type": "string", "minLength": 1, "pattern": "^/"}
     },
     "turn_timeout_seconds": {"type": "integer", "minimum": 30, "maximum": 86400},
+    "lineage_policy": {"enum": ["exclusive", "shared_accepted"]},
     "harnesses": {
       "type": "object",
       "additionalProperties": false,

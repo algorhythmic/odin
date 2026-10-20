@@ -6,6 +6,8 @@ wall-clock limit and writes `result.json` atomically. It never opens Odin's
 store: the service ingests the spool. Standard library only.
 """
 
+import fcntl
+import hashlib
 import json
 import os
 import signal
@@ -45,6 +47,68 @@ def _read_text(path, limit=None):
     return data.decode("utf-8", errors="replace")
 
 
+def _credential_fingerprint(path):
+    """Metadata and digest of a credential file; never its contents."""
+    if not path:
+        return None
+    try:
+        info = os.stat(path)
+        data = Path(path).read_bytes()
+    except OSError:
+        return None
+    return {
+        "mtime_ns": info.st_mtime_ns,
+        "size": info.st_size,
+        "sha256": hashlib.sha256(data).hexdigest(),
+    }
+
+
+def _acquire_lineage(lineage):
+    """Try to own the credential lineage lease (same lock the executive uses)."""
+    lock = (lineage or {}).get("lock")
+    if not lock:
+        return None, "not_applicable"
+    try:
+        fd = os.open(lock, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    except OSError:
+        return None, "unavailable"
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        os.close(fd)
+        return None, "busy"
+    return fd, "acquired"
+
+
+def _refused_result(spec, started_at, lineage):
+    return {
+        "schema_version": 1,
+        "turn": spec["turn"],
+        "harness": spec["harness"],
+        "exit_code": None,
+        "started_at": started_at,
+        "finished_at": _now(),
+        "timed_out": False,
+        "interrupted": False,
+        "stdout_bytes": 0,
+        "stderr_tail": "",
+        "native_session_id": None,
+        "final_text": "",
+        "is_error": True,
+        "stop_reason": None,
+        "turns": None,
+        "cost_usd": None,
+        "usage": None,
+        "permission_denials": None,
+        "parse_error": None,
+        "error_summary": (
+            "credential lineage lease is held by another owner; turn refused "
+            "under lineage policy exclusive (no harness process started)"
+        ),
+        "lineage": lineage,
+    }
+
+
 def run(directory):
     directory = Path(directory)
     spec = json.loads((directory / "spec.json").read_text())
@@ -65,6 +129,25 @@ def run(directory):
     interrupted = {"value": False}
     timed_out = False
     process = None
+    lineage_spec = spec.get("lineage") or {}
+    lease_fd, lease = _acquire_lineage(lineage_spec)
+    lineage = {
+        "policy": lineage_spec.get("policy", "exclusive"),
+        "shared_with": lineage_spec.get("shared_with"),
+        "lease": lease,
+        "refused": False,
+        "credential_before": _credential_fingerprint(
+            lineage_spec.get("credential_file")
+        ),
+        "credential_after": None,
+        "credential_changed": None,
+    }
+    if lease == "busy" and lineage["policy"] != "shared_accepted":
+        # Ownership is enforced, not just recorded: never refresh on a
+        # lineage another process owns unless the operator accepted sharing.
+        lineage["refused"] = True
+        _write_json(result_path, _refused_result(spec, started_at, lineage))
+        return 0
 
     def forward(signum, _frame):
         interrupted["value"] = True
@@ -132,6 +215,17 @@ def run(directory):
                         pass
                     process.wait()
                     break
+    if lease_fd is not None:
+        os.close(lease_fd)  # Releases the flock; held for the whole harness run.
+    lineage["credential_after"] = _credential_fingerprint(
+        lineage_spec.get("credential_file")
+    )
+    lineage["credential_changed"] = (
+        lineage["credential_before"] != lineage["credential_after"]
+        if lineage["credential_before"] is not None
+        or lineage["credential_after"] is not None
+        else None
+    )
     exit_code = process.returncode
     stdout_text = _read_text(stdout_path)
     last_message = None
@@ -167,6 +261,7 @@ def run(directory):
         "error_summary": ("; ".join(parsed["errors"])[:2048] or None)
         if parsed.get("errors")
         else None,
+        "lineage": lineage,
     }
     _write_json(result_path, result)
     return 0

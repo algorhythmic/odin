@@ -232,10 +232,27 @@ the configuration:
 The file names the harness binaries, the Claude configuration directory the
 workers use, an optional `CODEX_HOME`, default models and the directories
 under which session workspaces may live. Workers inherit the operator
-environment plus those settings. Pointing workers at the executive's own
-dedicated login shares that credential lineage between the executive and
-its workers; this is an interim operator choice while X-12 remains open, not
-managed credential isolation.
+environment plus those settings.
+
+Credential ownership is enforced, not only labelled. The executive runtime
+holds a `flock` lease on `.odin-lineage.lock` inside its login directory
+for as long as it runs; the detached runner takes the same lease on the
+worker's Claude configuration directory (or on `CODEX_HOME` when one is
+configured) before it starts a harness process and releases it afterwards.
+Under the default `lineage_policy` of `exclusive`, a session on a lineage
+the executive owns (the same login directory) or on the operator's own
+`~/.codex` login is refused with `lineage_shared_requires_acceptance`, and a
+turn whose lease is busy is refused by the runner without starting the
+harness (`lease: busy`, `refused: true` in the turn result). Setting
+`--lineage-policy shared_accepted` records the operator's acceptance of a
+shared lineage: such turns run, and the result still records `lease: busy`
+and `shared_with: executive`. Every turn result also carries a
+`credential_before`/`credential_after` fingerprint (mtime, size and digest
+of the credential file, never its contents) and `credential_changed`, so a
+refresh during a worker turn is evidence in the record. Sharing the
+executive's dedicated login with workers remains an interim operator choice
+while X-12 is open, not managed credential isolation; `exclusive` is the
+policy X-12's resolution needs.
 
 The cycle, with every mutating call carrying a fresh ULID `operation_id`
 that is safe to replay with identical arguments:
@@ -287,9 +304,14 @@ file exists) separately from `delegated_execution_enabled`, which still
 describes the unavailable service-managed Saga/SDK path.
 
 Delegated commitments appear in `odin_resume` as open obligations until
-closed. Refusals reach the executive as fixed codes such as
-`project_already_has_active_session`, `turn_still_running`,
-`limits_not_enforceable_on_harness` or `delegation_not_configured`.
+closed, and the view's `delegation` section lists the non-retired sessions,
+running turns and every latest turn that has finished while its commitment
+is still open (`awaiting_executive`), with `review a delegated return` as
+the recommended next action; no separate status call is needed to notice
+outstanding delegated work. Refusals reach the executive as fixed codes
+such as `project_already_has_active_session`, `turn_still_running`,
+`limits_not_enforceable_on_harness`, `lineage_shared_requires_acceptance`
+or `delegation_not_configured`.
 `tests/test_delegation.py` covers the cycle with synthetic harness binaries
 and real detached runners. Live Claude Code and Codex receipts are operator
 evidence outside the repository; they are local-backend evidence without
