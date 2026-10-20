@@ -828,7 +828,12 @@ def status(state):
         "model": "requested_not_verified",
         "remote_control": "requested_not_verified",
         "sdk_adapter_enabled": False,
+        # Service-managed (Saga/SDK) delegated execution remains unavailable;
+        # ADR-027 local delegation sessions are a separate, configured path.
         "delegated_execution_enabled": False,
+        "local_delegation_configured": (
+            Path(manifest["state"]) / "delegation.json"
+        ).is_file(),
         "service_budget_enforced": False,
         "service_reachability": _service_reachability(manifest),
     }

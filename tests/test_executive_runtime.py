@@ -584,6 +584,16 @@ class ExecutiveRuntimeTests(unittest.TestCase):
         self.assertFalse(result["delegated_execution_enabled"])
         self.assertFalse(result["service_budget_enforced"])
 
+    def test_status_distinguishes_local_delegation_from_managed_execution(self):
+        self.prepare()
+        before = runtime.status(self.state)
+        self.assertFalse(before["local_delegation_configured"])
+        self.assertFalse(before["delegated_execution_enabled"])
+        (self.state / "delegation.json").write_text("{}")
+        after = runtime.status(self.state)
+        self.assertTrue(after["local_delegation_configured"])
+        self.assertFalse(after["delegated_execution_enabled"])
+
     def test_status_reports_service_unavailable_without_socket(self):
         self.prepare()
         result = runtime.status(self.state)

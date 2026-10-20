@@ -282,6 +282,10 @@ accepting. Codex workers run under the configured sandbox (`read-only` or
 `workspace-write`) and report usage without cost; their native thread id is
 known only after the first turn returns.
 
+`executive-status` reports `local_delegation_configured` (the configuration
+file exists) separately from `delegated_execution_enabled`, which still
+describes the unavailable service-managed Saga/SDK path.
+
 Delegated commitments appear in `odin_resume` as open obligations until
 closed. Refusals reach the executive as fixed codes such as
 `project_already_has_active_session`, `turn_still_running`,
