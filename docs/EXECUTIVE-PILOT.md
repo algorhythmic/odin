@@ -242,8 +242,13 @@ configured) before it starts a harness process and releases it afterwards.
 Under the default `lineage_policy` of `exclusive`, a session on a lineage
 the executive owns (the same login directory) or on the operator's own
 `~/.codex` login is refused with `lineage_shared_requires_acceptance`, and a
-turn whose lease is busy is refused by the runner without starting the
-harness (`lease: busy`, `refused: true` in the turn result). Setting
+turn whose lease is busy, or whose lease file cannot be trusted (symlink,
+foreign owner, loose mode), is refused by the runner without starting the
+harness (`lease: busy` or `unavailable`, `refused: true` in the turn
+result); the operator's own development login (`~/.claude` or the
+service's `CLAUDE_CONFIG_DIR`) is refused as `operator-claude-login`, and
+sessions whose lineage is already running another session's turn stay
+queued rather than being refused. Setting
 `--lineage-policy shared_accepted` records the operator's acceptance of a
 shared lineage: such turns run, and the result still records `lease: busy`
 and `shared_with: executive`. Every turn result also carries a

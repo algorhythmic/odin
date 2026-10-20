@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import signal
+import stat
 import subprocess
 import sys
 import time
@@ -47,29 +48,54 @@ def _read_text(path, limit=None):
     return data.decode("utf-8", errors="replace")
 
 
+FINGERPRINT_MAX_BYTES = 1 << 20
+
+
 def _credential_fingerprint(path):
-    """Metadata and digest of a credential file; never its contents."""
+    """Metadata and digest of a credential file; never its contents.
+
+    Reads through one descriptor (no symlinks, regular file, own uid, bounded
+    size) so a worker cannot point the record at another file.
+    """
     if not path:
         return None
     try:
-        info = os.stat(path)
-        data = Path(path).read_bytes()
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
     except OSError:
         return None
+    try:
+        info = os.fstat(fd)
+        if (
+            not stat.S_ISREG(info.st_mode)
+            or info.st_uid != os.getuid()
+            or info.st_size > FINGERPRINT_MAX_BYTES
+        ):
+            return None
+        digest = hashlib.sha256()
+        while chunk := os.read(fd, 65536):
+            digest.update(chunk)
+    except OSError:
+        return None
+    finally:
+        os.close(fd)
     return {
         "mtime_ns": info.st_mtime_ns,
         "size": info.st_size,
-        "sha256": hashlib.sha256(data).hexdigest(),
+        "sha256": digest.hexdigest(),
     }
 
 
 def _acquire_lineage(lineage):
-    """Try to own the credential lineage lease (same lock the executive uses)."""
+    """Try to own the credential lineage lease (same lock the executive uses).
+
+    "unavailable" means the lock file cannot be trusted (symlink, foreign
+    owner, loose mode, replaced after locking); it is never treated as owned.
+    """
     lock = (lineage or {}).get("lock")
     if not lock:
         return None, "not_applicable"
     try:
-        fd = os.open(lock, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        fd = os.open(lock, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
     except OSError:
         return None, "unavailable"
     try:
@@ -77,6 +103,23 @@ def _acquire_lineage(lineage):
     except BlockingIOError:
         os.close(fd)
         return None, "busy"
+    except OSError:
+        os.close(fd)
+        return None, "unavailable"
+    try:
+        held = os.fstat(fd)
+        current = os.stat(lock, follow_symlinks=False)
+    except OSError:
+        os.close(fd)
+        return None, "unavailable"
+    if (
+        not stat.S_ISREG(held.st_mode)
+        or held.st_uid != os.getuid()
+        or held.st_mode & 0o077
+        or (held.st_dev, held.st_ino) != (current.st_dev, current.st_ino)
+    ):
+        os.close(fd)
+        return None, "unavailable"
     return fd, "acquired"
 
 
@@ -103,6 +146,10 @@ def _refused_result(spec, started_at, lineage):
         "parse_error": None,
         "error_summary": (
             "credential lineage lease is held by another owner; turn refused "
+            "under lineage policy exclusive (no harness process started)"
+            if lineage["lease"] == "busy"
+            else "credential lineage lease file cannot be trusted (missing "
+            "directory, symlink, foreign owner or loose mode); turn refused "
             "under lineage policy exclusive (no harness process started)"
         ),
         "lineage": lineage,
@@ -136,18 +183,20 @@ def run(directory):
         "shared_with": lineage_spec.get("shared_with"),
         "lease": lease,
         "refused": False,
-        "credential_before": _credential_fingerprint(
-            lineage_spec.get("credential_file")
-        ),
+        "credential_before": None,
         "credential_after": None,
         "credential_changed": None,
     }
-    if lease == "busy" and lineage["policy"] != "shared_accepted":
+    if lease in ("busy", "unavailable") and lineage["policy"] != "shared_accepted":
         # Ownership is enforced, not just recorded: never refresh on a
-        # lineage another process owns unless the operator accepted sharing.
+        # lineage another process owns (or whose lease cannot be trusted)
+        # unless the operator accepted sharing. Nothing is read before this.
         lineage["refused"] = True
         _write_json(result_path, _refused_result(spec, started_at, lineage))
         return 0
+    lineage["credential_before"] = _credential_fingerprint(
+        lineage_spec.get("credential_file")
+    )
 
     def forward(signum, _frame):
         interrupted["value"] = True

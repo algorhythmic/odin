@@ -40,10 +40,18 @@ FAKE_CLAUDE = textwrap.dedent(
         sys.exit(3)
     if "REFRESH" in prompt:  # imitate a credential refresh by the harness
         open(os.path.join(os.environ["CLAUDE_CONFIG_DIR"], ".credentials.json"), "w").write('{"refreshed": true}')
+    probe = ""
+    if "PROBELOCK" in prompt:  # is the lineage lease held while we run?
+        import fcntl
+        fd = os.open(os.path.join(os.environ["CLAUDE_CONFIG_DIR"], ".odin-lineage.lock"), os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB); probe = " LOCKPROBE=free"
+        except BlockingIOError:
+            probe = " LOCKPROBE=busy"
     if "NOJSON" in prompt:
         print("not json"); sys.exit(0)
     body = {
-        "session_id": session, "result": "worker says: " + prompt,
+        "session_id": session, "result": "worker says: " + prompt + probe,
         "total_cost_usd": 0.0125, "num_turns": 2, "is_error": False,
         "stop_reason": "end_turn",
         "usage": {"input_tokens": 10, "output_tokens": 5},
@@ -281,6 +289,7 @@ class DelegationCycleTests(unittest.TestCase):
                     "session": session,
                     "turn": turn["id"],
                     "state": "returned",
+                    "ran": True,
                     "finished_at": turn["finished_at"],
                     "failure": None,
                 }
@@ -1066,6 +1075,112 @@ class DelegationCycleTests(unittest.TestCase):
                 "lease_enforced": False,
             },
         )
+
+    def test_lease_is_held_while_the_harness_runs_and_untrusted_locks_refuse(self):
+        h = self.harness
+        session = self.open_session()["session"]["id"]
+        probed = self.assign(session, "PROBELOCK from inside the worker")
+        h.gateway.delegation.launch_pending()
+        state = h.wait(
+            lambda: (
+                h.assignment_state(probed["assignment"])
+                if h.assignment_state(probed["assignment"])["turns"][0]["state"]
+                == "returned"
+                else None
+            )
+        )
+        turn = state["turns"][0]
+        self.assertEqual(turn["result"]["lineage"]["lease"], "acquired")
+        self.assertIn("LOCKPROBE=busy", turn["result"]["final_text_preview"])
+        # A lease file that is not a private regular file owned by us is never
+        # trusted: a symlinked lock refuses the turn instead of running on it.
+        lock = h.config_dir / ".odin-lineage.lock"
+        lock.unlink()
+        lock.symlink_to(h.root / "elsewhere.lock")
+        refused = self.assign(session, "would run on an untrusted lease")
+        h.gateway.delegation.launch_pending()
+        state = h.wait(
+            lambda: (
+                h.assignment_state(refused["assignment"])
+                if h.assignment_state(refused["assignment"])["turns"][0]["state"]
+                in ("failed", "returned")
+                else None
+            )
+        )
+        turn = state["turns"][0]
+        self.assertEqual(turn["state"], "failed")
+        self.assertEqual(turn["result"]["lineage"]["lease"], "unavailable")
+        self.assertTrue(turn["result"]["lineage"]["refused"])
+        self.assertIsNone(turn["result"]["lineage"]["credential_before"])
+        self.assertIn("cannot be trusted", turn["failure"])
+        self.assertFalse(
+            (h.state / "delegations" / session / turn["id"] / "started.json").exists()
+        )
+
+    def test_sessions_sharing_a_lineage_launch_one_at_a_time(self):
+        h = self.harness
+        h.close()  # single store writer: prepare the second project offline
+        other = prepare_project(h.state)
+        h.open()
+        first = self.open_session()["session"]["id"]
+        second = h.call(
+            "delegation_session",
+            {
+                "action": "create",
+                "harness": "claude-code",
+                "workspace": str(h.workspace),
+                "briefing": "second project worker",
+                "model": "fake-model",
+                "budget_usd": 5,
+            },
+            project=other,
+        )["session"]["id"]
+        slow = self.assign(first, "SLEEP 1.5 then answer")
+        queued = h.call(
+            "delegation_assign",
+            {
+                "session_id": second,
+                "objective": "Second project objective",
+                "criteria": [{"id": "c1", "text": "worker reports"}],
+                "scope": "synthetic scope",
+                "output_contract": "final text",
+                "instructions": "answer quickly",
+                "limits": {"iterations": 3, "budget_usd": 0.5},
+            },
+            project=other,
+        )
+        self.assertEqual(h.gateway.delegation.launch_pending(), [slow["turn"]])
+        # Same credential lineage: the second session's turn waits, queued,
+        # instead of being refused by the runner's busy lease.
+        self.assertEqual(h.gateway.delegation.launch_pending(), [])
+        other_state = h.call(
+            "delegation_status", {"assignment_id": queued["assignment"]}, project=other
+        )["sessions"][0]["assignments"][0]
+        self.assertEqual(other_state["turns"][0]["state"], "queued")
+        h.wait(
+            lambda: (
+                h.assignment_state(slow["assignment"])["turns"][0]["state"]
+                == "returned"
+            )
+        )
+        # tick() inside wait() launches the queued turn once the lineage frees.
+        final = h.wait(
+            lambda: (
+                h.call(
+                    "delegation_status",
+                    {"assignment_id": queued["assignment"]},
+                    project=other,
+                )["sessions"][0]["assignments"][0]
+                if h.call(
+                    "delegation_status",
+                    {"assignment_id": queued["assignment"]},
+                    project=other,
+                )["sessions"][0]["assignments"][0]["turns"][0]["state"]
+                == "returned"
+                else None
+            )
+        )
+        self.assertEqual(final["turns"][0]["result"]["lineage"]["lease"], "acquired")
 
     def test_replayed_operation_returns_receipt_without_second_session(self):
         h = self.harness
