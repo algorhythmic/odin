@@ -28,15 +28,13 @@ def _socket_command(address, command):
 def main():
     # Receipt commands take a free-form trailing argv; dispatch them before the
     # main parser so its options never swallow the wrapped command.
-    tail = sys.argv[1:]
-    for index, item in enumerate(tail):
-        if item in ("receipt-run", "receipt-validate"):
-            from .execution_receipt import main as receipt_main
+    from .execution_receipt import dispatch_argv
 
-            sys.exit(receipt_main([item.removeprefix("receipt-")] + tail[index + 1 :]))
-        if item.startswith("-") or (index and tail[index - 1] == "--state"):
-            continue
-        break
+    receipt_argv = dispatch_argv(sys.argv[1:])
+    if receipt_argv is not None:
+        from .execution_receipt import main as receipt_main
+
+        sys.exit(receipt_main(receipt_argv))
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--state",

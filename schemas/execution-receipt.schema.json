@@ -123,7 +123,8 @@
       "required": ["status", "path"],
       "properties": {
         "status": {"type": "string", "minLength": 1, "maxLength": 8},
-        "path": {"type": "string", "minLength": 1, "maxLength": 1024}
+        "path": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "from": {"type": "string", "minLength": 1, "maxLength": 1024}
       }
     },
     "observation": {
@@ -183,16 +184,6 @@
         }
       ]
     },
-    "reference": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["kind", "path", "sha256"],
-      "properties": {
-        "kind": {"const": "execution_receipt"},
-        "path": {"type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^/"},
-        "sha256": {"$ref": "#/$defs/sha256"}
-      }
-    },
     "references": {
       "type": "array",
       "maxItems": 16,
@@ -210,10 +201,23 @@
     "validation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "receipts", "problems"],
+      "required": ["status", "receipts", "problems", "commands_succeeded"],
       "properties": {
-        "status": {"enum": ["validated", "invalid", "missing", "mismatched", "legacy_no_receipt"]},
-        "receipts": {"type": "array", "maxItems": 16, "items": {"type": "object"}},
+        "status": {"enum": ["validated", "validated_unobserved", "invalid", "missing", "mismatched", "legacy_no_receipt"]},
+        "commands_succeeded": {"type": ["boolean", "null"]},
+        "receipts": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "required": ["outcome", "path", "problems"],
+            "properties": {
+              "outcome": {"enum": ["valid", "invalid", "missing", "mismatched"]},
+              "path": {"type": "string", "maxLength": 1024},
+              "problems": {"type": "array", "maxItems": 256, "items": {"type": "string", "maxLength": 1400}}
+            }
+          }
+        },
         "problems": {"type": "array", "maxItems": 256, "items": {"type": "string", "maxLength": 1400}}
       }
     }

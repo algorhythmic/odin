@@ -288,7 +288,12 @@ claims an immutable or independently witnessed environment.
 
 The wrapper's own exit status is the wrapped command's success (`0`) or
 failure (`1`); a nonzero command exit is recorded in the receipt, printed in
-the summary and never concealed by the wrapper succeeding.
+the summary and never concealed by the wrapper succeeding. The command runs
+in its own session; on timeout the whole process group is killed before the
+output is hashed and the receipt says that retained output may be
+incomplete. `receipt-run` refuses an output directory that already holds a
+log or receipt, and only `odin [--state DIR] receipt-run|receipt-validate`
+dispatches to it.
 
 ### Receipts in the development loop
 
@@ -302,22 +307,32 @@ in the evaluator packet:
 
 | Status | Meaning |
 |---|---|
-| `validated` | Every referenced receipt is a private file whose bytes match the reference digest, validates against the schema, is bound to this loop and stage, has artifacts whose bytes match their digests, and agrees with every claim |
-| `mismatched` | A digest, binding, claim or expected identity disagrees with the receipt; the problems list names each disagreement |
+| `validated` | Every referenced receipt is a private file whose bytes match the reference digest, validates against the schema, is bound to this loop and stage, was started after the stage was created, has private artifacts whose bytes match their digests, did not change the worktree during the run, agrees with every claim, and observed a git repository |
+| `validated_unobserved` | As `validated`, except the command ran where no repository could be observed; the receipt carries no revision or branch identity |
+| `mismatched` | A declared digest, binding, claim, expected identity or start time disagrees with the receipt, or the worktree changed during the run; the problems list names each disagreement. A declared-digest mismatch is reported alone and the file's contents are not echoed |
 | `missing` | A referenced receipt or one of its artifacts is absent, or the list is empty |
-| `invalid` | A reference is malformed, a receipt is unreadable, not private or fails the schema, or the validator itself failed |
+| `invalid` | A reference is malformed, a receipt is unreadable, not private or fails the schema, the artifact hashing budget (256 MiB per validation) was exceeded, or the validator itself failed |
 | `legacy_no_receipt` | The evidence has no `receipts` key: earlier or receipt-less evidence, recorded as unverified rather than failed |
 
-Only `validated` is a successful check, and it establishes only that the
-retained files are what the executive referenced; it says nothing about
-what the command proved. The evaluator is instructed to read the retained
-receipt itself, compare the executive's prose with the receipt's observed
-fields and retained output, recompute artifact digests, and treat
-`legacy_no_receipt` as unverified. A validation failure is reported in the
-packet and never raised as success; a reference list that is structurally
-malformed is reported as `invalid` rather than refused, so the executive's
-return is still captured and assessed. Existing stages and packets without
-`receipt_validation` remain valid records.
+`commands_succeeded` is reported beside the status: a receipt of a command
+that exited nonzero is valid evidence of a failure, never success, and the
+bridge answer, stage record and packet all carry each receipt's
+`exit_status`, `succeeded`, `observed` and `changed_during_run` so that no
+summary can hide them. Validation establishes internal consistency and
+binding, not authorship: the executive principal runs as the same user as
+the collector and could write a receipt by hand; such a file is marked
+`collector_matches_validator: false` only when its collector digest differs
+from the validating module, which is a hint, not proof. A controller-side
+registry of collected receipts is the recorded follow-up for stronger
+attribution. The evaluator is instructed to read the retained receipt
+itself, compare the executive's prose with the receipt's observed fields and
+retained output, recompute artifact digests, and treat `legacy_no_receipt`
+as unverified. Validation runs before the controller's write transaction,
+is bounded (16 receipts, 256 problems of at most 1400 bytes, 64 KiB in
+total) and is reported in the packet; it is never raised as success, and a
+structurally malformed reference list is reported as `invalid` rather than
+refused, so the executive's return is still captured and assessed. Existing
+stages and packets without `receipt_validation` remain valid records.
 
 ## Failure, restart and operator control
 

@@ -183,8 +183,12 @@ def dispatch(gateway, action, payload, context, operation):
             validation = result["receipt_validation"]
             answer["receipt_validation"] = {
                 "status": validation["status"],
+                "commands_succeeded": validation.get("commands_succeeded"),
                 "receipts": [
-                    {"path": item.get("path"), "outcome": item.get("outcome")}
+                    {key: item.get(key) for key in (
+                        "path", "outcome", "observed", "head", "branch", "detached", "clean",
+                        "exit_status", "succeeded", "changed_during_run", "uncertainty",
+                    )}
                     for item in validation["receipts"]
                 ][:16],
                 "problems": [problem[:400] for problem in validation["problems"]][:32],

@@ -101,11 +101,13 @@
 ,
     "receipt_validation": {
       "type": "object",
-      "required": ["status", "receipts", "problems"],
+      "additionalProperties": false,
+      "required": ["status", "receipts", "problems", "commands_succeeded"],
       "properties": {
-        "status": {"enum": ["validated", "invalid", "missing", "mismatched", "legacy_no_receipt"]},
-        "receipts": {"type": "array"},
-        "problems": {"type": "array", "items": {"type": "string"}}
+        "status": {"enum": ["validated", "validated_unobserved", "invalid", "missing", "mismatched", "legacy_no_receipt"]},
+        "commands_succeeded": {"type": ["boolean", "null"]},
+        "receipts": {"type": "array", "maxItems": 16, "items": {"type": "object"}},
+        "problems": {"type": "array", "maxItems": 256, "items": {"type": "string", "maxLength": 1400}}
       }
     }
   },

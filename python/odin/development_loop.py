@@ -176,40 +176,54 @@ class DevelopmentLoop:
         return strict_loads(canonical(packet))
 
     # Receipt validation reads retained files outside the store; it is
-    # injectable so synthetic tests can observe or replace it. Its outcome is
-    # recorded with the evidence and never raised as success.
+    # injectable so synthetic tests can observe or replace it. It runs before a
+    # transaction opens, its outcome is bounded, and it is recorded with the
+    # evidence rather than raised: a validation failure is never success.
     validate_receipts = staticmethod(validate_references)
 
-    def _receipt_validation(self, evidence, loop_id, stage_id):
+    def _receipt_validation(self, evidence, loop_id, stage_id, not_before=None):
+        legacy = {
+            "status": "legacy_no_receipt",
+            "receipts": [],
+            "problems": [],
+            "commands_succeeded": None,
+        }
         try:
             result = self.validate_receipts(
-                evidence, expected={"loop_id": loop_id, "stage_id": stage_id}
+                evidence,
+                expected={"loop_id": loop_id, "stage_id": stage_id},
+                not_before=not_before,
+            )
+            result = {
+                "status": result["status"],
+                "receipts": result["receipts"][:16],
+                "problems": [str(p)[:1400] for p in result["problems"]][:256],
+                "commands_succeeded": result.get("commands_succeeded"),
+            }
+            if len(canonical(result).encode()) > 65536:
+                result = result | {
+                    "status": "invalid"
+                    if result["status"].startswith("validated")
+                    else result["status"],
+                    "receipts": [],
+                    "problems": [
+                        "receipt validation detail exceeded 64 KiB; see retained receipts"
+                    ],
+                }
+            self.store.contracts.validate_definition(
+                "execution-receipt", "validation", result
             )
         except Exception as error:  # noqa: BLE001 - validation failure is evidence, not a crash
-            result = {
+            result = legacy | {
                 "status": "invalid",
-                "receipts": [],
                 "problems": [
                     f"receipt validation failed: {type(error).__name__}: {error}"[:1400]
-                ],
-            }
-        self.store.contracts.validate_definition(
-            "execution-receipt", "validation", result
-        )
-        if len(canonical(result).encode()) > 65536:
-            result = {
-                "status": result["status"]
-                if result["status"] != "validated"
-                else "invalid",
-                "receipts": [],
-                "problems": [
-                    "receipt validation detail exceeded 64 KiB; see retained receipts"
                 ],
             }
         return result
 
     def _queue_evaluator(
-        self, loop, evidence, final_text="", previous=None, stage_id=None
+        self, loop, evidence, final_text="", previous=None, receipt_validation=None
     ):
         packet = {
             "schema_version": 1,
@@ -223,11 +237,13 @@ class DevelopmentLoop:
             "evidence": self._evidence(evidence),
             "previous_assessment": previous,
             # Re-validated at capture time: artifacts may have changed since ready.
-            "receipt_validation": self._receipt_validation(
-                evidence, loop["id"], stage_id
-            )
-            if stage_id is not None
-            else {"status": "legacy_no_receipt", "receipts": [], "problems": []},
+            "receipt_validation": receipt_validation
+            or {
+                "status": "legacy_no_receipt",
+                "receipts": [],
+                "problems": [],
+                "commands_succeeded": None,
+            },
         }
         job = {
             "schema_version": 1,
@@ -493,6 +509,13 @@ class DevelopmentLoop:
             "evidence": evidence,
             "prompt_id": prompt_id,
         }
+        # File reads happen before the write transaction; the stage's creation
+        # time bounds how old a receipt may be.
+        try:
+            not_before = self.stage(stage_id)["created_at"]
+        except Conflict:
+            not_before = None
+        validation = self._receipt_validation(evidence, loop_id, stage_id, not_before)
 
         def apply():
             loop, stage = self._correlate_stage(loop_id, stage_id, session_id)
@@ -509,9 +532,7 @@ class DevelopmentLoop:
                     evidence=evidence,
                     prompt_id=prompt_id,
                     completion_marker=f"<!-- odin-development-complete:{stage_id}:{secrets.token_hex(16)} -->",
-                    receipt_validation=self._receipt_validation(
-                        evidence, loop_id, stage_id
-                    ),
+                    receipt_validation=validation,
                 )
                 self._save_stage(stage)
                 self._advance(loop, "executive_ready")
@@ -521,7 +542,12 @@ class DevelopmentLoop:
                 "completion_marker": stage["completion_marker"],
                 "receipt_validation": stage.get(
                     "receipt_validation",
-                    {"status": "legacy_no_receipt", "receipts": [], "problems": []},
+                    {
+                        "status": "legacy_no_receipt",
+                        "receipts": [],
+                        "problems": [],
+                        "commands_succeeded": None,
+                    },
                 ),
             }
 
@@ -559,6 +585,15 @@ class DevelopmentLoop:
             "prompt_id": prompt_id,
             "hook_event_name": hook_event_name,
         }
+        validation = None
+        try:
+            known = self.stage(match[1])
+        except Conflict:
+            known = None
+        if known is not None and known["state"] == "ready":
+            validation = self._receipt_validation(
+                known["evidence"], known["loop_id"], known["id"], known["created_at"]
+            )
 
         def apply():
             try:
@@ -614,7 +649,11 @@ class DevelopmentLoop:
             self._save_stage(stage)
             self._advance(loop, "evaluator_pending")
             job = self._queue_evaluator(
-                loop, stage["evidence"], final_text, previous, stage_id=stage["id"]
+                loop,
+                stage["evidence"],
+                final_text,
+                previous,
+                receipt_validation=validation,
             )
             return {
                 "captured": True,

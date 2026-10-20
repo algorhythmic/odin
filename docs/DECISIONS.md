@@ -2044,17 +2044,28 @@ remain available in every profile.
   point-in-time; untracked coverage is bounded and ignored files are
   excluded; environment and credentials are never recorded, while argv and
   output are retained verbatim in private storage outside the checkout.
-  Receipts confer no Saga verification, canonical acceptance, isolation or
-  required-review outcome (D7.11, D19.4, ADR-026/028 unchanged).
+  A receipt is self-attested: the executive principal could write one by
+  hand, and validation establishes consistency, binding and timing, not
+  authorship (a controller-side registry is the recorded follow-up). A valid
+  receipt of a failing command is evidence of failure; `commands_succeeded`
+  is reported separately from validity. Receipts confer no Saga
+  verification, canonical acceptance, isolation or required-review outcome
+  (D7.11, D19.4, ADR-026/028 unchanged).
 - **Checks:** `tests/test_execution_receipt.py` covers success, failure,
   timeout, the wrong-branch merge subject, detached HEAD, dirty-tree
   identity and privacy, modification during the run, tampered/missing
   artifacts and edited receipts, wrong revision/worktree/stage attribution,
   unobserved repositories, environment exclusion, reference validation
   outcomes and the ready/capture path into the evaluator packet; the
-  service/bridge integration test carries a receipted round through the
-  real channel. Live receipts for actual stages are retained privately and
-  are themselves subject to the evaluator's independent inspection.
+  service/bridge integration test carries a receipted round, run inside a
+  synthetic git repository, through the real channel. An independent review
+  of the first revision (2026-10-20) found twelve issues, including an
+  unbounded problem string that could raise out of `ready`, timeout leaving
+  grandchildren writing after hashing, rename and non-ASCII path parsing,
+  and the self-attestation gap; all but the registry were resolved in the
+  follow-up commit with tests. Live receipts for actual stages are retained
+  privately and are themselves subject to the evaluator's independent
+  inspection.
 
 ## 5. Issues raised by the extraction
 

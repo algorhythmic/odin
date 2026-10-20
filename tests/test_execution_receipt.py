@@ -9,6 +9,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -273,6 +274,8 @@ class ExecutionReceiptTests(unittest.TestCase):
         result = validate(self.out / RECEIPT_NAME)
         self.assertIn("worktree_changed_during_run", result["checks"])
         self.assertTrue(result["changed_during_run"])
+        self.assertEqual(result["outcome"], "mismatched")
+        self.assertIn("worktree changed during the run", result["problems"][0])
 
     def test_tampered_missing_and_changed_artifacts_are_explicit_outcomes(self):
         self.run_receipt([PY, "-c", "print('x')"])
@@ -290,11 +293,13 @@ class ExecutionReceiptTests(unittest.TestCase):
         body["execution"]["exit_status"] = 9
         path.write_text(canonical(body) + "\n")
         edited = validate(path, declared_sha256=declared)
-        self.assertIn(
-            "receipt bytes differ from the declared reference digest",
+        self.assertEqual(edited["outcome"], "mismatched")
+        self.assertEqual(
             edited["problems"],
+            ["receipt bytes differ from the declared reference digest"],
         )
-        self.assertNotEqual(edited["outcome"], "valid")
+        self.assertNotIn("head", edited)  # tampered content is not echoed
+        self.assertEqual(edited["sha256"], reference(path)["sha256"])
         path.write_text("{not json")
         self.assertEqual(validate(path)["outcome"], "invalid")
         path.write_text(canonical({"schema_version": 1}) + "\n")
@@ -334,6 +339,11 @@ class ExecutionReceiptTests(unittest.TestCase):
             "cannot be checked: repository not observed", result["problems"][0]
         )
         self.assertIsNone(result["clean"])
+        self.assertFalse(result["observed"])
+        unobserved = validate_references(
+            {"receipts": [reference(self.root / "plain-out" / RECEIPT_NAME)]}
+        )
+        self.assertEqual(unobserved["status"], "validated_unobserved")
 
     def test_receipt_records_no_environment_values(self):
         sentinel = "FIXTURE-ENV-SECRET-" + identifier()
@@ -401,7 +411,103 @@ class ExecutionReceiptTests(unittest.TestCase):
             {"receipts": [ref], "claims": {"exit_status": 1}}, expected=expected
         )
         self.assertEqual(claimed["status"], "mismatched")
+        self.assertTrue(good["commands_succeeded"])
+        huge = validate_references(
+            {"receipts": [ref], "claims": {"head": "x" * 5000}}, expected=expected
+        )
+        self.assertEqual(huge["status"], "mismatched")
+        self.assertTrue(all(len(p) <= 1400 for p in huge["problems"]))
+        stale = validate_references(
+            {"receipts": [ref]}, expected=expected, not_before="2999-01-01T00:00:00Z"
+        )
+        self.assertEqual(stale["status"], "mismatched")
+        self.assertIn("predates", stale["problems"][0])
         self.assertEqual(len(canonical(good).encode()) < 4096, True)
+
+    def test_failed_command_is_valid_evidence_but_never_success(self):
+        self.run_receipt([PY, "-c", "raise SystemExit(3)"])
+        outcome = validate_references(
+            {"receipts": [reference(self.out / RECEIPT_NAME)]}
+        )
+        self.assertEqual(outcome["status"], "validated")
+        self.assertFalse(outcome["commands_succeeded"])
+        self.assertEqual(outcome["receipts"][0]["exit_status"], 3)
+        self.assertFalse(outcome["receipts"][0]["succeeded"])
+
+    def test_renames_and_non_ascii_paths_are_observed_exactly(self):
+        git(self.repo, "mv", "tracked.txt", "moved name.txt")
+        (self.repo / "ünï.txt").write_text("u\n")
+        observation = observe_repository(self.repo)
+        self.assertEqual(observation["staged"][0]["status"][0], "R")
+        self.assertEqual(observation["staged"][0]["from"], "tracked.txt")
+        self.assertEqual(observation["staged"][0]["path"], "moved name.txt")
+        self.assertEqual(observation["untracked"][0]["path"], "ünï.txt")
+        self.assertEqual(len(observation["untracked"][0]["sha256"]), 64)
+        self.assertEqual(observation["untracked_coverage"], "complete")
+        (self.repo / "ünï.txt").write_text("changed\n")
+        self.assertNotEqual(
+            observe_repository(self.repo)["untracked_digest"],
+            observation["untracked_digest"],
+        )
+
+    def test_timeout_kills_the_whole_process_group_before_hashing(self):
+        receipt = self.run_receipt(
+            ["sh", "-c", "(while true; do echo tick; sleep 0.05; done) & sleep 30"],
+            timeout=1,
+        )
+        self.assertTrue(receipt["execution"]["timed_out"])
+        self.assertIn(
+            "retained output may be incomplete", receipt["execution"]["uncertainty"]
+        )
+        stdout = next(a for a in receipt["artifacts"] if a["name"] == "stdout")
+        time.sleep(0.5)
+        self.assertEqual((self.out / "stdout.log").stat().st_size, stdout["bytes"])
+        self.assertEqual(validate(self.out / RECEIPT_NAME)["outcome"], "valid")
+
+    def test_artifact_privacy_and_hash_budget_are_enforced(self):
+        self.run_receipt([PY, "-c", "print('x')"])
+        (self.out / "stdout.log").chmod(0o644)
+        loose = validate(self.out / RECEIPT_NAME)
+        self.assertEqual(loose["outcome"], "mismatched")
+        self.assertEqual(
+            loose["problems"], ["artifact not a private regular file: stdout"]
+        )
+        (self.out / "stdout.log").chmod(0o600)
+        exhausted = validate(self.out / RECEIPT_NAME, hash_budget={"remaining": 0})
+        self.assertEqual(exhausted["outcome"], "invalid")
+        self.assertIn("hashing budget exceeded", exhausted["problems"][0])
+
+    def test_hand_written_receipt_is_marked_as_not_matching_the_collector(self):
+        self.run_receipt([PY, "-c", "pass"])
+        path = self.out / RECEIPT_NAME
+        body = strict_loads(path.read_text())
+        body["collector"]["source_sha256"] = "0" * 64
+        path.write_text(canonical(body) + "\n")
+        result = validate(path)
+        self.assertEqual(result["outcome"], "valid")  # consistent, self-attested
+        self.assertFalse(result["collector_matches_validator"])
+        fresh = validate_references({"receipts": [reference(path)]})
+        self.assertFalse(fresh["receipts"][0]["collector_matches_validator"])
+
+    def test_output_directory_must_be_fresh(self):
+        self.run_receipt([PY, "-c", "pass"])
+        with self.assertRaises(FileExistsError):
+            self.run_receipt([PY, "-c", "pass"])
+
+    def test_cli_dispatch_only_for_a_leading_receipt_action(self):
+        from odin.execution_receipt import dispatch_argv
+
+        self.assertEqual(
+            dispatch_argv(["receipt-run", "--out", "x", "--", "ls"]),
+            ["run", "--out", "x", "--", "ls"],
+        )
+        self.assertEqual(
+            dispatch_argv(["--state", "/s", "receipt-validate", "--receipt", "r"]),
+            ["validate", "--receipt", "r"],
+        )
+        self.assertIsNone(dispatch_argv(["--reason", "receipt-run", "status"]))
+        self.assertIsNone(dispatch_argv(["status"]))
+        self.assertIsNone(dispatch_argv([]))
 
     def test_cli_validate_reports_outcome_in_exit_status(self):
         self.run_receipt([PY, "-c", "pass"])
@@ -484,7 +590,7 @@ class DevelopmentLoopReceiptTests(unittest.TestCase):
             "development-loop-stage", self.loops.stage(self.stage["id"])
         )
 
-    def test_legacy_evidence_is_distinct_and_tampering_after_ready_is_caught(self):
+    def test_legacy_evidence_is_distinct_from_validated(self):
         ready, packet = self.finish({"repository_revision": "prose only"})
         self.assertEqual(ready["receipt_validation"]["status"], "legacy_no_receipt")
         self.assertEqual(packet["receipt_validation"]["status"], "legacy_no_receipt")
@@ -534,13 +640,56 @@ class DevelopmentLoopReceiptTests(unittest.TestCase):
         self.assertTrue(any("succeeded=True" in p for p in problems))
 
     def test_validator_exception_is_recorded_as_invalid_not_raised(self):
-        def broken(evidence, *, expected=None):
+        def broken(evidence, *, expected=None, not_before=None):
             raise OSError("disk unavailable")
 
         self.loops.validate_receipts = staticmethod(broken)
         ready, packet = self.finish({"receipts": []})
         self.assertEqual(ready["receipt_validation"]["status"], "invalid")
         self.assertIn("OSError", packet["receipt_validation"]["problems"][0])
+
+    def test_oversized_or_malformed_validator_output_is_bounded_not_raised(self):
+        def oversized(evidence, *, expected=None, not_before=None):
+            return {
+                "status": "validated",
+                "receipts": [],
+                "problems": ["p" * 1400] * 60,  # bounded per item, over 64 KiB in total
+                "commands_succeeded": True,
+            }
+
+        self.loops.validate_receipts = staticmethod(oversized)
+        ready, packet = self.finish({"receipts": []})
+        self.assertEqual(ready["receipt_validation"]["status"], "invalid")
+        self.assertTrue(
+            all(len(p) <= 1400 for p in packet["receipt_validation"]["problems"])
+        )
+
+    def test_malformed_validator_output_is_recorded_as_invalid(self):
+        def malformed(evidence, *, expected=None, not_before=None):
+            return {"status": "bogus", "receipts": [], "problems": []}
+
+        self.loops.validate_receipts = staticmethod(malformed)
+        _ready, packet = self.finish({"receipts": []})
+        self.assertEqual(packet["receipt_validation"]["status"], "invalid")
+        self.assertIn("ValidationError", packet["receipt_validation"]["problems"][0])
+
+    def test_receipt_predating_the_stage_is_mismatched(self):
+        out = self.root / "evidence"
+        run(
+            [PY, "-c", "pass"],
+            out=out,
+            cwd=str(self.repo),
+            binding={"loop_id": self.stage["loop_id"], "stage_id": self.stage["id"]},
+        )
+        path = out / RECEIPT_NAME
+        body = strict_loads(path.read_text())
+        body["execution"]["started_at"] = "2000-01-01T00:00:00Z"
+        path.write_text(canonical(body) + "\n")
+        ready, packet = self.finish({"receipts": [reference(path)]})
+        self.assertEqual(ready["receipt_validation"]["status"], "mismatched")
+        self.assertTrue(
+            any("predates" in p for p in packet["receipt_validation"]["problems"])
+        )
 
 
 class EvaluatorInstructionTests(unittest.TestCase):
@@ -574,6 +723,8 @@ class EvaluatorInstructionTests(unittest.TestCase):
         prompt = spec["argv"][-1]
         for phrase in (
             "packet.receipt_validation",
+            "written the file by hand",
+            "commands_succeeded is separate",
             "read the retained receipt.json yourself",
             "recompute artifact SHA256 digests independently",
             "legacy_no_receipt evidence as unverified",

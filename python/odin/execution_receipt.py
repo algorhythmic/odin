@@ -3,8 +3,11 @@
 A receipt is derived from repository and process observations made by this
 module around a command it executed itself. It is not Saga verification,
 canonical acceptance or required review, and it does not prove that the host
-was uncompromised or unshared. Its trust limits are documented in
-docs/DEVELOPMENT-LOOP.md ("Execution receipts").
+was uncompromised or unshared. The executive principal that runs the command
+can also write the file by hand, so a receipt is self-attested evidence whose
+validation establishes internal consistency and binding, never authorship.
+Its trust limits are documented in docs/DEVELOPMENT-LOOP.md ("Execution
+receipts").
 
 Privacy scope: the receipt records argv verbatim, the resolved executable,
 repository identity (branch, commit, diff digests, bounded path lists) and the
@@ -17,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import signal
 import stat
 import subprocess
 import sys
@@ -31,16 +35,51 @@ SCHEMA_VERSION = 1
 RECEIPT_NAME = "receipt.json"
 MAX_RECEIPT_BYTES = 262144
 MAX_ARTIFACT_HASH_BYTES = 64 * 1024 * 1024
+MAX_VALIDATION_HASH_BUDGET = 256 * 1024 * 1024
 MAX_LISTED_PATHS = 256
 MAX_UNTRACKED_HASHED_BYTES = 8 * 1024 * 1024
+MAX_PROBLEM_BYTES = 1400
+MAX_PROBLEMS = 256
+MAX_REFERENCES = 16
 GIT_TIMEOUT = 60
+GIT_ENV = {
+    "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+    "LC_ALL": "C",
+    "HOME": "/nonexistent",
+}
 OUTCOMES = ("valid", "invalid", "missing", "mismatched")
 EVIDENCE_STATUSES = (
     "validated",
+    "validated_unobserved",
     "invalid",
     "missing",
     "mismatched",
     "legacy_no_receipt",
+)
+SUMMARY_KEYS = (
+    "outcome",
+    "path",
+    "sha256",
+    "receipt_id",
+    "binding",
+    "collector_revision",
+    "collector_matches_validator",
+    "observed",
+    "root",
+    "cwd",
+    "head",
+    "branch",
+    "detached",
+    "clean",
+    "worktree_identity",
+    "argv_head",
+    "argv_digest",
+    "started_at",
+    "exit_status",
+    "succeeded",
+    "uncertainty",
+    "changed_during_run",
+    "problems",
 )
 
 
@@ -52,8 +91,17 @@ def _now():
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
-def _sha256_file(path, *, limit=MAX_ARTIFACT_HASH_BYTES):
-    """Digest of a private regular file through one descriptor; None if unreadable."""
+def _clip(text, limit=200):
+    text = str(text)
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def _sha256_file(path, *, limit=MAX_ARTIFACT_HASH_BYTES, private=False):
+    """Digest of a regular file through one descriptor; (None, size) if refused.
+
+    ``private`` additionally requires ownership by this user and no group or
+    world permission bits, the rule for retained artifacts.
+    """
     try:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC)
     except OSError:
@@ -61,6 +109,8 @@ def _sha256_file(path, *, limit=MAX_ARTIFACT_HASH_BYTES):
     try:
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+            return None, info.st_size
+        if private and (info.st_uid != os.getuid() or info.st_mode & 0o077):
             return None, info.st_size
         digest = hashlib.sha256()
         while chunk := os.read(fd, 1 << 16):
@@ -72,32 +122,39 @@ def _sha256_file(path, *, limit=MAX_ARTIFACT_HASH_BYTES):
         os.close(fd)
 
 
-def _git(root, *arguments, binary=False):
+def _git(root, *arguments, binary=False, ok=(0,)):
     completed = subprocess.run(
         ["git", "-C", str(root), *arguments],
         capture_output=True,
         timeout=GIT_TIMEOUT,
         check=False,
-        env={
-            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-            "LC_ALL": "C",
-            "HOME": "/nonexistent",
-        },
+        env=GIT_ENV,
     )
-    if completed.returncode != 0:
+    if completed.returncode not in ok:
         raise ReceiptError(
-            f"git {arguments[0]} failed: {completed.stderr.decode('utf-8', 'replace').strip()[:200]}"
+            f"git {arguments[0]} failed ({completed.returncode}): "
+            + _clip(completed.stderr.decode("utf-8", "replace").strip())
         )
-    return completed.stdout if binary else completed.stdout.decode("utf-8", "replace")
+    if binary:
+        return completed.returncode, completed.stdout
+    return completed.returncode, completed.stdout.decode("utf-8", "replace")
 
 
-def _name_status(text):
+def _name_status(raw):
+    """Parse ``git diff --name-status -z``; renames and copies carry ``from``."""
+    fields = raw.split("\0")
     entries = []
-    for line in text.splitlines():
-        if not line.strip():
-            continue
-        status, _, path = line.partition("\t")
-        entries.append({"status": status.strip(), "path": path})
+    index = 0
+    while index < len(fields) and fields[index]:
+        status = fields[index]
+        if status[0] in "RC":
+            entries.append(
+                {"status": status, "from": fields[index + 1], "path": fields[index + 2]}
+            )
+            index += 3
+        else:
+            entries.append({"status": status, "path": fields[index + 1]})
+            index += 2
     return entries
 
 
@@ -112,39 +169,37 @@ def observe_repository(path):
     """
     path = Path(path)
     try:
-        root = Path(_git(path, "rev-parse", "--show-toplevel").strip()).resolve()
-        head = _git(root, "rev-parse", "HEAD").strip()
-        subject = _git(root, "log", "-1", "--format=%s", "HEAD").rstrip("\n")
-        symbolic = subprocess.run(
-            ["git", "-C", str(root), "symbolic-ref", "--quiet", "--short", "HEAD"],
-            capture_output=True,
-            text=True,
-            timeout=GIT_TIMEOUT,
-            check=False,
-            env={
-                "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-                "LC_ALL": "C",
-                "HOME": "/nonexistent",
-            },
+        _, toplevel = _git(path, "rev-parse", "--show-toplevel")
+        root = Path(toplevel.strip()).resolve()
+        _, head = _git(root, "rev-parse", "HEAD")
+        head = head.strip()
+        _, subject = _git(root, "log", "-1", "--format=%s", "HEAD")
+        code, branch = _git(
+            root, "symbolic-ref", "--quiet", "--short", "HEAD", ok=(0, 1)
         )
-        branch = symbolic.stdout.strip() if symbolic.returncode == 0 else None
-        staged_raw = _git(
+        branch = branch.strip() if code == 0 else None  # 1 means detached; others raise
+        _, staged_raw = _git(
             root, "diff", "--cached", "--binary", "--no-ext-diff", "HEAD", binary=True
         )
-        unstaged_raw = _git(root, "diff", "--binary", "--no-ext-diff", binary=True)
-        staged = _name_status(_git(root, "diff", "--cached", "--name-status", "HEAD"))
-        unstaged = _name_status(_git(root, "diff", "--name-status"))
-        untracked_all = [
-            line
-            for line in _git(
-                root, "ls-files", "--others", "--exclude-standard"
-            ).splitlines()
-            if line
-        ]
-    except (ReceiptError, OSError, subprocess.TimeoutExpired, ValueError) as error:
+        _, unstaged_raw = _git(root, "diff", "--binary", "--no-ext-diff", binary=True)
+        _, staged_names = _git(root, "diff", "--cached", "--name-status", "-z", "HEAD")
+        _, unstaged_names = _git(root, "diff", "--name-status", "-z")
+        _, untracked_raw = _git(
+            root, "ls-files", "--others", "--exclude-standard", "-z"
+        )
+        staged = _name_status(staged_names)
+        unstaged = _name_status(unstaged_names)
+        untracked_all = [item for item in untracked_raw.split("\0") if item]
+    except (
+        ReceiptError,
+        OSError,
+        subprocess.TimeoutExpired,
+        ValueError,
+        IndexError,
+    ) as error:
         return {
             "observed": False,
-            "reason": f"{type(error).__name__}: {error}"[:300],
+            "reason": _clip(f"{type(error).__name__}: {error}", 300),
             "observed_at": _now(),
         }
     untracked = []
@@ -179,7 +234,7 @@ def observe_repository(path):
         "observed_at": _now(),
         "root": str(root),
         "head": head,
-        "head_subject": subject[:200],
+        "head_subject": subject.rstrip("\n")[:200],
         "head_subject_is_branch_evidence": False,
         "branch": branch,
         "detached": branch is None,
@@ -204,21 +259,23 @@ def observe_repository(path):
     }
 
 
+def module_source_sha256():
+    digest, _size = _sha256_file(Path(__file__).resolve())
+    return digest
+
+
 def _collector():
-    """Identity of the code that produced the receipt."""
-    source = Path(__file__).resolve()
-    source_digest, _ = _sha256_file(source)
+    """Identity of the code that produced the receipt (self-reported)."""
     try:
-        odin_revision = _git(ROOT, "rev-parse", "HEAD").strip()
-        dirty = bool(
-            _git(ROOT, "status", "--porcelain", "--untracked-files=no").strip()
-        )
+        _, odin_revision = _git(ROOT, "rev-parse", "HEAD")
+        _, porcelain = _git(ROOT, "status", "--porcelain", "--untracked-files=no")
+        odin_revision, dirty = odin_revision.strip(), bool(porcelain.strip())
     except (ReceiptError, OSError, subprocess.TimeoutExpired):
         odin_revision, dirty = None, None
     return {
         "module": "odin.execution_receipt",
         "schema_version": SCHEMA_VERSION,
-        "source_sha256": source_digest,
+        "source_sha256": module_source_sha256(),
         "odin_root": str(ROOT),
         "odin_revision": odin_revision,
         "odin_tracked_files_modified": dirty,
@@ -227,9 +284,8 @@ def _collector():
 
 def _resolve_executable(argv, cwd):
     program = argv[0]
-    candidate = Path(program)
     if "/" in program:
-        resolved = (Path(cwd) / candidate).resolve()
+        resolved = (Path(cwd) / program).resolve()
         found = str(resolved) if resolved.exists() else None
     else:
         found = shutil.which(program)
@@ -243,6 +299,7 @@ def _resolve_executable(argv, cwd):
                 text=True,
                 timeout=30,
                 check=False,
+                env={"PATH": GIT_ENV["PATH"]},
             )
             interpreter = {
                 "path": found,
@@ -254,11 +311,11 @@ def _resolve_executable(argv, cwd):
 
 
 def _private_directory(path):
-    path = Path(path).absolute()
+    path = Path(path).resolve()
     if path == ROOT or ROOT in path.parents:
         raise PermissionError("receipts must be retained outside the repository")
     path.mkdir(mode=0o700, parents=True, exist_ok=True)
-    info = path.stat()
+    info = path.lstat()
     if (
         not stat.S_ISDIR(info.st_mode)
         or info.st_uid != os.getuid()
@@ -270,10 +327,20 @@ def _private_directory(path):
     return path
 
 
+def _open_fresh(path):
+    return os.fdopen(
+        os.open(
+            path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+            0o600,
+        ),
+        "wb",
+    )
+
+
 def _write_private(path, data):
     temporary = path.with_name(path.name + "." + identifier() + ".tmp")
-    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
-    with os.fdopen(fd, "wb") as handle:
+    with _open_fresh(temporary) as handle:
         handle.write(data)
         handle.flush()
         os.fsync(handle.fileno())
@@ -286,10 +353,11 @@ def run(
     """Execute ``argv`` and derive a receipt from observations; never from claims.
 
     ``out`` is a private directory outside the repository that receives
-    ``stdout.log``, ``stderr.log`` and ``receipt.json``. ``binding`` may carry
-    ``loop_id``, ``stage_id``, ``run_id`` and ``session_id``; it identifies the
-    development stage the receipt is evidence for. The wrapper's own result is
-    the receipt; a nonzero command exit is recorded, not raised.
+    ``stdout.log``, ``stderr.log`` and ``receipt.json``; it must not already
+    hold those files. ``binding`` may carry ``loop_id``, ``stage_id``,
+    ``run_id`` and ``session_id``. The wrapper's own result is the receipt; a
+    nonzero command exit is recorded, not raised. The command runs in its own
+    session so a timeout kills its whole process group.
     """
     if (
         not isinstance(argv, list)
@@ -307,29 +375,31 @@ def run(
     executable, interpreter = _resolve_executable(argv, cwd)
     started_at, started_monotonic = _now(), time.monotonic()
     exit_status, uncertainty, signal_number, timed_out = None, None, None, False
-    with (
-        os.fdopen(
-            os.open(stdout_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "wb"
-        ) as stdout,
-        os.fdopen(
-            os.open(stderr_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "wb"
-        ) as stderr,
-    ):
+    with _open_fresh(stdout_path) as stdout, _open_fresh(stderr_path) as stderr:
         try:
             process = subprocess.Popen(
-                argv, cwd=cwd, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr
+                argv,
+                cwd=cwd,
+                stdin=subprocess.DEVNULL,
+                stdout=stdout,
+                stderr=stderr,
+                start_new_session=True,
             )
         except OSError as error:
-            uncertainty = f"spawn failed: {type(error).__name__}: {error}"[:300]
+            uncertainty = _clip(f"spawn failed: {type(error).__name__}: {error}", 300)
         else:
             try:
                 process.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
                 timed_out = True
-                process.kill()
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
                 process.wait()
                 uncertainty = (
-                    f"command exceeded {timeout} s and was killed; outcome unknown"
+                    f"command exceeded {timeout} s; its process group was killed; "
+                    "outcome unknown and retained output may be incomplete"
                 )
             if process.returncode is not None and process.returncode < 0:
                 signal_number = -process.returncode
@@ -337,11 +407,12 @@ def run(
                     uncertainty = f"command terminated by signal {signal_number}"
             elif process.returncode is not None:
                 exit_status = process.returncode
+    duration = round(time.monotonic() - started_monotonic, 3)
     finished_at = _now()
     after = observe_repository(repository)
     artifacts = []
     for name, path in (("stdout", stdout_path), ("stderr", stderr_path)):
-        file_digest, size = _sha256_file(path)
+        file_digest, size = _sha256_file(path, private=True)
         artifacts.append(
             {"name": name, "path": str(path), "sha256": file_digest, "bytes": size}
         )
@@ -367,7 +438,7 @@ def run(
         "execution": {
             "started_at": started_at,
             "finished_at": finished_at,
-            "duration_seconds": round(time.monotonic() - started_monotonic, 3),
+            "duration_seconds": duration,
             "exit_status": exit_status,
             "succeeded": exit_status == 0,
             "timed_out": timed_out,
@@ -382,7 +453,8 @@ def run(
         },
         "artifacts": artifacts,
         "limits": {
-            "attribution": "local; same uid as the collector; no independent witness",
+            "attribution": "self-attested by the executing user; same uid as the "
+            "collector; no independent witness or registry",
             "concurrency": "observations are point-in-time; concurrent writers between "
             "before/after observations are detected only if the identity differs",
             "environment": "environment variables and credential files are not recorded",
@@ -397,7 +469,7 @@ def run(
 def reference(path):
     """Compact typed reference to a retained receipt file."""
     path = Path(path)
-    file_digest, _size = _sha256_file(path, limit=MAX_RECEIPT_BYTES)
+    file_digest, _size = _sha256_file(path, limit=MAX_RECEIPT_BYTES, private=True)
     if file_digest is None:
         raise ReceiptError("receipt file is missing, not private, or too large")
     return {
@@ -407,69 +479,96 @@ def reference(path):
     }
 
 
-def validate(path, expected=None, *, declared_sha256=None):
+def _refused(outcome, path, problem):
+    return {
+        "outcome": outcome,
+        "path": str(path),
+        "sha256": None,
+        "observed": None,
+        "problems": [_clip(problem, MAX_PROBLEM_BYTES)],
+        "checks": [],
+    }
+
+
+def validate(
+    path, expected=None, *, declared_sha256=None, not_before=None, hash_budget=None
+):
     """Deterministic validation of one receipt file; outcome is never a claim.
 
     Outcomes: ``missing`` (receipt or a referenced artifact absent), ``invalid``
-    (unreadable, non-private, schema violation), ``mismatched`` (artifact bytes,
-    declared receipt digest or any ``expected`` identity differs), ``valid``.
-    ``expected`` may contain ``root``, ``head``, ``branch``, ``detached``,
-    ``clean``, ``exit_status``, ``succeeded``, ``loop_id``, ``stage_id``.
+    (unreadable, non-private, schema violation, budget exceeded), ``mismatched``
+    (declared receipt digest, artifact bytes, any ``expected`` identity, a run
+    that changed the worktree, or a receipt that predates ``not_before``
+    differs), ``valid``. ``expected`` may contain ``root``, ``head``,
+    ``branch``, ``detached``, ``clean``, ``exit_status``, ``succeeded``,
+    ``loop_id``, ``stage_id``. A declared-digest mismatch is reported alone and
+    the file's identity fields are not echoed. ``hash_budget`` is a mutable
+    ``{"remaining": int}`` shared across receipts of one validation.
     """
     path = Path(path)
-    problems, checks = [], []
     try:
         info = path.lstat()
     except OSError:
-        return {
-            "outcome": "missing",
-            "path": str(path),
-            "problems": ["receipt file missing"],
-            "checks": [],
-        }
+        return _refused("missing", path, "receipt file missing")
     if (
         not stat.S_ISREG(info.st_mode)
         or info.st_uid != os.getuid()
         or info.st_mode & 0o077
     ):
-        return {
-            "outcome": "invalid",
-            "path": str(path),
-            "problems": ["receipt must be a private regular file owned by this user"],
-            "checks": [],
-        }
+        return _refused(
+            "invalid", path, "receipt must be a private regular file owned by this user"
+        )
     if info.st_size > MAX_RECEIPT_BYTES:
-        return {
-            "outcome": "invalid",
-            "path": str(path),
-            "problems": ["receipt exceeds size limit"],
-            "checks": [],
-        }
-    actual_digest, _ = _sha256_file(path, limit=MAX_RECEIPT_BYTES)
+        return _refused("invalid", path, "receipt exceeds size limit")
+    actual_digest, _size = _sha256_file(path, limit=MAX_RECEIPT_BYTES, private=True)
+    if actual_digest is None:
+        return _refused("invalid", path, "receipt unreadable")
+    if declared_sha256 is not None and declared_sha256 != actual_digest:
+        result = _refused(
+            "mismatched",
+            path,
+            "receipt bytes differ from the declared reference digest",
+        )
+        result["sha256"] = actual_digest
+        result["checks"] = ["reference_digest"]
+        return result
     try:
-        receipt = strict_loads(path.read_text())
+        receipt = strict_loads(path.read_bytes().decode("utf-8"))
         Contracts().validate(SCHEMA, receipt)
     except Exception as error:  # noqa: BLE001 - every parse/schema failure is "invalid"
-        return {
-            "outcome": "invalid",
-            "path": str(path),
-            "problems": [f"{type(error).__name__}: {str(error).splitlines()[0][:200]}"],
-            "checks": [],
-        }
-    checks.append("schema")
-    if declared_sha256 is not None:
-        if declared_sha256 != actual_digest:
-            problems.append("receipt bytes differ from the declared reference digest")
-        checks.append("reference_digest")
+        return _refused(
+            "invalid", path, f"{type(error).__name__}: {str(error).splitlines()[0]}"
+        )
+    checks = ["schema"] + (["reference_digest"] if declared_sha256 is not None else [])
+    problems = []
     missing = False
+    budget = (
+        hash_budget
+        if hash_budget is not None
+        else {"remaining": MAX_VALIDATION_HASH_BUDGET}
+    )
     for artifact in receipt["artifacts"]:
-        current, size = _sha256_file(artifact["path"])
+        artifact_path = Path(artifact["path"])
+        try:
+            artifact_info = artifact_path.lstat()
+        except OSError:
+            problems.append(f"artifact missing: {artifact['name']}")
+            missing = True
+            continue
+        if (
+            not stat.S_ISREG(artifact_info.st_mode)
+            or artifact_info.st_uid != os.getuid()
+            or artifact_info.st_mode & 0o077
+        ):
+            problems.append(f"artifact not a private regular file: {artifact['name']}")
+            continue
+        if artifact_info.st_size > budget["remaining"]:
+            problems.append(f"artifact hashing budget exceeded at: {artifact['name']}")
+            return _finish(path, receipt, actual_digest, "invalid", problems, checks)
+        budget["remaining"] -= artifact_info.st_size
+        current, size = _sha256_file(artifact_path, private=True)
         if current is None:
-            if not Path(artifact["path"]).exists():
-                problems.append(f"artifact missing: {artifact['name']}")
-                missing = True
-            else:
-                problems.append(f"artifact unreadable or too large: {artifact['name']}")
+            problems.append(f"artifact unreadable or too large: {artifact['name']}")
         elif current != artifact["sha256"] or size != artifact["bytes"]:
             problems.append(f"artifact bytes changed: {artifact['name']}")
     checks.append("artifacts")
@@ -488,79 +587,117 @@ def validate(path, expected=None, *, declared_sha256=None):
             continue
         if observed != value:
             problems.append(
-                f"expected {key}={value!r} but receipt records {observed!r}"
+                f"expected {key}={_clip(repr(value))} but receipt records {_clip(repr(observed))}"
             )
     if expected:
         checks.append("expected_identity")
     if receipt["repository"].get("changed_during_run"):
+        problems.append(
+            "worktree changed during the run; the receipt does not describe the observed tree"
+        )
         checks.append("worktree_changed_during_run")
+    if not_before is not None:
+        checks.append("not_before")
+        if execution["started_at"] < not_before:
+            problems.append(
+                f"receipt started at {execution['started_at']} predates {not_before}"
+            )
     outcome = "valid" if not problems else ("missing" if missing else "mismatched")
+    return _finish(path, receipt, actual_digest, outcome, problems, checks)
+
+
+def _finish(path, receipt, actual_digest, outcome, problems, checks):
+    before = receipt["repository"]["before"]
+    observed = bool(before.get("observed"))
+    argv = receipt["command"]["argv"]
     return {
         "outcome": outcome,
         "path": str(path),
         "sha256": actual_digest,
         "receipt_id": receipt["receipt_id"],
         "binding": receipt["binding"],
-        "head": before.get("head") if before.get("observed") else None,
-        "branch": before.get("branch") if before.get("observed") else None,
-        "detached": before.get("detached") if before.get("observed") else None,
-        "clean": before.get("clean") if before.get("observed") else None,
-        "worktree_identity": before.get("worktree_identity")
-        if before.get("observed")
-        else None,
-        "exit_status": execution["exit_status"],
-        "succeeded": execution["succeeded"],
-        "uncertainty": execution["uncertainty"],
+        "collector_revision": receipt["collector"]["odin_revision"],
+        "collector_matches_validator": receipt["collector"]["source_sha256"]
+        == module_source_sha256(),
+        "observed": observed,
+        "root": before.get("root") if observed else None,
+        "cwd": receipt["command"]["cwd"],
+        "head": before.get("head") if observed else None,
+        "branch": before.get("branch") if observed else None,
+        "detached": before.get("detached") if observed else None,
+        "clean": before.get("clean") if observed else None,
+        "worktree_identity": before.get("worktree_identity") if observed else None,
+        "argv_head": _clip(" ".join(argv), 160),
+        "argv_digest": hashlib.sha256(canonical(argv).encode()).hexdigest(),
+        "started_at": receipt["execution"]["started_at"],
+        "exit_status": receipt["execution"]["exit_status"],
+        "succeeded": receipt["execution"]["succeeded"],
+        "uncertainty": receipt["execution"]["uncertainty"],
         "changed_during_run": receipt["repository"].get("changed_during_run"),
-        "problems": problems,
+        "problems": [
+            _clip(problem, MAX_PROBLEM_BYTES) for problem in problems[:MAX_PROBLEMS]
+        ],
         "checks": checks,
     }
 
 
-def validate_references(evidence, *, expected=None, claims_key="claims"):
+def validate_references(
+    evidence, *, expected=None, claims_key="claims", not_before=None
+):
     """Validate every receipt reference in an evidence object; legacy is distinct.
 
     ``evidence["receipts"]`` is the typed list of references. Absent means
     ``legacy_no_receipt``: the evidence predates receipts or offers none; it is
     not validated and not a failure. ``evidence[claims_key]`` (optional object)
     holds structured claims about the run (``head``, ``branch``, ``detached``,
-    ``clean``, ``exit_status``, ``succeeded``) that are compared against every
-    receipt; any disagreement is ``mismatched``.
+    ``clean``, ``exit_status``, ``succeeded``) compared against every receipt.
+    ``validated`` requires every receipt to be valid and to carry an observed
+    repository; ``validated_unobserved`` means the files are consistent but no
+    repository identity was observed. ``commands_succeeded`` is reported
+    separately so a valid receipt of a failing command is never read as success.
     """
+    empty = {"receipts": [], "problems": [], "commands_succeeded": None}
     if not isinstance(evidence, dict) or "receipts" not in evidence:
-        return {"status": "legacy_no_receipt", "receipts": [], "problems": []}
+        return {"status": "legacy_no_receipt"} | empty
     contracts = Contracts()
     references = evidence["receipts"]
     try:
         contracts.validate_definition(SCHEMA, "references", references)
     except Exception as error:  # noqa: BLE001 - malformed references are reportable, not fatal
-        return {
-            "status": "invalid",
-            "receipts": [],
-            "problems": [
-                f"receipt references malformed: {str(error).splitlines()[0][:200]}"
-            ],
-        }
+        problem = _clip(
+            f"receipt references malformed: {str(error).splitlines()[0]}",
+            MAX_PROBLEM_BYTES,
+        )
+        return {"status": "invalid"} | empty | {"problems": [problem]}
     claims = evidence.get(claims_key)
     if claims is not None and not isinstance(claims, dict):
-        return {
-            "status": "invalid",
-            "receipts": [],
-            "problems": ["claims must be an object"],
-        }
+        return (
+            {"status": "invalid"} | empty | {"problems": ["claims must be an object"]}
+        )
     merged = dict(expected or {})
     for key in ("head", "branch", "detached", "clean", "exit_status", "succeeded"):
         if claims and key in claims:
             merged[key] = claims[key]
+    budget = {"remaining": MAX_VALIDATION_HASH_BUDGET}
     results = [
-        validate(item["path"], merged or None, declared_sha256=item["sha256"])
-        for item in references
+        validate(
+            item["path"],
+            merged or None,
+            declared_sha256=item["sha256"],
+            not_before=not_before,
+            hash_budget=budget,
+        )
+        for item in references[:MAX_REFERENCES]
     ]
     outcomes = {result["outcome"] for result in results}
     if not results:
         status = "missing"
     elif outcomes == {"valid"}:
-        status = "validated"
+        status = (
+            "validated"
+            if all(r["observed"] for r in results)
+            else "validated_unobserved"
+        )
     elif "invalid" in outcomes:
         status = "invalid"
     elif "missing" in outcomes:
@@ -568,7 +705,7 @@ def validate_references(evidence, *, expected=None, claims_key="claims"):
     else:
         status = "mismatched"
     problems = [
-        f"{result['path']}: {problem}"
+        _clip(f"{result['path']}: {problem}", MAX_PROBLEM_BYTES)
         for result in results
         for problem in result["problems"]
     ]
@@ -577,29 +714,25 @@ def validate_references(evidence, *, expected=None, claims_key="claims"):
     return {
         "status": status,
         "receipts": [
-            {
-                key: result.get(key)
-                for key in (
-                    "outcome",
-                    "path",
-                    "sha256",
-                    "receipt_id",
-                    "binding",
-                    "head",
-                    "branch",
-                    "detached",
-                    "clean",
-                    "exit_status",
-                    "succeeded",
-                    "uncertainty",
-                    "changed_during_run",
-                    "problems",
-                )
-            }
-            for result in results
+            {key: result.get(key) for key in SUMMARY_KEYS} for result in results
         ],
-        "problems": problems,
+        "problems": problems[:MAX_PROBLEMS],
+        "commands_succeeded": all(r.get("succeeded") is True for r in results)
+        if results
+        else None,
     }
+
+
+def dispatch_argv(argv):
+    """Return the receipt sub-argv when ``argv`` names a receipt action first.
+
+    Only ``[--state X] receipt-run|receipt-validate ...`` dispatches; any other
+    leading option means the main parser owns the arguments.
+    """
+    index = 2 if argv[:1] == ["--state"] else 0
+    if len(argv) > index and argv[index] in ("receipt-run", "receipt-validate"):
+        return [argv[index].removeprefix("receipt-")] + argv[index + 1 :]
+    return None
 
 
 def main(argv=None):
@@ -610,7 +743,7 @@ def main(argv=None):
     sub = parser.add_subparsers(dest="action", required=True)
     runner = sub.add_parser("run", help="execute a command and retain its receipt")
     runner.add_argument(
-        "--out", required=True, help="private directory outside the repository"
+        "--out", required=True, help="fresh private directory outside the repository"
     )
     runner.add_argument("--cwd", help="execution directory (default: current)")
     runner.add_argument("--repository", help="repository to observe (default: cwd)")
@@ -640,15 +773,17 @@ def main(argv=None):
             label=args.label,
             timeout=args.timeout,
         )
+        before = receipt["repository"]["before"]
         summary = {
             "receipt": reference(Path(args.out) / RECEIPT_NAME),
             "exit_status": receipt["execution"]["exit_status"],
             "succeeded": receipt["execution"]["succeeded"],
             "uncertainty": receipt["execution"]["uncertainty"],
-            "head": receipt["repository"]["before"].get("head"),
-            "branch": receipt["repository"]["before"].get("branch"),
-            "detached": receipt["repository"]["before"].get("detached"),
-            "clean": receipt["repository"]["before"].get("clean"),
+            "observed": bool(before.get("observed")),
+            "head": before.get("head"),
+            "branch": before.get("branch"),
+            "detached": before.get("detached"),
+            "clean": before.get("clean"),
             "changed_during_run": receipt["repository"]["changed_during_run"],
         }
         print(canonical(summary))

@@ -56,6 +56,9 @@ if round_number:
         assert hashlib.sha256(raw).hexdigest() == receipt_ref["sha256"]
         receipt = json.loads(raw)
         assert receipt["binding"]["stage_id"] == validation["receipts"][0]["binding"]["stage_id"]
+        assert receipt["repository"]["before"]["branch"] == "synthetic-branch"
+        assert validation["receipts"][0]["head"] == receipt["repository"]["before"]["head"]
+        assert validation["commands_succeeded"] is True
         stdout = [a for a in receipt["artifacts"] if a["name"] == "stdout"][0]
         assert hashlib.sha256(Path(stdout["path"]).read_bytes()).hexdigest() == stdout["sha256"]
         assert Path(stdout["path"]).read_text() == "receipted stage 2\n"
@@ -329,22 +332,37 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
                 "test_result": "synthetic test passed",
             }
             if round_number == 2:
-                # Round two retains a real receipted command bound to this stage.
+                # Round two retains a real receipted command, run inside a
+                # synthetic git repository so branch and commit identity are
+                # exercised end to end and bound to this stage.
+                repo = Path(self.temp.name) / "synthetic-repo"
+                repo.mkdir(mode=0o700)
+                git_env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": "/nonexistent",
+                           "GIT_AUTHOR_NAME": "Synthetic", "GIT_AUTHOR_EMAIL": "s@example.invalid",
+                           "GIT_COMMITTER_NAME": "Synthetic", "GIT_COMMITTER_EMAIL": "s@example.invalid"}
+                for arguments in (["init", "--quiet", "-b", "synthetic-branch"], ["commit", "--quiet", "--allow-empty", "-m", "root"]):
+                    subprocess.run(["git", "-C", str(repo), *arguments], check=True, capture_output=True, env=git_env)
+                head = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], check=True,
+                                      capture_output=True, text=True, env=git_env).stdout.strip()
                 out = Path(self.temp.name) / "receipts" / stage_id
                 receipt = run(
                     [sys.executable, "-c", "print('receipted stage 2')"],
-                    out=out, cwd=self.temp.name,
+                    out=out, cwd=str(repo),
                     binding={"loop_id": loop_id, "stage_id": stage_id},
                 )
                 evidence_packet["receipts"] = [reference(out / RECEIPT_NAME)]
-                evidence_packet["claims"] = {"exit_status": 0}
-                self.assertFalse(receipt["repository"]["before"]["observed"])
+                evidence_packet["claims"] = {"exit_status": 0, "head": head, "branch": "synthetic-branch", "clean": True}
+                self.assertTrue(receipt["repository"]["before"]["observed"])
             ready = self.bridge.result("odin_loop_ready", {
                 "operation_id": identifier(), "loop_id": loop_id, "stage_id": stage_id,
                 "evidence_packet": evidence_packet,
             })
             expected_status = "validated" if round_number == 2 else "legacy_no_receipt"
-            self.assertEqual(ready["receipt_validation"]["status"], expected_status)
+            self.assertEqual(ready["receipt_validation"]["status"], expected_status, canonical(ready))
+            if round_number == 2:
+                summary = ready["receipt_validation"]["receipts"][0]
+                self.assertEqual((summary["branch"], summary["head"], summary["succeeded"]), ("synthetic-branch", head, True))
+                self.assertTrue(ready["receipt_validation"]["commands_succeeded"])
             final_text = f"Synthetic stage {round_number} finished.\n" + ready["completion_marker"]
             completed_texts.append(final_text)
             if round_number == 1:
