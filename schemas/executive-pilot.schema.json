@@ -16,7 +16,13 @@
   ],
   "properties": {
     "version": {
-      "const": 1
+      "enum": [1, 2]
+    },
+    "repository_root": {
+      "type": "string",
+      "pattern": "^/",
+      "minLength": 2,
+      "maxLength": 4096
     },
     "state": {
       "type": "string",
@@ -73,5 +79,12 @@
       "format": "uuid"
     }
   },
+  "allOf": [
+    {
+      "if": {"properties": {"version": {"const": 2}}},
+      "then": {"required": ["repository_root"]},
+      "else": {"not": {"required": ["repository_root"]}}
+    }
+  ],
   "$schema": "https://json-schema.org/draft/2020-12/schema"
 }

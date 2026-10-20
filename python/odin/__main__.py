@@ -10,6 +10,21 @@ from .contracts import canonical, identifier, strict_loads
 from .service import Service
 
 
+def _socket_command(address, command):
+    frame = (canonical(command) + "\n").encode()
+    if len(frame) > 1048576:
+        raise ValueError("command exceeds local transport budget")
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+        client.settimeout(30)
+        client.connect(address)
+        client.sendall(frame)
+        with client.makefile("rb") as stream:
+            raw = stream.readline(1048577)
+    if len(raw) > 1048576 or not raw.endswith(b"\n"):
+        raise ValueError("invalid local service response")
+    return strict_loads(raw)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -39,6 +54,8 @@ def main():
             "executive-login",
             "executive-start",
             "executive-new-session",
+            "executive-enable-repository-reads",
+            "repository-import",
         ],
     )
     parser.add_argument("--reason", default="operator requested stop")
@@ -66,6 +83,8 @@ def main():
     parser.add_argument("--claude-config", help="dedicated Odin Claude login directory")
     parser.add_argument("--executive-project", help="bind private executive socket to this project")
     parser.add_argument("--resume-session", action="store_true", help="resume the prepared native executive session")
+    parser.add_argument("--repository-reads", action="store_true", help="enable read-only checkout tools before starting the executive")
+    parser.add_argument("--repository", help="Git repository whose committed source snapshot to import")
     parser.add_argument(
         "--config",
         help="experimental role configuration JSON; live dispatch remains disabled",
@@ -75,6 +94,8 @@ def main():
 
     if args.fixture_evidence and args.action != "evaluate":
         parser.error("--fixture-evidence applies only to evaluate")
+    if args.repository_reads and args.action != "executive-start":
+        parser.error("--repository-reads applies only to executive-start")
     if args.action == "capabilities":
         from .capabilities import inventory
 
@@ -137,10 +158,17 @@ def main():
             sys.exit(executive_runtime.login(state))
         elif args.action == "executive-new-session":
             print(canonical(executive_runtime.new_session(state)))
+        elif args.action == "executive-enable-repository-reads":
+            try:
+                print(canonical(executive_runtime.enable_repository_reads(state)))
+            except PermissionError as error:
+                parser.exit(2, f"odin: {error}\n")
         else:
             try:
+                if args.repository_reads:
+                    executive_runtime.enable_repository_reads(state)
                 result = executive_runtime.start(state, resume=args.resume_session)
-            except executive_runtime.ResumeRequired as error:
+            except PermissionError as error:
                 parser.exit(2, f"odin: {error}\n")
             sys.exit(result)
         return
@@ -170,6 +198,31 @@ def main():
         print(canonical(result))
         return
     address = str(state / "service.sock")
+    if args.action == "repository-import":
+        from .repository_memory import prepare
+
+        if not args.project:
+            parser.error("repository-import requires --project")
+        batches = prepare(Path(args.repository) if args.repository else ROOT, args.project)
+        results = []
+        for payload in batches:
+            request = {
+                "surface": args.surface,
+                "command": {
+                    "schema_version": 1, "operation_id": identifier(),
+                    "action": "repository_import", "payload": payload,
+                },
+            }
+            try:
+                response = _socket_command(address, request)
+            except (OSError, ValueError):
+                parser.exit(2, "odin: import outcome unavailable; retry the same committed snapshot to reconcile.\n")
+            if "error" in response:
+                print(canonical(response))
+                sys.exit(1)
+            results.append(response["result"])
+        print(canonical({"project": args.project, "batches": results}))
+        return
     if args.action in (
         "status",
         "stop",
@@ -236,12 +289,7 @@ def main():
                 "action": args.action,
                 "reason": args.reason,
             }
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
-            client.settimeout(10)
-            client.connect(address)
-            client.sendall((canonical(command) + "\n").encode())
-            with client.makefile("rb") as stream:
-                response = strict_loads(stream.readline(1048577))
+        response = _socket_command(address, command)
         print(canonical(response))
         if "error" in response:
             sys.exit(1)

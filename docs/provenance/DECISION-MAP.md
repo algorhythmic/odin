@@ -442,6 +442,7 @@ formal handoff. See [DECISIONS.md §4](../DECISIONS.md#4-odin-decisions-odin-adr
 | ODIN-ADR-014 | default; evidence only | Amends ODIN-ADR-004; keeps four hooks, no silent downshift, no learned router; I0 defines the workload-class configuration schema | IO §5, Appendix A; AS §3 |
 | ODIN-ADR-015 | locked experiment placement; fixture-only | Amends D15.Eb timing for a control only; honours D7.6; satisfies D19.5; replaces the roadmap's Codex proposal | ROADMAP Phase C; IO §11, §13; BP §7 |
 | ODIN-ADR-024 | operator-authorized bounded pilot | Amends D7.2 invocation and D7.7 transport only for native Fable executive conversation; retains service record authority, credential separation and worker/producer gates | [Executive pilot](../EXECUTIVE-PILOT.md), AGENTS.md §1/§4 |
+| ODIN-ADR-025 | operator-authorized pilot extension | Refines ADR-024's tool boundary and ADR-023's synthetic-memory scope for read-only checkout access and operator-selected committed repository evidence; no authority or execution grant | [Executive pilot](../EXECUTIVE-PILOT.md), AGENTS.md §1 |
 
 ODIN-ADR-015 replaces the earlier Codex adapter proposal in ROADMAP Phase C
 with a fixture-only Pi RPC control; full second-adapter delivery remains I5.
@@ -462,6 +463,12 @@ The service's reports stay unverified and unapplied. The full SDK, daemon,
 worker execution, peer feeds and production acceptance remain open; see the
 [pilot runbook](../EXECUTIVE-PILOT.md) and
 [ADR-024](../DECISIONS.md#odin-adr-024--native-fable-executive-conversation-pilot).
+
+ODIN-ADR-025 adds two evidence paths to that pilot: explicitly enabled native
+read tools for current checkout files, and operator-imported, revision-pinned
+repository sources in the persistent local store. It does not enable edits,
+worker execution or autonomous application of improvements. See
+[ADR-025](../DECISIONS.md#odin-adr-025--executive-repository-evidence-access).
 
 ## Clauses superseded or amended by Odin ADRs
 

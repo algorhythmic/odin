@@ -1725,6 +1725,55 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   credential default. X-1, X-7, X-11 production isolation, X-12, X-13,
   X-15, Saga Phase B and the cross-repository handoff remain open.
 
+### ODIN-ADR-025 — Executive repository evidence access
+
+- **Date/status:** 2026-10-19; operator-authorized pilot extension. The
+  operator supplied the active executive's diagnosis that its MCP-only
+  manifest and empty memory prevented document/implementation reconciliation,
+  and requested native read tools and/or repository ingestion. This decision
+  authorizes those evidence paths, not automatic policy or code changes.
+- **Native reads:** an explicit profile upgrade may expose Claude Code's
+  `Read`, `Glob` and `Grep` for the Odin checkout. Preserve the native session
+  identity, dedicated login and project binding; change the prepared profile
+  only while its session and credential ownership locks are free. Use
+  restricted mode, an explicit repository directory, no shell or edit tools,
+  and read exclusions for credentials, runtime state and private paths.
+  Claude's permission controls are not an OS sandbox. In particular, search
+  exclusions are best effort and require live boundary checks; construction
+  tests do not prove filesystem isolation. Current-file reads identify their
+  path and are distinct from revision-pinned Odin evidence.
+- **Committed evidence:** the operator may import a bounded selection of
+  first-party repository documentation, code, schemas and tests from one
+  explicit Git root's `HEAD`. Read Git objects, not untracked files or working
+  tree edits. Exclude hidden/private paths, symlinks, submodules, frozen
+  history, pinned peer contracts and dated research. Keep the exact commit,
+  path, chunk boundaries and content digest with the source. The local service
+  remains the sole writer, validates scoped operator commands and exposes
+  these sources only to the bound executive and local operator.
+- **Discovery and freshness:** publish a bounded catalog with exact source
+  IDs and revisions, visible through the existing memory tools. Preserve
+  partial import status until all ordered batches finish. Replaying the same
+  snapshot is idempotent. A completed snapshot describes selected committed
+  files at capture time; it neither monitors later changes nor proves that
+  code behavior matches the documents. No statements, approvals or verified
+  results are inferred from repository text.
+- **Persistence and improvement:** clarify that the compatibility label
+  `fake-backend evidence` refers to the fake Saga execution backend. Local
+  memory and reports are persisted in SQLite; reports stay unverified and
+  proposals unapplied. Repository access does not turn model-relayed text into
+  an operator command, authorize delegation or install a proposed procedure.
+- **Checks:** profile/lock/session identity regressions, import selection and
+  scope checks, exact revision reads, replay and restart persistence checks
+  accompany this extension. The [pilot runbook](EXECUTIVE-PILOT.md) keeps
+  synthetic evidence separate from native tool visibility and actual read
+  observations. This adds no completed full acceptance scenario.
+- **Inherited relationship:** refines ADR-024's explicit-tool launch boundary
+  and ADR-023's synthetic-memory scope for this operator-selected repository
+  evidence. It does not supersede D7's service authority, D24's credential
+  separation, I4's task migration, I5/I6's memory/retrieval work or Saga's
+  D1/D4/D23 boundaries. Production isolation, X-12/X-13/X-15, live Saga and
+  the cross-repository handoff remain open.
+
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that

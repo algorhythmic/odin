@@ -22,12 +22,15 @@
           "type": "array",
           "uniqueItems": true,
           "items": {
-            "enum": [
-              "mcp__odin__odin_resume",
-              "mcp__odin__odin_memory_snapshot",
-              "mcp__odin__odin_read_evidence",
-              "mcp__odin__odin_report",
-              "mcp__odin__odin_reports"
+            "anyOf": [
+              {"enum": [
+                "mcp__odin__odin_resume",
+                "mcp__odin__odin_memory_snapshot",
+                "mcp__odin__odin_read_evidence",
+                "mcp__odin__odin_report",
+                "mcp__odin__odin_reports"
+              ]},
+              {"type": "string", "pattern": "^Read\\(//[^\\x00-\\x1f]+/\\*\\*\\)$"}
             ]
           }
         },

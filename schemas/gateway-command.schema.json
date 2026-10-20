@@ -39,7 +39,8 @@
         "memory_snapshot",
         "memory_source_read",
         "executive_report",
-        "executive_reports"
+        "executive_reports",
+        "repository_import"
       ]
     },
     "payload": {

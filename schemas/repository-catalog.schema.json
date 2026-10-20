@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "$id": "urn:odin:repository-catalog:1",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "repository": {
+      "type": "string",
+      "pattern": "^/",
+      "maxLength": 384
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40,64}$"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "captured_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "file_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1024
+    },
+    "coverage": {
+      "enum": [
+        "complete_committed_selection",
+        "partial_committed_selection"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "minLength": 1
+    },
+    "selection": {
+      "type": "string",
+      "minLength": 1
+    },
+    "batches_expected": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64
+    },
+    "batches_imported": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 64
+    },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "repository",
+    "commit",
+    "snapshot_id",
+    "captured_at",
+    "file_count",
+    "coverage",
+    "freshness",
+    "selection",
+    "batches_expected",
+    "batches_imported",
+    "pages"
+  ]
+}

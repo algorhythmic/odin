@@ -15,8 +15,18 @@ The next slice implements the [native Fable executive pilot](EXECUTIVE-PILOT.md)
 under ADR-024: private Claude login/configuration, explicit native session
 start/resume/reset, a separate project-bound MCP socket, scoped continuity
 and evidence reads, and durable unverified reports/proposals. It can launch
-Claude Code with Remote Control after operator login; no live model response
-or remote conversation has yet been observed. The SDK adapter remains gated.
+Claude Code with Remote Control after operator login. The operator reports
+an active executive conversation in Herdr, and its filesystem-access
+diagnosis was found as a durable unverified proposal in the local store.
+That does not independently verify the running model identity or a Remote
+Control conversation. The SDK adapter remains gated.
+
+The repository-evidence slice under ADR-025 adds an operator-triggered
+import of selected committed repository text into project-scoped memory,
+with exact revision reads and a paged catalog. It also provides an opt-in
+Read/Glob/Grep profile for the next explicit native session resume. Reports
+and imported evidence persist in local SQLite; the legacy fake-backend
+label describes the execution backend, not an ephemeral record store.
 
 ## Delivered behavior
 
@@ -28,6 +38,8 @@ or remote conversation has yet been observed. The SDK adapter remains gated.
 | Decision validity | Shared display/response checks for bound records, memory, resolved evidence and expiry | Stale or expired wording is unavailable; obligations survive; a response still grants no execution authority |
 | Continuity demonstration | [integration demo](../python/odin/integration_demo.py) and [integration tests](../tests/test_continuity_integration.py) | Attributed source changes, checkpoint, prepared decision, outage/recovery, restart and exact evidence; reported success leaves independent verification unmet |
 | Human and machine views | Human briefing renders the exact bounded `machine_view` from the demo | Both use an operator-authenticated local context; this does not establish a live planner/worker gateway route |
+| Repository evidence | [committed-text importer](../python/odin/repository_memory.py), operator gateway action and exact catalog reads; [tests](../tests/test_repository_memory.py) | Explicit committed selection, project-bound readers, replay-safe batches and no live checkout watcher; no semantic statements are invented |
+| Native repository reads | Opt-in versioned pilot profile preserves session identity on explicit resume; [tests](../tests/test_executive_runtime.py) | Claude-enforced Read/Glob/Grep only, private Read denies and best-effort search exclusions; not OS process isolation |
 
 Exact-read results are not cached in gateway receipts, so old commands
 cannot replay content after access changes. The recorded command retains
@@ -42,9 +54,9 @@ or enlarge their own project scope in the payload.
 | OHS-01 | Implementation baseline integrated and reproduced | Browser-retention and early-pilot dispositions, plus producer-owned EC-13/14 records, remain separate work |
 | OHS-03 | Odin-local exact-read request/result schemas and synthetic contract cases added | Published Skald/Heimdall contracts and complete task-import mapping; local schemas are not peer wire contracts |
 | OHS-04 | First continuity slice implemented and exercised | Portfolio presentation, typed checkpoint/progress admission, source enrollment/health before first capture, and full omission/pagination coverage |
-| OHS-05 | Native executive conversation pilot implemented under ADR-024; session-host/SDK mocks retained | Dedicated login and live pilot acceptance; full profile isolation, authenticated host transport and Saga Phase B gates remain separate |
+| OHS-05 | Native executive conversation pilot implemented under ADR-024, repository evidence added under ADR-025; operator reports an active session | End-to-end pilot acceptance; full profile isolation, authenticated host transport and Saga Phase B gates remain separate |
 | OHS-06/07 | Synthetic demonstrations only | Reviewed task migration, enforceable old-writer retirement, pinned producer feeds and their existing live gates |
-| OHS-08/09 | Operator pilot preparation implemented; reports and improvement proposals remain inert | Observed Fable/remote dialogue, governed changes, connected feeds and cutover acceptance |
+| OHS-08/09 | Executive diagnosis recorded as an inert proposal; repository evidence can support reconciliation | Independently verified Fable/remote dialogue, governed changes, connected feeds and cutover acceptance |
 
 The OHS-02 repairs are in the user's separate Heimdall/Skald sessions. No
 peer repository, installed source configuration or desktop setting changed
@@ -115,6 +127,14 @@ flow. The same full check passes documentation integrity, 13 documentation
 regressions, 94 contract cases, 24 transitions, Go tests and 73/19 shared
 Go/Python parity fixtures. This is synthetic/component evidence, without
 model inference, authentication, Remote Control pairing or live Saga work.
+
+The repository-evidence check passes 244 Python tests, including committed
+snapshot import, bounded catalog discovery, exact MCP reads, scope denial,
+replay, service restart/readback and idle native profile upgrade. The same
+full check passes 13 documentation regressions, 94 contract cases, 24
+transitions, Go tests and 73/19 shared parity fixtures. These are component
+checks; actual native Read/Glob/Grep behavior still needs an explicit pilot
+resume and observation.
 
 The implementation check commands are:
 

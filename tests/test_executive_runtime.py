@@ -151,6 +151,180 @@ class ExecutiveRuntimeTests(unittest.TestCase):
             {"mcpServers": {}},
         )
 
+    def test_repository_upgrade_exposes_only_read_tools_and_keeps_native_identity(self):
+        original = self.prepare()
+        base = self.state / "executive-pilot"
+        old_settings = (base / "settings.json").read_bytes()
+        bridge = (base / "mcp.json").read_bytes()
+        result = runtime.enable_repository_reads(self.state)
+        self.assertEqual(result["native_session_id"], original["native_session_id"])
+        self.assertEqual(result["repository_root"], str(ROOT))
+        self.assertEqual(result["native_tools"], ["Read", "Glob", "Grep"])
+        self.assertEqual(result, runtime.enable_repository_reads(self.state))
+        self.assertEqual(self.prepare()["version"], 2)
+        self.assertEqual((base / "settings.json").read_bytes(), old_settings)
+        self.assertEqual((base / "mcp.json").read_bytes(), bridge)
+        spec = runtime.launch_spec(self.state, resume=True)
+        argv = spec["argv"]
+        self.assertEqual(argv[argv.index("--tools") + 1], "Read,Glob,Grep")
+        self.assertEqual(argv[argv.index("--add-dir") + 1], str(ROOT))
+        self.assertEqual(
+            argv[argv.index("--resume") + 1], original["native_session_id"]
+        )
+        self.assertEqual(argv[argv.index("--permission-mode") + 1], "dontAsk")
+        self.assertIn("--restricted", argv)
+        self.assertEqual(spec["cwd"], str(base / "workspace"))
+        prompt = argv[argv.index("--system-prompt") + 1]
+        self.assertIn(str(ROOT / "docs"), prompt)
+        self.assertIn("persistent local SQLite store", prompt)
+        self.assertIn("fake Saga execution backend", prompt)
+        self.assertTrue(runtime.status(self.state)["repository_reads_enabled"])
+
+    def test_repository_settings_deny_mutation_secrets_and_runtime_state(self):
+        self.prepare()
+        runtime.enable_repository_reads(self.state)
+        settings = json.loads(
+            (self.state / "executive-pilot" / "settings-repository-v2.json").read_text()
+        )["permissions"]
+        self.assertEqual(
+            settings["allow"], runtime.ALLOWED_TOOLS + [f"Read(/{ROOT}/**)"]
+        )
+        for tool in (
+            "Bash",
+            "PowerShell",
+            "REPL",
+            "Write",
+            "Edit",
+            "Agent",
+            "ToolSearch",
+        ):
+            self.assertIn(tool, settings["deny"])
+        for tool in runtime.REPOSITORY_TOOLS:
+            self.assertNotIn(tool, settings["deny"])
+        for private in (self.state, self.profile):
+            self.assertIn(f"Read(/{private}/**)", settings["deny"])
+        for suffix in ("**/.git", "**/.git/**", "**/.env", "**/.credentials.json"):
+            self.assertIn(f"Read(/{ROOT}/{suffix})", settings["deny"])
+
+    def test_repository_upgrade_requires_free_process_and_credential_leases(self):
+        self.prepare()
+        base = self.state / "executive-pilot"
+        manifest = (base / "manifest.json").read_bytes()
+        for path in (base / "runtime.lock", self.profile / ".odin-lineage.lock"):
+            with (
+                runtime._lease(path),
+                self.assertRaisesRegex(PermissionError, "active owner"),
+            ):
+                runtime.enable_repository_reads(self.state)
+            self.assertEqual((base / "manifest.json").read_bytes(), manifest)
+            self.assertFalse((base / "settings-repository-v2.json").exists())
+
+    def test_interrupted_repository_upgrade_leaves_old_profile_usable(self):
+        self.prepare()
+        original_write = runtime._write
+
+        def fail_manifest(path, name, value):
+            if path.name == "manifest.json":
+                raise OSError("synthetic interrupted manifest replacement")
+            return original_write(path, name, value)
+
+        with (
+            patch.object(runtime, "_write", side_effect=fail_manifest),
+            self.assertRaisesRegex(OSError, "synthetic interrupted"),
+        ):
+            runtime.enable_repository_reads(self.state)
+        argv = runtime.launch_spec(self.state)["argv"]
+        self.assertEqual(argv[argv.index("--tools") + 1], "")
+        self.assertNotIn("--add-dir", argv)
+        self.assertFalse(runtime.status(self.state)["repository_reads_enabled"])
+        self.assertEqual(
+            runtime.enable_repository_reads(self.state)["profile_version"], 2
+        )
+
+    def test_changed_repository_scope_or_policy_is_rejected(self):
+        self.prepare()
+        runtime.enable_repository_reads(self.state)
+        base = self.state / "executive-pilot"
+        path = base / "manifest.json"
+        manifest = json.loads(path.read_text())
+        changed = {**manifest, "repository_root": str(self.root)}
+        runtime._write(path, "executive-pilot", changed)
+        with self.assertRaisesRegex(PermissionError, "repository scope"):
+            runtime.launch_spec(self.state)
+        runtime._write(path, "executive-pilot", manifest)
+        path = base / "settings-repository-v2.json"
+        settings = json.loads(path.read_text())
+        settings["permissions"]["deny"].remove("Write")
+        runtime._write(path, "executive-pilot-settings", settings)
+        with self.assertRaisesRegex(PermissionError, "narrow pilot policy"):
+            runtime.launch_spec(self.state)
+
+    def test_repository_scope_is_required_only_in_profile_version_two(self):
+        manifest = self.prepare()
+        contracts = runtime.Contracts()
+        with self.assertRaises(ValidationError):
+            contracts.validate("executive-pilot", {**manifest, "version": 2})
+        with self.assertRaises(ValidationError):
+            contracts.validate(
+                "executive-pilot", {**manifest, "repository_root": str(ROOT)}
+            )
+
+    def test_repository_profile_probe_requires_add_dir_support(self):
+        self.prepare()
+        runtime.enable_repository_reads(self.state)
+        results = [
+            subprocess.CompletedProcess([], 0, stdout="2.1.synthetic"),
+            subprocess.CompletedProcess([], 0, stdout=" ".join(runtime.REQUIRED_FLAGS)),
+        ]
+        with patch.object(runtime.subprocess, "run", side_effect=results):
+            self.assertEqual(runtime.probe(self.state)["missing_flags"], ["--add-dir"])
+
+    def test_repository_upgrade_keeps_recorded_launch_and_rotation_keeps_profile(self):
+        self.prepare(enable_mcp=False)
+        with (
+            patch.object(sys.stdin, "isatty", return_value=True),
+            patch.object(sys.stdout, "isatty", return_value=True),
+            patch.object(runtime, "probe", return_value={"missing_flags": []}),
+            patch.object(runtime, "_foreground", return_value=0),
+        ):
+            runtime.start(self.state)
+        before = runtime.status(self.state)
+        runtime.enable_repository_reads(self.state)
+        after = runtime.status(self.state)
+        self.assertEqual(after["last_launch"], before["last_launch"])
+        self.assertEqual(after["configuration"]["config_dir"], str(self.profile))
+        rotated = runtime.new_session(self.state)
+        current = runtime.status(self.state)
+        self.assertTrue(current["repository_reads_enabled"])
+        self.assertEqual(
+            current["configuration"]["native_session_id"], rotated["native_session_id"]
+        )
+
+    def test_launch_observes_repository_upgrade_after_acquiring_ownership(self):
+        self.prepare(enable_mcp=False)
+        original_lease = runtime._lease
+        upgraded = []
+
+        @contextmanager
+        def race(path):
+            if path.name == "runtime.lock" and not upgraded:
+                upgraded.append(True)
+                runtime.enable_repository_reads(self.state)
+            with original_lease(path) as descriptor:
+                yield descriptor
+
+        with (
+            patch.object(runtime, "_lease", side_effect=race),
+            patch.object(sys.stdin, "isatty", return_value=True),
+            patch.object(sys.stdout, "isatty", return_value=True),
+            patch.object(runtime, "probe", return_value={"missing_flags": []}),
+            patch.object(runtime, "_foreground", return_value=0) as foreground,
+        ):
+            runtime.start(self.state)
+        argv = foreground.call_args.args[0]["argv"]
+        self.assertEqual(argv[argv.index("--tools") + 1], "Read,Glob,Grep")
+        self.assertEqual(argv[argv.index("--add-dir") + 1], str(ROOT))
+
     def test_default_developer_profile_and_repository_state_are_rejected(self):
         with self.assertRaisesRegex(PermissionError, "dedicated"):
             self.prepare(config_dir=Path.home() / ".claude")

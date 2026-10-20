@@ -42,6 +42,10 @@ class ExecutiveGatewayTest(unittest.TestCase):
         view = self.send("resume", {"project": self.project})
         self.assertEqual(view["project"]["id"], self.project)
         self.assertEqual(view["commitment_count"], 0)
+        self.assertEqual(
+            view["service_context"]["record_store"], "persistent_local_sqlite"
+        )
+        self.assertEqual(view["service_context"]["execution_backend"], "fake_saga")
         self.assertEqual(self.service.store.get(self.project)["sources"], [])
         with self.assertRaises(PermissionError):
             self.send("resume", {"project": self.other})
@@ -54,6 +58,7 @@ class ExecutiveGatewayTest(unittest.TestCase):
             "session_intent",
             "message",
             "portfolio",
+            "repository_import",
         ):
             with self.subTest(action=action), self.assertRaises(PermissionError):
                 self.send(action, {"project": self.project})

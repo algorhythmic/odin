@@ -109,6 +109,67 @@ class ExecutiveIntegrationTest(unittest.TestCase):
             try:
                 self.assertFalse(call("odin_resume", {})["isError"])
                 self.assertTrue(call("odin_resume", {}, other)["isError"])
+                repo = Path(directory) / "repository"
+                repo.mkdir()
+                source_text = "# Synthetic repository\nRead through the live service.\n"
+                (repo / "README.md").write_text(source_text)
+                for arguments in (
+                    ["init", "--quiet"],
+                    ["add", "README.md"],
+                    [
+                        "-c",
+                        "user.name=Synthetic test",
+                        "-c",
+                        "user.email=test@example.invalid",
+                        "commit",
+                        "--quiet",
+                        "-m",
+                        "Synthetic source",
+                    ],
+                ):
+                    subprocess.run(
+                        ["git", "-C", str(repo), *arguments],
+                        check=True,
+                        capture_output=True,
+                    )
+                imported = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "odin",
+                        "--state",
+                        directory,
+                        "repository-import",
+                        "--project",
+                        project,
+                        "--repository",
+                        str(repo),
+                    ],
+                    env=environment,
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                    check=True,
+                )
+                self.assertTrue(
+                    strict_loads(imported.stdout)["batches"][-1]["complete"]
+                )
+                memory = strict_loads(
+                    call("odin_memory_snapshot", {})["content"][0]["text"]
+                )["result"]
+                source = next(
+                    item
+                    for item in memory["sources"]
+                    if item["source_class"] == "repository_committed_text"
+                )
+                source_args = {
+                    "source_id": source["id"],
+                    "revision": source["revision"],
+                }
+                exact = strict_loads(
+                    call("odin_read_evidence", source_args)["content"][0]["text"]
+                )["result"]
+                self.assertEqual(exact["source"]["content"], source_text)
                 payload = {
                     "operation_id": operation,
                     "kind": "proposal",
@@ -128,6 +189,10 @@ class ExecutiveIntegrationTest(unittest.TestCase):
                 ]
                 self.assertEqual([report["id"] for report in reports], [operation])
                 self.assertFalse(reports[0]["applied"])
+                exact = strict_loads(
+                    call("odin_read_evidence", source_args)["content"][0]["text"]
+                )["result"]
+                self.assertEqual(exact["source"]["content"], source_text)
             finally:
                 stop_service(service)
 

@@ -11,7 +11,7 @@ from datetime import datetime
 from .budgets import Budget
 from .chirality import Chirality
 from .continuity import Continuity
-from .contracts import canonical, strict_loads
+from .contracts import ROOT, canonical, strict_loads
 from .coordination import Actor, Coordination
 from .memory import Memory
 from .orchestration_config import OrchestrationConfig
@@ -134,6 +134,15 @@ class Gateway:
                         "response_digest": digest(command["payload"]["response"]),
                     }
                 }
+            elif action == "repository_import":
+                audit_command = command | {
+                    "payload": {
+                        "project": command["payload"]["project"],
+                        "digest": digest(command["payload"]),
+                        "snapshot_id": command["payload"]["snapshot_id"],
+                        "batch_index": command["payload"]["batch_index"],
+                    }
+                }
             self.store._history(
                 "gateway.command", {"command": audit_command, "context": identity}
             )
@@ -182,7 +191,7 @@ class Gateway:
                 raise PermissionError("global operator action requires global scope")
             return
         project = None
-        if action in {"resume", "memory_snapshot", "memory_source_read", "executive_reports"}:
+        if action in {"resume", "memory_snapshot", "memory_source_read", "executive_reports", "repository_import"}:
             project = payload.get("project")
         elif action == "prepare_decision":
             project = payload.get("decision", {}).get("project")
@@ -288,8 +297,26 @@ class Gateway:
             raise Conflict("stale consultation authority")
         return packet
 
+    @staticmethod
+    def _service_context():
+        return {
+            "record_store": "persistent_local_sqlite",
+            "execution_backend": "fake_saga",
+            "legacy_label_scope": "execution_backend_not_record_persistence",
+            "reports": "persisted_unverified_not_applied",
+            "repository_path": str(ROOT),
+            "documentation_path": str(ROOT / "docs"),
+            "repository_memory": "explicit_committed_snapshot_not_live_checkout",
+        }
+
     def _dispatch(self, action, payload, context, operation):
         actor = context.actor
+        if action == "repository_import":
+            from .repository_memory import import_batch
+
+            self._operator(context)
+            self.coordination._live()
+            return import_batch(self.store, payload, project=payload["project"])
         if action == "executive_report":
             self._executive_scope(action, payload, context)
             self.store.contracts.validate("executive-report", payload)
@@ -303,7 +330,7 @@ class Gateway:
                 (operation, payload["project"], canonical(report)),
             )
             self.store._history("executive.reported", report)
-            return {"report": report}
+            return {"report": report, "service_context": self._service_context()}
         if action == "executive_reports":
             if actor.subject == "fable-executive":
                 self._executive_scope(action, payload, context)
@@ -317,7 +344,10 @@ class Gateway:
                 "SELECT body FROM executive_reports WHERE project=? "
                 "ORDER BY rowid DESC LIMIT ?", (payload["project"], limit),
             )
-            return {"reports": [strict_loads(row[0]) for row in rows], "applied": False}
+            return {
+                "reports": [strict_loads(row[0]) for row in rows], "applied": False,
+                "service_context": self._service_context(),
+            }
         if action in {
             "resume",
             "prepare_decision",
@@ -348,7 +378,10 @@ class Gateway:
                         "decision_limit",
                     ),
                 )
-                return self.continuity.resume(**payload, **common)
+                view = self.continuity.resume(**payload, **common)
+                if actor.subject == "fable-executive":
+                    return view | {"service_context": self._service_context()}
+                return view
             if action == "memory_source_read":
                 self.store.contracts.validate("memory-source-read", payload)
                 return self.memory.read_source(**payload, **common)
