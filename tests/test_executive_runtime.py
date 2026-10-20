@@ -521,6 +521,7 @@ class ExecutiveRuntimeTests(unittest.TestCase):
 
     def test_shared_or_symlink_directories_are_rejected(self):
         self.state.mkdir(mode=0o755)
+        self.state.chmod(0o755)  # deliberately public; umask-independent
         with self.assertRaisesRegex(PermissionError, "0700"):
             self.prepare()
         self.state.chmod(0o700)

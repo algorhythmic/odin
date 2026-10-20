@@ -292,6 +292,7 @@ class CompletionHookTests(unittest.TestCase):
             hook.spool_capture(self.state, self.command())
         (self.state / hook.SPOOL_NAME).unlink()
         (self.state / hook.SPOOL_NAME).mkdir(mode=0o755)
+        (self.state / hook.SPOOL_NAME).chmod(0o755)  # deliberately public; umask-independent
         with self.assertRaises(PermissionError):
             hook.spool_capture(self.state, self.command())
 
