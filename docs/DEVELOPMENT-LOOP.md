@@ -375,23 +375,49 @@ the stage evidence, never in the checkout):
   the gate reads process evidence, not the job state. A job without a durable
   evaluator-start receipt never spawned a process. A process whose arguments
   name a job's spool `development-evaluator/<job>/` keeps that job
-  outstanding in any state. A completed job is not checked further: its
-  result was accepted only after its harness exited, so a descendant the
-  harness left running in its process group without naming the spool is not
-  seen. Every other dispatched job is checked against its dispatch
-  reservation and `started.json`: it stays outstanding while a recorded
-  runner or harness process group has a live member, and unresolved while
-  those files are missing, unreadable or not private. A reused process ID can
-  only make the reading conservative. Inspection is bounded: at most 1024
-  dispatched, uncompleted jobs and 65536 process entries; beyond either the
-  reading is unresolved. Cancelled, lost and unknown jobs are never deleted,
-  so past 1024 of them the gate stays false permanently and every restart
-  needs the external observation below. Unresolved dispatch evidence keeps
-  the gate false until the files are restored as private regular files; if
-  they cannot be, replacing the service needs the same explicit supervisor
-  decision as a lost turn, based on no live process naming the job's spool
-  and none in the process groups of the runner and harness PIDs recorded
-  there, where still readable.
+  outstanding in any state. Completion is not process-group termination: the
+  runner waits for its harness, not for every member of the harness's process
+  group, so a successful harness can leave a descendant in its recorded group
+  whose arguments name no spool. Every dispatched job, completed, cancelled,
+  lost or unknown, is therefore checked against its dispatch reservation and
+  `started.json` (required once completed, since the runner writes it before
+  its result): it stays outstanding while a recorded runner or harness
+  process group has a live member, and unresolved while those files are
+  missing, unreadable or not private. A reused process ID can only make the
+  reading conservative.
+
+  Decision (stage 7): the evaluator scheduler, not the status, records when a
+  finished (`completed`, `cancelled` or `lost`) job's latest started attempt
+  has been observed quiet: one process-table reading found no member of the
+  runner and harness groups recorded for that attempt and no process naming
+  its spool, with its dispatch (`spawned`, runner PID recorded) and, once
+  completed, `started.json` readable. The record is a durable loop receipt
+  `evaluator-quiet:<job>:<attempt>`; it changes no loop or job state, signals
+  nothing and is never written from missing or unreadable evidence or an
+  unreadable process table. An empty process group cannot regain members, so
+  the gate stops reading that attempt's groups (the spool-argument check
+  still applies); a later attempt needs its own record. No existing record is
+  erased or relabelled. Inspection is bounded: at most 1024 dispatched jobs
+  without that record, and 65536 process entries; beyond either the reading
+  is unresolved, never absent. Jobs whose groups stay populated, whose
+  evidence is unreadable or that stay `unknown` are never recorded quiet and
+  never deleted, so past 1024 of them the gate stays false permanently (the
+  remaining fail-closed residual) and every restart needs the external
+  observation below. A service older than this decision writes no
+  `evaluator-quiet` record: after replacement, the new scheduler records each
+  earlier finished job whose evidence it can read, and the gate keeps every
+  other one open.
+
+  Unresolved dispatch evidence keeps the gate false until the files are
+  restored as private regular files; if they cannot be, replacing the service
+  needs the same explicit supervisor decision as a lost turn, based on no
+  live process naming the job's spool and none in the process groups of the
+  runner and harness PIDs recorded there (`pgrep -g <pid>` for each), where
+  still readable. The gate cannot see a descendant that left its recorded
+  process group (by `setsid` or `setpgid`) without naming a spool, a harness
+  whose group was never recorded (the runner exited before writing
+  `started.json`), or the groups of an attempt superseded by a later
+  dispatch, whose `dispatch.json` and `started.json` the relaunch replaced.
 
   Lost delegated turns: a lost turn's native outcome is unknown and no
   supported path records its resolution, so, as for `configure_delegation`,

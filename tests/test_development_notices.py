@@ -1,9 +1,12 @@
 """Synthetic notices, acknowledgement and deadline attention; no live loop or model."""
 
+import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import uuid
 from pathlib import Path
@@ -12,7 +15,7 @@ from unittest.mock import patch
 
 from odin.contracts import canonical, identifier
 from odin.coordination import Actor
-from odin.development_evaluator import SCHEMA as EVALUATOR_SCHEMA, _write
+from odin.development_evaluator import SCHEMA as EVALUATOR_SCHEMA, EvaluatorRunner, _write
 from odin.development_gateway import UNRESOLVED_DETAIL, _processes
 from odin.executive_projection import MAX_COMPACT_BYTES, project_receipt
 from odin.development_loop import MARKER, DevelopmentLoop, clip_bytes, normalize_deadlines
@@ -20,6 +23,7 @@ from odin.executive_service import prepare_project, submit_executive
 from odin.gateway import Gateway, GatewayContext
 from odin.service import Service
 from odin.store import Conflict, Store
+from test_development_evaluator import NATIVE
 from test_memory import P, project
 
 SESSION = "11111111-1111-4111-8111-111111111111"
@@ -1275,17 +1279,38 @@ class NoticeGatewayTests(unittest.TestCase):
         self.assertFalse(gate["restart_quiescent"])
         self.assertEqual(gate["unresolved"][0]["reason"], "inspection bound exceeded")
 
-    def test_completed_jobs_need_only_process_evidence(self):
+    def test_completed_job_needs_its_recorded_groups_and_spool_observed(self):
         result = self.send("loop_start", {"goal": "Done", "session_id": self.session})
         loop_id, job = result["loop"]["id"], result["job"]
         directory, _ = self.dispatch_evaluator(loop_id, job)
         self.gateway.development_loop.accept_evaluation(
             loop_id, job["id"], job["packet_digest"], verdict(), identifier()
         )
-        (directory / "dispatch.json").unlink()
-        # Completed jobs never count toward the inspection bound.
+        # Completion alone establishes nothing: a completed runner recorded
+        # its harness in started.json before its result.
+        gate = self.gate(loop_id)
+        self.assertFalse(gate["restart_quiescent"])
+        self.assertEqual(gate["unresolved"][0]["reason"], "dispatch evidence missing or unreadable")
+        exited = subprocess.Popen([sys.executable, "-c", ""], start_new_session=True)
+        exited.wait()
+        started = {"schema_version": 1, "runner_pid": exited.pid, "harness_pid": exited.pid,
+                   "started_at": "2026-10-21T00:00:00.000000Z", "harness_start": None}
+        _write(directory / "started.json", started, EVALUATOR_SCHEMA, definition="started")
+        self.assertTrue(self.gate(loop_id)["restart_quiescent"])
+        # Unobserved completed jobs stay inside the inspection bound.
+        with patch("odin.development_gateway.RECORD_LIMIT", 0):
+            gate = self.gate(loop_id)
+        self.assertFalse(gate["restart_quiescent"])
+        self.assertEqual(gate["unresolved"][0]["reason"], "inspection bound exceeded")
+        loop = self.gateway.development_loop
+        with self.assertRaises(Conflict):  # only the latest started attempt
+            loop.mark_evaluator_quiet(job["id"], job["packet_digest"], 2)
+        loop.mark_evaluator_quiet(job["id"], job["packet_digest"], 1)
         with patch("odin.development_gateway.RECORD_LIMIT", 0):
             self.assertTrue(self.gate(loop_id)["restart_quiescent"])
+        (directory / "started.json").unlink()  # an observed attempt is not reread
+        self.assertTrue(self.gate(loop_id)["restart_quiescent"])
+        # A process naming the spool still counts after the observation.
         lingering = self.sleeper(str(directory / "packet.json"))
         gate = self.gate(loop_id)
         self.assertFalse(gate["restart_quiescent"])
@@ -1301,6 +1326,107 @@ class NoticeGatewayTests(unittest.TestCase):
         self.assertIsNone(gate["unresolved"][0]["id"])  # unvalidated names are not echoed
         stray.kill()
         stray.wait()
+
+    def test_mark_evaluator_quiet_requires_a_finished_started_attempt(self):
+        result = self.send("loop_start", {"goal": "Busy", "session_id": self.session})
+        job, loop = result["job"], self.gateway.development_loop
+        with self.assertRaises(Conflict):  # never started
+            loop.mark_evaluator_quiet(job["id"], job["packet_digest"], 1)
+        self.dispatch_evaluator(result["loop"]["id"], job)
+        with self.assertRaises(Conflict):  # running
+            loop.mark_evaluator_quiet(job["id"], job["packet_digest"], 1)
+        with self.assertRaises(Conflict):
+            loop.mark_evaluator_quiet(job["id"], "c" * 64, 1)
+
+    def test_completed_evaluator_descendant_in_its_harness_group_keeps_gate_closed(self):
+        """A real runner and harness complete successfully; a descendant stays
+        in the recorded harness group with no spool argument."""
+        native = tempfile.TemporaryDirectory()
+        self.addCleanup(native.cleanup)
+        root = Path(native.name)
+        (root / "workspace").mkdir()
+        (root / "profile").mkdir(mode=0o700)
+        binary = root / "native-fixture"
+        binary.write_text(NATIVE)
+        binary.chmod(0o700)
+        config = {"schema_version": 1, "enabled": True, "harness": "codex",
+                  "binary": str(binary), "workspace": str(root / "workspace"),
+                  "config_dir": str(root / "profile"), "model": "descendant",
+                  "timeout_seconds": 30}
+        result = self.send("loop_start", {"goal": "Descendant", "session_id": self.session})
+        loop_id, job = result["loop"]["id"], result["job"]
+        state = Path(self.temp.name)
+        runner = EvaluatorRunner(self.gateway.development_loop, state, config)
+        self.addCleanup(lambda: [child.kill() or child.wait() for child in runner._children])
+        self.assertEqual(runner.tick()["started"], [job["id"]])
+        deadline = time.monotonic() + 15
+        while self.gateway.development_loop.job(job["id"])["state"] != "completed" or runner._children:
+            self.assertLess(time.monotonic(), deadline, "synthetic evaluator did not complete")
+            runner.tick()
+            time.sleep(0.03)
+        pid = int((root / "workspace" / "descendant.pid").read_text())
+
+        def kill_descendant():
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        self.addCleanup(kill_descendant)
+        directory = state / "development-evaluator" / job["id"]
+        started = json.loads((directory / "started.json").read_text())
+        harness = started["harness_pid"]
+        deadline = time.monotonic() + 5
+        while Path(f"/proc/{harness}").exists():  # the runner reaped its harness
+            self.assertLess(time.monotonic(), deadline, "harness did not exit")
+            time.sleep(0.03)
+        self.assertEqual(os.getpgid(pid), harness)
+        argv = Path(f"/proc/{pid}/cmdline").read_bytes()
+        self.assertNotIn(str(state).encode(), argv)
+        for _ in range(3):
+            self.assertEqual(runner.tick()["observed"], [])
+        gate = self.gate(loop_id)
+        self.assertFalse(gate["restart_quiescent"])
+        self.assertEqual(gate["evaluator_executions_outstanding"], 1)
+        self.assertEqual(gate["unresolved"][0], {
+            "kind": "evaluator_job", "id": job["id"],
+            "reason": "recorded process group live; job completed"})
+        # Service-wide: another project's status sees the same execution.
+        other = self.send("loop_start", {"project": self.other, "goal": "Other",
+                                         "session_id": str(uuid.uuid4())})
+        elsewhere = self.gate(other["loop"]["id"], project=self.other)
+        self.assertFalse(elsewhere["restart_quiescent"])
+        self.assertEqual(elsewhere["evaluator_executions_outstanding"], 1)
+        self.send("loop_control", {"project": self.other, "loop_id": other["loop"]["id"],
+                                   "action": "stop"})
+        # Missing or unreadable group evidence stays unresolved, and the
+        # scheduler records nothing from it, even once the group is empty.
+        kill_descendant()
+        deadline = time.monotonic() + 5
+        while Path(f"/proc/{pid}").exists() and Path(f"/proc/{pid}/stat").read_bytes().rsplit(b")", 1)[1].split()[0] != b"Z":
+            self.assertLess(time.monotonic(), deadline, "descendant did not exit")
+            time.sleep(0.03)
+        saved = (directory / "started.json").read_bytes()
+        (directory / "started.json").unlink()
+        self.assertEqual(runner.tick()["observed"], [])
+        gate = self.gate(loop_id)
+        self.assertFalse(gate["restart_quiescent"])
+        self.assertEqual(gate["evaluator_executions_unresolved"], 1)
+        self.assertEqual(gate["unresolved"][0]["reason"], "dispatch evidence missing or unreadable")
+        (directory / "started.json").write_bytes(saved)
+        os.chmod(directory / "started.json", 0o644)
+        self.assertEqual(runner.tick()["observed"], [])
+        self.assertEqual(self.gate(loop_id)["evaluator_executions_unresolved"], 1)
+        os.chmod(directory / "started.json", 0o600)
+        # Observed absent by the read-only status; the record is the scheduler's.
+        gate = self.gate(loop_id)
+        self.assertTrue(gate["restart_quiescent"], gate)
+        quiet = f"evaluator-quiet:{job['id']}:1"
+        receipts = "SELECT COUNT(*) FROM development_loop_receipts WHERE operation=?"
+        self.assertEqual(self.gateway.store.db.execute(receipts, (quiet,)).fetchone()[0], 0)
+        self.assertEqual(runner.tick()["observed"], [job["id"]])
+        self.assertEqual(self.gateway.store.db.execute(receipts, (quiet,)).fetchone()[0], 1)
+        self.assertEqual(runner.tick()["observed"], [])
+        self.assertTrue(self.gate(loop_id)["restart_quiescent"])
 
     def test_stopped_loop_with_unresolved_evaluator_evidence_is_not_quiescent(self):
         result = self.send("loop_start", {"goal": "Unknown", "session_id": self.session})

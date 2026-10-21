@@ -20,7 +20,12 @@ from pathlib import Path
 from jsonschema.exceptions import ValidationError
 
 from .contracts import ROOT, Contracts, canonical, identifier, strict_loads
-from .development_loop import normalize_result
+from .development_loop import (
+    EVALUATOR_ATTEMPT,
+    EVALUATOR_UNOBSERVED,
+    FINISHED_EVALUATOR_STATES,
+    normalize_result,
+)
 from .store import Conflict, digest, now
 
 SCHEMA = "development-evaluator-config"
@@ -595,6 +600,62 @@ class EvaluatorRunner:
         )
         return "accepted"
 
+    def _observe_finished(self):
+        """Record finished attempts whose recorded process groups are empty.
+
+        Completion is not group termination: the runner waits for its
+        harness, not for every member of the harness's process group. One
+        process-table observation per tick, taken only while a finished
+        attempt is unobserved, must find no member of the runner and harness
+        groups recorded in dispatch.json and started.json and no process
+        naming the job's spool. Missing or unreadable evidence, or an
+        unreadable table, records nothing, so the restart gate keeps reading
+        the attempt. Never signals.
+        """
+        from .development_gateway import RECORD_LIMIT, _present, _processes
+
+        placeholders = ",".join("?" * len(FINISHED_EVALUATOR_STATES))
+        rows = self.store.db.execute(
+            "SELECT j.body, " + EVALUATOR_ATTEMPT + " FROM development_loop_jobs j "
+            f"WHERE json_extract(j.body,'$.state') IN ({placeholders}) "
+            "AND " + EVALUATOR_ATTEMPT + " IS NOT NULL AND " + EVALUATOR_UNOBSERVED
+            + " ORDER BY j.rowid LIMIT ?",
+            (*FINISHED_EVALUATOR_STATES, RECORD_LIMIT),
+        ).fetchall()
+        if not rows:
+            return []
+        processes = _processes(self.state)
+        if processes is None:
+            return []
+        observed = []
+        for body, attempt in rows:
+            try:
+                job = strict_loads(body)
+                if not ID.fullmatch(job["id"]):
+                    continue
+                directory = _private_directory(self.spool / job["id"])
+                dispatch = self._read_dispatch(directory, job)
+                if (
+                    dispatch is None
+                    or dispatch["attempt"] != attempt
+                    or dispatch["state"] != "spawned"
+                    or dispatch["runner_pid"] is None
+                ):
+                    continue
+                groups = {dispatch["runner_pid"]}
+                if (directory / "started.json").exists():
+                    started = _read(directory / "started.json", SCHEMA, definition="started")
+                    groups |= {started["runner_pid"], started["harness_pid"]}
+                elif job["state"] == "completed":
+                    continue  # A completed runner recorded its harness first.
+                if _present(processes, groups, directory):
+                    continue
+                self.loop.mark_evaluator_quiet(job["id"], job["packet_digest"], attempt)
+                observed.append(job["id"])
+            except (OSError, ValueError, KeyError, TypeError, ValidationError, Conflict):
+                continue
+        return observed
+
     def tick(self):
         if self.store.db.in_transaction:
             raise RuntimeError(
@@ -703,4 +764,5 @@ class EvaluatorRunner:
             except (OSError, ValueError, KeyError, ValidationError) as error:
                 self._preparation_failed(job, error)
                 summary["held"].append(job["id"])
+        summary["observed"] = self._observe_finished()
         return summary

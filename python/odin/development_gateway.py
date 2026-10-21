@@ -9,7 +9,13 @@ import os
 from pathlib import Path
 
 from .contracts import ALPHABET, canonical, strict_loads
-from .development_loop import ATTENTION_RULES, DEADLINE_KEYS, MARKER, clip_bytes
+from .development_loop import (
+    ATTENTION_RULES,
+    DEADLINE_KEYS,
+    EVALUATOR_UNOBSERVED,
+    MARKER,
+    clip_bytes,
+)
 from .store import Conflict, digest
 
 EXECUTIVE_ACTIONS = {
@@ -271,12 +277,13 @@ def _evaluator_executions(gateway, state, processes):
 
     A job without an evaluator-start receipt was never spawned: the reservation
     and the durable start precede any process. A process naming a job's spool
-    keeps that job outstanding whatever its state. A completed job's result was
-    accepted only after its harness exited, so nothing else is read for it.
-    Every other dispatched job, including the cancelled job of a stopped loop,
-    stays outstanding while a recorded runner or harness process group has
-    members, and unresolved while its dispatch evidence or the process table
-    cannot be read.
+    keeps that job outstanding whatever its state. Completion is not group
+    termination: a harness can exit leaving a descendant in its recorded group.
+    So every dispatched job, completed or not, stays outstanding while a
+    recorded runner or harness process group has members, and unresolved while
+    its dispatch evidence (and, once completed, its started.json) or the
+    process table cannot be read, until the scheduler has recorded that
+    attempt's groups observed empty (``evaluator-quiet``).
     """
     from jsonschema.exceptions import ValidationError
 
@@ -309,8 +316,7 @@ def _evaluator_executions(gateway, state, processes):
             details.append({"kind": "evaluator_job", "id": None, "reason": "process table unavailable"})
         return 0, count, details
     rows = gateway.store.db.execute(
-        "SELECT body " + dispatched + " AND json_extract(j.body,'$.state')!='completed' "
-        "ORDER BY j.rowid LIMIT ?",
+        "SELECT body " + dispatched + " AND " + EVALUATOR_UNOBSERVED + " ORDER BY j.rowid LIMIT ?",
         (RECORD_LIMIT + 1,),
     ).fetchall()
     if len(rows) > RECORD_LIMIT:
@@ -337,7 +343,8 @@ def _evaluator_executions(gateway, state, processes):
             ):
                 raise Conflict("evaluator spool job/packet binding mismatch")
             groups = {dispatch["runner_pid"]}
-            if (directory / "started.json").exists():
+            # A completed runner wrote started.json before its result.
+            if job["state"] == "completed" or (directory / "started.json").exists():
                 started = _read(directory / "started.json", SCHEMA, definition="started")
                 groups |= {started["runner_pid"], started["harness_pid"]}
         except (OSError, ValueError, KeyError, TypeError, ValidationError, Conflict):

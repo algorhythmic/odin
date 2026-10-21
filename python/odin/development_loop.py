@@ -38,6 +38,19 @@ ATTENTION_RULES = {
 DEADLINE_KEYS = ("offer_seconds", "claim_seconds", "ready_seconds", "evaluator_seconds")
 ATTENTION_CHECK_INTERVAL = 5.0
 NOTICE_SUMMARY_BYTES = 2000
+# An evaluator attempt that can no longer spawn processes, and the SQL for a
+# dispatched job's latest started attempt and whether that attempt's recorded
+# process groups have been observed empty (``evaluator-quiet:<job>:<n>``).
+FINISHED_EVALUATOR_STATES = ("completed", "cancelled", "lost")
+EVALUATOR_ATTEMPT = (
+    "(SELECT MAX(CAST(substr(r.operation,length(j.id)+18) AS INTEGER)) "
+    "FROM development_loop_receipts r WHERE r.operation>='evaluator-start:'||j.id||':' "
+    "AND r.operation<'evaluator-start:'||j.id||';')"
+)
+EVALUATOR_UNOBSERVED = (
+    "NOT EXISTS (SELECT 1 FROM development_loop_receipts q "
+    "WHERE q.operation='evaluator-quiet:'||j.id||':'||" + EVALUATOR_ATTEMPT + ")"
+)
 
 
 def _ulid_from_digest(value):
@@ -799,6 +812,42 @@ class DevelopmentLoop:
             return {"loop": loop, "job": job}
 
         return self._mutate(operation_id, "evaluator_started", arguments, apply)
+
+    def mark_evaluator_quiet(self, job_id, packet_digest, attempt):
+        """Record that a finished attempt's recorded process groups were empty.
+
+        Written by the evaluator scheduler after one process-table observation
+        found no member of the runner or harness groups recorded for the
+        attempt and no process naming its spool. An empty process group cannot
+        regain members, so the restart gate stops reading that attempt's
+        groups. It changes no loop or job state; a later attempt needs its own
+        observation.
+        """
+        arguments = {"job_id": job_id, "packet_digest": packet_digest, "attempt": attempt}
+
+        def apply():
+            job = self.job(job_id)
+            if job["packet_digest"] != packet_digest:
+                raise Conflict("stale evaluator job or evidence packet")
+            if job["state"] not in FINISHED_EVALUATOR_STATES:
+                raise Conflict("evaluator job is not finished")
+            prefix = f"evaluator-start:{job_id}:"
+            started = [
+                int(row[0][len(prefix):])
+                for row in self.store.db.execute(
+                    "SELECT operation FROM development_loop_receipts "
+                    "WHERE operation>=? AND operation<?",
+                    (prefix, f"evaluator-start:{job_id};"),
+                )
+                if row[0][len(prefix):].isdigit()
+            ]
+            if not started or max(started) != attempt:
+                raise Conflict("evaluator attempt is not the latest started attempt")
+            return {"job_id": job_id, "attempt": attempt, "state": job["state"]}
+
+        return self._mutate(
+            f"evaluator-quiet:{job_id}:{attempt}", "evaluator_quiet", arguments, apply
+        )
 
     def accept_evaluation(self, loop_id, job_id, packet_digest, result, operation_id):
         normalized = normalize_result(result, self.store.contracts)

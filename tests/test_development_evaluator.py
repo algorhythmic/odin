@@ -38,6 +38,13 @@ NATIVE = textwrap.dedent("""\
     with count.open('a') as out: out.write(packet['loop_id']+'\\n')
     if model == 'sleep': time.sleep(60)
     if model == 'failure': sys.exit(3)
+    if model == 'descendant':
+        # Exits successfully, leaving a member in its own process group whose
+        # arguments name no spool path.
+        import subprocess
+        child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd='/')
+        (pathlib.Path(os.getcwd()) / 'descendant.pid').write_text(str(child.pid))
     value = dict(decision='continue', assessment='Synthetic evaluator assessment',
         findings=['Fixture evidence inspected'], next_prompt='Execute a bounded synthetic test',
         evidence_refs=[dict(ref='fixture:check', revision=str(packet['round']), digest='a'*64)])
