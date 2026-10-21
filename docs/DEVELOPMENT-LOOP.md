@@ -299,36 +299,61 @@ dispatches to it.
 
 ### Activation and recovery of the notice release
 
-Records written by this release carry `deadlines` and `attention` on every
-loop the new service touches (even as nulls), and `development_loop_notices`
-rows. The pre-notice service (972a92d and earlier) validates loops against a
-closed schema and rejects those fields, and its command schema rejects the
-bridge's `accept` field. Consequences, stated exactly:
+Records written by this release carry `deadlines`, `attention` and
+`delegation_profile` (ODIN-ADR-031) on every loop the new service touches
+(even as nulls), and `development_loop_notices` rows. The pre-notice service
+(972a92d and earlier) validates loops against a closed schema when it writes
+them and rejects those fields, and its command schema rejects the bridge's
+`accept` field. Consequences, stated exactly, each exercised with real
+service and bridge processes in isolated temporary state (the current tree
+against an extracted 972a92d tree; the output is retained privately with the
+stage evidence, never in the checkout):
 
 - **Supported recovery is forward only**: restart the service on the same or
   a later reviewed revision that carries these schemas. State is preserved
   as written; nothing is migrated or discarded. The isolated recovery test
   reopens a store with pending and acknowledged notices and a persisted
-  attention observation and finds them intact and quiet.
+  attention observation and finds them intact and quiet. At process level,
+  a service stopped while quiescent and restarted on the same revision
+  reports the same attention notice identity, deadlines, revision and
+  notice counts (one acknowledged, one pending); the live ticks that follow
+  write nothing new for the persisted observation; a reconnecting bridge
+  replays the pending assignment and notice with their original
+  identities; acknowledgement and the late claim then proceed. A loop
+  written only by the pre-notice service carries neither `deadlines` nor
+  `attention` until the new code first touches it: status reports
+  `work.deadlines` as all null, no attention and no notices, and an
+  operator deadline edit adds the fields without a transition.
 - **Unsupported**: downgrading the service to a pre-notice revision after
   any loop has been started, transitioned or re-configured by the new code.
-  Such loops fail that revision's schema at the next write and cannot
-  advance. A loop never touched by the new code remains readable by both.
+  That revision reads and reports such records without complaint (it
+  validates only on write), so status looks healthy, but its next transition
+  fails its own schema: the bridge sees a generic write failure ("Write
+  outcome unavailable"), the record stays unchanged with its new fields, and
+  the loop is wedged rather than corrupted until a notice-era service is
+  restored. A loop never touched by the new code remains readable by both.
   There is no supported in-place downgrade; recover forward instead.
 - **Mixed versions**: a new service with an old bridge delivers assignments
   only (the old bridge never declares `accept`). A new bridge with an old
   service receives an error for `accept` and falls back, for that
   connection, to the legacy poll; assignments keep flowing and notices wait
-  until the service is current. Both combinations are covered by tests, so
-  the reload order is free, but notices and `odin_loop_ack` appear only once
-  both are current and the conversation has reconnected to the new bridge.
+  until the service is current. Against an old service the new bridge's
+  `odin_loop_ack` tool is present but every call fails with the same
+  generic write failure; nothing needs acknowledging there because no
+  notice can arrive. Both combinations are covered by tests and by the
+  process-level scenario, so the reload order is free, but notices and
+  `odin_loop_ack` work only once both are current and the conversation has
+  reconnected to the new bridge.
 - **Restart gate**: replace the service only when `development-status`
   reports `quiescence.restart_quiescent: true`, meaning no loop is
   `evaluator_running` or `unknown`, no evaluator job is running or unknown,
   no stage is unknown, the capture spool is empty and no delegated turn is
   running, and the supervisor has confirmed the native conversation is idle
-  (not mid-turn). An interrupted evaluator must be reconciled through
-  `loop_reconcile` with a real observation afterwards.
+  (not mid-turn). `development-status` and `odin_loop_status` report the
+  same block. An interrupted evaluator must be reconciled through
+  `loop_reconcile` with a real observation afterwards. The gate is read
+  immediately before the replacement, not earlier: a quiescent reading
+  expires as soon as the evaluator is dispatched or a turn starts.
 
 ### Receipts in the development loop
 
