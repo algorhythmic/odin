@@ -102,8 +102,8 @@ DEVELOPMENT_REQUIRED_FLAGS = (
     "--system-prompt-snapshot",
 )
 DELEGATED_DISALLOWED_TOOLS = (
-    "Bash", "PowerShell", "REPL", "Write", "Edit", "NotebookEdit",
-    "Agent", "Task", "EnterWorktree", "ExitWorktree",
+    "Bash", "PowerShell", "Write", "Edit", "NotebookEdit",
+    "Agent", "Task", "Monitor", "Workflow", "EnterWorktree", "ExitWorktree",
 )
 
 
