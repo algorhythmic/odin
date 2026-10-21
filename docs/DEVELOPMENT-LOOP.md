@@ -297,6 +297,39 @@ incomplete. `receipt-run` refuses an output directory that already holds a
 log or receipt, and only `odin [--state DIR] receipt-run|receipt-validate`
 dispatches to it.
 
+### Activation and recovery of the notice release
+
+Records written by this release carry `deadlines` and `attention` on every
+loop the new service touches (even as nulls), and `development_loop_notices`
+rows. The pre-notice service (972a92d and earlier) validates loops against a
+closed schema and rejects those fields, and its command schema rejects the
+bridge's `accept` field. Consequences, stated exactly:
+
+- **Supported recovery is forward only**: restart the service on the same or
+  a later reviewed revision that carries these schemas. State is preserved
+  as written; nothing is migrated or discarded. The isolated recovery test
+  reopens a store with pending and acknowledged notices and a persisted
+  attention observation and finds them intact and quiet.
+- **Unsupported**: downgrading the service to a pre-notice revision after
+  any loop has been started, transitioned or re-configured by the new code.
+  Such loops fail that revision's schema at the next write and cannot
+  advance. A loop never touched by the new code remains readable by both.
+  There is no supported in-place downgrade; recover forward instead.
+- **Mixed versions**: a new service with an old bridge delivers assignments
+  only (the old bridge never declares `accept`). A new bridge with an old
+  service receives an error for `accept` and falls back, for that
+  connection, to the legacy poll; assignments keep flowing and notices wait
+  until the service is current. Both combinations are covered by tests, so
+  the reload order is free, but notices and `odin_loop_ack` appear only once
+  both are current and the conversation has reconnected to the new bridge.
+- **Restart gate**: replace the service only when `development-status`
+  reports `quiescence.restart_quiescent: true`, meaning no loop is
+  `evaluator_running` or `unknown`, no evaluator job is running or unknown,
+  no stage is unknown, the capture spool is empty and no delegated turn is
+  running, and the supervisor has confirmed the native conversation is idle
+  (not mid-turn). An interrupted evaluator must be reconciled through
+  `loop_reconcile` with a real observation afterwards.
+
 ### Receipts in the development loop
 
 `odin_loop_ready` evidence may carry `receipts`, a list of at most sixteen
@@ -398,7 +431,16 @@ one exists, what needs attention, and a status reference
 evaluator assessment or loop reason) is redacted before the notice is
 written, and again on delivery, so a notice never carries a usable footer
 and a quoted footer never blocks the inbox. A `stalled` notice's identity
-also includes the observation and the deadline in force.
+also includes the observation, the deadline in force and the time the
+observation was made, so a deadline changed and reverted, or disabled and
+re-enabled, yields a new notice for the new observation while the same
+persisted observation is never written twice. Rendered notice content is
+bounded to 16,384 UTF-8 bytes: the identity header, acknowledgement
+guidance, attention, related identities and status guidance are kept whole,
+the summary and assessment share the remaining budget and are clipped on
+character boundaries after redaction, and notices persisted under earlier
+character-based limits are bounded the same way on delivery, so a valid but
+oversized narrative cannot block the inbox.
 
 Notices travel through the existing channel as events with
 `meta.kind: "notice"` and `meta.notice_id`, beside assignments with

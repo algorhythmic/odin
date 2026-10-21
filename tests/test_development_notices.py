@@ -3,11 +3,13 @@
 import tempfile
 import unittest
 import uuid
+from pathlib import Path
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 from odin.contracts import canonical, identifier
 from odin.coordination import Actor
-from odin.development_loop import MARKER, DevelopmentLoop, normalize_deadlines
+from odin.development_loop import MARKER, DevelopmentLoop, clip_bytes, normalize_deadlines
 from odin.executive_service import prepare_project, submit_executive
 from odin.gateway import Gateway, GatewayContext
 from odin.service import Service
@@ -33,6 +35,13 @@ def verdict(decision="continue", prompt="Run the next bounded challenge"):
 def later(stamp, seconds):
     base = datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%S.%fZ")
     return (base + timedelta(seconds=seconds)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+class ByteClipTests(unittest.TestCase):
+    def test_tiny_budgets_never_exceed_limit(self):
+        for limit in range(0, 12):
+            self.assertLessEqual(len(clip_bytes("😀😀😀", limit).encode("utf-8")), limit)
+            self.assertLessEqual(len(clip_bytes("😀😀😀", limit, suffix="").encode("utf-8")), limit)
 
 
 class NoticeControllerTests(unittest.TestCase):
@@ -503,6 +512,163 @@ class NoticeControllerTests(unittest.TestCase):
         self.assertEqual(self.loops.check_attention(), [])  # throttled
 
 
+class NoticeRecoveryTests(unittest.TestCase):
+    """Identity collisions, restart recovery and downgrade limits; controlled clock."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.store = Store(self.temp.name)
+        self.addCleanup(lambda: self.store.close())
+        self.store.create(project(P, "Development"))
+        self.loops = DevelopmentLoop(self.store)
+
+    def reopen(self):
+        self.store.close()
+        self.store = Store(self.temp.name)
+        self.loops = DevelopmentLoop(self.store)
+
+    def offered_stage(self, **deadlines):
+        started = self.loops.start(
+            P, "Recovery", SESSION, identifier(), deadlines=deadlines
+        )
+        job = started["job"]
+        self.loops.mark_evaluator_started(
+            job["loop_id"], job["id"], job["packet_digest"], identifier()
+        )
+        stage = self.loops.accept_evaluation(
+            job["loop_id"], job["id"], job["packet_digest"], verdict(), identifier()
+        )["stage"]
+        return self.loops.get(stage["loop_id"]), stage
+
+    def test_distinct_observations_have_distinct_identities_and_same_observation_once(
+        self,
+    ):
+        loop, stage = self.offered_stage(offer_seconds=60)
+        base = loop["updated_at"]
+        self.assertEqual(
+            self.loops.check_attention(at=later(base, 61), force=True), [loop["id"]]
+        )
+        first = self.loops.get(loop["id"])["attention"]["notice_id"]
+        self.loops.acknowledge(first, P, SESSION, identifier(), actor="fable-executive")
+        # Same persisted observation: repeated checks and a restart write nothing.
+        self.assertEqual(self.loops.check_attention(at=later(base, 62), force=True), [])
+        self.reopen()
+        self.assertEqual(
+            self.loops.check_attention(at=later(base, 600), force=True), []
+        )
+        self.assertEqual(self.loops.get(loop["id"])["attention"]["notice_id"], first)
+        self.assertEqual(len(self.loops.notices(loop["id"])), 1)
+        # Tighten, observe, then revert to the original deadline: the revert is a
+        # new observation with its own identity, even though loop, status,
+        # revision, observation and deadline all match the acknowledged notice.
+        self.loops.set_deadlines(loop["id"], {"offer_seconds": 30}, identifier())
+        self.assertEqual(
+            self.loops.check_attention(at=later(base, 700), force=True), [loop["id"]]
+        )
+        second = self.loops.get(loop["id"])["attention"]["notice_id"]
+        self.loops.acknowledge(
+            second, P, SESSION, identifier(), actor="fable-executive"
+        )
+        self.loops.set_deadlines(loop["id"], {"offer_seconds": 60}, identifier())
+        self.assertIsNone(self.loops.get(loop["id"])["attention"])
+        self.assertEqual(
+            self.loops.check_attention(at=later(base, 800), force=True), [loop["id"]]
+        )
+        third = self.loops.get(loop["id"])["attention"]["notice_id"]
+        self.assertEqual(len({first, second, third}), 3)
+        pending = [n["id"] for n in self.loops.pending_notices(P, SESSION)]
+        self.assertEqual(pending, [third])  # the reverted observation is delivered
+        self.assertEqual(
+            self.loops.get(loop["id"])["revision"], loop["revision"]
+        )  # never a transition
+        self.assertEqual(
+            self.loops.pending_stages(P, SESSION)[0]["id"], stage["id"]
+        )  # never redispatched
+        # Disable, then re-enable: nothing while disabled, a fresh identity after.
+        self.loops.set_deadlines(loop["id"], {"offer_seconds": None}, identifier())
+        self.assertIsNone(self.loops.get(loop["id"])["attention"])
+        self.assertEqual(
+            self.loops.check_attention(at=later(base, 10**6), force=True), []
+        )
+        self.loops.set_deadlines(loop["id"], {"offer_seconds": 60}, identifier())
+        self.assertEqual(
+            self.loops.check_attention(at=later(base, 10**6 + 1), force=True),
+            [loop["id"]],
+        )
+        fourth = self.loops.get(loop["id"])["attention"]["notice_id"]
+        self.assertNotIn(fourth, {first, second, third})
+        self.assertEqual(len(self.loops.notices(loop["id"])), 4)
+        # A late legitimate transition clears attention without touching notices.
+        claimed = self.loops.claim(loop["id"], stage["id"], SESSION, identifier())[
+            "loop"
+        ]
+        self.assertIsNone(claimed["attention"])
+        self.assertEqual(len(self.loops.notices(loop["id"])), 4)
+        self.assertEqual(self.loops.notice(fourth)["state"], "pending")
+
+    def test_restart_preserves_notices_acknowledgements_and_attention(self):
+        loop, stage = self.offered_stage(offer_seconds=5)
+        self.assertEqual(
+            self.loops.check_attention(at=later(loop["updated_at"], 6), force=True),
+            [loop["id"]],
+        )
+        stalled = self.loops.get(loop["id"])["attention"]["notice_id"]
+        self.loops.mark_offered([stalled])
+        other = self.loops.start  # noqa: F841 - readability: no second loop is started
+        self.reopen()
+        restored = self.loops.get(loop["id"])
+        self.assertEqual(restored["attention"]["notice_id"], stalled)
+        self.assertEqual(restored["deadlines"]["offer_seconds"], 5)
+        self.assertEqual(
+            [n["id"] for n in self.loops.pending_notices(P, SESSION)], [stalled]
+        )
+        self.assertIsNotNone(self.loops.notice(stalled)["first_offered_at"])
+        acked = self.loops.acknowledge(
+            stalled, P, SESSION, identifier(), actor="fable-executive"
+        )
+        self.reopen()
+        self.assertEqual(self.loops.notice(stalled)["state"], "acknowledged")
+        self.assertEqual(
+            self.loops.notice(stalled)["acknowledged_at"],
+            acked["notice"]["acknowledged_at"],
+        )
+        self.assertEqual(self.loops.pending_notices(P, SESSION), [])
+        # Forward recovery on the same code keeps the stage claimable and quiet.
+        self.assertEqual(
+            self.loops.check_attention(at=later(loop["updated_at"], 10**5), force=True),
+            [],
+        )
+        self.assertEqual(self.loops.pending_stages(P, SESSION)[0]["id"], stage["id"])
+
+    def test_records_written_by_this_code_are_rejected_by_the_pre_notice_schema(self):
+        """Documents why a downgrade below ODIN-ADR-030 is unsupported after new writes."""
+        import copy
+
+        from jsonschema import Draft202012Validator
+        from jsonschema.exceptions import ValidationError
+
+        loop, _ = self.offered_stage()
+        schema = copy.deepcopy(
+            self.store.contracts.validators["development-loop"].schema
+        )
+        for key in ("deadlines", "attention"):
+            schema["properties"].pop(key)
+        closed = Draft202012Validator(
+            schema
+        )  # the 972a92d shape: additionalProperties false
+        with self.assertRaises(ValidationError):
+            closed.validate(self.loops.get(loop["id"]))
+        legacy = {
+            k: v
+            for k, v in self.loops.get(loop["id"]).items()
+            if k not in ("deadlines", "attention")
+        }
+        closed.validate(
+            legacy
+        )  # a record never touched by new code stays readable by old code
+
+
 class NoticeGatewayTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -779,6 +945,183 @@ class NoticeGatewayTests(unittest.TestCase):
         self.assertEqual(
             acked["notice"]["acknowledgement_authority"],
             "operator_terminal_acknowledgement_not_approval",
+        )
+
+    def test_oversized_multibyte_narratives_stay_within_the_channel_byte_budget(self):
+        from unittest.mock import Mock
+
+        from odin.development_gateway import NOTICE_CONTENT_BYTES, render_notice
+        from odin.executive_mcp import ExecutiveBridge, MCPServer
+
+        result = self.send(
+            "loop_start",
+            {"goal": "Byte budget", "session_id": self.session, "max_rounds": 1},
+        )
+        loop_id, job = result["loop"]["id"], result["job"]
+        core = self.gateway.development_loop
+        core.mark_evaluator_started(
+            loop_id, job["id"], job["packet_digest"], identifier()
+        )
+        stage = core.accept_evaluation(
+            loop_id, job["id"], job["packet_digest"], verdict(), identifier()
+        )["stage"]
+        self.send(
+            "loop_claim",
+            {"loop_id": loop_id, "stage_id": stage["id"], "session_id": self.session},
+            executive=True,
+        )
+        ready = self.send(
+            "loop_ready",
+            {
+                "loop_id": loop_id,
+                "stage_id": stage["id"],
+                "session_id": self.session,
+                "evidence_packet": {"r": 1},
+            },
+            executive=True,
+        )
+        captured = self.send(
+            "loop_capture",
+            {
+                "session_id": self.session,
+                "hook_event_name": "Stop",
+                "last_assistant_message": "Done\n" + ready["completion_marker"],
+            },
+            executive=True,
+        )
+        job = core.job(captured["job"]["id"])
+        core.mark_evaluator_started(
+            loop_id, job["id"], job["packet_digest"], identifier()
+        )
+        # 2000 four-byte characters: schema-valid, 8000 bytes, and a quoted footer.
+        huge = (
+            verdict()
+        )  # round limit reached -> needs_operator with this assessment as reason
+        huge["assessment"] = "\U0001f600" * 1990 + " " + ready["completion_marker"]
+        core.accept_evaluation(
+            loop_id, job["id"], job["packet_digest"], huge, identifier()
+        )
+        self.assertEqual(core.get(loop_id)["status"], "needs_operator")
+        notice = core.pending_notices(self.project, self.session)[0]
+        self.assertLessEqual(len(notice["assessment"].encode("utf-8")), 2000)
+        self.assertLessEqual(len(notice["summary"].encode("utf-8")), 2000)
+        # A notice persisted under the old character-based limit is bounded on delivery too.
+        legacy = dict(notice)
+        legacy["assessment"] = "\U0001f600" * 2000
+        legacy["summary"] = "\U0001f600" * 2000
+        with self.gateway.store.transaction():
+            core._save_notice(legacy)
+        rendered = render_notice(core.notice(notice["id"]), "needs_operator")
+        self.assertLessEqual(len(rendered.encode("utf-8")), NOTICE_CONTENT_BYTES)
+        rendered.encode("utf-8")  # valid encoding, no split surrogates
+        for essential in (
+            "NOTICE, not an assignment",
+            "odin_loop_ack notice_id=" + notice["id"],
+            "What needs attention",
+            "Inspect odin_loop_status",
+        ):
+            self.assertIn(essential, rendered)
+        self.assertIsNone(MARKER.search(rendered))
+        self.assertNotIn(ready["completion_marker"], rendered)
+        # Mixed delivery through the real gateway, then through the real bridge validator.
+        # The intervention loop is stopped (a second pending notice) so a new
+        # loop can offer an assignment beside both notices.
+        self.send("loop_control", {"loop_id": loop_id, "action": "stop"})
+        second = self.send("loop_start", {"goal": "Next", "session_id": self.session})
+        job = second["job"]
+        core.mark_evaluator_started(
+            second["loop"]["id"], job["id"], job["packet_digest"], identifier()
+        )
+        core.accept_evaluation(
+            second["loop"]["id"],
+            job["id"],
+            job["packet_digest"],
+            verdict(),
+            identifier(),
+        )
+        inbox = self.send(
+            "loop_inbox",
+            {"session_id": self.session, "accept": ["assignment", "notice"]},
+            executive=True,
+        )
+        self.assertEqual(
+            [m["kind"] for m in inbox["messages"]], ["assignment", "notice", "notice"]
+        )
+        self.assertTrue(
+            all(len(m["content"].encode("utf-8")) <= 16384 for m in inbox["messages"])
+        )
+        gateway = Mock(
+            side_effect=lambda command: {
+                "schema_version": 1,
+                "operation_id": command["operation_id"],
+                "label": "fake-backend evidence",
+                "result": inbox,
+            }
+        )
+        bridge = ExecutiveBridge(
+            self.project, gateway, development_loop=True, session_id=self.session
+        )
+        self.assertEqual(
+            [m["kind"] for m in bridge.loop_inbox()], ["assignment", "notice", "notice"]
+        )
+        server = MCPServer(bridge)
+        server.ready = True
+        emitted = server.channel_notifications()
+        self.assertEqual(
+            [n["params"]["meta"]["kind"] for n in emitted], ["assignment", "notice", "notice"]
+        )
+        self.assertEqual(server.channel_notifications(), [])
+        again = MCPServer(bridge)
+        again.ready = True
+        self.assertEqual(
+            again.channel_notifications(), emitted
+        )  # reconnect replays both
+        acked = self.send(
+            "loop_ack",
+            {"session_id": self.session, "notice_id": notice["id"]},
+            executive=True,
+        )
+        self.assertEqual(acked["notice"]["state"], "acknowledged")
+        after = self.send(
+            "loop_inbox",
+            {"session_id": self.session, "accept": ["assignment", "notice"]},
+            executive=True,
+        )
+        self.assertEqual([m["kind"] for m in after["messages"]], ["assignment", "notice"])
+        self.assertNotIn(notice["id"], [m["message_id"] for m in after["messages"]])
+
+    def test_status_reports_quiescence_for_a_restart_gate(self):
+        result = self.send(
+            "loop_start", {"goal": "Quiescence", "session_id": self.session}
+        )
+        status = self.send("loop_status", {"loop_id": result["loop"]["id"]})
+        quiet = status["quiescence"]
+        self.assertEqual(quiet["loops"][0]["status"], "evaluator_pending")
+        self.assertTrue(quiet["loops"][0]["quiescent"])
+        self.assertEqual(quiet["spooled_captures"], 0)
+        self.assertTrue(quiet["restart_quiescent"])
+        with patch("odin.development_gateway.os.scandir", side_effect=PermissionError):
+            unreadable = self.send("loop_status", {"loop_id": result["loop"]["id"]})["quiescence"]
+        self.assertFalse(unreadable["restart_quiescent"])
+        self.assertEqual(unreadable["spooled_captures"], 1)
+        core = self.gateway.development_loop
+        job = result["job"]
+        core.mark_evaluator_started(
+            result["loop"]["id"], job["id"], job["packet_digest"], identifier()
+        )
+        quiet = self.send("loop_status", {"loop_id": result["loop"]["id"]})[
+            "quiescence"
+        ]
+        self.assertFalse(quiet["loops"][0]["quiescent"])
+        self.assertFalse(quiet["restart_quiescent"])
+        spool = Path(self.temp.name) / "executive-loop-spool"
+        spool.mkdir(mode=0o700)
+        (spool / "pending.json").write_text("{}")
+        self.assertEqual(
+            self.send("loop_status", {"loop_id": result["loop"]["id"]})["quiescence"][
+                "spooled_captures"
+            ],
+            1,
         )
 
     def test_notice_scope_is_checked_before_any_replay(self):

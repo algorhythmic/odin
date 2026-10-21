@@ -54,6 +54,20 @@ def _redact(text):
     return MARKER.sub("[completion footer redacted]", text or "")
 
 
+def clip_bytes(text, limit, suffix=" […]"):
+    """Bound ``text`` to ``limit`` UTF-8 bytes on a character boundary."""
+    if limit <= 0:
+        return ""
+    encoded = text.encode("utf-8")
+    if len(encoded) <= limit:
+        return text
+    tail = suffix.encode("utf-8")
+    if len(tail) > limit:
+        return encoded[:limit].decode("utf-8", errors="ignore")
+    keep = max(0, limit - len(tail))
+    return encoded[:keep].decode("utf-8", errors="ignore") + suffix
+
+
 def _parse(stamp):
     return datetime.strptime(
         stamp, "%Y-%m-%dT%H:%M:%S.%fZ" if "." in stamp else "%Y-%m-%dT%H:%M:%SZ"
@@ -246,7 +260,13 @@ class DevelopmentLoop:
 
     # -- notices --------------------------------------------------------------
 
-    def _notice(self, loop, kind, *, previous, observed=None, deadline=None):
+    def _notice(
+        self, loop, kind, *, previous, observed=None, deadline=None, since=None
+    ):
+        # Transition notices are a function of the transition; a stalled notice
+        # is a function of the persisted observation (including when it was
+        # made), so distinct observations never share an identity while the
+        # same persisted observation is never written twice.
         notice_id = _ulid_from_digest(
             {
                 "loop": loop["id"],
@@ -255,6 +275,7 @@ class DevelopmentLoop:
                 "revision": loop["revision"],
                 "observed": observed,
                 "deadline": deadline,
+                "since": since,
             }
         )
         assessment = None
@@ -262,7 +283,9 @@ class DevelopmentLoop:
         if loop["current_job"]:
             job = self.job(loop["current_job"])
             if job["result"]:
-                assessment = _redact(job["result"]["assessment"])[:NOTICE_SUMMARY_BYTES]
+                assessment = clip_bytes(
+                    _redact(job["result"]["assessment"]), NOTICE_SUMMARY_BYTES
+                )
                 decision = job["result"]["decision"]
         stage_state = None
         if loop["current_stage"]:
@@ -283,11 +306,12 @@ class DevelopmentLoop:
             )
         else:
             attention = "operator decision or reconciliation required before the loop can continue"
-        summary = (
+        summary = clip_bytes(
             f"Development loop {loop['id']} {kind}: status {loop['status']} (from {previous}) "
             f"at round {loop['round']} of {loop['max_rounds']}, revision {loop['revision']}."
-            + (f" Reason: {_redact(loop['reason'])}" if loop.get("reason") else "")
-        )[:NOTICE_SUMMARY_BYTES]
+            + (f" Reason: {_redact(loop['reason'])}" if loop.get("reason") else ""),
+            NOTICE_SUMMARY_BYTES,
+        )
         notice = {
             "schema_version": 1,
             "id": notice_id,
@@ -539,6 +563,7 @@ class DevelopmentLoop:
                     previous=current["status"],
                     observed=observed,
                     deadline=limit,
+                    since=stamp,
                 )
                 self._save_loop(current)
                 self.store._history(

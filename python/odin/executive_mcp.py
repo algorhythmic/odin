@@ -237,6 +237,7 @@ class ExecutiveBridge:
         ):
             raise ValueError("development loop requires a native session identity")
         self.session_id = session_id
+        self.legacy_inbox = False
         self.contracts = Contracts()
 
     def tools(self):
@@ -312,20 +313,39 @@ class ExecutiveBridge:
         if not self.development_loop:
             return []
         operation = identifier()
+        payload = {"project": self.project, "session_id": self.session_id}
+        if not self.legacy_inbox:
+            # Declares the message kinds this bridge understands; an older
+            # bridge omits it and receives assignments only.
+            payload["accept"] = ["assignment", "notice"]
         receipt = self.inbox_gateway(
             {
                 "schema_version": 1,
                 "operation_id": operation,
                 "action": "loop_inbox",
-                "payload": {
-                    "project": self.project,
-                    "session_id": self.session_id,
-                    # Declares the message kinds this bridge understands; an
-                    # older bridge omits it and receives assignments only.
-                    "accept": ["assignment", "notice"],
-                },
+                "payload": payload,
             }
         )
+        if (isinstance(receipt, dict) and receipt.get("error") == "ValidationError"
+                and not self.legacy_inbox):
+            # A service from before notices rejects the accept field. Fall back
+            # to the legacy poll for this connection: assignments keep flowing
+            # and notices wait until the service is current.
+            operation = identifier()
+            receipt = self.inbox_gateway(
+                {
+                    "schema_version": 1,
+                    "operation_id": operation,
+                    "action": "loop_inbox",
+                    "payload": {"project": self.project, "session_id": self.session_id},
+                }
+            )
+            # A second validation failure is not proof of an old service.
+            # Persist the downgrade only after the legacy shape succeeds.
+            if isinstance(receipt, dict) and "error" not in receipt:
+                self.contracts.validate("gateway-receipt", receipt)
+                if receipt["operation_id"] == operation:
+                    self.legacy_inbox = True
         self.contracts.validate("gateway-receipt", receipt)
         if receipt["operation_id"] != operation:
             raise ToolFailure("Invalid loop inbox receipt.")

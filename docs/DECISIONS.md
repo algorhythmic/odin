@@ -2100,7 +2100,12 @@ remain available in every profile.
   quoted in an evaluator assessment could block the inbox and that deadline
   edits were routed through a transition; the follow-up redacts quoted
   footers at write and delivery time and makes deadline edits
-  configuration-only.
+  configuration-only. A further correction bounds rendered notices in
+  UTF-8 bytes rather than characters, gives each persisted attention
+  observation its own notice identity, lets a new bridge fall back to the
+  legacy poll against a pre-notice service, and reports a quiescence block
+  in status; recovery is forward only and a downgrade after new writes is
+  unsupported (runbook, "Activation and recovery of the notice release").
 - **Decision:** the development loop controller writes a durable **notice**
   in the same transaction as every completion, intervention, failure or stop
   transition, and one `stalled` notice per attention observation. Notices

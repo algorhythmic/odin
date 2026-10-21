@@ -1,6 +1,5 @@
 """Synthetic protocol/launcher/hook evidence; no model or active session used."""
 
-import io
 import json
 import os
 import socket
@@ -152,6 +151,42 @@ class ChannelTests(unittest.TestCase):
         self.assertEqual(command["operation_id"], MESSAGE)
         self.assertIn("never claim, execute", bridge.tools()[-1]["description"])
         self.assertIn("meta.kind=notice", initialize(MCPServer(bridge))["instructions"])
+
+    def test_bridge_falls_back_to_a_legacy_poll_when_the_service_rejects_accept(self):
+        calls = []
+
+        def old_service(command):
+            calls.append(command["payload"])
+            if "accept" in command["payload"]:
+                return {"error": "ValidationError", "label": "fake-backend evidence"}
+            return receipt(command, {"messages": [self.message()]})
+
+        bridge = ExecutiveBridge(PROJECT, old_service, development_loop=True, session_id=SESSION)
+        self.assertEqual(bridge.loop_inbox()[0]["message_id"], MESSAGE)
+        self.assertEqual([("accept" in c) for c in calls], [True, False])
+        self.assertTrue(bridge.legacy_inbox)
+        bridge.loop_inbox()
+        self.assertEqual([("accept" in c) for c in calls], [True, False, False])  # stays legacy
+        # A genuine failure without the accept field is still a failure.
+        broken = ExecutiveBridge(PROJECT, lambda command: {"error": "down"}, development_loop=True, session_id=SESSION)
+        with self.assertRaises(Exception):
+            broken.loop_inbox()
+        self.assertFalse(broken.legacy_inbox)
+        calls = []
+        def transient(command):
+            calls.append(command)
+            return {"error": "PermissionError", "label": "fake-backend evidence"}
+        denied = ExecutiveBridge(PROJECT, transient, development_loop=True, session_id=SESSION)
+        with self.assertRaises(Exception):
+            denied.loop_inbox()
+        self.assertEqual(len(calls), 1)
+        self.assertFalse(denied.legacy_inbox)
+        still_invalid = ExecutiveBridge(PROJECT,
+            lambda command: {"error": "ValidationError", "label": "fake-backend evidence"},
+            development_loop=True, session_id=SESSION)
+        with self.assertRaises(Exception):
+            still_invalid.loop_inbox()
+        self.assertFalse(still_invalid.legacy_inbox)
 
     def test_loop_tools_bind_scope_and_preserve_mutation_identity(self):
         bridge, gateway = self.bridge([])
