@@ -350,15 +350,53 @@ the stage evidence, never in the checkout):
   `odin_loop_ack` work only once both are current and the conversation has
   reconnected to the new bridge.
 - **Restart gate**: replace the service only when `development-status`
-  reports `quiescence.restart_quiescent: true`, meaning no loop is
-  `evaluator_running` or `unknown`, no evaluator job is running or unknown,
-  no stage is unknown, the capture spool is empty and no delegated turn is
-  running, and the supervisor has confirmed the native conversation is idle
-  (not mid-turn). `development-status` and `odin_loop_status` report the
-  same block. An interrupted evaluator must be reconciled through
-  `loop_reconcile` with a real observation afterwards. The gate is read
-  immediately before the replacement, not earlier: a quiescent reading
-  expires as soon as the evaluator is dispatched or a turn starts.
+  reports `quiescence.restart_quiescent: true` and the supervisor has
+  confirmed the native conversation is idle (not mid-turn).
+  `development-status` and `odin_loop_status` report the same block. The gate
+  is service-wide (`quiescence.scope: "service"`): whichever project the
+  status names, it counts every active loop (detail for that project's loops,
+  `loops_not_quiescent_other_projects` for the rest), every evaluator job of
+  every loop, every delegated turn and the capture spool. It is false while a
+  loop is `evaluator_running` or `unknown`, its current evaluator job is
+  running or unknown, or a stage is unknown; the capture spool is non-empty
+  or unreadable; a delegated turn is queued, launching, running or
+  interrupting (`delegated_turns_running`); any delegated turn is `lost`
+  (`delegated_turns_lost`), including after its session retired; or a
+  dispatched evaluator job, including the cancelled job of a stopped loop,
+  still has an observed process (`evaluator_executions_outstanding`) or its
+  dispatch evidence or the process table cannot be read
+  (`evaluator_executions_unresolved`). Missing or unreadable evidence never
+  counts as absence. `quiescence.unresolved` names up to sixteen such records
+  with a reason.
+
+  Evaluator executions: `loop_control stop` cancels the job and deactivates
+  the loop at once, but the evaluator scheduler stops the runner and harness
+  later. The status reads the job's dispatch reservation and `started.json`
+  under `development-evaluator/<job>/` and the process table; an execution
+  stays outstanding while a recorded runner or harness process group has a
+  live member or a process argument names the job's spool. A job without a
+  durable evaluator-start receipt never spawned a process. A reused process
+  ID can only make the reading conservative.
+
+  Lost delegated turns: a lost turn's native outcome is unknown and no
+  supported path records its resolution, so, as for `configure_delegation`,
+  it keeps the gate false permanently; the record is never erased or
+  relabelled. Retirement and acknowledgement are not process termination. Its
+  `unresolved` entry reports whether the recorded runner and harness process
+  groups are observed `present`, `absent` or `unknown`. Replacing the service
+  with a lost turn on record therefore needs an explicit supervisor decision
+  outside the gate, based on this external observation: no live process in
+  the turn's recorded runner or harness process group (`pgrep -g <pid>` for
+  each), no process naming the turn's spool `delegations/<session>/<turn>/`,
+  and no native harness process for that turn's session. The gate cannot see
+  a harness whose process group was never recorded (the runner exited before
+  writing `started.json`) or a descendant that left its process group.
+
+  The status only observes: it signals, reconciles and redispatches nothing.
+  A reading is not a lock: an evaluator can be dispatched and a delegated
+  turn can start immediately after it, so read the gate immediately before
+  the replacement, not earlier. An interrupted evaluator must be reconciled
+  through `loop_reconcile` with a real observation afterwards.
 
 ### Receipts in the development loop
 
