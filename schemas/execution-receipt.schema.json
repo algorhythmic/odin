@@ -66,7 +66,7 @@
       "properties": {
         "started_at": {"$ref": "#/$defs/timestamp"},
         "finished_at": {"$ref": "#/$defs/timestamp"},
-        "duration_seconds": {"type": "number", "minimum": 0},
+        "duration_seconds": {"type": ["number", "null"], "minimum": 0},
         "exit_status": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
         "succeeded": {"type": "boolean"},
         "timed_out": {"type": "boolean"},

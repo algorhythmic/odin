@@ -80,6 +80,144 @@ class DevelopmentLoopTests(unittest.TestCase):
         text = "Synthetic completed response\n" + ready["completion_marker"]
         return self.loops.capture_stop(SESSION, text, identifier(), prompt_id=prompt_id)
 
+    def intervention(self, **config):
+        stage = self.evaluate(self.start(**config)["job"])["stage"]
+        captured = self.finish(stage)
+        return self.evaluate(captured["job"], verdict("needs_operator"))
+
+    def continue_intervention(self, result, operation=None, **kwargs):
+        return self.loops.continue_after_intervention(
+            result["loop"]["id"], kwargs.pop("response", "Service activation observed."),
+            operation or identifier(),
+            expected_revision=kwargs.pop("expected_revision", result["loop"]["revision"]),
+            **kwargs,
+        )
+
+    def test_operator_intervention_requeues_exact_evidence_and_survives_restart(self):
+        previous = self.intervention(max_rounds=4, no_progress_limit=5)
+        source = self.loops.job(previous["job"]["id"])
+        completed_stage = self.loops.stage(previous["loop"]["current_stage"])
+        operation = identifier()
+        evidence = {"activation": {"revision": "synthetic-new-service", "observed": True}}
+        result = self.continue_intervention(previous, operation, evidence_packet=evidence)
+        self.assertEqual(result["loop"]["status"], "evaluator_pending")
+        self.assertEqual(result["loop"]["revision"], previous["loop"]["revision"] + 1)
+        for key in ("round", "max_rounds", "no_progress_limit", "no_progress_count",
+                    "last_evidence_digest", "current_stage", "goal", "session_id"):
+            self.assertEqual(result["loop"][key], previous["loop"][key], key)
+        self.assertGreater(result["loop"]["no_progress_count"], 0)
+        packet = result["job"]["packet"]
+        self.assertNotEqual(result["job"]["id"], source["id"])
+        for key in ("executive_final_text", "evidence", "receipt_validation"):
+            self.assertEqual(packet[key], source["packet"][key], key)
+        self.assertEqual(packet["previous_assessment"], source["result"])
+        self.assertEqual(packet["operator_response"], {
+            "operation_id": operation, "source_job": source["id"],
+            "source_packet_digest": source["packet_digest"],
+            "response": "Service activation observed.", "evidence": evidence,
+        })
+        self.assertEqual(self.loops.job(source["id"]), source)
+        self.assertEqual(self.loops.stage(completed_stage["id"]), completed_stage)
+        self.assertEqual(self.loops.pending_stages(P, SESSION), [])
+        self.store.close()
+        self.store = Store(self.directory)
+        self.loops = DevelopmentLoop(self.store)
+        self.assertEqual(self.loops.pending_evaluators(P), [result["job"]])
+        self.assertEqual(result, self.continue_intervention(previous, operation, evidence_packet=evidence))
+        next_stage = self.evaluate(result["job"], verdict("continue", "new-evidence"))["stage"]
+        self.assertNotEqual(next_stage["id"], completed_stage["id"])
+        self.assertEqual(next_stage["round"], completed_stage["round"] + 1)
+        self.assertEqual(result, self.continue_intervention(previous, operation, evidence_packet=evidence))
+        history = [strict_loads(row[0]) for row in self.store.db.execute("SELECT body FROM history")]
+        events = [item for item in history if item["kind"] == "development_loop.command"
+                  and item["payload"]["kind"] == "operator_continue"]
+        self.assertEqual(len(events), 1)
+        self.assertNotIn("Service activation observed.", canonical(events))
+
+    def test_operator_continuation_requires_fresh_revision_and_stable_payload(self):
+        previous = self.intervention()
+        with self.assertRaisesRegex(Conflict, "stale"):
+            self.continue_intervention(previous, expected_revision=previous["loop"]["revision"] - 1)
+        self.assertEqual(self.loops.get(previous["loop"]["id"]), previous["loop"])
+        operation = identifier()
+        self.continue_intervention(previous, operation)
+        for change in ({"response": "Different intervention"}, {"evidence_packet": {"other": True}},
+                       {"expected_revision": previous["loop"]["revision"] + 1}):
+            with self.subTest(change=change), self.assertRaisesRegex(Conflict, "changed arguments"):
+                self.continue_intervention(previous, operation, **change)
+        with self.assertRaisesRegex(Conflict, "stale"):
+            self.continue_intervention(previous)
+
+    def test_operator_continuation_input_and_packet_schema_bounds(self):
+        previous = self.intervention()
+        for change in ({"response": " "}, {"response": "α" * 6001}, {"response": None},
+                       {"evidence_packet": []}, {"evidence_packet": {"large": "α" * 33000}},
+                       {"expected_revision": True}, {"expected_revision": 0}):
+            with self.subTest(change=change), self.assertRaises(Conflict):
+                self.continue_intervention(previous, **change)
+        self.assertEqual(self.loops.pending_evaluators(), [])
+        packet = self.continue_intervention(previous)["job"]["packet"]
+        old_packet = {key: value for key, value in packet.items() if key != "operator_response"}
+        self.store.contracts.validate("development-loop-packet", old_packet)
+        for change in ({"unexpected": True}, {"source_job": "invalid"}, {"source_packet_digest": "x"}):
+            bad = copy.deepcopy(packet)
+            bad["operator_response"].update(change)
+            with self.subTest(change=change), self.assertRaises(ValidationError):
+                self.store.contracts.validate("development-loop-packet", bad)
+
+    def test_operator_continuation_does_not_revive_other_states_or_pending_jobs(self):
+        previous = self.intervention()
+        for status in ("paused", "stopped", "complete", "unknown", "evaluator_running",
+                       "evaluator_pending", "executive_pending", "executive_claimed", "executive_ready"):
+            with self.subTest(status=status):
+                changed = previous["loop"] | {"status": status}
+                if status == "paused":
+                    changed["paused_from"] = "needs_operator"
+                self.loops._save_loop(changed)
+                with self.assertRaisesRegex(Conflict, "only an evaluator intervention"):
+                    self.continue_intervention(previous)
+                self.assertEqual(self.loops.get(changed["id"]), changed)
+        self.loops._save_loop(previous["loop"])
+        for state in ("pending", "running", "unknown", "blocked", "lost", "cancelled"):
+            with self.subTest(state=state):
+                self.loops._save_job(previous["job"] | {"state": state, "result": None})
+                with self.assertRaisesRegex(Conflict, "completed evaluator intervention"):
+                    self.continue_intervention(previous)
+
+    def test_operator_continuation_refuses_exhausted_budget_and_non_intervention_result(self):
+        previous = self.intervention(max_rounds=1)
+        with self.assertRaisesRegex(Conflict, "round limit"):
+            self.continue_intervention(previous)
+        self.loops.control(previous["loop"]["id"], "stop", identifier())
+        first = self.evaluate(self.start(no_progress_limit=1)["job"])
+        limited = self.evaluate(self.finish(first["stage"])["job"])
+        self.assertEqual(limited["loop"]["status"], "needs_operator")
+        self.assertEqual(limited["job"]["result"]["decision"], "continue")
+        with self.assertRaisesRegex(Conflict, "completed evaluator intervention"):
+            self.continue_intervention(limited)
+
+    def test_operator_continuation_does_not_reset_no_progress_guard(self):
+        previous = self.intervention(no_progress_limit=2)
+        result = self.continue_intervention(previous)
+        evaluated = self.evaluate(result["job"])
+        self.assertEqual(evaluated["loop"]["status"], "needs_operator")
+        self.assertIn("without progress", evaluated["loop"]["reason"])
+        self.assertEqual(evaluated["loop"]["no_progress_count"], 2)
+        self.assertIsNone(evaluated["stage"])
+
+    def test_operator_continuation_refuses_unfinished_stage_and_supports_initial_intervention(self):
+        previous = self.intervention()
+        stage = self.loops.stage(previous["loop"]["current_stage"])
+        self.loops._save_stage(stage | {"state": "unknown", "unknown_from": "ready"})
+        with self.assertRaisesRegex(Conflict, "outstanding executive stage"):
+            self.continue_intervention(previous)
+        self.loops.control(previous["loop"]["id"], "stop", identifier())
+        initial = self.evaluate(self.start(evidence_packet={"initial": True})["job"], verdict("needs_operator"))
+        result = self.continue_intervention(initial)
+        self.assertEqual(result["loop"]["round"], 0)
+        self.assertEqual(result["job"]["packet"]["executive_final_text"], "")
+        self.assertEqual(result["job"]["packet"]["evidence"], {"initial": True})
+
     def test_persistent_two_way_loop_with_exact_packet_and_final_response(self):
         started = self.start()
         self.assertEqual(started["loop"]["status"], "evaluator_pending")

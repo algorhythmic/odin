@@ -107,6 +107,18 @@
         "action"
       ]
     },
+    "loop_continue": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+        "loop_id": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+        "expected_revision": {"type": "integer", "minimum": 1},
+        "response": {"type": "string", "minLength": 1, "maxLength": 12000},
+        "evidence_packet": {"type": "object"}
+      },
+      "required": ["project", "loop_id", "expected_revision", "response"]
+    },
     "loop_reconcile": {
       "type": "object",
       "additionalProperties": false,

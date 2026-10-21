@@ -13,7 +13,7 @@ EXECUTIVE_ACTIONS = {
     "loop_status", "loop_inbox", "loop_claim", "loop_ready", "loop_capture",
 }
 OPERATOR_ACTIONS = {
-    "loop_start", "loop_control", "loop_reconcile", "loop_hold",
+    "loop_start", "loop_control", "loop_reconcile", "loop_hold", "loop_continue",
 }
 ACTIONS = EXECUTIVE_ACTIONS | OPERATOR_ACTIONS
 
@@ -109,7 +109,7 @@ def dispatch(gateway, action, payload, context, operation):
             "development-loop-command", action, payload
         )
     check_scope(gateway, action, payload)
-    if action in {"loop_start", "loop_claim", "loop_ready", "loop_reconcile"}:
+    if action in {"loop_start", "loop_claim", "loop_ready", "loop_reconcile", "loop_continue"}:
         gateway.coordination._live()
     if action == "loop_control" and payload["action"] == "resume":
         gateway.coordination._live()
@@ -210,6 +210,12 @@ def dispatch(gateway, action, payload, context, operation):
             for key, value in result.items()
         }
     loop = controller.get(payload["loop_id"])
+    if action == "loop_continue":
+        return controller.continue_after_intervention(
+            loop["id"], payload["response"], operation,
+            expected_revision=payload["expected_revision"],
+            evidence_packet=payload.get("evidence_packet"),
+        )
     if action == "loop_control":
         return controller.control(
             loop["id"], payload["action"], operation,

@@ -18,6 +18,8 @@ from odin import __main__ as cli
 from odin import executive_runtime as runtime
 from odin.contracts import ROOT, canonical, identifier, strict_loads
 from odin.executive_service import prepare_project
+from odin.development_loop import DevelopmentLoop
+from odin.store import Store
 
 SESSION = "11111111-1111-4111-8111-111111111111"
 
@@ -214,10 +216,87 @@ class DevelopmentCLITests(unittest.TestCase):
         self.assertIn("--operation-id " + operation_id, failed.stderr)
         self.assertNotIn("Traceback", failed.stderr)
 
+    def test_continue_after_committed_reply_loss_and_service_restart(self):
+        # A completed evaluator explicitly asks for intervention. No native
+        # model runs in this test; the actual CLI/service path handles the reply.
+        with Store(self.state) as store:
+            loops = DevelopmentLoop(store)
+            initial = loops.start(
+                self.project, "Retain the bounded objective", SESSION, identifier(),
+                max_rounds=2,
+            )
+            loop_id, job = initial["loop"]["id"], initial["job"]
+            loops.mark_evaluator_started(
+                loop_id, job["id"], job["packet_digest"], identifier()
+            )
+            held = loops.accept_evaluation(
+                loop_id, job["id"], job["packet_digest"],
+                {"decision": "needs_operator", "assessment": "Reload required",
+                 "findings": [], "next_prompt": "", "evidence_refs": []},
+                identifier(),
+            )
+        request = self.root / "continue.json"
+        payload = {
+            "project": self.project, "loop_id": loop_id,
+            "expected_revision": held["loop"]["revision"],
+            "response": "The synthetic service has been reloaded.",
+            "evidence_packet": {"synthetic": True},
+        }
+        request.write_text(canonical(payload))
+        self.start_service()
+        original = cli._socket_command
+        applied = []
+
+        def lose_reply(address, message):
+            receipt = original(address, message)
+            applied.append((message, receipt))
+            raise OSError("synthetic lost continuation reply after commit")
+
+        output, errors = io.StringIO(), io.StringIO()
+        with (
+            patch.object(sys, "argv", [
+                "odin", "--state", str(self.state), "development-continue",
+                "--request", str(request),
+            ]),
+            patch.object(cli, "_socket_command", side_effect=lose_reply),
+            redirect_stdout(output), redirect_stderr(errors),
+            self.assertRaises(SystemExit) as stopped,
+        ):
+            cli.main()
+        self.assertEqual(stopped.exception.code, 2)
+        self.assertEqual(output.getvalue(), "")
+        self.assertEqual(len(applied), 1)
+        self.assertNotIn("error", applied[0][1])
+        match = re.search(r"--operation-id ([0-7][0-9A-HJKMNP-TV-Z]{25})", errors.getvalue())
+        self.assertIsNotNone(match, errors.getvalue())
+        operation = match.group(1)
+        self.assertEqual(applied[0][0]["command"]["action"], "loop_continue")
+        self.stop_service()
+        self.start_service()
+        repeated = self.result(
+            "development-continue", "--request", str(request),
+            "--operation-id", operation,
+        )
+        self.assertEqual(repeated, applied[0][1])
+        loop = self.status(loop_id)["loops"][0]
+        self.assertEqual(loop["status"], "evaluator_pending")
+        self.assertEqual(loop["round"], 0)
+        self.assertEqual(loop["max_rounds"], 2)
+        self.assertNotEqual(loop["current_job"], job["id"])
+        self.assertEqual(repeated["result"]["job"]["packet"]["operator_response"]["response"], payload["response"])
+        request.write_text(canonical(payload | {"response": "Different intervention"}))
+        refused = self.run_cli(
+            "development-continue", "--request", str(request),
+            "--operation-id", operation, expected=1,
+        )
+        self.assertIn("error", strict_loads(refused.stdout))
+        self.assertEqual(self.status(loop_id)["loops"][0]["current_job"], loop["current_job"])
+
     def test_required_arguments_fail_before_service_access(self):
         for arguments in (
             ["development-configure"],
             ["development-start"],
+            ["development-continue"],
             ["development-status"],
             ["development-control", "--project", self.project],
             ["development-control", "--project", self.project, "--loop", identifier()],

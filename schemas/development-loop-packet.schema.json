@@ -42,6 +42,18 @@
     "evidence": {
       "type": "object"
     },
+    "operator_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "source_job": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+        "source_packet_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "response": {"type": "string", "minLength": 1, "maxLength": 12000},
+        "evidence": {"type": "object"}
+      },
+      "required": ["operation_id", "source_job", "source_packet_digest", "response", "evidence"]
+    },
     "previous_assessment": {
       "type": [
         "object",

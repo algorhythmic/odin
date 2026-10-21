@@ -1972,6 +1972,13 @@ remain available in every profile.
   Never interpret process exit, a Stop event, or the word "done" as proof
   that a test passed. Automatic retries retain the same operation identity;
   uncertain work is not silently replaced with a fresh round.
+  A completed evaluator `needs_operator` decision accepts an operator-only,
+  revision-checked response once executive work is inactive and round budget
+  remains. The controller retains that response with the original evidence
+  in a fresh evaluator job at the same round; completed records, configured
+  bounds and progress counters remain unchanged. This continuation is not a
+  reset, a delivery reconciliation or authority to expand the objective.
+  Core, gateway and CLI restart/retry tests enforce these conditions.
 - **Evidence return:** the completion path returns the main executive's
   final response and bounded, attributed evidence references for the active
   round. It must distinguish an evaluator's task from unrelated operator
@@ -2077,6 +2084,12 @@ remain available in every profile.
   bounds the validation summaries in the schemas. Live receipts for
   actual stages are retained privately and are themselves subject to the
   evaluator's independent inspection.
+  A clock-reversal regression preserves completed command evidence with
+  original timestamps, a null duration and explicit uncertainty. Reversed
+  chronology remains invalid and observed summary fields remain redacted;
+  the collector's CLI status still reports command success or failure.
+  Regression tests cover successful and failing commands across a backward
+  clock step and refusal of contradictory null-duration claims.
 
 ## 5. Issues raised by the extraction
 

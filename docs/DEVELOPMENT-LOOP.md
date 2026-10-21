@@ -342,6 +342,15 @@ uncertain command with consistent fields stays `valid` evidence of that
 outcome. A claimed or expected `clean` is compared with the derived value and
 can only be met by a receipt with both observations and no change during the
 run. Timestamps are compared as timestamps (UTC, at most microseconds).
+If the wall clock moves backward during a command, the collector still
+persists the original timestamps, exact exit status and retained output
+digests. It records `duration_seconds: null` and explicit clock uncertainty.
+Reversed chronology remains `invalid`; validation and the `receipt-run`
+summary redact observed success and repository fields. The raw outcome
+remains in the receipt, and the CLI exit code still reports command success
+or failure, not receipt validity. A null duration without reversed timestamps
+or a recorded uncertainty is also invalid.
+
 Retained files are inspected through one descriptor: non-regular files such
 as a FIFO are never read (the open is non-blocking and the type is checked
 before any read), byte limits are enforced against the bytes actually read,
@@ -378,6 +387,7 @@ stages and packets without `receipt_validation` remain valid records.
 | Invalid evaluator output | Hold continuation with an attributable failure; do not invent a next test |
 | Pause | Prevent new automatic dispatch/evaluation; preserve work and evidence for an explicit resume |
 | Stop | Prevent further loop work directly, independently of the evaluator's opinion |
+| Evaluator requests operator intervention | Retain the completed result; accept a recorded operator response through `development-continue` when work is inactive and round budget remains |
 | Round or repeated-evidence bound reached | Enter `needs_operator` with the reason recorded; do not reset the bound automatically |
 
 An explicitly reconciled retry keeps the stage identity and changes the
@@ -411,6 +421,51 @@ corresponding transition:
 .venv/bin/python -m odin --state "$ODIN_PILOT_STATE" development-control \
   --project PROJECT_ULID --loop LOOP_ULID --control pause
 ```
+
+An evaluator's completed `needs_operator` decision has a separate response
+path. Once its intervention is addressed, read `development-status` and
+write a private request file containing the current loop revision:
+
+```json
+{
+  "project": "PROJECT_ULID",
+  "loop_id": "LOOP_ULID",
+  "expected_revision": 13,
+  "response": "The requested service-only activation is complete; assess the retained evidence and determine the next test within the existing objective.",
+  "evidence_packet": {}
+}
+```
+
+Submit it through the operator socket, retaining one operation ID for retries:
+
+```bash
+.venv/bin/python -m odin --state "$ODIN_PILOT_STATE" development-continue \
+  --request /absolute/private/path/operator-response.json \
+  --operation-id OPERATION_ULID
+```
+
+This records the response and optional bounded evidence in a fresh evaluator
+packet, alongside the original executive evidence, receipt validation and
+previous assessment. The completed stage and previous job are preserved.
+The new evaluator job stays at the same round; configured bounds and progress
+counters are unchanged. Only its accepted assessment can create the next
+executive stage. Exact retries return the original command receipt, including
+after a service restart; changed payloads or stale revisions are refused.
+
+Continuation requires a completed evaluator `needs_operator` result, all
+executive stages completed and remaining round budget. It cannot resume a
+paused loop, reconcile uncertain delivery or a lost evaluator, retry a failed
+job, reopen a stopped/completed loop or reset an exhausted bound. Use the
+corresponding status, resume or reconciliation path for those states. The
+command is operator-only and is not an executive MCP tool. Its response is
+evidence for assessment, not authority to expand the configured objective.
+
+For a service upgrade requested by an intervention, first confirm there is
+no active executive stage or evaluator. Restart only the service on the
+verified revision, preserving the native executive session and bridge, then
+reobserve the durable loop state before submitting the response. A successful
+restart alone does not establish live receipt validation; observe the next
+ready result and captured evaluator packet through the existing bridge.
 
 A paused final response and evaluator result remain retryable after resume.
 A StopFailure holds the correlated executive stage as unknown; it never

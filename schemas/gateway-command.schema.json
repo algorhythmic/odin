@@ -54,6 +54,7 @@
         "loop_ready",
         "loop_capture",
         "loop_control",
+        "loop_continue",
         "loop_reconcile",
         "loop_hold"
       ]

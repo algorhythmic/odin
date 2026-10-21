@@ -70,6 +70,7 @@ def main():
             "delegation-configure",
             "development-configure",
             "development-start",
+            "development-continue",
             "development-status",
             "development-control",
             "receipt-run",
@@ -256,12 +257,15 @@ def main():
             "activation": "restart serve to load this configuration",
         }))
         return
-    if args.action in {"development-start", "development-status", "development-control"}:
+    if args.action in {
+        "development-start", "development-continue", "development-status",
+        "development-control",
+    }:
         from .contracts import Contracts
 
-        if args.action == "development-start":
+        if args.action in {"development-start", "development-continue"}:
             if not args.request:
-                parser.error("development-start requires --request start payload JSON")
+                parser.error(args.action + " requires --request payload JSON")
             payload = strict_loads(Path(args.request).read_bytes())
         else:
             if not args.project:
@@ -275,6 +279,7 @@ def main():
                 payload["action"] = args.control
         action = {
             "development-start": "loop_start",
+            "development-continue": "loop_continue",
             "development-status": "loop_status",
             "development-control": "loop_control",
         }[args.action]

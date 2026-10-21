@@ -96,7 +96,7 @@ class DevelopmentGatewayTest(unittest.TestCase):
             self.send("loop_claim", ids | {"session_id": str(uuid.uuid4())}, executive=True)
 
     def test_model_cannot_control_start_reconcile_or_hold(self):
-        for action in ("loop_start", "loop_control", "loop_hold", "loop_reconcile"):
+        for action in ("loop_start", "loop_control", "loop_hold", "loop_reconcile", "loop_continue"):
             with self.subTest(action=action), self.assertRaises(PermissionError):
                 self.send(action, {}, executive=True)
         context = GatewayContext("terminal", Actor("operator", "restricted"), (self.other,))
@@ -105,6 +105,85 @@ class DevelopmentGatewayTest(unittest.TestCase):
                 self.command("loop_start", {"goal": "Test", "session_id": self.session}),
                 context=context,
             )
+
+    def intervention(self):
+        ids = self.start()
+        self.send("loop_claim", ids, executive=True)
+        ready = self.send("loop_ready", ids | {"evidence_packet": {"completed": "synthetic"}},
+                          executive=True)
+        captured = self.send("loop_capture", {
+            "session_id": self.session, "hook_event_name": "Stop",
+            "last_assistant_message": "Activation needs an operator.\n" + ready["completion_marker"],
+        }, executive=True)
+        core = self.gateway.development_loop
+        job = core.job(captured["job"]["id"])
+        core.mark_evaluator_started(self.loop, job["id"], job["packet_digest"], identifier())
+        result = core.accept_evaluation(
+            self.loop, job["id"], job["packet_digest"],
+            {"decision": "needs_operator", "assessment": "Activate the updated controller",
+             "findings": [], "next_prompt": "", "evidence_refs": []}, identifier(),
+        )
+        return {"loop_id": self.loop, "expected_revision": result["loop"]["revision"],
+                "response": "Activation observed.", "evidence_packet": {"new_controller": True}}
+
+    def test_operator_continuation_is_scoped_atomic_and_replayable(self):
+        payload = self.intervention()
+        operation = identifier()
+        before = self.gateway.development_loop.get(self.loop)
+        source = self.gateway.development_loop.job(before["current_job"])
+        result = self.send("loop_continue", payload, operation)
+        self.assertEqual(result, self.send("loop_continue", payload, operation))
+        self.assertEqual(result["loop"]["status"], "evaluator_pending")
+        self.assertEqual(result["loop"]["round"], before["round"])
+        self.assertEqual(result["job"]["packet"]["operator_response"]["source_job"], source["id"])
+        self.assertEqual(result["job"]["packet"]["previous_assessment"], source["result"])
+        for changes in ({"response": "changed"}, {"expected_revision": before["revision"] + 1}):
+            with self.subTest(changes=changes), self.assertRaisesRegex(Conflict, "identity conflict"):
+                self.send("loop_continue", payload | changes, operation)
+        with self.assertRaisesRegex(Conflict, "stale"):
+            self.send("loop_continue", payload)
+        for context in (
+            GatewayContext("harness", Actor("model", "worker"), (self.project,)),
+            GatewayContext("terminal", Actor("operator", "test"), (self.other,)),
+        ):
+            with self.subTest(context=context), self.assertRaises((PermissionError, Conflict)):
+                self.gateway.submit(self.command("loop_continue", payload, operation), context=context)
+        with self.assertRaises(PermissionError):
+            self.send("loop_continue", payload | {"project": self.other}, operation)
+        with self.assertRaises(PermissionError):
+            self.send("loop_continue", payload, operation, executive=True)
+        self.assertEqual(self.gateway.development_loop.get(self.loop), result["loop"])
+        with self.service.store.transaction():
+            self.service.store.db.execute("DELETE FROM gateway_commands WHERE id=?", (operation,))
+        # The core command receipt still recovers a lost gateway acknowledgement.
+        self.assertEqual(result, self.send("loop_continue", payload, operation))
+
+    def test_operator_continuation_model_and_voice_refusal_precedes_mutation(self):
+        payload = self.intervention()
+        before = self.gateway.development_loop.get(self.loop)
+        for context in (
+            GatewayContext("harness", Actor("model", "worker"), (self.project,)),
+            GatewayContext("voice", Actor("operator", "test")),
+        ):
+            with self.subTest(context=context), self.assertRaises(PermissionError):
+                self.gateway.submit(self.command("loop_continue", payload), context=context)
+        with self.assertRaises(PermissionError):
+            self.send("loop_continue", payload, executive=True)
+        self.assertEqual(self.gateway.development_loop.get(self.loop), before)
+        self.assertEqual(self.gateway.development_loop.pending_evaluators(), [])
+
+    def test_operator_continuation_cannot_dispatch_while_service_stopped(self):
+        payload = self.intervention()
+        before = self.gateway.development_loop.get(self.loop)
+        self.gateway.submit(
+            {"schema_version": 1, "operation_id": identifier(), "action": "stop",
+             "payload": {"reason": "Synthetic service stop"}},
+            context=self.operator,
+        )
+        with self.assertRaises(Conflict):
+            self.send("loop_continue", payload)
+        self.assertEqual(self.gateway.development_loop.get(self.loop), before)
+        self.assertEqual(self.gateway.development_loop.pending_evaluators(), [])
 
     def test_cached_claim_cannot_restart_paused_or_stopped_work(self):
         ids = self.start()

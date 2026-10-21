@@ -223,7 +223,8 @@ class DevelopmentLoop:
         return result
 
     def _queue_evaluator(
-        self, loop, evidence, final_text="", previous=None, receipt_validation=None
+        self, loop, evidence, final_text="", previous=None, receipt_validation=None,
+        operator_response=None,
     ):
         packet = {
             "schema_version": 1,
@@ -245,6 +246,8 @@ class DevelopmentLoop:
                 "commands_succeeded": None,
             },
         }
+        if operator_response is not None:
+            packet["operator_response"] = operator_response
         job = {
             "schema_version": 1,
             "id": identifier(),
@@ -716,6 +719,75 @@ class DevelopmentLoop:
             }
 
         return self._mutate(operation_id, "capture_failure", arguments, apply)
+
+    def continue_after_intervention(
+        self, loop_id, response, operation_id, *, expected_revision,
+        evidence_packet=None,
+    ):
+        """Re-evaluate an answered intervention without replaying executive work.
+
+        The gateway supplies operator authority. This transition only answers a
+        completed evaluator's needs_operator decision; execution uncertainty and
+        failed evaluators require their existing reconciliation paths.
+        """
+        if (
+            not isinstance(response, str)
+            or not response.strip()
+            or len(response.encode()) > 12000
+        ):
+            raise Conflict("operator response must be nonblank within 12000 UTF-8 bytes")
+        if type(expected_revision) is not int or expected_revision < 1:
+            raise Conflict("positive expected development loop revision required")
+        evidence = self._evidence({} if evidence_packet is None else evidence_packet)
+        arguments = {
+            "loop_id": loop_id,
+            "expected_revision": expected_revision,
+            "response": response,
+            "evidence": evidence,
+        }
+
+        def apply():
+            loop = self.get(loop_id)
+            if loop["revision"] != expected_revision:
+                raise Conflict("stale development loop revision")
+            if loop["status"] != "needs_operator":
+                raise Conflict("only an evaluator intervention can continue")
+            if loop["round"] >= loop["max_rounds"]:
+                raise Conflict("development round limit reached")
+            if not loop["current_job"]:
+                raise Conflict("completed evaluator intervention required")
+            source = self.job(loop["current_job"])
+            if (
+                source["loop_id"] != loop_id
+                or source["state"] != "completed"
+                or source["result"] is None
+                or source["result"]["decision"] != "needs_operator"
+            ):
+                raise Conflict("completed evaluator intervention required")
+            if any(
+                strict_loads(row[0])["state"] != "completed"
+                for row in self.store.db.execute(
+                    "SELECT body FROM development_loop_stages WHERE loop_id=?", (loop_id,)
+                )
+            ):
+                raise Conflict("outstanding executive stage must be reconciled")
+            intervention = {
+                "operation_id": operation_id,
+                "source_job": source["id"],
+                "source_packet_digest": source["packet_digest"],
+                "response": response,
+                "evidence": evidence,
+            }
+            self._advance(loop, "evaluator_pending")
+            packet = source["packet"]
+            job = self._queue_evaluator(
+                loop, packet["evidence"], packet["executive_final_text"],
+                source["result"], packet.get("receipt_validation"),
+                operator_response=intervention,
+            )
+            return {"loop": loop, "job": job}
+
+        return self._mutate(operation_id, "operator_continue", arguments, apply)
 
     def control(self, loop_id, action, operation_id, *, expected_revision=None):
         if action not in {"pause", "resume", "stop"}:

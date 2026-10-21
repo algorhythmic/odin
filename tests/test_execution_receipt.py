@@ -155,6 +155,104 @@ class ExecutionReceiptTests(unittest.TestCase):
             5,
         )
 
+    def test_duration_uses_the_recorded_forward_timestamps(self):
+        from unittest import mock
+
+        timestamps = [
+            "2026-10-20T23:59:09.000000Z",  # repository before
+            "2026-10-20T23:59:10.000000Z",  # command start
+            "2026-10-20T23:59:12.125000Z",  # command end
+            "2026-10-20T23:59:13.000000Z",  # repository after
+        ]
+        with mock.patch("odin.execution_receipt._now", side_effect=timestamps):
+            receipt = self.run_receipt([PY, "-c", "pass"])
+        self.assertEqual(receipt["execution"]["duration_seconds"], 2.125)
+        self.assertIsNone(receipt["execution"]["uncertainty"])
+        self.assertEqual(validate(self.out / RECEIPT_NAME)["outcome"], "valid")
+
+    def test_backward_clock_retains_command_evidence_and_redacts_cli_summary(self):
+        import contextlib
+        import io
+        from unittest import mock
+
+        for exit_status in (0, 7):
+            with self.subTest(exit_status=exit_status):
+                out = self.root / f"backward-clock-{exit_status}"
+                timestamps = [
+                    "2026-10-20T23:59:09.000000Z",
+                    "2026-10-20T23:59:10.000000Z",
+                    "2026-10-20T23:59:05.000000Z",
+                    "2026-10-20T23:59:06.000000Z",
+                ]
+                captured = io.StringIO()
+                with contextlib.redirect_stdout(captured), mock.patch(
+                    "odin.execution_receipt._now", side_effect=timestamps
+                ):
+                    code = main(
+                        [
+                            "run", "--out", str(out), "--cwd", str(self.repo),
+                            "--", PY, "-c",
+                            f"import sys; print('completed'); sys.stderr.write('retained\\n'); raise SystemExit({exit_status})",
+                        ]
+                    )
+                # CLI success/failure still follows the process, never the
+                # receipt's validity. Its exact outcome remains in the receipt.
+                self.assertEqual(code, 0 if exit_status == 0 else 1)
+                path = out / RECEIPT_NAME
+                receipt = strict_loads(path.read_text())
+                execution = receipt["execution"]
+                self.assertEqual(execution["exit_status"], exit_status)
+                self.assertEqual(execution["succeeded"], exit_status == 0)
+                self.assertIsNone(execution["duration_seconds"])
+                self.assertEqual(execution["started_at"], timestamps[1])
+                self.assertEqual(execution["finished_at"], timestamps[2])
+                self.assertIn("wall clock moved backwards", execution["uncertainty"])
+                self.assertEqual((out / "stdout.log").read_text(), "completed\n")
+                self.assertEqual((out / "stderr.log").read_text(), "retained\n")
+                for artifact in receipt["artifacts"]:
+                    data = Path(artifact["path"]).read_bytes()
+                    self.assertEqual(artifact["sha256"], hashlib.sha256(data).hexdigest())
+                    self.assertEqual(artifact["bytes"], len(data))
+                outcome = validate_references({"receipts": [reference(path)]})
+                self.assertEqual(outcome["status"], "invalid")
+                self.assert_never_success(outcome)
+                self.assertTrue(any(
+                    "finished_at precedes started_at" in problem
+                    for problem in outcome["problems"]
+                ))
+                summary = strict_loads(captured.getvalue())
+                self.assertEqual(summary["outcome"], "invalid")
+                self.assertEqual(summary["receipt"], reference(path))
+                for key in (
+                    "succeeded", "exit_status", "clean", "clean_before", "head",
+                    "branch", "observed", "observed_before", "observed_after",
+                ):
+                    self.assertIsNone(summary[key], key)
+
+    def test_unavailable_duration_does_not_bypass_consistency_checks(self):
+        self.run_receipt([PY, "-c", "pass"])
+        ref = self.edit(lambda body: body["execution"].update(
+            duration_seconds=None, uncertainty="claimed clock uncertainty"
+        ))
+        outcome = validate_references({"receipts": [ref]})
+        self.assertEqual(outcome["status"], "invalid")
+        self.assertTrue(any(
+            "duration_seconds unavailable without reversed execution timestamps" in p
+            for p in outcome["problems"]
+        ))
+        self.assert_never_success(outcome)
+        ref = self.edit(lambda body: body["execution"].update(
+            duration_seconds=None, finished_at="2000-01-01T00:00:00Z", uncertainty=None
+        ))
+        outcome = validate_references({"receipts": [ref]})
+        self.assertEqual(outcome["status"], "invalid")
+        for expected in (
+            "finished_at precedes started_at",
+            "unavailable duration_seconds without recorded uncertainty",
+        ):
+            self.assertTrue(any(expected in p for p in outcome["problems"]))
+        self.assert_never_success(outcome)
+
     def test_timeout_and_spawn_failure_are_explicit_uncertainty(self):
         receipt = self.run_receipt([PY, "-c", "import time; time.sleep(30)"], timeout=1)
         self.assertTrue(receipt["execution"]["timed_out"])

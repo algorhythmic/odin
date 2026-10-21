@@ -472,11 +472,17 @@ def run(
             elif process.returncode is not None:
                 exit_status = process.returncode
     finished_at = _now()
-    # Derived from the same wall-clock timestamps the receipt records, so a
-    # clock step or suspend during the command cannot contradict itself.
-    duration = round(
-        (_timestamp(finished_at) - _timestamp(started_at)).total_seconds(), 3
-    )
+    # Preserve the actual timestamps even when the wall clock reverses. Do not
+    # invent a duration or lose the command's evidence to schema validation:
+    # the validator will conservatively reject the reversed chronology.
+    elapsed = (_timestamp(finished_at) - _timestamp(started_at)).total_seconds()
+    duration = round(elapsed, 3) if elapsed >= 0 else None
+    if duration is None:
+        uncertainty = _clip(
+            "wall clock moved backwards during command; elapsed duration unavailable"
+            + (f"; {uncertainty}" if uncertainty else ""),
+            300,
+        )
     after = observe_repository(repository)
     artifacts = []
     for name, path in (("stdout", stdout_path), ("stderr", stderr_path)):
@@ -668,7 +674,16 @@ def _consistency(receipt):
         if finished < started:
             problems.append("contradictory: finished_at precedes started_at")
         elapsed = (finished - started).total_seconds()
-        if abs(execution["duration_seconds"] - elapsed) > 2.0:
+        if execution["duration_seconds"] is None:
+            if elapsed >= 0:
+                problems.append(
+                    "contradictory: duration_seconds unavailable without reversed execution timestamps"
+                )
+            if not execution["uncertainty"]:
+                problems.append(
+                    "contradictory: unavailable duration_seconds without recorded uncertainty"
+                )
+        elif abs(execution["duration_seconds"] - elapsed) > 2.0:
             problems.append(
                 "contradictory: duration_seconds disagrees with the timestamps"
             )
@@ -1113,6 +1128,21 @@ def main(argv=None):
             else None,
             "changed_during_run": receipt["repository"]["changed_during_run"],
         }
+        contradictions = _consistency(receipt)
+        if contradictions:
+            # A real command may finish across a backward wall-clock step.
+            # Retain its raw outcome in the receipt, but use the validator's
+            # redaction rules for the CLI's public summary as well.
+            invalid = _finish(
+                Path(args.out) / RECEIPT_NAME,
+                receipt,
+                summary["receipt"]["sha256"],
+                "invalid",
+                contradictions,
+                ["consistency"],
+            )
+            summary.update({key: invalid[key] for key in summary if key != "receipt"})
+            summary.update(outcome="invalid", problems=invalid["problems"])
         print(canonical(summary))
         # The wrapper reports the command's own status; success is never implied.
         return 0 if receipt["execution"]["succeeded"] else 1
