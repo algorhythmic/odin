@@ -299,12 +299,16 @@ dispatches to it.
 
 ### Activation and recovery of the notice release
 
-Records written by this release carry `deadlines`, `attention` and
-`delegation_profile` (ODIN-ADR-031) on every loop the new service touches
-(even as nulls), and `development_loop_notices` rows. The pre-notice service
-(972a92d and earlier) validates loops against a closed schema when it writes
-them and rejects those fields, and its command schema rejects the bridge's
-`accept` field. Consequences, stated exactly, each exercised with real
+Records written by this release add `deadlines`, `attention` and
+`delegation_profile` (ODIN-ADR-031) to the loops the new service touches, and
+`development_loop_notices` rows. Per write, the new code adds: `start` all
+three (`attention` as null); a status transition `attention` (null); a stall
+observation `attention`; an operator deadline edit `deadlines`; configuring
+delegation `delegation_profile`. The pre-notice service (972a92d and earlier)
+validates loops against a closed schema when it writes them and rejects any
+of these three fields, so one is enough to make its next write of that loop
+fail; its command schema also rejects the bridge's `accept` field.
+Consequences, stated exactly, each exercised with real
 service and bridge processes in isolated temporary state (the current tree
 against an extracted 972a92d tree; the output is retained privately with the
 stage evidence, never in the checkout):
@@ -323,9 +327,10 @@ stage evidence, never in the checkout):
   written only by the pre-notice service carries neither `deadlines` nor
   `attention` until the new code first touches it: status reports
   `work.deadlines` as all null, no attention and no notices, and an
-  operator deadline edit adds the fields without a transition.
+  operator deadline edit adds `deadlines` without a transition.
 - **Unsupported**: downgrading the service to a pre-notice revision after
-  any loop has been started, transitioned or re-configured by the new code.
+  any loop has been started, transitioned, observed as stalled or
+  re-configured by the new code.
   That revision reads and reports such records without complaint (it
   validates only on write), so status looks healthy, but its next transition
   fails its own schema: the bridge sees a generic write failure ("Write
