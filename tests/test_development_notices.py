@@ -1378,17 +1378,21 @@ class NoticeGatewayTests(unittest.TestCase):
         (directory / "started.json").unlink()
         bound = dispatch | {"spec_digest": digest(spec)}
         other = spec | {"turn": "01M5EWZR9QSPRKH9077BDAJYY9"}
-        for name, value in (("dispatch.json", bound | {"spec_digest": "d" * 64}),
-                            ("dispatch.json", bound | {"attempt": 2}),
-                            ("spec.json", other),
-                            ("dispatch.json", bound | {"spec_digest": digest(other)})):
-            definition = "dispatch" if name == "dispatch.json" else "spec"
-            _write(directory / name, value, EVALUATOR_SCHEMA, definition=definition)
-            self.assertEqual(runner._observe_finished(), [], name)
+        for case, (stored_spec, stored_dispatch) in {
+            "spec digest": (spec, bound | {"spec_digest": "d" * 64}),
+            "dispatch attempt": (spec, bound | {"attempt": 2}),
+            "spec turn": (other, bound | {"spec_digest": digest(other)}),
+        }.items():
+            _write(directory / "spec.json", stored_spec, EVALUATOR_SCHEMA, definition="spec")
+            _write(directory / "dispatch.json", stored_dispatch, EVALUATOR_SCHEMA,
+                   definition="dispatch")
+            self.assertEqual(runner._observe_finished(), [], case)
         _write(directory / "spec.json", spec, EVALUATOR_SCHEMA, definition="spec")
         _write(directory / "dispatch.json", bound, EVALUATOR_SCHEMA, definition="dispatch")
-        with patch("odin.development_gateway._processes", return_value=None):
-            self.assertEqual(runner._observe_finished(), [])  # unreadable process table
+        with (patch("odin.development_gateway._processes", return_value=None),
+              patch("odin.development_gateway._present",
+                    side_effect=AssertionError("unreadable process table was used"))):
+            self.assertEqual(runner._observe_finished(), [])
         quiet = "SELECT COUNT(*) FROM development_loop_receipts WHERE operation LIKE 'evaluator-quiet:%'"
         self.assertEqual(loop.store.db.execute(quiet).fetchone()[0], 0)
         with self.assertRaises(Conflict):  # cancelled, but attempt 2 never started
