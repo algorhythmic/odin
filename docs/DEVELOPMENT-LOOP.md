@@ -394,20 +394,24 @@ the stage evidence, never in the checkout):
   it keeps the gate false permanently; the record is never erased or
   relabelled. Retirement and acknowledgement are not process termination. Its
   `unresolved` entry reports whether the recorded runner and harness process
-  groups are observed `present`, `absent` or `unknown`. Replacing the service
-  with a lost turn on record therefore needs an explicit supervisor decision
-  outside the gate, based on this external observation: no live process in
-  the turn's recorded runner or harness process group (`pgrep -g <pid>` for
-  each), no process naming the turn's spool `delegations/<session>/<turn>/`,
-  and no native harness process for that turn's session. The gate cannot see
-  a harness whose process group was never recorded (the runner exited before
-  writing `started.json`) or a descendant that left its process group.
+  groups are observed `present` (a group has a live member or a process
+  argument names the turn's spool), `absent` or `unknown`. Replacing the
+  service with a lost turn on record therefore needs an explicit supervisor
+  decision outside the gate, based on this external observation: no live
+  process in the turn's recorded runner or harness process group (`pgrep -g
+  <pid>` for each), no process naming the turn's spool
+  `delegations/<session>/<turn>/`, and no native harness process for that
+  turn's session. The gate cannot see a harness whose process group was never
+  recorded (the runner exited before writing `started.json`) or a descendant
+  that left its process group.
 
-  The status only observes: it signals, reconciles and redispatches nothing.
-  A reading is not a lock: an evaluator can be dispatched and a delegated
-  turn can start immediately after it, so read the gate immediately before
-  the replacement, not earlier. An interrupted evaluator must be reconciled
-  through `loop_reconcile` with a real observation afterwards.
+  Any process of this user naming a spool path, even a `tail -f` on a spool
+  file, keeps the gate closed while it runs. The status only observes: it
+  signals, reconciles and redispatches nothing. A reading is not a lock: an
+  evaluator can be dispatched and a delegated turn can start immediately
+  after it, so read the gate immediately before the replacement, not earlier.
+  An interrupted evaluator must be reconciled through `loop_reconcile` with a
+  real observation afterwards.
 
 ### Receipts in the development loop
 

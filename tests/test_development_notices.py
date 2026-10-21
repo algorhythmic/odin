@@ -13,7 +13,8 @@ from unittest.mock import patch
 from odin.contracts import canonical, identifier
 from odin.coordination import Actor
 from odin.development_evaluator import SCHEMA as EVALUATOR_SCHEMA, _write
-from odin.development_gateway import _processes
+from odin.development_gateway import UNRESOLVED_DETAIL, _processes
+from odin.executive_projection import MAX_COMPACT_BYTES, project_receipt
 from odin.development_loop import MARKER, DevelopmentLoop, clip_bytes, normalize_deadlines
 from odin.executive_service import prepare_project, submit_executive
 from odin.gateway import Gateway, GatewayContext
@@ -1238,7 +1239,13 @@ class NoticeGatewayTests(unittest.TestCase):
         self.assertFalse(gate["restart_quiescent"])
         self.assertEqual(gate["evaluator_executions_outstanding"], 1)
         self.assertEqual(gate["unresolved"][0]["id"], job["id"])
+        # The executive's compact status view keeps the whole closed gate.
+        status = self.send("loop_status", {"loop_id": loop_id})
+        compact = project_receipt("odin_loop_status", {"result": status})
+        self.assertEqual(compact["result"]["projection"]["view"], "compact")
+        self.assertEqual(compact["result"]["quiescence"], status["quiescence"])
         self.assertIsNone(runner.poll())  # status observes; it never signals
+        self.assertFalse((directory / "stop.json").exists())  # nor requests a stop
         self.assertEqual(self.gateway.development_loop.job(job["id"])["state"], "cancelled")
         # A harness that outlives its runner keeps its recorded group busy
         # even though its arguments do not name the spool.
@@ -1309,6 +1316,18 @@ class NoticeGatewayTests(unittest.TestCase):
         self.assertEqual(
             missing["unresolved"][0]["reason"], "dispatch evidence missing or unreadable"
         )
+
+    def test_compact_status_keeps_a_maximal_unresolved_gate(self):
+        result = self.send("loop_start", {"goal": "Many", "session_id": self.session})
+        status = self.send("loop_status", {"loop_id": result["loop"]["id"]})
+        entry = {"kind": "delegated_turn_lost", "id": "7" * 26,
+                 "reason": "native outcome unknown; recorded processes unknown"}
+        status["quiescence"] |= {"unresolved": [entry] * UNRESOLVED_DETAIL,
+                                 "delegated_turns_lost": 9007199254740991,
+                                 "restart_quiescent": False}
+        compact = project_receipt("odin_loop_status", {"result": status})
+        self.assertEqual(compact["result"]["quiescence"], status["quiescence"])
+        self.assertLessEqual(len(canonical(compact).encode()), MAX_COMPACT_BYTES)
 
     def test_restart_gate_is_service_wide(self):
         own = self.send("loop_start", {"goal": "Own", "session_id": self.session})
