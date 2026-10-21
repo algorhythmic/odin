@@ -22,7 +22,7 @@ from odin.development_loop import MARKER, DevelopmentLoop, clip_bytes, normalize
 from odin.executive_service import prepare_project, submit_executive
 from odin.gateway import Gateway, GatewayContext
 from odin.service import Service
-from odin.store import Conflict, Store
+from odin.store import Conflict, Store, digest
 from test_development_evaluator import NATIVE
 from test_memory import P, project
 
@@ -1358,7 +1358,24 @@ class NoticeGatewayTests(unittest.TestCase):
         # spool check can show a runner, and while one names it nothing is
         # recorded.
         self.send("loop_control", {"loop_id": result["loop"]["id"], "action": "stop"})
-        runner = EvaluatorRunner(loop, Path(self.temp.name), None)
+        runner = EvaluatorRunner(loop, Path(self.temp.name), self.native_config())
+        dispatch = json.loads((directory / "dispatch.json").read_text())
+        self.assertEqual(runner._observe_finished(), [])  # no spec binds the harness
+        spec = runner._spec(job, directory)
+        _write(directory / "spec.json", spec, EVALUATOR_SCHEMA, definition="spec")
+        _write(directory / "dispatch.json", dispatch | {"spec_digest": digest(spec)},
+               EVALUATOR_SCHEMA, definition="dispatch")
+        # Opened harness output without started.json: the harness may have
+        # started with an unrecorded group. Unresolved, never recorded.
+        (directory / "stdout.log").touch(mode=0o600)
+        gate = self.gate(result["loop"]["id"])
+        self.assertEqual(gate["unresolved"][0]["reason"], "dispatch evidence missing or unreadable")
+        self.assertEqual(runner._observe_finished(), [])
+        (directory / "stdout.log").unlink()
+        (directory / "started.json").symlink_to(directory / "missing.json")  # dangling
+        self.assertEqual(self.gate(result["loop"]["id"])["evaluator_executions_unresolved"], 1)
+        self.assertEqual(runner._observe_finished(), [])
+        (directory / "started.json").unlink()
         with self.assertRaises(Conflict):  # cancelled, but attempt 2 never started
             loop.mark_evaluator_quiet(job["id"], job["packet_digest"], 2)
         named = self.sleeper(str(directory))
@@ -1369,9 +1386,8 @@ class NoticeGatewayTests(unittest.TestCase):
         with patch("odin.development_gateway.RECORD_LIMIT", 0):
             self.assertTrue(self.gate(result["loop"]["id"])["restart_quiescent"])
 
-    def test_completed_evaluator_descendant_in_its_harness_group_keeps_gate_closed(self):
-        """A real runner and harness complete successfully; a descendant stays
-        in the recorded harness group with no spool argument."""
+    def native_config(self, model="fixture"):
+        """A synthetic native evaluator outside the state directory."""
         native = tempfile.TemporaryDirectory()
         self.addCleanup(native.cleanup)
         root = Path(native.name)
@@ -1380,10 +1396,16 @@ class NoticeGatewayTests(unittest.TestCase):
         binary = root / "native-fixture"
         binary.write_text(NATIVE)
         binary.chmod(0o700)
-        config = {"schema_version": 1, "enabled": True, "harness": "codex",
-                  "binary": str(binary), "workspace": str(root / "workspace"),
-                  "config_dir": str(root / "profile"), "model": "descendant",
-                  "timeout_seconds": 30}
+        return {"schema_version": 1, "enabled": True, "harness": "codex",
+                "binary": str(binary), "workspace": str(root / "workspace"),
+                "config_dir": str(root / "profile"), "model": model,
+                "timeout_seconds": 30}
+
+    def test_completed_evaluator_descendant_in_its_harness_group_keeps_gate_closed(self):
+        """A real runner and harness complete successfully; a descendant stays
+        in the recorded harness group with no spool argument."""
+        config = self.native_config("descendant")
+        root = Path(config["workspace"]).parent
         result = self.send("loop_start", {"goal": "Descendant", "session_id": self.session})
         loop_id, job = result["loop"]["id"], result["job"]
         state = Path(self.temp.name)

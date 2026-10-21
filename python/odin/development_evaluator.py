@@ -612,7 +612,12 @@ class EvaluatorRunner:
         unreadable table, records nothing, so the restart gate keeps reading
         the attempt. Never signals.
         """
-        from .development_gateway import RECORD_LIMIT, _present, _processes
+        from .development_gateway import (
+            RECORD_LIMIT,
+            _harness_recorded_or_required,
+            _present,
+            _processes,
+        )
 
         placeholders = ",".join("?" * len(FINISHED_EVALUATOR_STATES))
         rows = self.store.db.execute(
@@ -642,15 +647,17 @@ class EvaluatorRunner:
                     or dispatch["attempt"] != attempt
                 ):
                     continue
+                # The spec binds the harness arguments, which name the spool.
+                spec = _read(directory / "spec.json", SCHEMA, definition="spec")
+                if digest(spec) != dispatch["spec_digest"] or spec["turn"] != job["id"]:
+                    continue
                 # A reservation without a runner PID: a runner that did start
                 # has exec'd with the spool in its arguments, so the spool
                 # check below covers it.
                 groups = {dispatch["runner_pid"]} - {None}
-                if (directory / "started.json").exists():
+                if _harness_recorded_or_required(job, directory):
                     started = _read(directory / "started.json", SCHEMA, definition="started")
                     groups |= {started["runner_pid"], started["harness_pid"]}
-                elif job["state"] == "completed":
-                    continue  # A completed runner recorded its harness first.
                 if _present(processes, groups, directory):
                     continue
                 self.loop.mark_evaluator_quiet(job["id"], job["packet_digest"], attempt)

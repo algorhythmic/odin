@@ -272,6 +272,18 @@ def _present(processes, groups, directory):
     )
 
 
+def _harness_recorded_or_required(job, directory):
+    """Whether started.json must be read for the job's harness group.
+
+    A completed runner wrote it before its result, and a runner that opened
+    the harness's output may have started the harness. A dangling link counts
+    as present, so its reading fails as unresolved.
+    """
+    return job["state"] == "completed" or any(
+        os.path.lexists(directory / name) for name in ("started.json", "stdout.log")
+    )
+
+
 def _evaluator_executions(gateway, state, processes):
     """Classify every dispatched evaluator job by process evidence, read-only.
 
@@ -343,8 +355,7 @@ def _evaluator_executions(gateway, state, processes):
             ):
                 raise Conflict("evaluator spool job/packet binding mismatch")
             groups = {dispatch["runner_pid"]}
-            # A completed runner wrote started.json before its result.
-            if job["state"] == "completed" or (directory / "started.json").exists():
+            if _harness_recorded_or_required(job, directory):
                 started = _read(directory / "started.json", SCHEMA, definition="started")
                 groups |= {started["runner_pid"], started["harness_pid"]}
         except (OSError, ValueError, KeyError, TypeError, ValidationError, Conflict):

@@ -382,10 +382,15 @@ the stage evidence, never in the checkout):
   lost or unknown, is therefore checked against its dispatch reservation and
   `started.json`: it stays outstanding while a recorded runner or harness
   process group has a live member, and unresolved while `dispatch.json`, or
-  `started.json` when present or the job is completed (the runner writes it
-  before its result), is missing, unreadable or not private. A job that is
-  not completed and has no `started.json` is checked against the runner group
-  alone. Until the attempt is recorded quiet, a reused process ID can only
+  `started.json`, is missing, unreadable or not private. `started.json` is
+  required once the job is completed (the runner writes it before its result)
+  or once `started.json` or the harness's `stdout.log` exists in any form,
+  including a dangling link: the runner opens `stdout.log` immediately before
+  starting the harness, so a runner that died between the two may have left a
+  harness group that was never recorded. Such a job stays unresolved until a
+  supervisor reconciles it; it is never recorded quiet. A job that is not
+  completed and has neither file is checked against the runner group alone.
+  Until the attempt is recorded quiet, a reused process ID can only
   make the reading conservative.
 
   Decision (stage 7): the evaluator scheduler, not the status, records when a
@@ -393,8 +398,8 @@ the stage evidence, never in the checkout):
   has been observed quiet: one process-table reading found no member of the
   runner and harness groups recorded for that attempt and no process naming
   its spool (the runner's and harness's own arguments name it), with its
-  dispatch for that attempt and, when present or once completed,
-  `started.json` readable and private. The record is a durable loop receipt
+  dispatch and spec for that attempt bound to the job and, whenever the
+  gate requires it, `started.json` readable and private. The record is a durable loop receipt
   `evaluator-quiet:<job>:<attempt>`; it changes no loop or job state, signals
   nothing and is never written from missing or unreadable evidence or an
   unreadable process table. An empty process group cannot regain members, so
