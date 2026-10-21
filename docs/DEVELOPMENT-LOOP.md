@@ -378,17 +378,21 @@ the stage evidence, never in the checkout):
   outstanding in any state. Completion is not process-group termination: the
   runner waits for its harness, not for every member of the harness's process
   group, so a successful harness can leave a descendant in its recorded group
-  whose arguments name no spool. Every dispatched job, completed, cancelled,
-  lost or unknown, is therefore checked against its dispatch reservation and
-  `started.json`: it stays outstanding while a recorded runner or harness
+  whose arguments name no spool. Every dispatched job without a quiet record,
+  in any state including completed, cancelled, lost and unknown, is therefore
+  checked against its dispatch reservation and `started.json`: it stays outstanding while a recorded runner or harness
   process group has a live member, and unresolved while `dispatch.json`, or
   `started.json`, is missing, unreadable or not private. `started.json` is
   required once the job is completed (the runner writes it before its result)
   or once `started.json` or the harness's `stdout.log` exists in any form,
   including a dangling link: the runner opens `stdout.log` immediately before
-  starting the harness, so a runner that died between the two may have left a
-  harness group that was never recorded. Such a job stays unresolved until a
-  supervisor reconciles it; it is never recorded quiet. A job that is not
+  starting the harness and writes `started.json` immediately after, so a
+  runner that died after opening `stdout.log` may have started a harness
+  whose group was never recorded. Such a job stays unresolved and is never
+  recorded quiet; `loop_reconcile` changes only the job and loop state and
+  does not clear it. Clearing it is an explicit supervisor decision outside
+  the gate, based on the external observation described below for lost
+  delegated turns. A job that is not
   completed and has neither file is checked against the runner group alone.
   Until the attempt is recorded quiet, a reused process ID can only
   make the reading conservative.

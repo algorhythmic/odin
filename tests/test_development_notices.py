@@ -1376,6 +1376,21 @@ class NoticeGatewayTests(unittest.TestCase):
         self.assertEqual(self.gate(result["loop"]["id"])["evaluator_executions_unresolved"], 1)
         self.assertEqual(runner._observe_finished(), [])
         (directory / "started.json").unlink()
+        bound = dispatch | {"spec_digest": digest(spec)}
+        other = spec | {"turn": "01M5EWZR9QSPRKH9077BDAJYY9"}
+        for name, value in (("dispatch.json", bound | {"spec_digest": "d" * 64}),
+                            ("dispatch.json", bound | {"attempt": 2}),
+                            ("spec.json", other),
+                            ("dispatch.json", bound | {"spec_digest": digest(other)})):
+            definition = "dispatch" if name == "dispatch.json" else "spec"
+            _write(directory / name, value, EVALUATOR_SCHEMA, definition=definition)
+            self.assertEqual(runner._observe_finished(), [], name)
+        _write(directory / "spec.json", spec, EVALUATOR_SCHEMA, definition="spec")
+        _write(directory / "dispatch.json", bound, EVALUATOR_SCHEMA, definition="dispatch")
+        with patch("odin.development_gateway._processes", return_value=None):
+            self.assertEqual(runner._observe_finished(), [])  # unreadable process table
+        quiet = "SELECT COUNT(*) FROM development_loop_receipts WHERE operation LIKE 'evaluator-quiet:%'"
+        self.assertEqual(loop.store.db.execute(quiet).fetchone()[0], 0)
         with self.assertRaises(Conflict):  # cancelled, but attempt 2 never started
             loop.mark_evaluator_quiet(job["id"], job["packet_digest"], 2)
         named = self.sleeper(str(directory))
