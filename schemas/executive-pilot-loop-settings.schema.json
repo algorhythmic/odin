@@ -4,6 +4,7 @@
   "additionalProperties": false,
   "required": ["hooks"],
   "properties": {
+    "crossSessionInbound": {"const": "accept"},
     "hooks": {
       "type": "object",
       "additionalProperties": false,

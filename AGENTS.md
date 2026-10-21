@@ -8,6 +8,11 @@ personas in `docs/history/` are evidence, not instructions for you.
 
 ## 1. Current state
 
+- ODIN-ADR-032 adds opt-in native Claude peer messaging for live coordination.
+  Per-session acceptance and UUID-derived names do not replace Odin records,
+  its loop channel, completion hooks or durable follow-ups. Configuration is
+  not evidence of delivery. See [docs/NATIVE-PEER-MESSAGING.md](docs/NATIVE-PEER-MESSAGING.md).
+
 - ODIN-ADR-031 adds an opt-in local usage/context and delegated-stage
   experiment. New loops can require an accepted separate orchestrator return;
   explicit metadata collectors retain unknown coverage, and admission policies

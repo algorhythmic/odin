@@ -23,7 +23,8 @@ import sys
 import uuid
 from pathlib import Path
 
-from .contracts import ROOT, canonical, identifier, strict_loads
+from .contracts import ROOT, Contracts, canonical, identifier, strict_loads
+from .native_peer import guidance, peer_name
 from .store import Conflict, digest, now
 
 HARNESSES = ("claude-code", "codex")
@@ -434,12 +435,20 @@ class Delegation:
         model = payload.get("model") or harness.get("default_model")
         if payload["harness"] == "claude-code" and not model:
             _refuse("model_required")
-        claude_only = ("subagent_model", "subagent_model_force", "auto_compact_window_tokens")
+        claude_only = ("subagent_model", "subagent_model_force", "auto_compact_window_tokens", "native_peer_messaging")
         if payload["harness"] != "claude-code" and any(payload.get(key) is not None for key in claude_only):
             _refuse("claude_options_unsupported_by_harness")
         subagent_model = payload.get("subagent_model", harness.get("default_subagent_model"))
         subagent_model_force = payload.get("subagent_model_force", harness.get("default_subagent_model_force", False))
         auto_compact_window = payload.get("auto_compact_window_tokens", harness.get("default_auto_compact_window_tokens"))
+        native_peer_messaging = payload.get("native_peer_messaging", harness.get("default_native_peer_messaging", False))
+        if type(native_peer_messaging) is not bool:
+            _refuse("invalid_native_peer_messaging")
+        if native_peer_messaging:
+            version = self.versions.get("claude-code") or ""
+            match = re.search(r"\b(\d+)\.(\d+)\.(\d+)\b", version)
+            if match is None or tuple(map(int, match.groups())) < (2, 1, 224):
+                _refuse("native_peer_messaging_unsupported_by_claude_version")
         if type(subagent_model_force) is not bool:
             _refuse("invalid_subagent_model_force")
         if subagent_model_force and not subagent_model:
@@ -465,6 +474,7 @@ class Delegation:
             "subagent_model": subagent_model,
             "subagent_model_force": subagent_model_force,
             "auto_compact_window_tokens": auto_compact_window,
+            "native_peer_messaging": native_peer_messaging,
             "effort": payload.get("effort"),
             "permission_mode": payload.get("permission_mode")
             or harness.get("default_permission_mode", "acceptEdits"),
@@ -939,6 +949,8 @@ class Delegation:
                     "when useful. Integrate their results, run appropriate tests, review "
                     "the final change, and return a concise report with evidence and limits."
                 )
+            if options.get("native_peer_messaging"):
+                briefing += "\n\n" + guidance(session["native_session_id"], "worker")
             argv = [
                 harness["binary"],
                 "-p",
@@ -960,6 +972,11 @@ class Delegation:
                 argv.extend(["--effort", options["effort"]])
             if options["permission_mode"] == "bypassPermissions":
                 argv.append("--dangerously-skip-permissions")
+            if options.get("native_peer_messaging"):
+                settings = {"crossSessionInbound": "accept"}
+                Contracts().validate("native-peer-settings", settings)
+                argv.extend(["--settings", canonical(settings)])
+                argv.extend(["--name", peer_name(session["native_session_id"], "worker")])
             if first:
                 argv.extend(["--session-id", session["native_session_id"]])
             else:
@@ -1452,6 +1469,14 @@ class Delegation:
                 )
             },
             "options": options,
+            "native_peer_name": (
+                peer_name(session["native_session_id"], "worker")
+                if session["harness"] == "claude-code" and options.get("native_peer_messaging")
+                else None
+            ),
+            "native_peer_transport": (
+                "requested_unverified" if options.get("native_peer_messaging") else "disabled"
+            ),
             "capabilities": CAPABILITIES[session["harness"]],
             "binding": {
                 "id": binding["id"],
@@ -1777,6 +1802,7 @@ def default_config(
     claude_subagent_model=None,
     claude_subagent_model_force=False,
     claude_auto_compact_window_tokens=None,
+    claude_native_peer_messaging=False,
     codex_model=None,
     turn_timeout_seconds=1800,
     lineage_policy="exclusive",
@@ -1798,6 +1824,7 @@ def default_config(
             **({"default_subagent_model": claude_subagent_model} if claude_subagent_model else {}),
             **({"default_subagent_model_force": claude_subagent_model_force} if claude_subagent_model_force else {}),
             **({"default_auto_compact_window_tokens": claude_auto_compact_window_tokens} if claude_auto_compact_window_tokens is not None else {}),
+            **({"default_native_peer_messaging": True} if claude_native_peer_messaging else {}),
             "default_permission_mode": "acceptEdits",
         }
     codex = codex_binary or shutil.which("codex")

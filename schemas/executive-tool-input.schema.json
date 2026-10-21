@@ -427,6 +427,9 @@
           "type": "integer",
           "minimum": 100000,
           "maximum": 1000000
+        },
+        "native_peer_messaging": {
+          "type": "boolean"
         }
       },
       "allOf": [

@@ -61,6 +61,7 @@ def main():
             "executive-prepare",
             "executive-status",
             "executive-configure-context",
+            "executive-configure-peer-messaging",
             "executive-login",
             "executive-start",
             "executive-new-session",
@@ -137,6 +138,7 @@ def main():
     parser.add_argument("--auto-compact-window-tokens", type=int, help="requested native Claude context window, 100000..1000000 tokens")
     parser.add_argument("--claude-subagent-model", help="default delegated Claude native subagent model")
     parser.add_argument("--claude-subagent-model-force", action="store_true", help="request native model override for ordinary subagents; native exceptions remain")
+    parser.add_argument("--native-peer-messaging", action=argparse.BooleanOptionalAction, default=None, help="opt into session-scoped native Claude peer messaging")
     parser.add_argument("--usage-semantics", choices=["per_turn", "session_cumulative"], default="per_turn", help="explicit Codex source counter semantics")
     parser.add_argument("--once", action="store_true", help="poll configured usage-watch sources once and exit")
     parser.add_argument("--usage-provider", choices=["claude", "codex", "claude-status"])
@@ -212,6 +214,10 @@ def main():
             if args.auto_compact_window_tokens is None:
                 parser.error("executive-configure-context requires --auto-compact-window-tokens")
             print(canonical(executive_runtime.configure_context(state, auto_compact_window_tokens=args.auto_compact_window_tokens)))
+        elif args.action == "executive-configure-peer-messaging":
+            if args.native_peer_messaging is None:
+                parser.error("executive-configure-peer-messaging requires --native-peer-messaging or --no-native-peer-messaging")
+            print(canonical(executive_runtime.configure_peer_messaging(state, enabled=args.native_peer_messaging)))
         elif args.action == "executive-status":
             print(canonical(executive_runtime.status(state)))
         elif args.action == "executive-login":
@@ -349,6 +355,7 @@ def main():
                 claude_subagent_model=args.claude_subagent_model,
                 claude_subagent_model_force=args.claude_subagent_model_force,
                 claude_auto_compact_window_tokens=args.auto_compact_window_tokens,
+                claude_native_peer_messaging=bool(args.native_peer_messaging),
                 codex_model=args.codex_model,
                 turn_timeout_seconds=args.turn_timeout,
                 lineage_policy=args.lineage_policy,

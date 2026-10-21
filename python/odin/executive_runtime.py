@@ -10,6 +10,7 @@ from __future__ import annotations
 import fcntl
 import os
 import pwd
+import re
 import shutil
 import stat
 import subprocess
@@ -20,6 +21,7 @@ from pathlib import Path
 
 from .contracts import ROOT, Contracts, canonical, strict_loads
 from .executive_mcp import ExecutiveBridge, SocketGateway
+from .native_peer import guidance as peer_guidance, peer_name
 
 DEFAULT_MODEL = "claude-fable-5-1"
 MCP_TOOLS = (
@@ -362,6 +364,8 @@ def prepare(
                 manifest.update(version=existing["version"], repository_root=str(ROOT))
             if existing.get("development_loop"):
                 manifest["development_loop"] = True
+            if existing.get("native_peer_messaging"):
+                manifest["native_peer_messaging"] = True
             if existing != manifest:
                 raise ValueError(
                     "pilot already prepared with a different configuration"
@@ -515,6 +519,17 @@ def _launch_spec(manifest, base, *, resume=False):
                     str(_loop_settings_path(manifest, base)),
                 ]
             )
+        if manifest.get("native_peer_messaging"):
+            argv.extend(["--name", peer_name(manifest["native_session_id"], "executive")])
+            # Merge the existing hook settings into a per-launch settings value.
+            # Never change a settings file watched by the currently running session.
+            settings = _loop_settings(manifest) if manifest.get("development_loop") else {}
+            settings["crossSessionInbound"] = "accept"
+            Contracts().validate("executive-pilot-loop-settings" if manifest.get("development_loop") else "native-peer-settings", settings)
+            if "--settings" in argv:
+                argv[argv.index("--settings") + 1] = canonical(settings)
+            else:
+                argv.extend(["--settings", canonical(settings)])
         return {
             "argv": argv,
             "cwd": manifest["repository_root"],
@@ -561,7 +576,7 @@ def _launch_spec(manifest, base, *, resume=False):
 
 
 def _development_prompt(manifest):
-    return (
+    prompt = (
         "You are Odin's executive development agent. The operator has explicitly "
         "removed the earlier conversation-only and read-only pilot restrictions "
         "so you can investigate and improve Odin. Use the native Claude Code tools "
@@ -587,6 +602,9 @@ def _development_prompt(manifest):
         "an accepted or cancelled disposition; they carry no isolation or Saga "
         "guarantees."
     )
+    if manifest.get("native_peer_messaging"):
+        prompt += peer_guidance(manifest["native_session_id"], "executive")
+    return prompt
 
 
 def _pending_development(manifest, base):
@@ -596,9 +614,10 @@ def _pending_development(manifest, base):
     pending = _read(path, "executive-pilot")
     expected = manifest | {"version": 3, "repository_root": str(ROOT)}
     comparable = {key: value for key, value in pending.items()
-                  if key not in ("development_loop", "auto_compact_window_tokens")}
+                  if key not in ("development_loop", "auto_compact_window_tokens", "native_peer_messaging")}
     expected.pop("development_loop", None)
     expected.pop("auto_compact_window_tokens", None)
+    expected.pop("native_peer_messaging", None)
     if manifest.get("auto_compact_window_tokens") is not None and pending.get("auto_compact_window_tokens") is None:
         raise PermissionError("pending context configuration removed a configured window")
     if comparable != expected or (
@@ -695,6 +714,35 @@ def configure_context(state, *, auto_compact_window_tokens):
         }
 
 
+def configure_peer_messaging(state, *, enabled):
+    """Stage explicit native inbound acceptance for this executive only."""
+    if type(enabled) is not bool:
+        raise ValueError("enabled must be a boolean")
+    state = _private_directory(state)
+    base = _private_directory(state / "executive-pilot")
+    with _lease(base / "prepare.lock"):
+        manifest, base = _load(state)
+        if manifest["version"] != 3:
+            raise PermissionError("native peer messaging requires the v3 development profile")
+        pending = dict(_pending_development(manifest, base) or manifest)
+        if enabled:
+            pending["native_peer_messaging"] = True
+        else:
+            pending.pop("native_peer_messaging", None)
+        if pending != manifest:
+            _write(base / "pending-development.json", "executive-pilot", pending)
+        else:
+            (base / "pending-development.json").unlink(missing_ok=True)
+        return {
+            "requested_native_peer_messaging": enabled,
+            "pending_activation": pending != manifest,
+            "effective_on_next_start": True,
+            "native_session_id": manifest["native_session_id"],
+            "native_peer_name": peer_name(manifest["native_session_id"], "executive") if enabled else None,
+            "delivery": "unverified",
+        }
+
+
 def login_spec(state):
     """Use exactly the same isolated HOME and credential lineage as the pilot."""
     manifest, base = _load(state)
@@ -786,6 +834,13 @@ def probe(state):
         missing.append("--add-dir")
     if manifest.get("development_loop") and "--settings" not in results[1]:
         missing.append("--settings")
+    if manifest.get("native_peer_messaging"):
+        for flag in ("--settings", "--name"):
+            if flag not in results[1] and flag not in missing:
+                missing.append(flag)
+        version = re.search(r"\b(\d+)\.(\d+)\.(\d+)\b", results[0])
+        if version is None or tuple(map(int, version.groups())) < (2, 1, 224):
+            missing.append("native-peer-messaging>=2.1.224")
     # Development channels use a documented hidden native switch. Help cannot
     # establish channel policy, interactive approval or delivery to this account.
     return {
@@ -842,6 +897,7 @@ def start(state, *, resume=False, auto_compact_window_tokens=None):
                 "resume": resume,
                 "exit_code": None,
                 "auto_compact_window_tokens": launch_manifest.get("auto_compact_window_tokens"),
+                "native_peer_messaging": bool(launch_manifest.get("native_peer_messaging")),
             },
         )
         result = _foreground(
@@ -857,6 +913,7 @@ def start(state, *, resume=False, auto_compact_window_tokens=None):
                 "resume": resume,
                 "exit_code": result,
                 "auto_compact_window_tokens": launch_manifest.get("auto_compact_window_tokens"),
+                "native_peer_messaging": bool(launch_manifest.get("native_peer_messaging")),
             },
         )
         return result
@@ -978,6 +1035,10 @@ def status(state):
         "pending_profile_version": pending["version"] if pending else None,
         "configured_auto_compact_window_tokens": manifest.get("auto_compact_window_tokens"),
         "pending_auto_compact_window_tokens": pending.get("auto_compact_window_tokens") if pending else None,
+        "native_peer_messaging_configured": bool(manifest.get("native_peer_messaging")),
+        "pending_native_peer_messaging": bool(pending.get("native_peer_messaging")) if pending else None,
+        "native_peer_name": peer_name(manifest["native_session_id"], "executive") if manifest.get("native_peer_messaging") else None,
+        "native_peer_delivery": "unverified" if manifest.get("native_peer_messaging") else "disabled",
         "pending_activation_requires_resume": pending is not None,
         "process_lease_held": running,
         "last_launch": receipt,

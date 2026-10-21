@@ -68,6 +68,7 @@
     "development_loop": {
       "const": true
     },
+    "native_peer_messaging": {"const": true},
     "claude_binary": {
       "type": "string",
       "pattern": "^/",
@@ -86,6 +87,10 @@
     }
   },
   "allOf": [
+    {
+      "if": {"required": ["native_peer_messaging"]},
+      "then": {"properties": {"version": {"const": 3}}}
+    },
     {
       "if": {"required": ["development_loop"]},
       "then": {

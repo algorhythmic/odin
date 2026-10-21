@@ -9,6 +9,7 @@
     "exit_code"
   ],
   "properties": {
+    "native_peer_messaging": {"type": "boolean"},
     "version": {
       "const": 1
     },

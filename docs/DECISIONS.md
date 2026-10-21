@@ -2175,6 +2175,45 @@ remain available in every profile.
   This is not proof of nested native delegation, automatic collection coverage,
   cheaper accepted changes, or Saga isolation and limit guarantees.
 
+### ODIN-ADR-032 — Native peer messaging for live coordination
+
+- **Date:** 2026-10-21.
+- **Authority and status:** operator-authorized local experiment: use Claude
+  Code cross-session messaging as a primitive where its tradeoffs improve on
+  the current solution. Extends ADR-026/027/028's native development exception
+  and Odin-owned D7.7; no Saga or producer interface is changed.
+- **Decision:** opt-in executive and delegated Claude sessions request
+  `crossSessionInbound: "accept"` through per-launch `--settings` and receive
+  distinct UUID-derived native names. Use native `ListAgents` and `SendMessage`
+  for clarifications, progress facts and result-available hints during live
+  work. Reuse the native implementation; do not author a parallel socket
+  protocol, inbox or automatic relay.
+- **Tradeoff:** peer messaging can reach a running worker between tool calls
+  and wake an idle native executive. A print-mode worker exits after its turn,
+  so subsequent work still needs Odin's durable resume/follow-up. Native peer
+  delivery is plain text, can be refused or held, and does not establish durable
+  replay, recipient action, cross-provider support or completion. Each delivered
+  message may consume model usage. Requested acceptance is not a per-peer
+  allowlist; native settings precedence and platform/provider behavior apply.
+- **Authority:** Odin's service retains commitments, assignments, results,
+  acceptance, loop state and at-least-once reconciliation. Native peer messages
+  confer no operator approval and do not enter a privileged service command
+  path. The existing MCP loop channel and completion hook remain in use.
+- **Checks:** schemas constrain the opt-in and generated settings; native
+  version checks and deterministic names support discovery; executive tests
+  cover staged activation, identity/context/hook preservation and removal of
+  the override; delegation tests cover opt-in, resume and Codex refusal. Native
+  guidance requests exact-peer resolution, correlation IDs, batched useful
+  messages and no acknowledgement loops; these are prompt guidance, not
+  service-enforced message budgets or sender authentication. Live acceptance
+  requires observed native delivery and a correlated reply. Configuration and
+  status continue to label delivery unverified.
+- **Scope:** disabled by default. The operator can activate only the relevant
+  Odin sessions without changing global Claude settings. Disabling removes
+  Odin's `accept` override; it does not impose native `refuse`. X-12, X-15,
+  required review and Saga guarantees remain unchanged. See
+  [the transport comparison and activation procedure](NATIVE-PEER-MESSAGING.md).
+
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that
