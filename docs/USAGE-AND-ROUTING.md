@@ -350,7 +350,8 @@ prompts or account identifiers.
   utilization. Unavailable samples never contribute a band. The existing
   `claude_status` quota samples and their cursors are unchanged.
 - The watcher config accepts an optional `limit_probes` object with
-  `claude_config_dir`, `codex_home` and `interval_seconds` (default 300). Probe
+  `claude_config_dir`, `codex_home` and `interval_seconds` (default 300). Each
+  probe runs only when its own key is configured. Probe
   samples are sent through the same `usage_import` command path without byte
   cursors or coverage records.
 

@@ -522,10 +522,11 @@ class UsageWatcher:
         self._last_probe = current
         project = self.config["project_id"]
         samples = []
-        if "claude_config_dir" in probes or "codex_home" in probes:
-            samples += probe_claude_limits(probes.get("claude_config_dir"), project_id=project,
+        if "claude_config_dir" in probes:
+            samples += probe_claude_limits(probes["claude_config_dir"], project_id=project,
                                            transport=self.limit_transport)
-            samples += probe_codex_limits(probes.get("codex_home"), project_id=project)
+        if "codex_home" in probes:
+            samples += probe_codex_limits(probes["codex_home"], project_id=project)
         for sample in samples:
             operation = _ulid_from_digest({"limit_probe": sample["label"], "observed_at": sample["observed_at"],
                                            "status": sample["status"]})

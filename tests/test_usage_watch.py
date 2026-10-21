@@ -312,10 +312,11 @@ class WatchTests(unittest.TestCase):
             return 200, json.dumps(recorded).encode()
 
         self.config['sources'] = []
-        self.config['limit_probes'] = {'claude_config_dir': str(login)}
+        self.config['limit_probes'] = {'claude_config_dir': str(login),
+                                       'codex_home': str(self.root / 'absent-codex-home')}
         with UsageWatcher(self.config, address='synthetic', send=self.send,
                           limit_transport=transport) as watch:
-            # Claude limits plus an unavailable Codex probe (no CODEX_HOME configured).
+            # Claude limits plus an unavailable Codex probe (CODEX_HOME has no sessions).
             self.assertEqual(watch.poll()['limit_samples'], 3)
             self.assertEqual(watch.poll()['limit_samples'], 0)  # interval not yet elapsed
         snapshots = self.gateway.usage.summary(project_id=self.project)['limit_snapshots']

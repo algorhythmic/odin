@@ -190,6 +190,28 @@ class ServiceActivationTests(unittest.TestCase):
                                  ("failed", "service_unreachable_or_unreported"))
                 self.assertEqual(unit.restarts, 1)
 
+    def test_unexpected_error_after_restart_is_recorded_as_failed(self):
+        unit = self.unit()
+
+        def reachable(state):
+            raise RuntimeError("synthetic")
+
+        with self.assertRaises(RuntimeError):
+            self.activate(unit, reachable=reachable)
+        record = activation.last_activation(self.state)
+        self.assertEqual((record["outcome"], record["reason"]), ("failed", "activation_error"))
+        self.assertIsNotNone(record["finished_at"])
+        self.assertEqual(unit.restarts, 1)
+
+    def test_invalid_arguments_are_rejected_before_any_record(self):
+        unit = self.unit()
+        with self.assertRaises(ValueError):
+            self.activate(unit, head="HEAD")
+        with self.assertRaises(ValueError):
+            self.activate(unit, branch="b" * 257)
+        self.assertIsNone(activation.last_activation(self.state))
+        self.assertEqual(unit.restarts, 0)
+
     def test_systemd_controller_only_addresses_the_service_user_unit(self):
         calls = []
 

@@ -11,7 +11,7 @@
     "version": {"const": 1},
     "id": {"type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"},
     "unit": {"type": "string", "minLength": 1, "maxLength": 128},
-    "requested_head": {"type": "string", "minLength": 1, "maxLength": 128},
+    "requested_head": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "requested_branch": {"type": "string", "minLength": 1, "maxLength": 256},
     "repository": {"type": "string", "minLength": 1, "maxLength": 4096},
     "previous_revision": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},

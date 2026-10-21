@@ -377,8 +377,10 @@ when the store shows a delegated turn queued, launching, running or
 interrupting, a live intervention or admitted permit, or a claimed loop stage;
 when the checkout is detached, on another branch, at another head or not clean;
 when the unit has no main process; or when another activation holds the lease.
-A worker turn runs inside the service unit's control group, so a running turn
-always blocks activation. Quiescence is read through a read-only SQLite
+Delegated workers are children of the service; with the unit's default
+`KillMode=control-group` a restart would stop them, which is why a running
+turn blocks activation. The unit's kill mode is an assumption about the
+external unit, not something Odin checks. Quiescence is read through a read-only SQLite
 connection and is a point-in-time check: work admitted between the check and
 the restart is not prevented.
 

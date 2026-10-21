@@ -9,6 +9,7 @@ or not, leaves a private activation record before and after acting.
 from __future__ import annotations
 
 import os
+import re
 import socket
 import sqlite3
 import subprocess
@@ -89,7 +90,7 @@ def quiescence(state):
     if not path.exists():
         return {"quiescent": True, "blockers": blockers}
     # A read-only URI connection never takes the service's namespace writer lock.
-    db = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=5)
+    db = sqlite3.connect(path.absolute().as_uri() + "?mode=ro", uri=True, timeout=5)
     try:
         tables = {row[0] for row in db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
@@ -185,6 +186,10 @@ def activate(state, *, repository, branch, head, controller=None, reachable=None
     """Restart only the service unit when quiescent and the checkout is reviewed."""
     from .executive_runtime import _lease, _LeaseBusy
 
+    if not re.fullmatch(r"[0-9a-f]{40}", head or ""):
+        raise ValueError("--head must be a full lowercase commit id")
+    if not branch or len(branch) > 256 or len(str(Path(repository).absolute())) > 4096:
+        raise ValueError("--branch and --repository must be non-empty and bounded")
     controller = controller or SystemdUserUnit()
     reachable = reachable or _default_reachable
     record = {"version": 1, "id": identifier(), "unit": controller.unit,
@@ -201,9 +206,14 @@ def activate(state, *, repository, branch, head, controller=None, reachable=None
 
     try:
         with _lease(_directory(state) / "activation.lock"):
-            return _activate(state, record, finish, repository=repository, branch=branch,
-                             head=head, controller=controller, reachable=reachable,
-                             timeout=timeout, clock=clock, sleep=sleep)
+            try:
+                return _activate(state, record, finish, repository=repository, branch=branch,
+                                 head=head, controller=controller, reachable=reachable,
+                                 timeout=timeout, clock=clock, sleep=sleep)
+            except Exception:
+                # Never leave an unexplained `restarting` record behind.
+                finish("failed", "activation_error")
+                raise
     except _LeaseBusy:
         return finish("refused", "activation_in_progress")
 
@@ -220,17 +230,19 @@ def _activate(state, record, finish, *, repository, branch, head, controller,
     reported = service_revision(state)
     if reported and reported["pid"] == previous_pid:
         record["previous_revision"] = reported["revision"]
+    problem = _checkout(repository, branch=branch, head=head)
+    if problem:
+        return finish("refused", problem)
+    # Read quiescence last, just before the restart, to narrow the window in
+    # which the running service could admit new work.
     try:
         view = quiescence(state)
-    except sqlite3.Error:
+    except (sqlite3.Error, ValueError, KeyError, TypeError):
         return finish("refused", "quiescence_unreadable")
     record["quiescence"] = view
     if not view["quiescent"]:
         first = next(key for key, value in view["blockers"].items() if value)
         return finish("refused", "not_quiescent_" + first)
-    problem = _checkout(repository, branch=branch, head=head)
-    if problem:
-        return finish("refused", problem)
     # Intent is durable before the unit is touched.
     record["outcome"] = "restarting"
     _save(state, record)
