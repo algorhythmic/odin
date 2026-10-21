@@ -1159,6 +1159,8 @@ def _service_reachability(manifest):
 
 
 def status(state):
+    from .service_activation import last_activation, service_revision
+
     manifest, base = _load(state)
     pending = _pending_development(manifest, base)
     running = False
@@ -1209,7 +1211,19 @@ def status(state):
         ).is_file(),
         "service_budget_enforced": False,
         "service_reachability": _service_reachability(manifest),
+        "service_revision": _reported(service_revision, state),
+        "last_service_activation": _reported(last_activation, state),
     }
+
+
+def _reported(reader, state):
+    from jsonschema import ValidationError
+
+    try:
+        return reader(state)
+    except (OSError, ValueError, ValidationError):
+        # A damaged record must not hide the rest of status.
+        return "unreadable"
 
 
 def _intervention_hooks(manifest):

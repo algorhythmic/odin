@@ -64,6 +64,7 @@ def main():
             "executive-configure-peer-messaging",
             "executive-configure-execution-role",
             "executive-configure-memory-directory",
+            "executive-activate-service",
             "executive-login",
             "executive-start",
             "executive-new-session",
@@ -151,6 +152,9 @@ def main():
     parser.add_argument("--agent-id", default="executive", help="native agent identity for usage attribution")
     parser.add_argument("--account-id", default="unknown", help="nonsecret provider account label for quota samples")
     parser.add_argument("--stage", help="stage identity for explicitly attributed usage")
+    parser.add_argument("--head", help="reviewed full commit the service must run after activation")
+    parser.add_argument("--branch", help="branch the canonical checkout must be on")
+    parser.add_argument("--activation-timeout", type=float, default=60.0, help="seconds to wait for the restarted service")
     args = parser.parse_args()
     from pathlib import Path
 
@@ -232,6 +236,15 @@ def main():
             print(canonical(executive_runtime.configure_memory_directory(state, directory=args.memory_directory or None)))
         elif args.action == "executive-status":
             print(canonical(executive_runtime.status(state)))
+        elif args.action == "executive-activate-service":
+            if not (args.repository and args.branch and args.head):
+                parser.error("executive-activate-service requires --repository, --branch and --head")
+            from .service_activation import activate
+
+            record = activate(state, repository=args.repository, branch=args.branch,
+                              head=args.head, timeout=args.activation_timeout)
+            print(canonical(record))
+            sys.exit({"activated": 0, "refused": 2}.get(record["outcome"], 1))
         elif args.action == "executive-login":
             sys.exit(executive_runtime.login(state))
         elif args.action == "executive-new-session":
@@ -600,6 +613,15 @@ def main():
                     server.executive_project = args.executive_project if path != address else None
                     selector.register(server, selectors.EVENT_READ)
                 print("Fixture service ready: " + address, flush=True)
+                try:
+                    from jsonschema import ValidationError
+
+                    from .service_activation import record_service_revision
+
+                    record_service_revision(state)
+                except (OSError, ValueError, ValidationError) as error:
+                    print("service revision not recorded: " + type(error).__name__,
+                          file=sys.stderr, flush=True)
                 # A detached service is stopped with SIGTERM; treat it like Ctrl-C
                 # so sockets are removed and the store closes cleanly.
                 import signal

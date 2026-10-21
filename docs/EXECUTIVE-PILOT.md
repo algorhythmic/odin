@@ -359,6 +359,46 @@ permit-gated). It runs at `PreToolUse`, so a concurrent change between the
 check and the write is not prevented. Memory notes never replace Odin records
 of commitments, approvals or acceptance.
 
+### Service-only activation
+
+After a reviewed head is fast-forwarded into the canonical checkout, the
+operator can restart the Odin service on it without touching the executive:
+
+```bash
+~/.local/state/odin-executive-pilot/run executive-activate-service \
+  --repository /path/to/canonical/checkout \
+  --branch codex/odin-continuity-integration --head <full commit>
+```
+
+The action restarts only the `odin-executive-pilot-service` systemd user unit
+through `systemctl --user restart`. It never addresses the executive session,
+the telemetry unit or delegated workers directly. It refuses, without acting,
+when the store shows a delegated turn queued, launching, running or
+interrupting, a live intervention or admitted permit, or a claimed loop stage;
+when the checkout is detached, on another branch, at another head or not clean;
+when the unit has no main process; or when another activation holds the lease.
+A worker turn runs inside the service unit's control group, so a running turn
+always blocks activation. Quiescence is read through a read-only SQLite
+connection and is a point-in-time check: work admitted between the check and
+the restart is not prevented.
+
+`serve` records its own process id, checkout revision and cleanliness in
+`service-revision.json` in the state directory once its sockets are bound.
+After the restart the action waits, up to `--activation-timeout` seconds
+(default 60), for a new main process whose own report matches, and for the
+service to answer. It then compares the reported revision with `--head`. Each
+attempt leaves a private record in
+`executive-pilot/service-activations/<ULID>.json` with the requested head,
+the previous pid and revision, start and finish times, the outcome
+(`refused`, `restarting`, `activated` or `failed`) and a typed reason. The
+record is written before the restart, so an interrupted attempt stays visible
+as `restarting`. `executive-status` reports `service_revision` and
+`last_service_activation`. The exit status is 0 when activated, 2 when refused
+and 1 on failure. A service started before this change writes no revision
+report, so the first activation records the previous revision as `null`.
+Restarting a transient `systemd-run` unit has been exercised only with a fake
+unit controller, not against the live service.
+
 ## Repository evidence and the retained read-only profile
 
 Version 3 already exposes native file tools. The following version 2 upgrade
