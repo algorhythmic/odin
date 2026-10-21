@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import stat
 from datetime import datetime, timezone
 from pathlib import Path
+
+from jsonschema import ValidationError
 
 from .contracts import Contracts, canonical, strict_loads
 from .store import Conflict, now
@@ -255,6 +258,167 @@ def usage_from_codex_jsonl(source, *, project_id, session_id, agent_id="executiv
     return {"observations": observations, "coverage": coverage}
 
 
+CLAUDE_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+CLAUDE_USAGE_BETA = "oauth-2025-04-20"
+LIMIT_PROBE_ID = "limit-probe"
+_LIMIT_LABEL = re.compile(r"^(claude|codex)\.[a-z0-9_.]{1,64}$")
+_MODEL_WINDOW = re.compile(r"^seven_day_([a-z0-9]{1,32})$")
+
+
+def _limit_sample(provider, label, *, project_id, observed_at, status="available",
+                  utilization=None, resets_at=None, reason=None):
+    """Label-keyed limit sample. Probe failures carry only a short fixed reason."""
+    if status == "unavailable":
+        utilization = resets_at = None
+    item = {"schema_version": 1, "kind": "limit", "provider": provider, "project_id": project_id,
+            "source": "probe", "session_id": LIMIT_PROBE_ID, "agent_id": "probe",
+            "observed_at": _timestamp(observed_at), "label": label, "status": status,
+            "utilization_percent": utilization,
+            "resets_at": None if resets_at is None else _timestamp(resets_at),
+            "reason": reason}
+    Contracts().validate("usage-observation", item)
+    return item
+
+
+def _limit_utilization(value):
+    if type(value) not in (int, float) or not 0 <= value <= 100:
+        raise ValueError("invalid utilization")
+    return float(value)
+
+
+def probe_claude_limits(config_dir, *, project_id, transport, observed_at=None):
+    """Query the Claude OAuth usage endpoint with the dedicated login in config_dir.
+
+    The endpoint and response shape are undocumented and unverified here. The
+    token is read only inside this function and is never returned or raised.
+    `transport(url, headers, timeout)` returns (status, body_bytes); tests inject
+    recorded responses. A missing or unreadable config dir is unavailable; there
+    is no fallback to any home directory.
+    """
+    def unavailable(reason):
+        return [_limit_sample("claude", "claude.probe", project_id=project_id,
+                              observed_at=observed_at, status="unavailable", reason=reason)]
+    if not config_dir:
+        return unavailable("claude config dir not configured")
+    try:
+        token = _claude_access_token(config_dir)
+    except ValueError as error:
+        return unavailable(str(error))
+    try:
+        status, body = transport(CLAUDE_USAGE_URL,
+                                 {"Authorization": "Bearer " + token, "anthropic-beta": CLAUDE_USAGE_BETA},
+                                 10)
+    except (OSError, ValueError, RuntimeError):
+        return unavailable("usage endpoint transport failed")
+    if status != 200:
+        return unavailable(f"usage endpoint returned HTTP {int(status) if type(status) is int else 'error'}")
+    if type(body) is not bytes or len(body) > 65536:
+        return unavailable("usage response unreadable or too large")
+    try:
+        payload = strict_loads(body.decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise TypeError("response is not an object")
+        samples = []
+        for key, value in payload.items():
+            if key == "five_hour":
+                label = "claude.five_hour"
+            elif key == "seven_day":
+                label = "claude.weekly"
+            else:
+                match = _MODEL_WINDOW.match(key)
+                if not match:
+                    continue
+                label = "claude.weekly." + match.group(1)
+            if value is None:
+                continue
+            if not isinstance(value, dict):
+                raise TypeError("limit is not an object")
+            samples.append(_limit_sample("claude", label, project_id=project_id,
+                observed_at=observed_at, utilization=_limit_utilization(value.get("utilization")),
+                resets_at=value.get("resets_at")))
+    except (ValueError, TypeError, UnicodeError, ValidationError):
+        return unavailable("usage response malformed")
+    if not samples:
+        return unavailable("usage response had no recognised limits")
+    return samples
+
+
+def _claude_access_token(config_dir):
+    """Read the OAuth access token from CLAUDE_CONFIG_DIR at call time only."""
+    path = Path(config_dir).absolute() / ".credentials.json"
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        raise ValueError("claude credential unavailable") from None
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_size > 65536:
+            raise ValueError("claude credential unreadable")
+        raw = os.read(fd, 65537)
+    except OSError:
+        raise ValueError("claude credential unreadable") from None
+    finally:
+        os.close(fd)
+    try:
+        oauth = strict_loads(raw.decode("utf-8")).get("claudeAiOauth")
+        token = oauth.get("accessToken") if isinstance(oauth, dict) else None
+    except (ValueError, TypeError, UnicodeError, AttributeError):
+        raise ValueError("claude credential unreadable") from None
+    if not isinstance(token, str) or not token:
+        raise ValueError("claude credential has no access token")
+    return token
+
+
+def probe_codex_limits(codex_home, *, project_id, observed_at=None):
+    """Read the newest local Codex session for rate-limit windows (shape unverified).
+
+    Uses the same bounded JSONL reader as the Codex usage collector. Windows of
+    300 and 10080 minutes map to codex.five_hour and codex.weekly. Absent data
+    or an absent CODEX_HOME is an unavailable sample, never a home-directory read.
+    """
+    def unavailable(reason):
+        return [_limit_sample("codex", "codex.probe", project_id=project_id,
+                              observed_at=observed_at, status="unavailable", reason=reason)]
+    if not codex_home:
+        return unavailable("CODEX_HOME not configured")
+    sessions = Path(codex_home).absolute() / "sessions"
+    try:
+        files = sorted(sessions.glob("**/*.jsonl"), key=lambda p: p.name)
+    except OSError:
+        return unavailable("codex sessions unreadable")
+    if not files:
+        return unavailable("no codex session with limit data")
+    latest = None
+    try:
+        for row, state in _rows(files[-1], MAX_BYTES):
+            if state is not None:
+                break
+            limits = (row.get("payload") or {}).get("rate_limits") if isinstance(row.get("payload"), dict) else None
+            if isinstance(limits, dict):
+                latest = (row.get("timestamp"), limits)
+    except (OSError, ValueError, TypeError):
+        return unavailable("codex session unreadable")
+    if latest is None:
+        return unavailable("no codex session with limit data")
+    observed, limits = latest
+    samples = []
+    try:
+        for window in ("primary", "secondary"):
+            value = limits.get(window)
+            if not isinstance(value, dict):
+                continue
+            minutes = value.get("window_minutes")
+            label = {300: "codex.five_hour", 10080: "codex.weekly"}.get(minutes)
+            if label is None:
+                continue
+            samples.append(_limit_sample("codex", label, project_id=project_id,
+                observed_at=observed_at or observed, utilization=_limit_utilization(value.get("used_percent")),
+                resets_at=value.get("resets_at") if isinstance(value.get("resets_at"), str) else None))
+    except (ValueError, TypeError, ValidationError):
+        return unavailable("codex limit data malformed")
+    return samples or unavailable("no codex limit windows recognised")
+
+
 def _assign_revisions(observations):
     seen = {}
     for observation in observations:
@@ -281,6 +445,10 @@ class UsageLedger:
             provider TEXT NOT NULL, project_id TEXT NOT NULL, account_id TEXT NOT NULL, session_id TEXT NOT NULL,
             observed_at TEXT NOT NULL, body TEXT NOT NULL,
             PRIMARY KEY(provider,project_id,account_id,session_id,observed_at))""")
+        store.db.execute("""CREATE TABLE IF NOT EXISTS usage_limits (
+            provider TEXT NOT NULL, project_id TEXT NOT NULL, label TEXT NOT NULL,
+            observed_at TEXT NOT NULL, body TEXT NOT NULL,
+            PRIMARY KEY(provider,project_id,label,observed_at))""")
         store.db.execute("""CREATE TABLE IF NOT EXISTS usage_coverage (
             project_id TEXT NOT NULL, source_id TEXT NOT NULL, body TEXT NOT NULL,
             PRIMARY KEY(project_id,source_id))""")
@@ -299,6 +467,16 @@ class UsageLedger:
                     return "duplicate"
                 self.store.db.execute("INSERT INTO usage_quotas VALUES(?,?,?,?,?,?)", (*key, canonical(observation)))
                 self.store._history("usage.quota_observed", {"observation": observation})
+                return "inserted"
+            if observation["kind"] == "limit":
+                key = tuple(observation[k] for k in ("provider", "project_id", "label", "observed_at"))
+                row = self.store.db.execute("SELECT body FROM usage_limits WHERE provider=? AND project_id=? AND label=? AND observed_at=?", key).fetchone()
+                if row:
+                    if strict_loads(row[0]) != observation:
+                        raise Conflict("conflicting limit sample")
+                    return "duplicate"
+                self.store.db.execute("INSERT INTO usage_limits VALUES(?,?,?,?,?)", (*key, canonical(observation)))
+                self.store._history("usage.limit_observed", {"observation": observation})
                 return "inserted"
             key = tuple(observation[k] for k in ("provider", "project_id", "session_id", "agent_id", "request_id"))
             row = self.store.db.execute("SELECT body FROM usage_requests WHERE provider=? AND project_id=? AND session_id=? AND agent_id=? AND request_id=?", key).fetchone()
@@ -398,6 +576,11 @@ class UsageLedger:
             "SELECT body FROM usage_coverage WHERE project_id=? ORDER BY source_id", (project_id,)
         )]
         latest_quota = max(quotas, key=lambda q: datetime.fromisoformat(q["observed_at"]), default=None)
+        limit_rows = [strict_loads(r[0]) for r in self.store.db.execute(
+            "SELECT body FROM usage_limits WHERE project_id=? ORDER BY observed_at", (project_id,))]
+        limit_snapshots = {}
+        for sample in limit_rows:
+            limit_snapshots[(sample["provider"], sample["label"])] = sample
         if type(max_quota_age_seconds) is not int or max_quota_age_seconds < 0:
             raise ValueError("invalid quota age bound")
         current_time = datetime.fromisoformat(_timestamp(as_of))
@@ -418,4 +601,5 @@ class UsageLedger:
                 "coverage_complete": not cumulative and not any(r["scope"] == "aggregate" for r in rows) and
                                      bool(coverage) and all(c["complete"] for c in coverage) and not any(missing.values()),
                 "coverage": coverage, "quota_snapshots": quotas,
+                "limit_snapshots": sorted(limit_snapshots.values(), key=lambda s: (s["provider"], s["label"])),
                 "limitations": ["coverage_complete covers registered sources only; unregistered native requests may be omitted", "token totals do not infer prices or account quota"]}

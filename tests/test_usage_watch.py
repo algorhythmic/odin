@@ -300,6 +300,32 @@ class WatchTests(unittest.TestCase):
             self.assertEqual(watch.poll()['invalid'], 1)
         self.assertIsNone(self.gateway.usage.summary(project_id=self.project)['latest_quota'])
 
+    def test_limit_probes_import_label_keyed_samples_through_the_gateway(self):
+        secret = 'SYNTHETIC-WATCH-TOKEN-51c2'
+        login = self.root / 'claude-login'
+        login.mkdir(mode=0o700)
+        (login / '.credentials.json').write_text(json.dumps({'claudeAiOauth': {'accessToken': secret}}))
+        recorded = {'five_hour': {'utilization': 91.5, 'resets_at': '2026-10-21T12:00:00Z'},
+                    'seven_day': {'utilization': 40.0, 'resets_at': '2026-10-25T00:00:00Z'}}
+
+        def transport(url, headers, timeout):
+            return 200, json.dumps(recorded).encode()
+
+        self.config['sources'] = []
+        self.config['limit_probes'] = {'claude_config_dir': str(login)}
+        with UsageWatcher(self.config, address='synthetic', send=self.send,
+                          limit_transport=transport) as watch:
+            # Claude limits plus an unavailable Codex probe (no CODEX_HOME configured).
+            self.assertEqual(watch.poll()['limit_samples'], 3)
+            self.assertEqual(watch.poll()['limit_samples'], 0)  # interval not yet elapsed
+        snapshots = self.gateway.usage.summary(project_id=self.project)['limit_snapshots']
+        observed = {(s['label'], s['status'], s['utilization_percent']) for s in snapshots}
+        self.assertEqual(observed, {('claude.five_hour', 'available', 91.5),
+                                    ('claude.weekly', 'available', 40.0),
+                                    ('codex.probe', 'unavailable', None)})
+        self.assertNotIn(secret, json.dumps(self.receipts))
+        self.assertNotIn(secret, json.dumps(snapshots))
+
 
 if __name__ == '__main__':
     unittest.main()

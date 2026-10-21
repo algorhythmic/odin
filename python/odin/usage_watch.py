@@ -18,7 +18,8 @@ from pathlib import Path
 from .contracts import ROOT, Contracts, canonical, strict_loads
 from jsonschema import ValidationError
 from .development_loop import _ulid_from_digest
-from .usage import normalize_claude_status, usage_from_claude_jsonl, usage_from_codex_jsonl
+from .usage import (normalize_claude_status, probe_claude_limits, probe_codex_limits,
+                    usage_from_claude_jsonl, usage_from_codex_jsonl)
 
 DEFAULT_CHUNK = 262144
 MAX_COMMAND_BYTES = 480000
@@ -84,6 +85,14 @@ def _child_agent(path, row):
     return f"child:{path.stem[:64]}:{str(native_agent)[:64]}:{str(native_session)[:64]}:{short}"[:256]
 
 
+def _https_transport(url, headers, timeout):
+    """Default HTTPS GET for the Claude usage probe; tests inject a fake instead."""
+    import urllib.request
+    request = urllib.request.Request(url, headers=headers, method="GET")
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.status, response.read(65537)
+
+
 def _private_file(fd, label):
     info = os.fstat(fd)
     if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or
@@ -92,9 +101,11 @@ def _private_file(fd, label):
 
 
 class UsageWatcher:
-    def __init__(self, config, *, address, send):
+    def __init__(self, config, *, address, send, limit_transport=_https_transport):
         Contracts().validate("usage-watch-config", config)
         self.config, self.address, self.send = config, address, send
+        self.limit_transport = limit_transport
+        self._last_probe = None
         self.max_chunk = config.get("max_chunk_bytes", DEFAULT_CHUNK)
         self.max_files = config.get("max_files", 128)
         cursor = Path(config["cursor_path"]).absolute()
@@ -495,6 +506,33 @@ class UsageWatcher:
                     {"truncated": False, "malformed_lines": 0, "complete": False})
         return "imported"
 
+    def _probe_limits(self):
+        """Label-keyed account limit samples; stateless, sent without byte cursors.
+
+        Failures are recorded as unavailable samples and never touch the
+        status-file cursors or the existing claude status samples.
+        """
+        probes = self.config.get("limit_probes")
+        if not probes:
+            return 0
+        interval = probes.get("interval_seconds", 300)
+        current = time.monotonic()
+        if self._last_probe is not None and current - self._last_probe < interval:
+            return 0
+        self._last_probe = current
+        project = self.config["project_id"]
+        samples = []
+        if "claude_config_dir" in probes or "codex_home" in probes:
+            samples += probe_claude_limits(probes.get("claude_config_dir"), project_id=project,
+                                           transport=self.limit_transport)
+            samples += probe_codex_limits(probes.get("codex_home"), project_id=project)
+        for sample in samples:
+            operation = _ulid_from_digest({"limit_probe": sample["label"], "observed_at": sample["observed_at"],
+                                           "status": sample["status"]})
+            self._send(operation, {"project": project, "source_id": "probe:" + sample["provider"],
+                                   "observations": [sample]})
+        return len(samples)
+
     def poll(self):
         counts = {"imported": 0, "idle": 0, "partial": 0, "unavailable": 0, "changed": 0, "invalid": 0}
         sources, counts["unavailable"] = self._sources()
@@ -504,6 +542,8 @@ class UsageWatcher:
         for item in self.config.get("status_files", []):
             result = self._status(item)
             counts[result] += 1
+        if self.config.get("limit_probes"):
+            counts["limit_samples"] = self._probe_limits()
         return counts
 
 

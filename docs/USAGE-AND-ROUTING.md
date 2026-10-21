@@ -41,7 +41,7 @@ supplied `budget_usd` is passed as the harness option, as before, and can stop
 the turn. The session-level `budget_usd` given to `odin_delegation_session` is
 informational only: it is never passed to a harness or enforced, and a session
 opened before this change may still show `0` (ODIN-ADR-027, 2026-10-21
-amendment).
+amendment, which now states this; W0 review-8ba8918 finding 1).
 
 The orchestrator receives the complete fixed stage prompt and instructions to
 delegate independent bounded tasks to native subagents, integrate, test, obtain
@@ -315,6 +315,66 @@ These controls do **not** reserve provider quota, interrupt already-running
 turns, enforce an in-flight native spending ceiling or provide Saga guarantees.
 Two admitted processes can consume usage before the next sample. There is no
 automatic model downshift or change to required review.
+
+### Account limit probes, labels and admission bands (W3a)
+
+`usage_watch` can run two stateless limit probes. Each reported limit becomes a
+`kind: "limit"` usage sample with a label, `utilization_percent`, `resets_at`,
+`observed_at`, `source: "probe"` and `status`. Probe samples carry no tokens,
+prompts or account identifiers.
+
+- `claude.five_hour`, `claude.weekly` and `claude.weekly.<model>` (for example
+  `claude.weekly.fable`) come from the Claude OAuth usage endpoint
+  `GET https://api.anthropic.com/api/oauth/usage` with `Authorization: Bearer`
+  and `anthropic-beta: oauth-2025-04-20`. The probe reads
+  `claudeAiOauth.accessToken` from `.credentials.json` inside the configured
+  `claude_config_dir` at call time only. It never defaults to a home directory,
+  and the token is never logged, stored in a sample, placed in an exception or
+  returned. The transport is injected; tests use recorded fixture responses and
+  make no network calls.
+- **Endpoint and shape are unverified and undocumented.** Nothing in this
+  repository's research or fixtures records them. The shape used is the commonly
+  reported one: top-level `five_hour`, `seven_day` and `seven_day_<model>` objects,
+  each with `utilization` (a percentage from 0 to 100) and `resets_at`. Live
+  acceptance against the real endpoint is still required.
+- `codex.five_hour` (300-minute window) and `codex.weekly` (10080-minute window)
+  come from `rate_limits` objects in the newest JSONL session under
+  `CODEX_HOME/sessions`, read with the same bounded reader as the Codex usage
+  collector. The existing Codex collector only reads token-usage rows, so the
+  rate-limit shape is also unverified. `CODEX_HOME` is never defaulted to a
+  real home directory.
+- **Unavailable semantics.** A missing or unreadable configuration or
+  credential, an HTTP error, malformed JSON, out-of-range values, or no
+  recognised limit produces one `status: "unavailable"` sample under the label
+  `claude.probe` or `codex.probe`, with a short fixed reason and null
+  utilization. Unavailable samples never contribute a band. The existing
+  `claude_status` quota samples and their cursors are unchanged.
+- The watcher config accepts an optional `limit_probes` object with
+  `claude_config_dir`, `codex_home` and `interval_seconds` (default 300). Probe
+  samples are sent through the same `usage_import` command path without byte
+  cursors or coverage records.
+
+**Admission bands are not hard ceilings.** Each known label has a ceiling. Its
+bands are `wind_down` at ceiling minus 10, `ordinary_stop` at ceiling minus 5
+and `handoff_only` at the ceiling. Below the first band the value is `clear`.
+These bands only describe Odin's own admission decisions. They do not stop a
+running native session, and they do not reflect or enforce the provider's
+limits.
+
+| Label | Ceiling | wind_down | ordinary_stop | handoff_only |
+| --- | --- | --- | --- | --- |
+| `claude.five_hour` | 95 | 85 | 90 | 95 |
+| `claude.weekly` | 90 | 80 | 85 | 90 |
+| `claude.weekly.fable` | 95 | 85 | 90 | 95 |
+| `codex.five_hour` | 95 | 85 | 90 | 95 |
+| `codex.weekly` | 90 | 80 | 85 | 90 |
+
+Labels not in this table, such as `claude.weekly.opus`, have no band. They keep
+the legacy `max_*_used_percentage` policy behaviour exactly. The default
+`observe` mode still holds nothing. Each policy decision reports the latest
+available sample and band per known label in `limit_bands`, and `usage-status`
+returns that decision. Band membership does not change the `hold` decision in
+this increment.
 
 ## Context continuity and compaction
 

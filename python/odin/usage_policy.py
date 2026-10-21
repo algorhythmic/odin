@@ -12,11 +12,54 @@ from .contracts import Contracts, canonical, strict_loads
 from .store import Conflict, now
 from .usage import UsageLedger
 
-LIMITS = (
+POLICY_LIMITS = (
     "max_input_tokens", "max_output_tokens", "max_requests", "max_context_tokens",
     "max_five_hour_used_percentage", "max_seven_day_used_percentage",
     "max_sample_age_seconds",
 )
+
+# Label-keyed admission bands for probed account limits (ADR-031 follow-up).
+# Each ceiling defines three admission bands for Odin's own decisions: wind_down
+# at ceiling-10, ordinary_stop at ceiling-5 and handoff_only at ceiling. These
+# are not enforced ceilings; the provider's own limits and running native
+# sessions are not controlled by them. Labels absent here keep the legacy
+# behaviour: no band is reported and the policy_limits checks are unchanged.
+LIMITS = {
+    "claude.five_hour": {"ceiling": 95},
+    "claude.weekly": {"ceiling": 90},
+    "claude.weekly.fable": {"ceiling": 95},
+    "codex.five_hour": {"ceiling": 95},
+    "codex.weekly": {"ceiling": 90},
+}
+BANDS = ("clear", "wind_down", "ordinary_stop", "handoff_only")
+
+
+def band_for(label, utilization_percent):
+    """Return the admission band for a known label, or None for legacy labels."""
+    entry = LIMITS.get(label)
+    if entry is None or utilization_percent is None:
+        return None
+    ceiling = entry["ceiling"]
+    if utilization_percent >= ceiling:
+        return "handoff_only"
+    if utilization_percent >= ceiling - 5:
+        return "ordinary_stop"
+    if utilization_percent >= ceiling - 10:
+        return "wind_down"
+    return "clear"
+
+
+def _limit_bands(summary):
+    bands = []
+    for sample in summary.get("limit_snapshots", []):
+        if sample.get("status") != "available":
+            continue
+        band = band_for(sample["label"], sample["utilization_percent"])
+        if band is None:
+            continue
+        bands.append({"label": sample["label"], "utilization_percent": sample["utilization_percent"],
+                      "observed_at": sample["observed_at"], "band": band})
+    return bands
 _UNSET = object()
 
 
@@ -66,7 +109,7 @@ def _project(store, project_id):
 
 def _default_policy():
     return {"schema_version": 1, "mode": "observe", "missing_telemetry": "observe", "account_id": None,
-            "limits": {key: None for key in LIMITS}}
+            "limits": {key: None for key in POLICY_LIMITS}}
 
 
 def _normalize_policy(policy):
@@ -149,6 +192,7 @@ class UsagePolicy:
                 "session_id": session_id, "evaluated_at": stamp,
                 "mode": "observe", "decision": "allow", "reasons": [],
                 "configured": False,
+                "limit_bands": [],
                 "observed": {
                     "request_count": 0, "cache_inclusive_input_tokens": None,
                     "output_tokens": None, "context_input_tokens": None,
@@ -261,6 +305,7 @@ class UsagePolicy:
                         "evaluated_at": stamp, "mode": policy["mode"],
                         "configured": configured,
                         "decision": "hold" if hold else "allow", "reasons": list(dict.fromkeys(reasons)),
+                        "limit_bands": _limit_bands(summary),
                         "observed": observed}
             self.store.contracts.validate("usage-policy-decision", decision)
             body = canonical(decision)

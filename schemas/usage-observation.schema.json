@@ -4,7 +4,7 @@
   "required": ["schema_version", "kind", "provider", "project_id", "source", "session_id", "agent_id", "observed_at"],
   "properties": {
     "schema_version": {"const": 1},
-    "kind": {"enum": ["request", "quota"]},
+    "kind": {"enum": ["request", "quota", "limit"]},
     "provider": {"enum": ["claude", "codex"]},
     "project_id": {"type": "string", "minLength": 1, "maxLength": 256},
     "source": {"type": "string", "minLength": 1, "maxLength": 256},
@@ -38,11 +38,21 @@
         "five_hour": {"$ref": "#/$defs/limit"},
         "seven_day": {"$ref": "#/$defs/limit"}
       }
-    }
+    },
+    "label": {"type": "string", "pattern": "^(claude|codex)\\.[a-z0-9_.]{1,64}$"},
+    "status": {"enum": ["available", "unavailable"]},
+    "utilization_percent": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+    "resets_at": {"type": ["string", "null"], "format": "date-time"},
+    "reason": {"type": ["string", "null"], "minLength": 1, "maxLength": 200}
   },
   "allOf": [
     {"if": {"properties": {"kind": {"const": "request"}}}, "then": {"required": ["request_id", "model", "revision", "scope", "loop_id", "stage_id", "attribution", "tokens", "context_input_tokens"]}},
-    {"if": {"properties": {"kind": {"const": "quota"}}}, "then": {"required": ["account_id", "context_window_tokens", "context_input_tokens", "rate_limits"]}}
+    {"if": {"properties": {"kind": {"const": "quota"}}}, "then": {"required": ["account_id", "context_window_tokens", "context_input_tokens", "rate_limits"]}},
+    {"if": {"properties": {"kind": {"const": "limit"}}}, "then": {"required": ["label", "status", "utilization_percent", "resets_at", "reason"]}},
+    {"if": {"properties": {"kind": {"const": "limit"}, "status": {"const": "available"}}, "required": ["kind", "status"]},
+     "then": {"required": ["utilization_percent"], "properties": {"utilization_percent": {"type": "number"}, "reason": {"const": null}}}},
+    {"if": {"properties": {"kind": {"enum": ["request", "quota"]}}, "required": ["kind"]},
+     "then": {"not": {"anyOf": [{"required": ["label"]}, {"required": ["status"]}, {"required": ["utilization_percent"]}, {"required": ["resets_at"]}, {"required": ["reason"]}]}}}
   ],
   "$defs": {
     "limit": {
