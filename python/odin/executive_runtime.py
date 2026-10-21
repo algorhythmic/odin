@@ -860,6 +860,8 @@ def configure_memory_directory(state, *, directory=None):
             return {"configured_memory_directory": None, "effective_on_next_tool_call": True}
         value = str(memory_directory(directory, state=state))
         temporary = path.with_name(path.name + ".new")
+        # A crash between create and replace leaves a stale temporary behind.
+        temporary.unlink(missing_ok=True)
         fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
         try:
             with os.fdopen(fd, "w") as handle:

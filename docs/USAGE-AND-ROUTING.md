@@ -91,8 +91,18 @@ commitment resolves itself when the executive queues a follow-up or closes the
 assignment, so an accepted return leaves nothing pending. A failure notice stays
 pending until acknowledged, even after the assignment is cancelled. Without
 development-loop mode the bridge has no inbox or acknowledgement tool, and only
-the status flags apply. A queued turn that is cancelled by `odin_delegation_close`
-or session retirement before launch does not produce a notice.
+the status flags apply. Every returned turn, including a development-loop
+stage return, carries an open-commitment notice until the executive accepts or
+closes the assignment or queues a follow-up. Failure notices are offered before
+open-commitment reminders, oldest first within each group, and they only fill
+the inbox slots that assignments and loop notices leave within the bridge's
+bound of 16. A queued turn stranded by session retirement is recorded as
+`interrupted` and notifies like any other; a queued turn cancelled by
+`odin_delegation_close` does not, because the executive made that decision.
+Notices are addressed to the project, not a specific executive session, so
+acknowledgement is project-scoped. The failure excerpt is labelled as
+untrusted harness output. Delegation notices have no separate contract schema;
+the bridge validates the inbox item shape.
 
 ## Executive role and existing-loop transition
 

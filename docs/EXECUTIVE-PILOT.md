@@ -353,8 +353,11 @@ the hook re-checks it on every call, so it applies without a relaunch. A
 existing real directories, is allowed without a permit. Target paths that are
 symlinks, relative, contain `..`, or resolve outside the directory fall through
 to the normal permit path. `Bash`, `NotebookEdit` and all other tools are
-unchanged. Memory notes never replace Odin records of commitments, approvals
-or acceptance.
+unchanged. The check is a path boundary, not an inode boundary: a hard link
+inside the directory is not detected (creating one needs `Bash`, which stays
+permit-gated). It runs at `PreToolUse`, so a concurrent change between the
+check and the write is not prevented. Memory notes never replace Odin records
+of commitments, approvals or acceptance.
 
 ## Repository evidence and the retained read-only profile
 

@@ -1932,7 +1932,12 @@ remain available in every profile.
   follow-up or closes the assignment; a failure notice stays pending until
   acknowledged. Outside development-loop mode only the status flags apply,
   notices are addressed to the project rather than a specific executive
-  session, and a queued turn cancelled before launch produces no notice.
+  session (so acknowledgement is project-scoped), and a queued turn
+  cancelled by `odin_delegation_close` produces no notice, while one
+  stranded by session retirement notifies as `interrupted`. Every returned
+  turn, including a development-loop stage return, carries an
+  open-commitment notice until a decision; failure notices are offered
+  first and only fill inbox slots left within the bridge's bound.
   Reason: a timed-out delegation was found only when the operator asked for
   a status report.
 - **Guidance to the executive:** use native subagents for quick bounded work
@@ -2369,7 +2374,10 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
   lives in a private state file (`executive-pilot/memory-directory.json`),
   not the launch manifest or hook arguments, so launch schemas stay
   unchanged; the hook revalidates it on every call, and an unconfigured
-  installation keeps the prior behaviour. Memory notes are working notes
+  installation keeps the prior behaviour. The check is a path boundary,
+  not an inode boundary (hard links are not detected), and it runs at
+  `PreToolUse`, so a concurrent change before the write is not prevented.
+  Memory notes are working notes
   only: they never record, replace or evidence Odin commitments, approvals
   or acceptance.
 

@@ -38,6 +38,9 @@ OPERATOR_ACTIONS = {
 ACTIONS = EXECUTIVE_ACTIONS | OPERATOR_ACTIONS
 
 
+# Matches the bridge's loop inbox bound (executive_mcp.ExecutiveBridge.loop_inbox).
+INBOX_LIMIT = 16
+
 def check_scope(gateway, action, payload):
     """Check current ownership before returning even an idempotent receipt."""
     if action == "loop_capture":
@@ -664,9 +667,12 @@ def dispatch(gateway, action, payload, context, operation):
         # Delegation turn notices (ODIN-ADR-027) share the channel and the
         # acknowledgement path; they carry no loop or stage and are never
         # claimable.
+        # The bridge rejects an inbox above INBOX_LIMIT items, so delegation
+        # notices only take the slots assignments and loop notices left.
+        room = min(8, INBOX_LIMIT - len(messages))
         delegated = (
-            gateway.delegation.pending_notices(payload["project"], limit=8)
-            if "notice" in accept
+            gateway.delegation.pending_notices(payload["project"], limit=room)
+            if "notice" in accept and room > 0
             else []
         )
         for notice in delegated:

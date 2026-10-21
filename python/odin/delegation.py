@@ -1382,14 +1382,13 @@ class Delegation:
         """Retire a session: strand no queued turn, release project ownership."""
         for turn in self._turns(session=session["id"]):
             if turn["state"] == "queued":
-                self._save_turn(
-                    turn
-                    | {
-                        "state": "interrupted",
-                        "stop_reason": reason or "session_retired",
-                        "finished_at": now(),
-                    }
-                )
+                stranded = turn | {
+                    "state": "interrupted",
+                    "stop_reason": reason or "session_retired",
+                    "finished_at": now(),
+                }
+                self._save_turn(stranded)
+                self._notify(stranded)
         if session["state"] != "retired":
             session = self._put_session(session, state="retired")
         self._release_owner(session)
@@ -1528,14 +1527,22 @@ class Delegation:
         )
 
     def pending_notices(self, project, limit=8, *, assignment=None):
-        """Unacknowledged, unresolved notices for this project, oldest first."""
+        """Unacknowledged, unresolved notices for this project.
+
+        Notices reporting a failed, timed-out, interrupted or lost turn come
+        first so open-commitment reminders cannot crowd them out; each group
+        is oldest first.
+        """
         query = "SELECT body FROM delegation_notices WHERE project=? AND state='pending'"
         arguments = [project]
         if assignment is not None:
             query += " AND assignment=?"
             arguments.append(assignment)
         rows = self.store.db.execute(
-            query + " ORDER BY rowid LIMIT ?", (*arguments, limit)
+            query
+            + " ORDER BY (json_array_length(body,'$.reasons')=1"
+            " AND json_extract(body,'$.reasons[0]')=?), rowid LIMIT ?",
+            (*arguments, OPEN_COMMITMENT, limit),
         )
         return [strict_loads(row[0]) for row in rows]
 
@@ -1622,7 +1629,9 @@ class Delegation:
             ),
         ]
         if notice.get("failure"):
-            lines.append(f"Recorded failure: {notice['failure']}")
+            lines.append(
+                f"Untrusted harness output excerpt (recorded failure): {notice['failure']}"
+            )
         lines.append(
             "Reported cost: "
             + (

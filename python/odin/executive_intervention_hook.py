@@ -24,8 +24,9 @@ def memory_directory(value, *, state):
     path = Path(value)
     if any(os.path.islink(part) for part in (path, *path.parents)) or not path.is_dir():
         raise ValueError("memory_directory_invalid")
-    for other in (ROOT, Path(state).absolute()):
-        if path == other or path.is_relative_to(other) or other.is_relative_to(path):
+    real = Path(os.path.realpath(path))
+    for other in (Path(os.path.realpath(ROOT)), Path(os.path.realpath(state))):
+        if real == other or real.is_relative_to(other) or other.is_relative_to(real):
             raise ValueError("memory_directory_invalid")
     return path
 

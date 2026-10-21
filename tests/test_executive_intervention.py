@@ -16,7 +16,7 @@ from odin import executive_runtime as runtime
 from odin.executive_service import prepare_project, submit_executive
 from odin.executive_mcp import ExecutiveBridge, SocketGateway
 from odin.executive_intervention import delegation_guard, initialize
-from odin.executive_intervention_hook import configured_memory, handle
+from odin.executive_intervention_hook import configured_memory, handle, memory_directory
 from odin.gateway import Gateway, GatewayContext
 from odin.service import Service
 from odin.store import Conflict
@@ -414,6 +414,19 @@ class MemoryDirectoryTests(unittest.TestCase):
         self.assertEqual(configured_memory(self.state), str(self.memory))
         runtime.configure_memory_directory(self.state, directory=None)
         self.assertIsNone(configured_memory(self.state))
+
+    def test_exclusion_compares_real_paths(self):
+        alias = self.temp/'state-alias'; os.symlink(self.state, alias)
+        inside = self.state/'notes'; inside.mkdir()
+        with self.assertRaises(ValueError): memory_directory(str(inside), state=str(alias))
+        with self.assertRaises(ValueError): memory_directory(str(self.temp), state=str(alias))
+        self.assertEqual(memory_directory(str(self.memory), state=str(alias)), self.memory)
+
+    def test_stale_temporary_does_not_block_configuration(self):
+        (self.state/'executive-pilot'/'memory-directory.json.new').write_text('stale')
+        self.configure()
+        self.assertEqual(configured_memory(self.state), str(self.memory))
+        self.assertFalse((self.state/'executive-pilot'/'memory-directory.json.new').exists())
 
     def test_hook_arguments_unchanged_when_configured(self):
         before = runtime._intervention_hooks(self.manifest)
