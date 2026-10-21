@@ -22,6 +22,7 @@ PROJECT = "01K7M000000000000000000001"
 LOOP = "01K7M000000000000000000002"
 STAGE = "01K7M000000000000000000003"
 MESSAGE = "01K7M000000000000000000004"
+NOTICE = "01K7M000000000000000000005"
 SESSION = "11111111-1111-4111-8111-111111111111"
 PROMPT = "bb676593-6951-4da7-9066-cc7a2f048b33"
 
@@ -100,10 +101,61 @@ class ChannelTests(unittest.TestCase):
         self.assertEqual(resumed.channel_notifications(), emitted)
         self.assertTrue(all(call.args[0]["action"] == "loop_inbox" for call in gateway.call_args_list))
 
+    def notice(self, **changes):
+        return {
+            "kind": "notice",
+            "message_id": NOTICE,
+            "notice_id": NOTICE,
+            "loop_id": LOOP,
+            "stage_id": None,
+            "content": "NOTICE, not an assignment. Development loop ended.",
+        } | changes
+
+    def test_notice_events_are_marked_replayed_until_acknowledged_and_never_claimable(self):
+        messages = [self.message(), self.notice()]
+        bridge, gateway = self.bridge(messages)
+        server = MCPServer(bridge)
+        initialize(server)
+        emitted = server.channel_notifications()
+        self.assertEqual([n["params"]["meta"]["kind"] for n in emitted], ["assignment", "notice"])
+        self.assertEqual(emitted[1]["params"]["meta"]["notice_id"], NOTICE)
+        self.assertIsNone(emitted[1]["params"]["meta"]["stage_id"])
+        self.assertEqual(server.channel_notifications(), [])  # same connection: no repeat
+        resumed = MCPServer(bridge)
+        initialize(resumed)
+        self.assertEqual(resumed.channel_notifications(), emitted)  # reconnect replays both
+        # Once the service stops offering the notice, nothing replays it.
+        messages.pop()
+        fresh = MCPServer(bridge)
+        initialize(fresh)
+        self.assertEqual([n["params"]["meta"]["kind"] for n in fresh.channel_notifications()], ["assignment"])
+        # Malformed notices are refused without marking anything emitted.
+        for bad in (
+            self.notice(notice_id=STAGE),  # notice id must equal message id
+            self.notice(notice_id=None),
+            self.notice(kind="bulletin"),
+            self.message(stage_id=None),  # assignments need a stage
+        ):
+            with self.subTest(bad=bad):
+                broken, _ = self.bridge([bad])
+                server = MCPServer(broken)
+                initialize(server)
+                with self.assertRaises(ToolFailure):
+                    server.channel_notifications()
+                self.assertEqual(server.emitted, set())
+        # The acknowledgement tool is bound to the session and carries the operation id.
+        self.assertFalse(bridge.call("odin_loop_ack", {"operation_id": MESSAGE, "notice_id": NOTICE})["isError"])
+        command = gateway.call_args.args[0]
+        self.assertEqual(command["action"], "loop_ack")
+        self.assertEqual(command["payload"], {"project": PROJECT, "session_id": SESSION, "notice_id": NOTICE})
+        self.assertEqual(command["operation_id"], MESSAGE)
+        self.assertIn("never claim, execute", bridge.tools()[-1]["description"])
+        self.assertIn("meta.kind=notice", initialize(MCPServer(bridge))["instructions"])
+
     def test_loop_tools_bind_scope_and_preserve_mutation_identity(self):
         bridge, gateway = self.bridge([])
         self.assertTrue(
-            {"odin_loop_claim", "odin_loop_ready", "odin_loop_status"}
+            {"odin_loop_claim", "odin_loop_ready", "odin_loop_status", "odin_loop_ack"}
             <= {tool["name"] for tool in bridge.tools()}
         )
         arguments = {"operation_id": MESSAGE, "loop_id": LOOP, "stage_id": STAGE}

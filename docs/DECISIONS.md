@@ -2091,6 +2091,44 @@ remain available in every profile.
   Regression tests cover successful and failing commands across a backward
   clock step and refusal of contradictory null-duration claims.
 
+### ODIN-ADR-030 — Durable loop notices and conservative attention
+
+- **Date/status:** 2026-10-21; operator-authorized implementation under the
+  ADR-028 development loop's second objective (operator visibility and
+  stalled-work handling).
+- **Decision:** the development loop controller writes a durable **notice**
+  in the same transaction as every completion, intervention, failure or stop
+  transition, and one `stalled` notice per attention observation. Notices
+  are scoped to project and native session, correlated to loop, stage, job
+  and transition, carry a bounded summary, the evaluator's assessment and
+  what needs attention, and are offered through the existing executive
+  channel as events distinct from assignments (`meta.kind`). They remain
+  deliverable after the loop ends. Delivery is at least once; the executive
+  acknowledges a notice with `odin_loop_ack`, which is recorded as
+  model-attributed and grants no authority. Notices never carry a completion
+  footer and never ask for a stage to be claimed or executed.
+- **Attention:** per-loop deadlines (offer, claim, ready, evaluator), disabled
+  unless configured by the operator, bound each waiting state. Exceeding one
+  records an attention observation and a `stalled` notice without changing
+  the loop's status or revision: no redispatch, new round, process
+  termination or session replacement follows from elapsed time, pending work
+  stays claimable, and any real transition clears the observation. Paused,
+  unknown, intervention-bound and terminal loops are not timed; a backward
+  clock raises no attention; repeated checks write nothing new.
+- **Boundaries:** controller pause and stop remain controller transitions and
+  make no claim about running native tools or delegated jobs; operator
+  controls stay on the operator command path (D9.5); model text or
+  acknowledgement never becomes operator approval; authenticated routing of
+  operator decisions from a chat surface remains future work. Existing loop
+  records without deadline fields stay valid and untimed.
+- **Checks:** `tests/test_development_notices.py` (controller and gateway,
+  controlled clock), transport tests for notice events, replay and
+  acknowledgement, and the service/bridge integration scenario (stalled
+  notice from the live tick, completion and stop notices, reconnect replay,
+  wrong-session refusal, unrelated replies not captured, operator deadline
+  control). These are synthetic; live acceptance requires an observed
+  activation of the service and bridge.
+
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that

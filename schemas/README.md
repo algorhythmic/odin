@@ -39,7 +39,11 @@ credential-file fingerprints); the
 `execution-receipt` schema (ADR-029) describes the attributed local
 execution receipt written by `odin receipt-run`, its compact `references`
 carried in development-loop evidence and the controller's `validation`
-outcome. Fixture protocols
+outcome. The `development-loop-notice` schema (ADR-030) describes the
+durable notices the controller writes with loop transitions and attention
+observations; `development-loop` gained optional `deadlines` and
+`attention`, and `development-loop-command` the `loop_ack` and
+`deadlines` controls. Fixture protocols
 have no live transport. Schemas are loaded once per process; restart after
 editing them. Incompatible future state changes need an explicit migration;
 the current database version is 1.

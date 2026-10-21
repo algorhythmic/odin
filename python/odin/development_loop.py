@@ -9,13 +9,69 @@ from __future__ import annotations
 
 import re
 import secrets
+import time
 import uuid
+from datetime import datetime
 
-from .contracts import canonical, identifier, strict_loads
+from .contracts import ALPHABET, canonical, identifier, strict_loads
 from .execution_receipt import validate_references
 from .store import Conflict, digest, now
 
 FINAL = {"complete", "stopped"}
+# Loop statuses that end the loop or need the operator produce a durable notice.
+NOTICE_TRANSITIONS = {
+    "complete": "completion",
+    "stopped": "stopped",
+    "needs_operator": "intervention",
+    "unknown": "intervention",
+}
+NOTICE_KINDS = ("completion", "failure", "intervention", "stopped", "stalled")
+# Which configured deadline bounds each waiting state; absent statuses never
+# raise attention (paused, unknown, needs_operator, terminal).
+ATTENTION_RULES = {
+    "executive_pending": ("offer_seconds", "offer_unanswered"),
+    "executive_claimed": ("claim_seconds", "claimed_stalled"),
+    "executive_ready": ("ready_seconds", "ready_uncaptured"),
+    "evaluator_pending": ("evaluator_seconds", "evaluator_stalled"),
+    "evaluator_running": ("evaluator_seconds", "evaluator_stalled"),
+}
+DEADLINE_KEYS = ("offer_seconds", "claim_seconds", "ready_seconds", "evaluator_seconds")
+ATTENTION_CHECK_INTERVAL = 5.0
+NOTICE_SUMMARY_BYTES = 2000
+
+
+def _ulid_from_digest(value):
+    number = int(digest(value)[:32], 16)
+    result = ""
+    for _ in range(26):
+        result = ALPHABET[number & 31] + result
+        number >>= 5
+    return result
+
+
+def _parse(stamp):
+    return datetime.strptime(
+        stamp, "%Y-%m-%dT%H:%M:%S.%fZ" if "." in stamp else "%Y-%m-%dT%H:%M:%SZ"
+    )
+
+
+def normalize_deadlines(value):
+    """Operator-supplied deadlines: each key a positive integer or null (disabled)."""
+    if value is None:
+        return {key: None for key in DEADLINE_KEYS}
+    if not isinstance(value, dict) or set(value) - set(DEADLINE_KEYS):
+        raise Conflict("unknown development deadline key")
+    result = {}
+    for key in DEADLINE_KEYS:
+        item = value.get(key)
+        if item is not None and (type(item) is not int or not 1 <= item <= 604800):
+            raise Conflict(
+                "development deadlines are positive seconds up to one week or null"
+            )
+        result[key] = item
+    return result
+
+
 MARKER = re.compile(
     r"<!-- odin-development-complete:([0-7][0-9A-HJKMNP-TV-Z]{25}):([0-9a-f]{32}) -->"
 )
@@ -61,8 +117,10 @@ class DevelopmentLoop:
                 "CREATE TABLE IF NOT EXISTS development_loop_jobs(id TEXT PRIMARY KEY,loop_id TEXT NOT NULL,body TEXT NOT NULL)",
                 "CREATE TABLE IF NOT EXISTS development_loop_stages(id TEXT PRIMARY KEY,loop_id TEXT NOT NULL,body TEXT NOT NULL)",
                 "CREATE TABLE IF NOT EXISTS development_loop_receipts(operation TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result TEXT NOT NULL)",
+                "CREATE TABLE IF NOT EXISTS development_loop_notices(id TEXT PRIMARY KEY,loop_id TEXT NOT NULL,project TEXT NOT NULL,session_id TEXT NOT NULL,state TEXT NOT NULL,body TEXT NOT NULL)",
             ):
                 store.db.execute(statement)
+        self._attention_checked = 0.0
 
     def _mutate(self, operation, kind, arguments, callback):
         if (
@@ -161,13 +219,308 @@ class DevelopmentLoop:
         )
 
     def _advance(self, loop, status, reason=None):
+        previous = loop["status"]
         loop.update(
             status=status,
             reason=reason,
             revision=loop["revision"] + 1,
             updated_at=now(),
+            attention=None,  # Any real transition supersedes a stall observation.
         )
         self._save_loop(loop)
+        kind = NOTICE_TRANSITIONS.get(status)
+        if kind is not None:
+            # Same transaction as the durable outcome; the id is a function of
+            # the transition, so a replayed or repeated transition cannot create
+            # a second notice.
+            if kind == "intervention" and loop["current_job"]:
+                job = self.job(loop["current_job"])
+                if job["state"] in {"lost", "blocked"}:
+                    kind = "failure"
+            self._notice(loop, kind, previous=previous)
+
+    # -- notices --------------------------------------------------------------
+
+    def _notice(self, loop, kind, *, previous, observed=None):
+        notice_id = _ulid_from_digest(
+            {
+                "loop": loop["id"],
+                "kind": kind,
+                "status": loop["status"],
+                "revision": loop["revision"],
+                "observed": observed,
+            }
+        )
+        assessment = None
+        decision = None
+        if loop["current_job"]:
+            job = self.job(loop["current_job"])
+            if job["result"]:
+                assessment = job["result"]["assessment"][:NOTICE_SUMMARY_BYTES]
+                decision = job["result"]["decision"]
+        stage_state = None
+        if loop["current_stage"]:
+            stage_state = self.stage(loop["current_stage"])["state"]
+        if kind == "completion":
+            attention = "none; the loop ended by evaluator decision"
+        elif kind == "stopped":
+            attention = "operator stopped the loop; running native tools or delegated jobs were not terminated by this"
+        elif kind == "stalled":
+            attention = (
+                f"{observed}: no transition for longer than the configured deadline; elapsed time "
+                "does not prove work did not start and authorizes no redispatch, new round, "
+                "process termination or session replacement"
+            )
+        elif kind == "failure":
+            attention = (
+                "evaluator job lost or blocked; operator reconciliation required"
+            )
+        else:
+            attention = "operator decision or reconciliation required before the loop can continue"
+        summary = (
+            f"Development loop {loop['id']} {kind}: status {loop['status']} (from {previous}) "
+            f"at round {loop['round']} of {loop['max_rounds']}, revision {loop['revision']}."
+            + (f" Reason: {loop['reason']}" if loop.get("reason") else "")
+        )[:NOTICE_SUMMARY_BYTES]
+        notice = {
+            "schema_version": 1,
+            "id": notice_id,
+            "kind": kind,
+            "loop_id": loop["id"],
+            "project": loop["project"],
+            "session_id": loop["session_id"],
+            "round": loop["round"],
+            "stage_id": loop["current_stage"],
+            "stage_state": stage_state,
+            "job_id": loop["current_job"],
+            "transition": {
+                "from": previous,
+                "to": loop["status"],
+                "loop_revision": loop["revision"],
+            },
+            "observed": observed,
+            "summary": summary,
+            "assessment": assessment,
+            "decision": decision,
+            "attention": attention,
+            "status_reference": {"tool": "odin_loop_status", "loop_id": loop["id"]},
+            "created_at": now(),
+            "state": "pending",
+            "first_offered_at": None,
+            "acknowledged_at": None,
+            "acknowledged_by": None,
+            "acknowledgement_operation": None,
+            "acknowledgement_authority": None,
+        }
+        self.store.contracts.validate("development-loop-notice", notice)
+        inserted = self.store.db.execute(
+            "INSERT INTO development_loop_notices VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
+            (
+                notice_id,
+                loop["id"],
+                loop["project"],
+                loop["session_id"],
+                "pending",
+                canonical(notice),
+            ),
+        ).rowcount
+        if inserted:
+            self.store._history(
+                "development_loop.notice",
+                {
+                    "notice_id": notice_id,
+                    "loop_id": loop["id"],
+                    "kind": kind,
+                    "status": loop["status"],
+                    "loop_revision": loop["revision"],
+                },
+            )
+        return notice_id
+
+    def notice(self, notice_id):
+        return self._row("development_loop_notices", notice_id)
+
+    def notices(self, loop_id, limit=64):
+        rows = self.store.db.execute(
+            "SELECT body FROM development_loop_notices WHERE loop_id=? ORDER BY rowid DESC LIMIT ?",
+            (loop_id, limit),
+        )
+        return [strict_loads(row[0]) for row in rows]
+
+    def pending_notices(self, project, session_id, limit=8):
+        """Unacknowledged notices for this project and native session, oldest first.
+
+        Loop status does not filter them: an ended or intervention-bound loop
+        still has its notice delivered until acknowledged.
+        """
+        rows = self.store.db.execute(
+            "SELECT body FROM development_loop_notices WHERE project=? AND session_id=? "
+            "AND state='pending' ORDER BY rowid LIMIT ?",
+            (project, session_id, limit),
+        )
+        return [strict_loads(row[0]) for row in rows]
+
+    def mark_offered(self, notice_ids, at=None):
+        """Record the first channel offer only; later polls write nothing."""
+        stamp = at or now()
+        changed = []
+        with self.store.transaction():
+            for notice_id in notice_ids:
+                notice = self.notice(notice_id)
+                if notice["first_offered_at"] is None:
+                    notice["first_offered_at"] = stamp
+                    self._save_notice(notice)
+                    changed.append(notice_id)
+        return changed
+
+    def _save_notice(self, notice):
+        self.store.contracts.validate("development-loop-notice", notice)
+        self.store.db.execute(
+            "UPDATE development_loop_notices SET state=?,body=? WHERE id=?",
+            (notice["state"], canonical(notice), notice["id"]),
+        )
+
+    def acknowledge(self, notice_id, project, session_id, operation_id, *, actor):
+        """Model-attributed acknowledgement: stops re-delivery, grants nothing else."""
+        arguments = {
+            "notice_id": notice_id,
+            "project": project,
+            "session_id": session_id,
+            "actor": actor,
+        }
+
+        def apply():
+            notice = self.notice(notice_id)
+            if notice["project"] != project or notice["session_id"] != session_id:
+                raise Conflict("notice belongs to another project or native session")
+            if notice["state"] != "acknowledged":
+                notice.update(
+                    state="acknowledged",
+                    acknowledged_at=now(),
+                    acknowledged_by=actor,
+                    acknowledgement_operation=operation_id,
+                    acknowledgement_authority="model_attributed_not_operator_approval",
+                )
+                self._save_notice(notice)
+            return {
+                "notice": {
+                    key: notice[key]
+                    for key in (
+                        "id",
+                        "kind",
+                        "loop_id",
+                        "stage_id",
+                        "state",
+                        "acknowledged_at",
+                        "acknowledged_by",
+                        "acknowledgement_authority",
+                    )
+                },
+                "loop": self.get(notice["loop_id"]),
+            }
+
+        return self._mutate(operation_id, "notice_acknowledged", arguments, apply)
+
+    def notice_counts(self, loop_id):
+        counts = {"pending": 0, "acknowledged": 0, "unoffered": 0}
+        for notice in self.notices(loop_id):
+            counts[notice["state"]] += 1
+            if notice["state"] == "pending" and notice["first_offered_at"] is None:
+                counts["unoffered"] += 1
+        return counts
+
+    # -- deadlines and attention ------------------------------------------------
+
+    def set_deadlines(
+        self, loop_id, deadlines, operation_id, *, expected_revision=None
+    ):
+        normalized = normalize_deadlines(deadlines)
+        arguments = {
+            "loop_id": loop_id,
+            "deadlines": normalized,
+            "expected_revision": expected_revision,
+        }
+
+        def apply():
+            loop = self.get(loop_id)
+            if expected_revision is not None and loop["revision"] != expected_revision:
+                raise Conflict("stale development loop revision")
+            if loop["status"] in FINAL:
+                raise Conflict("development loop is terminal")
+            loop["deadlines"] = normalized
+            self._advance(loop, loop["status"], loop.get("reason"))
+            return {"loop": loop}
+
+        return self._mutate(operation_id, "deadlines", arguments, apply)
+
+    def check_attention(self, at=None, *, force=False):
+        """Observe waiting loops against their deadlines; never dispatch anything.
+
+        Attention is a bounded observation stored on the loop without changing
+        its status or revision, plus one `stalled` notice per (loop, status,
+        revision). Repeated checks with no new observation write nothing. A
+        clock that moved backwards yields a negative elapsed time and raises no
+        attention. Paused, unknown, intervention-bound and terminal loops are
+        not checked. Late claims, results and captures proceed normally and
+        clear the observation through their own transition.
+        """
+        monotonic = time.monotonic()
+        if (
+            not force
+            and at is None
+            and monotonic - self._attention_checked < ATTENTION_CHECK_INTERVAL
+        ):
+            return []
+        self._attention_checked = monotonic
+        stamp = at or now()
+        changed = []
+        for row in self.store.db.execute(
+            "SELECT body FROM development_loops WHERE active=1"
+        ).fetchall():
+            loop = strict_loads(row[0])
+            rule = ATTENTION_RULES.get(loop["status"])
+            if rule is None or loop.get("attention") is not None:
+                continue
+            limit = (loop.get("deadlines") or {}).get(rule[0])
+            if limit is None:
+                continue
+            try:
+                elapsed = (_parse(stamp) - _parse(loop["updated_at"])).total_seconds()
+            except ValueError:
+                continue
+            if elapsed <= limit:
+                continue
+            observed = rule[1]
+            with self.store.transaction():
+                current = self.get(loop["id"])
+                if current["revision"] != loop["revision"] or current.get("attention"):
+                    continue
+                current["attention"] = {
+                    "state": "attention",
+                    "observed": observed,
+                    "status": current["status"],
+                    "since": stamp,
+                    "loop_revision": current["revision"],
+                    "elapsed_seconds": int(elapsed),
+                    "deadline_seconds": limit,
+                    "notice_id": None,
+                }
+                current["attention"]["notice_id"] = self._notice(
+                    current, "stalled", previous=current["status"], observed=observed
+                )
+                self._save_loop(current)
+                self.store._history(
+                    "development_loop.attention",
+                    {
+                        "loop_id": current["id"],
+                        "observed": observed,
+                        "status": current["status"],
+                        "loop_revision": current["revision"],
+                        "elapsed_seconds": int(elapsed),
+                    },
+                )
+                changed.append(current["id"])
+        return changed
 
     @staticmethod
     def _evidence(packet):
@@ -223,7 +576,12 @@ class DevelopmentLoop:
         return result
 
     def _queue_evaluator(
-        self, loop, evidence, final_text="", previous=None, receipt_validation=None,
+        self,
+        loop,
+        evidence,
+        final_text="",
+        previous=None,
+        receipt_validation=None,
         operator_response=None,
     ):
         packet = {
@@ -275,6 +633,7 @@ class DevelopmentLoop:
         evidence_packet=None,
         max_rounds=12,
         no_progress_limit=3,
+        deadlines=None,
     ):
         try:
             if (
@@ -285,6 +644,7 @@ class DevelopmentLoop:
         except (ValueError, AttributeError) as error:
             raise Conflict("canonical native session UUID required") from error
         evidence = self._evidence({} if evidence_packet is None else evidence_packet)
+        deadlines = normalize_deadlines(deadlines)
         arguments = {
             "project": project,
             "goal": goal,
@@ -292,6 +652,7 @@ class DevelopmentLoop:
             "evidence": evidence,
             "max_rounds": max_rounds,
             "no_progress_limit": no_progress_limit,
+            "deadlines": deadlines,
         }
 
         def apply():
@@ -326,6 +687,8 @@ class DevelopmentLoop:
                 "reason": None,
                 "created_at": stamp,
                 "updated_at": stamp,
+                "deadlines": deadlines,
+                "attention": None,
             }
             self._save_loop(loop)
             job = self._queue_evaluator(loop, evidence)
@@ -721,7 +1084,12 @@ class DevelopmentLoop:
         return self._mutate(operation_id, "capture_failure", arguments, apply)
 
     def continue_after_intervention(
-        self, loop_id, response, operation_id, *, expected_revision,
+        self,
+        loop_id,
+        response,
+        operation_id,
+        *,
+        expected_revision,
         evidence_packet=None,
     ):
         """Re-evaluate an answered intervention without replaying executive work.
@@ -735,7 +1103,9 @@ class DevelopmentLoop:
             or not response.strip()
             or len(response.encode()) > 12000
         ):
-            raise Conflict("operator response must be nonblank within 12000 UTF-8 bytes")
+            raise Conflict(
+                "operator response must be nonblank within 12000 UTF-8 bytes"
+            )
         if type(expected_revision) is not int or expected_revision < 1:
             raise Conflict("positive expected development loop revision required")
         evidence = self._evidence({} if evidence_packet is None else evidence_packet)
@@ -767,7 +1137,8 @@ class DevelopmentLoop:
             if any(
                 strict_loads(row[0])["state"] != "completed"
                 for row in self.store.db.execute(
-                    "SELECT body FROM development_loop_stages WHERE loop_id=?", (loop_id,)
+                    "SELECT body FROM development_loop_stages WHERE loop_id=?",
+                    (loop_id,),
                 )
             ):
                 raise Conflict("outstanding executive stage must be reconciled")
@@ -781,8 +1152,11 @@ class DevelopmentLoop:
             self._advance(loop, "evaluator_pending")
             packet = source["packet"]
             job = self._queue_evaluator(
-                loop, packet["evidence"], packet["executive_final_text"],
-                source["result"], packet.get("receipt_validation"),
+                loop,
+                packet["evidence"],
+                packet["executive_final_text"],
+                source["result"],
+                packet.get("receipt_validation"),
                 operator_response=intervention,
             )
             return {"loop": loop, "job": job}

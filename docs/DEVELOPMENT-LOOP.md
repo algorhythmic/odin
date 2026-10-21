@@ -287,8 +287,10 @@ restores a file between the two observations is not detected. Nothing here
 claims an immutable or independently witnessed environment.
 
 The wrapper's own exit status is the wrapped command's success (`0`) or
-failure (`1`); a nonzero command exit is recorded in the receipt, printed in
-the summary and never concealed by the wrapper succeeding. The command runs
+failure (`1`); a nonzero command exit is recorded in the receipt and printed
+in the summary unless the receipt is internally contradictory, in which case
+the summary is redacted and only the exit code carries it; the wrapper never
+succeeds in place of the command. The command runs
 in its own session; on timeout the whole process group is killed before the
 output is hashed and the receipt says that retained output may be
 incomplete. `receipt-run` refuses an output directory that already holds a
@@ -375,11 +377,82 @@ structurally malformed reference list is reported as `invalid` rather than
 refused, so the executive's return is still captured and assessed. Existing
 stages and packets without `receipt_validation` remain valid records.
 
+## Notices and attention
+
+Status: implementation under
+[ODIN-ADR-030](DECISIONS.md#odin-adr-030--durable-loop-notices-and-conservative-attention),
+2026-10-21. Synthetic tests exercise these paths through isolated service and
+bridge processes; live acceptance requires an observed activation.
+
+A **notice** is a durable, project- and session-scoped record that the
+controller writes in the same transaction as the loop transition it
+describes: `completion` (evaluator decided `complete`), `intervention`
+(`needs_operator` or `unknown`), `failure` (`needs_operator` with a lost or
+blocked evaluator job), `stopped` (operator stop) and `stalled` (a deadline
+observation, below). Its identity is a function of the loop, kind, status
+and loop revision, so a replayed or repeated transition never creates a
+second notice. It carries the loop, stage and job identities, the
+transition, a bounded summary, the evaluator's assessment and decision when
+one exists, what needs attention, and a status reference
+(`odin_loop_status`). It never carries a completion footer.
+
+Notices travel through the existing channel as events with
+`meta.kind: "notice"` and `meta.notice_id`, beside assignments with
+`meta.kind: "assignment"`. The inbox returns at most eight of each per poll
+so neither starves the other. A notice is offered until the executive
+acknowledges it with `odin_loop_ack`; it stays deliverable after the loop
+has ended or while it awaits the operator. Delivery is **at least once**: a
+channel write, a bridge emission or a lost reply proves nothing, a reconnect
+replays the same `message_id`, and the service records only the first offer
+(`first_offered_at`), never one write per poll. Acknowledgement is
+model-attributed (`acknowledgement_authority:
+model_attributed_not_operator_approval`): it stops re-delivery and grants
+nothing else. No notice asks the executive to claim or execute a stage, and
+the native-facing instructions say so; a reply to a notice has no footer
+and is never captured as a stage completion. There is no exactly-once
+delivery and no human acknowledgement in this path. Operator-only actions
+(continue, pause, resume, stop, reconcile, deadlines) remain on the operator
+command path; authenticated routing of operator decisions from a chat
+surface is still future work and is not provided by notices.
+
+**Deadlines** are per-loop, optional and disabled by default:
+`offer_seconds` (stage offered, unclaimed), `claim_seconds` (claimed, not
+ready), `ready_seconds` (ready, not captured) and `evaluator_seconds`
+(evaluator pending or running). They are set at `loop_start` or changed by
+the operator with `development-control --control deadlines` (the
+`loop_control` action `deadlines`), each a positive number of seconds up to
+one week or null. The service checks waiting loops every few seconds. When
+the time since the loop's last transition exceeds the applicable deadline,
+the controller records an **attention** observation on the loop
+(`observed`: `offer_unanswered`, `claimed_stalled`, `ready_uncaptured` or
+`evaluator_stalled`, with elapsed and deadline seconds) and writes one
+`stalled` notice. The loop's status and revision do not change: nothing is
+redispatched, no new round starts, no process is terminated, no session is
+replaced, and a pending stage stays claimable. Elapsed time never proves a
+command was not started. Repeated checks after attention observe nothing new
+and write nothing. Any real transition (a late claim, ready, capture,
+evaluation, pause, resume or reconciliation) clears the observation and
+restarts timing from that transition. Paused, unknown, intervention-bound and
+terminal loops are not timed; a clock that moved backwards raises no
+attention; records written before deadlines existed are untimed and remain
+valid. Existing late-result and reconciliation protections are unchanged:
+reconciliation still requires a real observation of the native session or
+evaluator process.
+
+`development-status` and `odin_loop_status` show `work` (`waiting`:
+pending, running, unknown or none; the applicable deadline; `since`; the
+current `attention`) and `notices` (pending, acknowledged and unoffered
+counts with the latest four). Pausing or stopping the controller remains a
+controller transition; the `stopped` notice says that running native tools
+or delegated jobs were not terminated by it.
+
 ## Failure, restart and operator control
 
 | Situation | Required controller behavior |
 |---|---|
 | Duplicate notification or hook | Retain the same operation/round identity; do not create another task or evaluation |
+| Duplicate or replayed notice | Same notice identity until acknowledged; acknowledgement is idempotent and changes no loop state |
+| Deadline exceeded | Record attention and one stalled notice; keep status, revision and pending work unchanged; never redispatch or terminate |
 | Stale session, round or evaluator result | Refuse the transition and show why it cannot advance the current loop |
 | Uncertain delivery or interrupted turn | Keep an explicit pending/unknown state; do not silently invent a replacement round |
 | Service or bridge restart | Recover durable state and reconcile the outstanding exchange before continuing |
@@ -409,9 +482,9 @@ The initial limits are `max_rounds` (default 12) and `no_progress_limit`
 (default 3), each configurable from 1 to 100. The latter counts consecutive
 repetitions of the normalized evaluator evidence-reference set. It detects
 that particular stall pattern; it does not measure semantic progress. The
-controller has no wall-clock deadline scheduler. An unanswered channel
-offer or interrupted turn requires an explicit status check and, when
-needed, reconciliation.
+controller's deadline checks (above) only observe and notify; an unanswered
+channel offer or interrupted turn still requires an explicit status check
+and, when needed, reconciliation.
 
 Direct controls use the operator socket and do not ask the evaluator whether
 the request should be obeyed. Replace `pause` with `resume` or `stop` for the
@@ -531,6 +604,7 @@ The focused local checks use synthetic model binaries and temporary state:
 
 ```bash
 PYTHONPATH=python:tests .venv/bin/python -m unittest test_execution_receipt -v
+PYTHONPATH=python:tests .venv/bin/python -m unittest test_development_notices -v
 PYTHONPATH=python .venv/bin/python -m unittest discover \
   -s tests -p 'test_development_*.py' -v
 PYTHONPATH=python .venv/bin/python -m unittest discover \

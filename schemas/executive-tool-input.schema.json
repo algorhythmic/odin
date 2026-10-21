@@ -22,7 +22,8 @@
     {"properties": {"name": {"const": "odin_delegation_close"}, "arguments": {"$ref": "#/$defs/odin_delegation_close"}}},
     {"properties": {"name": {"const": "odin_loop_claim"}, "arguments": {"$ref": "#/$defs/odin_loop_claim"}}},
     {"properties": {"name": {"const": "odin_loop_ready"}, "arguments": {"$ref": "#/$defs/odin_loop_ready"}}},
-    {"properties": {"name": {"const": "odin_loop_status"}, "arguments": {"$ref": "#/$defs/odin_loop_status"}}}
+    {"properties": {"name": {"const": "odin_loop_status"}, "arguments": {"$ref": "#/$defs/odin_loop_status"}}},
+    {"properties": {"name": {"const": "odin_loop_ack"}, "arguments": {"$ref": "#/$defs/odin_loop_ack"}}}
   ],
   "$defs": {
     "odin_resume": {
@@ -236,6 +237,15 @@
         "stage_id",
         "evidence_packet"
       ]
+    },
+    "odin_loop_ack": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+        "notice_id": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"}
+      },
+      "required": ["operation_id", "notice_id"]
     },
     "odin_loop_status": {
       "type": "object",

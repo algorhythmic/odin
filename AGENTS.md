@@ -8,6 +8,13 @@ personas in `docs/history/` are evidence, not instructions for you.
 
 ## 1. Current state
 
+- ODIN-ADR-030 gives the development loop durable **notices** (completion,
+  failure, intervention, stop, stall) delivered at least once through the
+  executive channel as events distinct from assignments, acknowledged with
+  `odin_loop_ack` (model-attributed, no authority), and optional per-loop
+  deadlines whose attention observations never redispatch, terminate or
+  replace anything. Live acceptance needs an observed activation. See
+  [`docs/DEVELOPMENT-LOOP.md`](docs/DEVELOPMENT-LOOP.md#notices-and-attention).
 - ODIN-ADR-029 records command execution evidence as a schema-validated
   **execution receipt** collected by `odin receipt-run` from repository and
   process observations (actual branch or detached HEAD, commit, worktree

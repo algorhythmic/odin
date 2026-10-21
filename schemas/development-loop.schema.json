@@ -101,6 +101,37 @@
     "updated_at": {
       "type": "string",
       "format": "date-time"
+    },
+    "deadlines": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offer_seconds", "claim_seconds", "ready_seconds", "evaluator_seconds"],
+      "properties": {
+        "offer_seconds": {"anyOf": [{"type": "integer", "minimum": 1, "maximum": 604800}, {"type": "null"}]},
+        "claim_seconds": {"anyOf": [{"type": "integer", "minimum": 1, "maximum": 604800}, {"type": "null"}]},
+        "ready_seconds": {"anyOf": [{"type": "integer", "minimum": 1, "maximum": 604800}, {"type": "null"}]},
+        "evaluator_seconds": {"anyOf": [{"type": "integer", "minimum": 1, "maximum": 604800}, {"type": "null"}]}
+      }
+    },
+    "attention": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "observed", "status", "since", "loop_revision", "elapsed_seconds", "deadline_seconds", "notice_id"],
+          "properties": {
+            "state": {"const": "attention"},
+            "observed": {"enum": ["offer_unanswered", "claimed_stalled", "ready_uncaptured", "evaluator_stalled"]},
+            "status": {"type": "string", "maxLength": 32},
+            "since": {"type": "string", "format": "date-time"},
+            "loop_revision": {"type": "integer", "minimum": 1},
+            "elapsed_seconds": {"type": "integer", "minimum": 0},
+            "deadline_seconds": {"type": "integer", "minimum": 1},
+            "notice_id": {"type": ["string", "null"], "maxLength": 128}
+          }
+        }
+      ]
     }
   },
   "required": [

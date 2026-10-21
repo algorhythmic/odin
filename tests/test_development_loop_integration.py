@@ -6,6 +6,7 @@ forwards evaluator results or calls the service tick.
 """
 
 import os
+import re
 import selectors
 import signal
 import socket
@@ -305,6 +306,9 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
             "goal": "Demonstrate two synthetic autonomous development stages.",
             "max_rounds": 4, "no_progress_limit": 3,
             "evidence_packet": {"baseline": "synthetic fixture"},
+            # Short offer deadline: round two is left unanswered on purpose so the
+            # live service raises attention and offers a stalled notice.
+            "deadlines": {"offer_seconds": 1},
         })
         loop_id = started["loop"]["id"]
         first = self.bridge.notification()
@@ -327,11 +331,45 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
             foreign.close()
 
         completed_texts = []
+        scenario = []
         for round_number, notification in ((1, first), (2, None), (3, None)):
             if notification is None:
                 notification = self.bridge.notification()
             self.assertIn(f"Execute synthetic stage {round_number}", notification["content"])
+            self.assertEqual(notification["meta"]["kind"], "assignment")
             stage_id = notification["meta"]["stage_id"]
+            if round_number == 2:
+                # Leave the offer unanswered past its deadline: the service's own
+                # tick (real clock, ~6 s) raises attention and offers a stalled
+                # notice over the channel without redispatching anything.
+                deadline = time.monotonic() + 30
+                stalled = None
+                while time.monotonic() < deadline:
+                    frame = self.bridge.read(timeout=max(0.1, deadline - time.monotonic()))
+                    if frame.get("method") == "notifications/claude/channel" and frame["params"]["meta"]["kind"] == "notice":
+                        stalled = frame["params"]
+                        break
+                self.assertIsNotNone(stalled, "stalled notice never arrived")
+                self.assertIn("offer_unanswered", stalled["content"])
+                self.assertIn("does not prove work did not start", stalled["content"])
+                self.assertIsNone(re.search(r"odin-development-complete:", stalled["content"]))
+                status = self.bridge.result("odin_loop_status", {"loop_id": loop_id})["loops"][0]
+                self.assertEqual(status["status"], "executive_pending")
+                self.assertEqual(status["work"]["attention"]["observed"], "offer_unanswered")
+                self.assertEqual(status["executive_stage"]["id"], stage_id)
+                self.assertEqual(status["notices"]["pending"], 1)
+                scenario.append({"step": "stalled_notice", "meta": stalled["meta"], "status_work": status["work"]})
+                # A reply to the notice is not a completion and is never captured.
+                self.hook("Acknowledged the stall notice.\n" + stalled["content"][:120],
+                          prompt_id="unrelated-reply")
+                self.assertEqual(list((self.state / "executive-loop-spool").glob("*.json")), [])
+                unchanged = self.bridge.result("odin_loop_status", {"loop_id": loop_id})["loops"][0]
+                self.assertEqual((unchanged["status"], unchanged["revision"]), (status["status"], status["revision"]))
+                # Acknowledge it; the loop is untouched and the late claim proceeds.
+                ack_operation = identifier()
+                acked = self.bridge.result("odin_loop_ack", {"operation_id": ack_operation, "notice_id": stalled["meta"]["notice_id"]})
+                self.assertEqual(acked["notice"]["state"], "acknowledged")
+                self.assertEqual(acked, self.bridge.result("odin_loop_ack", {"operation_id": ack_operation, "notice_id": stalled["meta"]["notice_id"]}))
             claim_args = {
                 "operation_id": identifier(), "loop_id": loop_id, "stage_id": stage_id,
             }
@@ -425,6 +463,60 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
             self.fail("loop never completed: " + canonical(status))
         self.assertEqual(loop["round"], 3)
         self.assertEqual(list((self.state / "executive-loop-spool").glob("*.json")), [])
+        # The completed loop offers a completion notice: no assignment, no footer,
+        # same identity across a bridge reconnect, gone once acknowledged.
+        completion = self.bridge.notification()
+        self.assertEqual(completion["meta"]["kind"], "notice")
+        self.assertIn("completion", completion["content"])
+        self.assertIn("NOTICE, not an assignment", completion["content"])
+        self.assertIsNone(re.search(r"odin-development-complete:", completion["content"]))
+        self.assertIn("Independent synthetic assessment after round 3", completion["content"])
+        self.bridge.close()
+        self.bridge = BridgeClient(self.state, self.project, self.environment)
+        replayed = self.bridge.notification()
+        self.assertEqual(replayed["meta"]["message_id"], completion["meta"]["message_id"])
+        self.hook("Thanks for the notice.", prompt_id="human-chat")
+        self.assertEqual(list((self.state / "executive-loop-spool").glob("*.json")), [])
+        self.assertEqual(self.bridge.result("odin_loop_status", {"loop_id": loop_id})["loops"][0]["status"], "complete")
+        foreign = BridgeClient(self.state, self.project, self.environment, OTHER_SESSION)
+        try:
+            refused = foreign.call("odin_loop_ack", {"operation_id": identifier(), "notice_id": completion["meta"]["notice_id"]})
+            self.assertTrue(refused["isError"])
+        finally:
+            foreign.close()
+        acked = self.bridge.result("odin_loop_ack", {"operation_id": identifier(), "notice_id": completion["meta"]["notice_id"]})
+        self.assertEqual(acked["notice"]["kind"], "completion")
+        status = self.bridge.result("odin_loop_status", {"loop_id": loop_id})["loops"][0]
+        self.assertEqual(status["status"], "complete")
+        self.assertEqual(status["notices"]["pending"], 0)
+        self.assertEqual(status["notices"]["acknowledged"], 2)
+        scenario.append({"step": "completion_notice", "meta": completion["meta"], "notices": status["notices"]})
+        self.bridge.close()
+        self.bridge = BridgeClient(self.state, self.project, self.environment)
+        self.assertEqual(self.bridge.events, [])
+        # Operator control of a finished loop and a fresh loop's deadlines go
+        # through the socket path; stop never claims to kill native work.
+        with self.assertRaises(AssertionError):
+            self.operator("loop_control", {"project": self.project, "loop_id": loop_id, "action": "pause"})
+        second = self.operator("loop_start", {
+            "project": self.project, "session_id": SESSION, "goal": "Second synthetic loop",
+            "max_rounds": 1, "deadlines": {"evaluator_seconds": 3600},
+        })
+        adjusted = self.operator("loop_control", {
+            "project": self.project, "loop_id": second["loop"]["id"], "action": "deadlines",
+            "deadlines": {"evaluator_seconds": 7200, "offer_seconds": 60},
+        })
+        self.assertEqual(adjusted["loop"]["deadlines"]["offer_seconds"], 60)
+        stopped = self.operator("loop_control", {"project": self.project, "loop_id": second["loop"]["id"], "action": "stop"})
+        self.assertTrue(stopped["external_process_stop_required"])
+        stop_notice = self.bridge.notification()
+        self.assertEqual(stop_notice["meta"]["kind"], "notice")
+        self.assertIn("stopped", stop_notice["content"])
+        self.assertIn("were not terminated by this", stop_notice["content"])
+        scenario.append({"step": "stop_notice", "meta": stop_notice["meta"]})
+        retained = Path(self.temp.name) / "scenario-output.json"
+        retained.write_text(canonical(scenario) + "\n")
+        self.scenario_output = canonical(scenario)
         self.bridge.close()
         self.bridge = None
         self.stop_service()

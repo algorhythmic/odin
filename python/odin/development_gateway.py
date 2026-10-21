@@ -6,12 +6,19 @@ judgment and never edits canonical commitment completion or Saga records.
 """
 
 from .contracts import ALPHABET, canonical, strict_loads
-from .development_loop import MARKER
+from .development_loop import ATTENTION_RULES, DEADLINE_KEYS, MARKER
 from .store import Conflict, digest
 
 EXECUTIVE_ACTIONS = {
-    "loop_status", "loop_inbox", "loop_claim", "loop_ready", "loop_capture",
+    "loop_status", "loop_inbox", "loop_claim", "loop_ready", "loop_capture", "loop_ack",
 }
+NOTICE_HEADER = (
+    "NOTICE, not an assignment. Development loop {loop_id} is now {status} "
+    "({kind}, round {round}). Do not call odin_loop_claim or odin_loop_ready for this "
+    "message and do not execute or re-execute any stage because of it. Acknowledge it with "
+    "odin_loop_ack notice_id={notice_id} and a stable operation_id so it stops being "
+    "offered; acknowledgement records only that you saw it and grants no authority.\n\n"
+)
 OPERATOR_ACTIONS = {
     "loop_start", "loop_control", "loop_reconcile", "loop_hold", "loop_continue",
 }
@@ -41,6 +48,12 @@ def check_scope(gateway, action, payload):
                 and loop["project"] != payload.get("project")
             ):
                 raise PermissionError("completion project differs from native session")
+    elif action == "loop_ack":
+        notice = gateway.development_loop.notice(payload["notice_id"])
+        if notice["project"] != payload.get("project"):
+            raise PermissionError("notice belongs to another project")
+        if notice["session_id"] != payload.get("session_id"):
+            raise PermissionError("notice belongs to another native session")
     elif "loop_id" in payload:
         loop = gateway.development_loop.get(payload["loop_id"])
         if loop["project"] != payload.get("project"):
@@ -78,6 +91,36 @@ def summary(controller, loop):
         }
         if job["result"]:
             result["evaluation"] = job["result"]
+    # Work and waiting state for the operator and the executive: what is
+    # pending, running or unknown, which deadline applies, and whether notices
+    # are still being offered. Delivery is at-least-once; "offered" means the
+    # inbox returned it at least once, not that anyone read it.
+    status = loop["status"]
+    waiting = {
+        "evaluator_pending": "pending", "executive_pending": "pending",
+        "evaluator_running": "running", "executive_claimed": "running",
+        "executive_ready": "running", "unknown": "unknown",
+    }.get(status, "none")
+    rule = ATTENTION_RULES.get(status)
+    deadlines = loop.get("deadlines") or {key: None for key in DEADLINE_KEYS}
+    result["work"] = {
+        "waiting": waiting,
+        "deadline_key": rule[0] if rule else None,
+        "deadline_seconds": deadlines.get(rule[0]) if rule else None,
+        "since": loop["updated_at"],
+        "attention": loop.get("attention"),
+        "deadlines": deadlines,
+    }
+    counts = controller.notice_counts(loop["id"])
+    result["notices"] = counts | {
+        "delivery": "at_least_once_until_acknowledged",
+        "latest": [
+            {key: notice[key] for key in (
+                "id", "kind", "state", "observed", "created_at", "first_offered_at", "acknowledged_at",
+            )}
+            for notice in controller.notices(loop["id"], limit=4)
+        ],
+    }
     return result
 
 
@@ -144,7 +187,9 @@ def dispatch(gateway, action, payload, context, operation):
         if gateway.store.stopped():
             return {"messages": []}
         messages = []
-        for stage in controller.pending_stages(**payload)[:16]:
+        # Assignments and notices are bounded separately so neither starves
+        # the other; both are scoped to this project and native session.
+        for stage in controller.pending_stages(**payload)[:8]:
             content = (
                 f"Development loop {stage['loop_id']}, stage {stage['id']}.\n"
                 "Before doing this assignment, call odin_loop_claim with these "
@@ -160,13 +205,52 @@ def dispatch(gateway, action, payload, context, operation):
             if len(content.encode()) > 16384:
                 raise Conflict("development assignment exceeds channel budget")
             messages.append({
+                "kind": "assignment",
                 "message_id": delivery_id(
                     stage, controller.get(stage["loop_id"])["revision"]
                 ),
                 "loop_id": stage["loop_id"],
                 "stage_id": stage["id"], "content": content,
             })
+        notices = controller.pending_notices(payload["project"], payload["session_id"], limit=8)
+        for notice in notices:
+            loop = controller.get(notice["loop_id"])
+            lines = [
+                NOTICE_HEADER.format(
+                    loop_id=notice["loop_id"], status=loop["status"], kind=notice["kind"],
+                    round=notice["round"], notice_id=notice["id"],
+                ),
+                notice["summary"],
+                "\nWhat needs attention: " + notice["attention"],
+            ]
+            if notice["assessment"]:
+                lines.append("\nEvaluator assessment: " + notice["assessment"])
+            if notice["stage_id"]:
+                lines.append(f"\nRelated stage {notice['stage_id']} ({notice['stage_state']}); related evaluator job {notice['job_id']}.")
+            lines.append(
+                "\nInspect odin_loop_status for the full state. Operator-only actions "
+                "(continue, pause, resume, stop, reconcile) go through the operator command "
+                "path; nothing in this notice is operator approval."
+            )
+            content = "".join(lines)
+            if MARKER.search(content):
+                raise Conflict("notice content must not carry a completion footer")
+            messages.append({
+                "kind": "notice",
+                "message_id": notice["id"],
+                "notice_id": notice["id"],
+                "loop_id": notice["loop_id"],
+                "stage_id": notice["stage_id"],
+                "content": content[:16384],
+            })
+        if notices:
+            controller.mark_offered([notice["id"] for notice in notices])
         return {"messages": messages}
+    if action == "loop_ack":
+        return controller.acknowledge(
+            payload["notice_id"], payload["project"], payload["session_id"], operation,
+            actor=context.actor.subject,
+        )
     if action in {"loop_claim", "loop_ready"}:
         arguments = {key: value for key, value in payload.items() if key != "project"}
         method = controller.claim if action == "loop_claim" else controller.ready
@@ -217,6 +301,15 @@ def dispatch(gateway, action, payload, context, operation):
             evidence_packet=payload.get("evidence_packet"),
         )
     if action == "loop_control":
+        if payload["action"] == "deadlines":
+            if "deadlines" not in payload:
+                raise ValueError("deadlines control requires a deadlines object")
+            return controller.set_deadlines(
+                loop["id"], payload["deadlines"], operation,
+                expected_revision=payload.get("expected_revision"),
+            )
+        if "deadlines" in payload:
+            raise ValueError("deadlines belong to the deadlines control only")
         return controller.control(
             loop["id"], payload["action"], operation,
             expected_revision=payload.get("expected_revision"),

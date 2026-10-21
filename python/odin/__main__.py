@@ -586,6 +586,10 @@ def main():
                     except Exception as error:
                         print("development evaluator tick failed: " + type(error).__name__,
                               file=sys.stderr, flush=True)
+                    try:
+                        gateway.development_loop.check_attention()
+                    except Exception as error:  # noqa: BLE001 - attention is an observation, never fatal
+                        print("development attention check failed: " + type(error).__name__, file=sys.stderr)
         except KeyboardInterrupt:
             pass
         finally:

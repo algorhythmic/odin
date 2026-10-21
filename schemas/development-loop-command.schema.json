@@ -30,6 +30,16 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 100
+        },
+        "deadlines": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "offer_seconds": {"anyOf": [{"type": "integer", "minimum": 1, "maximum": 604800}, {"type": "null"}]},
+            "claim_seconds": {"anyOf": [{"type": "integer", "minimum": 1, "maximum": 604800}, {"type": "null"}]},
+            "ready_seconds": {"anyOf": [{"type": "integer", "minimum": 1, "maximum": 604800}, {"type": "null"}]},
+            "evaluator_seconds": {"anyOf": [{"type": "integer", "minimum": 1, "maximum": 604800}, {"type": "null"}]}
+          }
         }
       },
       "required": [
@@ -93,12 +103,23 @@
           "enum": [
             "pause",
             "resume",
-            "stop"
+            "stop",
+            "deadlines"
           ]
         },
         "expected_revision": {
           "type": "integer",
           "minimum": 1
+        },
+        "deadlines": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "offer_seconds": {"anyOf": [{"type": "integer", "minimum": 1, "maximum": 604800}, {"type": "null"}]},
+            "claim_seconds": {"anyOf": [{"type": "integer", "minimum": 1, "maximum": 604800}, {"type": "null"}]},
+            "ready_seconds": {"anyOf": [{"type": "integer", "minimum": 1, "maximum": 604800}, {"type": "null"}]},
+            "evaluator_seconds": {"anyOf": [{"type": "integer", "minimum": 1, "maximum": 604800}, {"type": "null"}]}
+          }
         }
       },
       "required": [
@@ -106,6 +127,16 @@
         "loop_id",
         "action"
       ]
+    },
+    "loop_ack": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+        "session_id": {"type": "string", "format": "uuid"},
+        "notice_id": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"}
+      },
+      "required": ["project", "session_id", "notice_id"]
     },
     "loop_continue": {
       "type": "object",
