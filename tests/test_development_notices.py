@@ -13,6 +13,7 @@ from unittest.mock import patch
 from odin.contracts import canonical, identifier
 from odin.coordination import Actor
 from odin.development_evaluator import SCHEMA as EVALUATOR_SCHEMA, _write
+from odin.development_gateway import _processes
 from odin.development_loop import MARKER, DevelopmentLoop, clip_bytes, normalize_deadlines
 from odin.executive_service import prepare_project, submit_executive
 from odin.gateway import Gateway, GatewayContext
@@ -1210,6 +1211,18 @@ class NoticeGatewayTests(unittest.TestCase):
         # no job was ever dispatched.
         with patch("odin.development_gateway._processes", return_value=None):
             self.assertTrue(self.gate(result["loop"]["id"])["restart_quiescent"])
+        named = subprocess.Popen(
+            [sys.executable, "-c",
+             "import ctypes, sys, time; ctypes.CDLL(None).prctl(15, b'\\xff\\xfeodin', 0, 0, 0); "
+             "sys.stdout.write('ready\\n'); sys.stdout.flush(); time.sleep(120)"],
+            stdout=subprocess.PIPE, start_new_session=True,
+        )
+        self.addCleanup(named.stdout.close)
+        self.addCleanup(named.wait)
+        self.addCleanup(named.kill)
+        self.assertEqual(named.stdout.readline(), b"ready\n")
+        self.assertEqual(Path(f"/proc/{named.pid}/comm").read_bytes()[:2], b"\xff\xfe")
+        self.assertIsNotNone(_processes(Path(self.temp.name)))
 
     def test_stopped_loop_with_running_evaluator_is_not_quiescent(self):
         result = self.send("loop_start", {"goal": "Stop", "session_id": self.session})
@@ -1250,6 +1263,30 @@ class NoticeGatewayTests(unittest.TestCase):
         self.assertFalse(gate["restart_quiescent"])
         self.assertEqual(gate["evaluator_executions_unresolved"], 1)
         self.assertEqual(gate["unresolved"][0]["reason"], "process table unavailable")
+        with patch("odin.development_gateway.RECORD_LIMIT", 0):
+            gate = self.gate(loop_id)
+        self.assertFalse(gate["restart_quiescent"])
+        self.assertEqual(gate["unresolved"][0]["reason"], "inspection bound exceeded")
+
+    def test_completed_jobs_need_only_process_evidence(self):
+        result = self.send("loop_start", {"goal": "Done", "session_id": self.session})
+        loop_id, job = result["loop"]["id"], result["job"]
+        directory, _ = self.dispatch_evaluator(loop_id, job)
+        self.gateway.development_loop.accept_evaluation(
+            loop_id, job["id"], job["packet_digest"], verdict(), identifier()
+        )
+        (directory / "dispatch.json").unlink()
+        # Completed jobs never count toward the inspection bound.
+        with patch("odin.development_gateway.RECORD_LIMIT", 0):
+            self.assertTrue(self.gate(loop_id)["restart_quiescent"])
+        lingering = self.sleeper(str(directory / "packet.json"))
+        gate = self.gate(loop_id)
+        self.assertFalse(gate["restart_quiescent"])
+        self.assertEqual(gate["evaluator_executions_outstanding"], 1)
+        self.assertEqual(gate["unresolved"][0]["reason"], "process names its spool")
+        lingering.kill()
+        lingering.wait()
+        self.assertTrue(self.gate(loop_id)["restart_quiescent"])
 
     def test_stopped_loop_with_unresolved_evaluator_evidence_is_not_quiescent(self):
         result = self.send("loop_start", {"goal": "Unknown", "session_id": self.session})
@@ -1289,6 +1326,21 @@ class NoticeGatewayTests(unittest.TestCase):
         self.assertEqual(gate["loops_not_quiescent_other_projects"], 1)
         self.assertFalse(gate["restart_quiescent"])
         self.assertEqual(gate, self.gate(own["loop"]["id"]))
+        self.send("loop_control", {"project": self.other, "loop_id": other["loop"]["id"], "action": "stop"})
+        self.assertTrue(self.gate(own["loop"]["id"])["restart_quiescent"])
+        third = self.send(
+            "loop_start", {"project": self.other, "goal": "Third", "session_id": str(uuid.uuid4())}
+        )
+        directory, _ = self.dispatch_evaluator(third["loop"]["id"], third["job"])
+        runner = self.sleeper(str(directory))
+        self.send("loop_control", {"project": self.other, "loop_id": third["loop"]["id"], "action": "stop"})
+        gate = self.gate(own["loop"]["id"])
+        self.assertEqual(gate["loops_not_quiescent_other_projects"], 0)
+        self.assertEqual(gate["evaluator_executions_outstanding"], 1)
+        self.assertFalse(gate["restart_quiescent"])
+        runner.kill()
+        runner.wait()
+        self.assertTrue(self.gate(own["loop"]["id"])["restart_quiescent"])
 
     def test_notice_scope_is_checked_before_any_replay(self):
         self.complete_a_loop()

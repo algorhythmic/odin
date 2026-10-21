@@ -237,9 +237,8 @@ def _processes(state):
                 if not entry.name.isdigit():
                     continue
                 try:
-                    fields = (
-                        Path(entry.path, "stat").read_text().rsplit(")", 1)[1].split()
-                    )
+                    # Bytes: a process name need not be valid UTF-8.
+                    fields = Path(entry.path, "stat").read_bytes().rsplit(b")", 1)[1].split()
                     argv = Path(entry.path, "cmdline").read_bytes().split(b"\0")
                 except (FileNotFoundError, ProcessLookupError):
                     continue  # Exited while scanning.
@@ -250,7 +249,7 @@ def _processes(state):
                     except (FileNotFoundError, ProcessLookupError):
                         continue
                     return None
-                if fields[0] != "Z":
+                if fields[0] != b"Z":
                     groups.add(int(fields[2]))
                     references += [arg for arg in argv if arg.startswith(root)]
     except (OSError, IndexError, ValueError):
@@ -271,34 +270,60 @@ def _evaluator_executions(gateway, state, processes):
     """Classify every dispatched evaluator job by process evidence, read-only.
 
     A job without an evaluator-start receipt was never spawned: the reservation
-    and the durable start precede any process. Every other job, including
-    cancelled jobs of stopped loops, stays outstanding while a recorded runner
-    or harness process group has members or a process names its spool, and
-    unresolved when the dispatch evidence or the process table is unreadable.
+    and the durable start precede any process. A process naming a job's spool
+    keeps that job outstanding whatever its state. A completed job's result was
+    accepted only after its harness exited, so nothing else is read for it.
+    Every other dispatched job, including the cancelled job of a stopped loop,
+    stays outstanding while a recorded runner or harness process group has
+    members, and unresolved while its dispatch evidence or the process table
+    cannot be read.
     """
     from jsonschema.exceptions import ValidationError
 
     from .development_evaluator import ID, SCHEMA, _private_directory, _read
 
     outstanding, unresolved, details = 0, 0, []
+    root = state / "development-evaluator"
+    prefix = str(root).encode() + b"/"
+    named = set()
+    if processes is not None:
+        for arg in processes[1]:
+            if arg.startswith(prefix):
+                named.add(arg[len(prefix):].split(b"/", 1)[0].decode(errors="replace"))
+    for job_id in sorted(named):
+        outstanding += 1
+        details.append({"kind": "evaluator_job", "id": job_id, "reason": "process names its spool"})
+    dispatched = (
+        "FROM development_loop_jobs j WHERE EXISTS (SELECT 1 FROM development_loop_receipts r "
+        "WHERE r.operation>='evaluator-start:'||j.id||':' AND r.operation<'evaluator-start:'||j.id||';')"
+    )
+    if processes is None:
+        count = gateway.store.db.execute("SELECT COUNT(*) " + dispatched).fetchone()[0]
+        if count:
+            details.append({"kind": "evaluator_job", "id": None, "reason": "process table unavailable"})
+        return 0, count, details
     rows = gateway.store.db.execute(
-        "SELECT body FROM development_loop_jobs ORDER BY rowid LIMIT ?",
+        "SELECT body " + dispatched + " AND json_extract(j.body,'$.state')!='completed' "
+        "ORDER BY j.rowid LIMIT ?",
         (RECORD_LIMIT + 1,),
     ).fetchall()
     if len(rows) > RECORD_LIMIT:
-        return 0, 1, [{"kind": "evaluator_job", "id": None, "reason": "inspection bound exceeded"}]
+        rows = rows[:RECORD_LIMIT]
+        unresolved += 1
+        details.append({"kind": "evaluator_job", "id": None, "reason": "inspection bound exceeded"})
     for row in rows:
-        job = strict_loads(row[0])
-        if ID.fullmatch(job["id"]) and not gateway.store.db.execute(
-            "SELECT 1 FROM development_loop_receipts WHERE operation>=? AND operation<? LIMIT 1",
-            (f"evaluator-start:{job['id']}:", f"evaluator-start:{job['id']};"),
-        ).fetchone():
-            continue
-        reason = None
         try:
+            job = strict_loads(row[0])
             if not ID.fullmatch(job["id"]):
                 raise ValueError("invalid evaluator job identity")
-            directory = _private_directory(state / "development-evaluator" / job["id"])
+        except (ValueError, KeyError, TypeError):
+            unresolved += 1
+            details.append({"kind": "evaluator_job", "id": None, "reason": "job record unreadable"})
+            continue
+        if job["id"] in named:
+            continue
+        try:
+            directory = _private_directory(root / job["id"])
             dispatch = _read(directory / "dispatch.json", SCHEMA, definition="dispatch")
             if (
                 dispatch["job_id"] != job["id"]
@@ -309,20 +334,17 @@ def _evaluator_executions(gateway, state, processes):
             if (directory / "started.json").exists():
                 started = _read(directory / "started.json", SCHEMA, definition="started")
                 groups |= {started["runner_pid"], started["harness_pid"]}
-        except (OSError, ValueError, KeyError, ValidationError, Conflict):
-            reason = "dispatch evidence missing or unreadable"
-        else:
-            if processes is None:
-                reason = "process table unavailable"
-            elif _present(processes, groups - {None}, directory):
-                outstanding += 1
-                details.append(
-                    {"kind": "evaluator_job", "id": job["id"], "reason": f"process observed; job {job['state']}"}
-                )
-                continue
-        if reason:
+        except (OSError, ValueError, KeyError, TypeError, ValidationError, Conflict):
             unresolved += 1
-            details.append({"kind": "evaluator_job", "id": job["id"], "reason": reason})
+            details.append(
+                {"kind": "evaluator_job", "id": job["id"], "reason": "dispatch evidence missing or unreadable"}
+            )
+            continue
+        if processes[0] & (groups - {None}):
+            outstanding += 1
+            details.append(
+                {"kind": "evaluator_job", "id": job["id"], "reason": f"recorded process group live; job {job['state']}"}
+            )
     return outstanding, unresolved, details
 
 
@@ -342,9 +364,13 @@ def _lost_turns(gateway, state, processes):
     ).fetchone()[0]
     details = []
     for row in rows:
-        turn = strict_loads(row[0])
-        runner = turn.get("runner") or {}
-        directory = state / "delegations" / turn["session"] / turn["id"]
+        try:
+            turn = strict_loads(row[0])
+            runner = turn.get("runner") or {}
+            directory = state / "delegations" / turn["session"] / turn["id"]
+        except (ValueError, KeyError, TypeError, AttributeError):
+            details.append({"kind": "delegated_turn_lost", "id": None, "reason": "turn record unreadable"})
+            continue
         groups = {runner.get("pid"), runner.get("harness_pid")} - {None}
         if processes is None:
             observed = "unknown"
@@ -424,7 +450,15 @@ def quiescence(gateway, project=None):
     if state is None:
         unresolved, details = 1, [{"kind": "state", "id": None, "reason": "state directory unknown"}]
     else:
-        processes = _processes(state)
+        candidates = gateway.store.db.execute(
+            "SELECT 1 FROM development_loop_receipts WHERE operation>='evaluator-start:' "
+            "AND operation<'evaluator-start;' LIMIT 1"
+        ).fetchone()
+        if delegation is not None and not candidates:
+            candidates = gateway.store.db.execute(
+                "SELECT 1 FROM delegation_turns WHERE state='lost' LIMIT 1"
+            ).fetchone()
+        processes = _processes(state) if candidates else (set(), [])
         if delegation is not None:
             running_turns = gateway.store.db.execute(
                 "SELECT COUNT(*) FROM delegation_turns WHERE state IN (?,?,?,?)",

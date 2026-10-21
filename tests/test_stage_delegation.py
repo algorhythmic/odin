@@ -1,4 +1,6 @@
 """Synthetic development stage routed through a separate fake Claude orchestrator."""
+import subprocess
+import sys
 import tempfile
 import unittest
 import uuid
@@ -250,8 +252,6 @@ class StageDelegationTests(unittest.TestCase):
             self.operator_call('loop_control', payload)
 
     def test_restart_gate_counts_lost_turns_even_after_retirement(self):
-        import subprocess
-        import sys
         loop_id, _ = self.stage()
         def gate():
             return self.operator_call('loop_status', {'loop_id': loop_id})['quiescence']
@@ -291,6 +291,18 @@ class StageDelegationTests(unittest.TestCase):
         delegation._save_turn(lost | {'runner': None})
         self.assertEqual(gate()['unresolved'][0]['reason'],
                          'native outcome unknown; recorded processes unknown')
+        harness = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)'],
+                                   start_new_session=True)
+        self.addCleanup(harness.wait)
+        self.addCleanup(harness.kill)
+        delegation._save_turn(lost | {'runner': lost['runner'] | {'harness_pid': harness.pid}})
+        self.assertEqual(gate()['unresolved'][0]['reason'],
+                         'native outcome unknown; recorded processes present')
+        self.assertIsNone(harness.poll())  # observed, never signalled
+        # Lost turns of any project close the service-wide gate.
+        delegation._save_turn(lost | {'id': identifier(), 'project': identifier()})
+        self.assertEqual(gate()['delegated_turns_lost'], 2)
+        self.assertFalse(gate()['restart_quiescent'])
 
     def test_transition_refuses_existing_stage_binding(self):
         loop_id, stage_id = self.stage()
