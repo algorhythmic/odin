@@ -74,7 +74,7 @@ def main():
             "development-continue",
             "development-status",
             "development-control",
-            "usage-import", "usage-collect", "usage-configure", "usage-status",
+            "usage-import", "usage-collect", "usage-watch", "usage-configure", "usage-status",
             "context-checkpoint", "context-status",
             "receipt-run",
             "receipt-validate",
@@ -138,6 +138,7 @@ def main():
     parser.add_argument("--claude-subagent-model", help="default delegated Claude native subagent model")
     parser.add_argument("--claude-subagent-model-force", action="store_true", help="request native model override for ordinary subagents; native exceptions remain")
     parser.add_argument("--usage-semantics", choices=["per_turn", "session_cumulative"], default="per_turn", help="explicit Codex source counter semantics")
+    parser.add_argument("--once", action="store_true", help="poll configured usage-watch sources once and exit")
     parser.add_argument("--usage-provider", choices=["claude", "codex", "claude-status"])
     parser.add_argument("--source-file", help="explicit native usage JSON/JSONL file; only metadata is imported")
     parser.add_argument("--native-session", help="native UUID for a usage source or checkpoint view")
@@ -267,6 +268,9 @@ def main():
         print(canonical(result))
         return
     address = str(state / "service.sock")
+    if args.action == "usage-watch":
+        from .usage_watch import run_cli
+        sys.exit(run_cli(args, state, address, _socket_command, parser))
     if args.action in {"usage-import", "usage-collect", "usage-configure", "usage-status", "context-checkpoint", "context-status"}:
         from .usage_cli import run
         sys.exit(run(args, address, _socket_command, parser))

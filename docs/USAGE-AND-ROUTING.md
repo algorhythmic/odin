@@ -183,3 +183,65 @@ no duplicate requests, quota freshness, hold/release with unchanged identities,
 checkpoint recovery, and final accepted evidence. Compare usage **and** quality
 against the baseline before selecting defaults. Synthetic tests establish
 controller behavior, not completion of that live experiment.
+
+## Incremental native usage watch
+
+`usage-watch` is an opt-in, separate local process. It discovers transcripts only
+under the exact files or directories named in a private, schema-validated
+configuration. It sends normalized metadata through the operator service socket;
+it never opens the service database or stores message content. The service must
+be running. A private cursor SQLite file and exclusive lock allow one watcher
+for that cursor. Pending metadata batches are retained before sending and replayed
+with the same operation ID after an uncertain reply; byte cursors advance only
+after the service acknowledges them.
+
+```json
+{
+  "schema_version": 1,
+  "project_id": "PROJECT_ULID",
+  "cursor_path": "/private/odin-usage-watch/cursor.sqlite3",
+  "poll_seconds": 15,
+  "max_chunk_bytes": 262144,
+  "max_files": 128,
+  "sources": [
+    {
+      "provider": "claude",
+      "session_file": "/explicit/claude/project/SESSION_UUID.jsonl",
+      "session_id": "SESSION_UUID",
+      "agent_id": "executive",
+      "discover_children": true
+    }
+  ],
+  "status_files": [
+    {
+      "path": "/explicit/private/status.json",
+      "session_id": "SESSION_UUID",
+      "agent_id": "executive",
+      "account_id": "operator-chosen-account-label"
+    }
+  ]
+}
+```
+
+Run one poll with `python -m odin --state "$ODIN_PILOT_STATE" usage-watch
+--request /private/watch-config.json --once`; omit `--once` to poll at the
+configured interval. `session_file` watches that exact file and, when enabled,
+only its sibling `<session-file-stem>/subagents/*.jsonl`. Alternatively,
+`sessions_dir` plus `discover_sessions: true` watches direct `*.jsonl` files
+and their exact sibling subagent directories. This directory mode is explicit
+permission to discover future native sessions in that one directory; it gives
+them project-only usage attribution. File counts, directory depth, read bytes,
+source JSON size, import batch size and poll cadence are bounded. Missing files
+remain unavailable and may appear in a later poll. Codex sources may declare
+`usage_semantics: "session_cumulative"` when confirmed for that source.
+
+A discovered child retains the parent native session for the service's scope
+check; its agent identity includes the child filename and native child metadata.
+This is provenance from local transcripts, not proof of which model executed.
+Repeated native messages, a lost socket reply, rotation and truncation cannot
+advance the cursor before an acknowledged import. Continuous sources always
+report incomplete coverage because more lines or undiscovered agents may appear.
+Oversized or malformed lines are skipped with an error count; they do not become
+zero usage. Status snapshots use the explicitly named file's modification time
+as the sample time, so a copied or touched file must be treated as a new local
+observation rather than an attested provider timestamp.
