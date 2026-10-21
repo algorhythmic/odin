@@ -149,22 +149,43 @@ class WorkstreamSessionTests(unittest.TestCase):
         self.assertEqual((aggregate["cost_usd_known"], aggregate["cost_label"]),
                          (0.025, "attributed_not_verified"))
 
-    def test_raised_lineage_limit_launches_across_sessions(self):
+    def test_raised_lineage_limit_requires_accepted_sharing(self):
         h = self.harness
+        with self.assertRaisesRegex(ValueError, "requires lineage_policy shared_accepted"):
+            h.write_config(max_concurrent_turns_per_lineage=2)
         h.close()
-        h.write_config(max_concurrent_turns_per_lineage=2)
+        h.write_config(max_concurrent_turns_per_lineage=2, lineage_policy="shared_accepted")
         h.open()
         owner = self.open_session()["session"]["id"]
         docs = self.open_session(self.workspace("docs"), workstream="docs")["session"]["id"]
         first = self.assign(owner, "SLEEP 1 then finish")
         second = self.assign(docs, "SLEEP 1 then finish")
         self.assertEqual(len(h.gateway.delegation.launch_pending()), 2)
+        aggregate = h.call("delegation_status", {})["project_aggregate"]
+        self.assertEqual((aggregate["max_concurrent_turns_per_lineage"],
+                          aggregate["effective_turns_per_lineage"]), (2, 2))
         # One running turn per session still holds.
         self.assign(owner, "queued behind the first")
         self.assertEqual(h.gateway.delegation.launch_pending(), [])
         for assigned in (first, second):
             h.wait(lambda a=assigned: h.assignment_state(a["assignment"])["turns"][0]["state"]
-                   in ("returned", "failed"), timeout=30)
+                   == "returned", timeout=30)
+            result = h.call("delegation_result", {"assignment_id": assigned["assignment"]})
+            self.assertEqual(result["state"], "returned")
+
+    def test_hand_edited_raised_limit_stays_one_under_exclusive_policy(self):
+        h = self.harness
+        h.gateway.delegation.config["max_concurrent_turns_per_lineage"] = 3
+        owner = self.open_session()["session"]["id"]
+        docs = self.open_session(self.workspace("docs"), workstream="docs")["session"]["id"]
+        first = self.assign(owner, "SLEEP 0.5 then finish")
+        second = self.assign(docs, "SLEEP 0.1 then finish")
+        self.assertEqual(len(h.gateway.delegation.launch_pending()), 1)
+        aggregate = h.call("delegation_status", {})["project_aggregate"]
+        self.assertEqual(aggregate["effective_turns_per_lineage"], 1)
+        for assigned in (first, second):
+            h.wait(lambda a=assigned: h.assignment_state(a["assignment"])["turns"][0]["state"]
+                   == "returned", timeout=30)
 
 
 if __name__ == "__main__":

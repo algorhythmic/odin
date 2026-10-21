@@ -389,6 +389,8 @@ def main():
 
         if not args.workspace_root:
             parser.error("delegation-configure requires at least one --workspace-root")
+        if not 1 <= args.max_concurrent_turns_per_lineage <= 8:
+            parser.error("--max-concurrent-turns-per-lineage must be between 1 and 8")
         try:
             config = default_config(
                 claude_config_dir=args.claude_config,

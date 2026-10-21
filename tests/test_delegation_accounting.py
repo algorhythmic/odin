@@ -9,7 +9,6 @@ import tempfile
 import unittest
 
 from odin.contracts import identifier
-
 from test_delegation import DelegationHarness
 
 STAMP = "2026-10-21T10:00:00Z"

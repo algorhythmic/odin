@@ -2437,7 +2437,8 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
   - a turn's delta is its figure minus the previous inclusive figure of the
     same native session;
   - the first turn of each native session counts as its own delta;
-  - unknown stays unknown;
+  - unknown stays unknown and does not move the baseline, so the next known
+    turn's delta also carries the unknown turn's share;
   - a drop below the previous figure counts as its own figure.
   A session's total is the sum of its deltas. The project aggregate is the sum
   of the sessions and is labelled `attributed_not_verified`. Raw inclusive
@@ -2447,13 +2448,16 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
   (integer 1–8, default 1; `delegation-configure --max-concurrent-turns-per-lineage`).
   `launch_pending` counts running turns per credential lineage lock across
   sessions and launches up to that number. Each session still runs at most one
-  turn at a time. The default 1 reproduces the previous behaviour exactly.
+  turn at a time. The default 1 reproduces the previous behaviour exactly. A
+  value above 1 needs `lineage_policy: shared_accepted`: `write_config` refuses
+  it otherwise and `launch_pending` uses 1, because the runner's exclusive
+  lineage lease would refuse the concurrent turn.
 - **Interleaving (not parallel execution):** with the default 1, which is the
   only value in use, Odin runs one `claude -p` turn at a time on the dedicated
   login. Several orchestrator sessions interleave their turns; they do not run
   in parallel. Raising the value is ADR-036 phase 2. It waits for an observed
   concurrent-turn credential test on isolated state, under open X-12 and
-  D24.4a. Nothing in this ADR raises it now.
+  D24.4a. The pilot configuration stays at 1 until then.
 - **Legacy sessions:** a session declaring neither `workstream` nor `role` is
   legacy and is treated as the integration owner.
 - **Amends and cross-references:** the one-session-per-project rule of

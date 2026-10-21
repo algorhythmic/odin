@@ -239,6 +239,14 @@ def write_config(state, config):
             raise ValueError("workspace roots must be absolute existing directories")
         if path == ROOT or ROOT.is_relative_to(path) or path.is_relative_to(ROOT):
             raise ValueError("workspace roots must not contain or be the checkout")
+    if (
+        config.get("max_concurrent_turns_per_lineage", 1) > 1
+        and config.get("lineage_policy", "exclusive") != "shared_accepted"
+    ):
+        # The runner's exclusive lineage lease would refuse every concurrent turn.
+        raise ValueError(
+            "max_concurrent_turns_per_lineage above 1 requires lineage_policy shared_accepted"
+        )
     for name, harness in config["harnesses"].items():
         if not os.access(harness["binary"], os.X_OK):
             raise ValueError(f"{name} binary is not executable")
@@ -1188,6 +1196,10 @@ class Delegation:
         }
 
     def _lineage_limit(self):
+        # Under the exclusive policy a second concurrent runner is refused by
+        # its lineage lease, so only accepted sharing may raise the limit.
+        if self.config.get("lineage_policy", "exclusive") != "shared_accepted":
+            return 1
         return self.config.get("max_concurrent_turns_per_lineage", 1)
 
     def launch_pending(self):
@@ -2060,7 +2072,10 @@ class Delegation:
         return {
             "active_sessions": rows,
             "integration_owner": owner,
-            "max_concurrent_turns_per_lineage": self._lineage_limit(),
+            "max_concurrent_turns_per_lineage": self.config.get(
+                "max_concurrent_turns_per_lineage", 1
+            ),
+            "effective_turns_per_lineage": self._lineage_limit(),
             "lineages": list(lineages.values()),
             "execution": (
                 "turns on one credential lineage run at most "

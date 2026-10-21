@@ -90,6 +90,25 @@ class DelegationConfigureCliTests(unittest.TestCase):
             strict_loads(path.read_text())["lineage_policy"], "shared_accepted"
         )
 
+    def test_lineage_turn_limit_defaults_to_one_and_needs_accepted_sharing(self):
+        arguments = ["--claude-config", str(self.config_dir),
+                     "--workspace-root", str(self.workspaces)]
+        path = self.state / "delegation.json"
+        result = self.run_cli(*self.base(*arguments))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(strict_loads(path.read_text())["max_concurrent_turns_per_lineage"], 1)
+        result = self.run_cli(*self.base(*arguments, "--max-concurrent-turns-per-lineage", "2"))
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("requires lineage_policy shared_accepted", result.stderr)
+        self.assertEqual(strict_loads(path.read_text())["max_concurrent_turns_per_lineage"], 1)
+        result = self.run_cli(*self.base(*arguments, "--max-concurrent-turns-per-lineage", "9"))
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("between 1 and 8", result.stderr)
+        result = self.run_cli(*self.base(*arguments, "--lineage-policy", "shared_accepted",
+                                         "--max-concurrent-turns-per-lineage", "2"))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(strict_loads(path.read_text())["max_concurrent_turns_per_lineage"], 2)
+
     def test_missing_workspace_root_is_a_usage_error(self):
         result = self.run_cli(*self.base("--claude-config", str(self.config_dir)))
         self.assertEqual(result.returncode, 2)

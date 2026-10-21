@@ -124,14 +124,20 @@ these git rules. They are stated in the session briefing.
 turns per credential lineage across sessions. Each session still runs one turn
 at a time. At the default, Odin runs one `claude -p` turn at a time on the
 dedicated login. Several orchestrator sessions therefore interleave their turns;
-they are not parallel execution. Nothing raises the value now. Phase 2 needs an
-observed concurrent-turn credential test on isolated state (X-12, D24.4a).
+they are not parallel execution. A value above 1 is refused by
+`delegation-configure` and ignored by `launch_pending` unless `lineage_policy`
+is `shared_accepted`, because the runner's exclusive lineage lease would refuse
+the concurrent turn. The pilot keeps 1. Relying on more is phase 2, which needs
+an observed concurrent-turn credential test on isolated state (X-12, D24.4a).
+Status shows the configured and effective values in `project_aggregate`.
 
 Claude Code print results report cost as an inclusive figure for the resumed
 native session. Views therefore use per-turn deltas: each turn's figure minus
 the previous inclusive figure of that native session. The first turn of a native
-session counts as its own delta, unknown stays unknown, and a drop below the
-previous figure counts as its own figure. A session's cost is the sum of its
+session counts as its own delta, and a drop below the previous figure counts as
+its own figure. An unknown figure stays unknown and does not move the baseline,
+so the next known turn's delta also carries the unknown turn's share; the total
+is unaffected. A session's cost is the sum of its
 deltas. The project aggregate in status (`project_aggregate`) sums the sessions
 and is labelled `attributed_not_verified`. Raw inclusive figures stay in each
 turn result for audit. Codex per-turn costs are summed as reported.
