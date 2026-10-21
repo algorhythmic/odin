@@ -30,11 +30,13 @@ and a stable operation ID. The service creates the stage's commitment,
 assignment and queued turn atomically. Retries do not create another assignment.
 
 `limits.iterations` is required; `limits.budget_usd` is optional. Admission is
-governed by the ADR-031 quota policy below, not by a USD cap. When no budget is
+governed by the ADR-031 usage policy below when the operator configures one
+(the default `observe` mode holds nothing), not by a USD cap. When no budget is
 requested, Odin passes no `--max-budget-usd` to Claude Code and records the
-budget as `limit_enforcement.budget: not_requested`; the harness's USD figure
-(`cost_usd`, an API-list-rate estimate) is still reported for comparison but
-is not enforced. A supplied `budget_usd` is passed as the harness option, as
+budget as `limit_enforcement.budget: not_requested`. The harness's own USD
+figure (`cost_usd`, which the operator treats as an API-list-rate estimate, not
+a subscription charge), token usage and model usage are still recorded exactly
+as reported; unreported cost stays unknown. None of these is enforced. A supplied `budget_usd` is passed as the harness option, as
 before (ODIN-ADR-027, 2026-10-21 amendment).
 
 The orchestrator receives the complete fixed stage prompt and instructions to

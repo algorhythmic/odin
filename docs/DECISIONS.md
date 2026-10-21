@@ -1907,9 +1907,15 @@ remain available in every profile.
   `odin_delegation_status` record `budget_usd: null` with
   `limit_enforcement.budget: not_requested`, and a new session stores
   `budget_usd: null` instead of 0. A requested budget behaves as before.
-  Admission is governed by the ADR-031 quota policy; the harness-reported
-  `cost_usd` is an API-list-rate estimate retained as a reported comparison
-  figure, not a subscription charge and not an enforced ceiling. Reason: a
+  Admission is governed by the ADR-031 usage policy when the operator
+  configures one (the default `observe` mode holds nothing). Usage
+  accounting is unchanged: the harness-reported `cost_usd`, which the
+  operator treats as an API-list-rate estimate rather than a subscription
+  charge, and token and model usage are recorded as reported, unreported
+  cost stays unknown, and none of them is an enforced ceiling. The
+  partial I0 runtime contract (`runtime/schemas/v1`) still requires a
+  numeric `budget_usd`; the service does not use it, and reconciling it is
+  left to I0. Reason: a
   resumed session near a harness USD cap could be stopped mid-turn.
 - **Guidance to the executive:** use native subagents for quick bounded work
   whose result is integrated in the same conversation; use delegation
