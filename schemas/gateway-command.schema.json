@@ -63,7 +63,13 @@
         "usage_status",
         "usage_configure",
         "context_checkpoint",
-        "context_status"
+        "context_status",
+        "intervention_begin",
+        "intervention_end",
+        "intervention_status",
+        "intervention_authorize",
+        "intervention_finish",
+        "intervention_reconcile"
       ]
     },
     "payload": {

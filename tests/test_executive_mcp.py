@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -230,6 +231,79 @@ class ExecutiveMCPTests(unittest.TestCase):
         self.assertIn("same operation_id", text)
         self.assertNotIn("credential", text)
         self.gateway.assert_called_once()
+
+    def test_checkpoint_discovery_and_pre_dispatch_errors_are_actionable(self):
+        bridge = ExecutiveBridge(PROJECT, self.gateway, development_loop=True,
+                                 session_id=str(uuid.uuid4()))
+        tool = next(item for item in bridge.tools() if item['name'] == 'odin_context_checkpoint')
+        schema = tool['inputSchema']['properties']['checkpoint']
+        Draft202012Validator.check_schema(tool['inputSchema'])
+        self.assertTrue({'revision', 'branch', 'worktree', 'artifact_refs',
+                         'open_obligations', 'pending_reviews', 'operation_ids',
+                         'next_action', 'summary'} <= set(schema['required']))
+        self.assertNotIn('project_id', schema['properties'])
+        self.assertNotIn('session_id', schema['properties'])
+        self.assertNotIn('schema_version', schema['properties'])
+        checkpoint = {'revision': 1, 'branch': None, 'worktree': None,
+            'artifact_refs': [], 'open_obligations': [], 'pending_reviews': [],
+            'operation_ids': [], 'next_action': 'continue', 'summary': ''}
+        invalid = [
+            (checkpoint | {'revision': 'one'}, 'checkpoint.revision', 'expected integer'),
+            ({key: value for key, value in checkpoint.items() if key != 'revision'},
+             'checkpoint.revision', 'required field missing'),
+            (checkpoint | {'artifact_refs': [{'ref': '/private/secret', 'sha256': 'SECRET-DIGEST'}]},
+             'checkpoint.artifact_refs[0].sha256', 'invalid format'),
+            (checkpoint | {'secret_password': 'SECRET-PASSWORD'},
+             'checkpoint', 'unexpected field'),
+        ]
+        for item, field, reason in invalid:
+            with self.subTest(field=field, reason=reason):
+                response = bridge.call('odin_context_checkpoint',
+                    {'operation_id': OPERATION, 'checkpoint': item})
+                self.assertTrue(response['isError'])
+                message = response['content'][0]['text']
+                self.assertIn('Input not dispatched:', message)
+                self.assertIn(field, message)
+                self.assertIn(reason, message)
+                self.assertLessEqual(len(message), 220)
+                self.assertNotIn('SECRET', message)
+                self.assertNotIn('Write outcome unavailable', message)
+        self.gateway.assert_not_called()
+
+    def test_checkpoint_mcp_stdio_invalid_input_never_reaches_gateway(self):
+        bridge = ExecutiveBridge(PROJECT, self.gateway, development_loop=True,
+                                 session_id=str(uuid.uuid4()))
+        bridge.loop_inbox = lambda: []
+        server = MCPServer(bridge)
+        frames = [initialize(), {'jsonrpc': '2.0', 'method': 'notifications/initialized'},
+                  request('odin_context_checkpoint', {'operation_id': OPERATION,
+                      'checkpoint': {'revision': 'wrong', 'branch': None,
+                          'worktree': None, 'artifact_refs': [], 'open_obligations': [],
+                          'pending_reviews': [], 'operation_ids': [],
+                          'next_action': 'continue', 'summary': ''}})]
+        incoming = io.BytesIO(b''.join((canonical(frame) + '\n').encode() for frame in frames))
+        outgoing = io.BytesIO()
+        server.serve(incoming, outgoing)
+        messages = [strict_loads(line) for line in outgoing.getvalue().splitlines()]
+        self.assertTrue(messages[-1]['result']['isError'])
+        self.assertIn('checkpoint.revision', messages[-1]['result']['content'][0]['text'])
+        self.gateway.assert_not_called()
+
+    def test_checkpoint_transport_uncertainty_keeps_operation_identity(self):
+        bridge = ExecutiveBridge(PROJECT, self.gateway, development_loop=True,
+                                 session_id=str(uuid.uuid4()))
+        self.gateway.side_effect = OSError('sensitive socket path')
+        checkpoint = {'revision': 1, 'branch': None, 'worktree': None,
+            'artifact_refs': [], 'open_obligations': [], 'pending_reviews': [],
+            'operation_ids': [], 'next_action': 'continue', 'summary': ''}
+        result = bridge.call('odin_context_checkpoint',
+            {'operation_id': OPERATION, 'checkpoint': checkpoint})
+        self.assertTrue(result['isError'])
+        self.assertIn('Write outcome unavailable', result['content'][0]['text'])
+        self.assertIn('same operation_id', result['content'][0]['text'])
+        self.assertNotIn('sensitive', result['content'][0]['text'])
+        self.gateway.assert_called_once()
+        self.assertEqual(self.gateway.call_args.args[0]['operation_id'], OPERATION)
 
     def test_access_denial_stale_or_foreign_evidence_have_no_data_leak(self):
         responses = [

@@ -17,6 +17,7 @@ from .delegation import Delegation
 from .development_gateway import ACTIONS as LOOP_ACTIONS
 from .development_gateway import EXECUTIVE_ACTIONS as EXECUTIVE_LOOP_ACTIONS
 from .development_loop import DevelopmentLoop
+from .executive_intervention import ACTIONS as INTERVENTION_ACTIONS, EXECUTIVE_ACTIONS as EXECUTIVE_INTERVENTION_ACTIONS
 from .memory import Memory
 from .orchestration_config import OrchestrationConfig
 from .store import Conflict, digest, event, now
@@ -192,7 +193,7 @@ class Gateway:
                         "response_digest": digest(command["payload"]["response"]),
                     }
                 }
-            elif action in LOOP_ACTIONS | USAGE_ACTIONS:
+            elif action in LOOP_ACTIONS | USAGE_ACTIONS | INTERVENTION_ACTIONS:
                 audit_command = command | {
                     "payload": {
                         "project": command["payload"].get("project"),
@@ -222,7 +223,7 @@ class Gateway:
                 "delegation_status",
                 "delegation_result",
                 "loop_status",
-                "loop_inbox", "usage_status", "context_status",
+                "loop_inbox", "usage_status", "context_status", "intervention_status",
             }:
                 stored_result = result | {"result": {"projection_not_cached": True}}
             self.store.db.execute(
@@ -241,7 +242,7 @@ class Gateway:
             or action not in {
                 "resume", "memory_snapshot", "memory_source_read",
                 "executive_report", "executive_reports", *DELEGATION_ACTIONS,
-                *EXECUTIVE_LOOP_ACTIONS, *EXECUTIVE_USAGE_ACTIONS,
+                *EXECUTIVE_LOOP_ACTIONS, *EXECUTIVE_USAGE_ACTIONS, *EXECUTIVE_INTERVENTION_ACTIONS,
             }
             or payload.get("project") not in context.projects
         ):
@@ -263,7 +264,7 @@ class Gateway:
         project = None
         if action in {
             "resume", "memory_snapshot", "memory_source_read", "executive_reports",
-            "repository_import", *DELEGATION_ACTIONS, *LOOP_ACTIONS, *USAGE_ACTIONS,
+            "repository_import", *DELEGATION_ACTIONS, *LOOP_ACTIONS, *USAGE_ACTIONS, *INTERVENTION_ACTIONS,
         }:
             project = payload.get("project")
         elif action == "prepare_decision":
@@ -384,6 +385,11 @@ class Gateway:
 
     def _dispatch(self, action, payload, context, operation):
         actor = context.actor
+        if action in INTERVENTION_ACTIONS:
+            if actor.subject != "fable-executive":
+                self._operator(context)
+            from .executive_intervention import dispatch
+            return dispatch(self, action, payload, context, operation)
         if action in USAGE_ACTIONS:
             from .usage_gateway import dispatch
             return dispatch(self, action, payload, context, operation)

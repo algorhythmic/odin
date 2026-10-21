@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "intervention_begin": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "ttl_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300
+        },
+        "calls": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "properties": {
+              "tool": {
+                "enum": [
+                  "Bash",
+                  "Write",
+                  "Edit",
+                  "NotebookEdit"
+                ]
+              },
+              "input": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "tool",
+              "input"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "project",
+        "session_id",
+        "purpose",
+        "ttl_seconds",
+        "calls"
+      ],
+      "additionalProperties": false
+    },
+    "intervention_end": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "intervention_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        }
+      },
+      "required": [
+        "project",
+        "session_id",
+        "intervention_id"
+      ],
+      "additionalProperties": false
+    },
+    "intervention_status": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "project",
+        "session_id"
+      ],
+      "additionalProperties": false
+    },
+    "intervention_authorize": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tool": {
+          "enum": [
+            "Bash",
+            "Write",
+            "Edit",
+            "NotebookEdit"
+          ]
+        },
+        "input": {
+          "type": "object"
+        },
+        "cwd": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "tool_use_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "project",
+        "session_id",
+        "tool",
+        "input",
+        "cwd",
+        "tool_use_id"
+      ],
+      "additionalProperties": false
+    },
+    "intervention_finish": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "tool": {
+          "enum": [
+            "Bash",
+            "Write",
+            "Edit",
+            "NotebookEdit"
+          ]
+        },
+        "input": {
+          "type": "object"
+        },
+        "cwd": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "tool_use_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "project",
+        "session_id",
+        "tool",
+        "input",
+        "cwd",
+        "tool_use_id"
+      ],
+      "additionalProperties": false
+    },
+    "intervention_reconcile": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "intervention_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "observation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      },
+      "required": [
+        "project",
+        "session_id",
+        "intervention_id",
+        "observation"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

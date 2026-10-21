@@ -74,6 +74,19 @@ class UsageGatewayTests(unittest.TestCase):
                                        session_id=self.session)
         self.assertTrue(other_bridge.call('odin_usage_status', {})['isError'])
 
+    def test_malformed_checkpoint_is_rejected_before_service_write(self):
+        operation = identifier()
+        with self.assertRaises(ValidationError):
+            self.send('context_checkpoint', {'session_id': self.session,
+                'checkpoint': {'revision': 1, 'next_action': 'continue'}},
+                operation=operation, executive=True)
+        self.assertEqual(self.service.store.db.execute(
+            'SELECT COUNT(*) FROM context_checkpoints WHERE operation_id=?',
+            (operation,)).fetchone()[0], 0)
+        self.assertEqual(self.service.store.db.execute(
+            'SELECT COUNT(*) FROM gateway_commands WHERE id=?',
+            (operation,)).fetchone()[0], 0)
+
     def test_import_authority_project_scope_replay_and_status(self):
         observation = request(provider='claude', project_id=self.project,
             source='synthetic', session_id=self.session, agent_id='worker',

@@ -101,6 +101,9 @@ DEVELOPMENT_REQUIRED_FLAGS = (
     "--append-system-prompt",
     "--system-prompt-snapshot",
 )
+INTERVENTION_DISALLOWED_TOOLS = (
+    "PowerShell", "Agent", "Task", "Monitor", "Workflow", "EnterWorktree", "ExitWorktree",
+)
 DELEGATED_DISALLOWED_TOOLS = (
     "Bash", "PowerShell", "Write", "Edit", "NotebookEdit",
     "Agent", "Task", "Monitor", "Workflow", "EnterWorktree", "ExitWorktree",
@@ -516,7 +519,8 @@ def _launch_spec(manifest, base, *, resume=False):
             manifest["native_session_id"],
         ]
         if manifest.get("implementation_mode") == "delegated":
-            argv.extend(["--disallowedTools", ",".join(DELEGATED_DISALLOWED_TOOLS)])
+            denied = INTERVENTION_DISALLOWED_TOOLS if manifest.get("intervention_enabled") else DELEGATED_DISALLOWED_TOOLS
+            argv.extend(["--disallowedTools", ",".join(denied)])
         if manifest["enable_mcp"]:
             argv.extend(["--mcp-config", str(_mcp_path(manifest, base))])
         if manifest.get("development_loop"):
@@ -535,6 +539,16 @@ def _launch_spec(manifest, base, *, resume=False):
             settings = _loop_settings(manifest) if manifest.get("development_loop") else {}
             settings["crossSessionInbound"] = "accept"
             Contracts().validate("executive-pilot-loop-settings" if manifest.get("development_loop") else "native-peer-settings", settings)
+            if "--settings" in argv:
+                argv[argv.index("--settings") + 1] = canonical(settings)
+            else:
+                argv.extend(["--settings", canonical(settings)])
+        if manifest.get("intervention_enabled"):
+            settings = _loop_settings(manifest) if manifest.get("development_loop") else {}
+            if manifest.get("native_peer_messaging"):
+                settings["crossSessionInbound"] = "accept"
+            settings.setdefault("hooks", {}).update(_intervention_hooks(manifest))
+            Contracts().validate("executive-intervention-settings", settings)
             if "--settings" in argv:
                 argv[argv.index("--settings") + 1] = canonical(settings)
             else:
@@ -636,12 +650,24 @@ def _delegated_prompt(manifest):
         "Persist concise attributed handoffs and decisions through Odin MCP. Distinguish "
         "observed results from worker reports; inspect execution receipts or artifacts "
         "before claiming verification. Preserve stable operation and session identities. "
-        "The native disallowed-tools setting blocks ordinary direct implementation "
+        "The native role policy gates ordinary direct implementation "
         "tools in this session but does not provide OS isolation or constrain plugins, "
         "external commands, or an already running native process. Do not use alternate "
         "paths to perform direct implementation. Neither this session nor local "
         "delegation supplies Saga guarantees."
     )
+    if manifest.get("intervention_enabled"):
+        prompt += (
+            " For authorized diagnostics or bounded repairs, native Bash/Write/Edit/NotebookEdit "
+            "remain available behind a per-call hook. Use odin_intervention_begin with a concise "
+            "purpose and exact inputs, at most eight calls and 300 seconds, after delegated work "
+            "is idle. Do not request a blanket mode change or repeatedly try a denied tool. "
+            "The hook consumes each permit once; completion, explicit end or expiry returns "
+            "to executive mode. Close unused permits before delegating again. Expiry does not "
+            "terminate a running command; unresolved admitted calls require reconciliation. "
+            "This is an exception for repair, not a replacement implementation workflow. "
+            "Do not put secrets in purpose or tool arguments. Keep calls foreground and bounded."
+        )
     if manifest.get("native_peer_messaging"):
         prompt += peer_guidance(manifest["native_session_id"], "executive")
     return prompt
@@ -654,11 +680,12 @@ def _pending_development(manifest, base):
     pending = _read(path, "executive-pilot")
     expected = manifest | {"version": 3, "repository_root": str(ROOT)}
     comparable = {key: value for key, value in pending.items()
-                  if key not in ("development_loop", "auto_compact_window_tokens", "native_peer_messaging", "implementation_mode")}
+                  if key not in ("development_loop", "auto_compact_window_tokens", "native_peer_messaging", "implementation_mode", "intervention_enabled")}
     expected.pop("development_loop", None)
     expected.pop("auto_compact_window_tokens", None)
     expected.pop("native_peer_messaging", None)
     expected.pop("implementation_mode", None)
+    expected.pop("intervention_enabled", None)
     if manifest.get("auto_compact_window_tokens") is not None and pending.get("auto_compact_window_tokens") is None:
         raise PermissionError("pending context configuration removed a configured window")
     if comparable != expected or (
@@ -797,8 +824,10 @@ def configure_execution_role(state, *, implementation_mode):
         pending = dict(_pending_development(manifest, base) or manifest)
         if implementation_mode == "delegated":
             pending["implementation_mode"] = "delegated"
+            pending["intervention_enabled"] = True
         else:
             pending.pop("implementation_mode", None)
+            pending.pop("intervention_enabled", None)
         if pending != manifest:
             _write(base / "pending-development.json", "executive-pilot", pending)
         else:
@@ -924,6 +953,12 @@ def probe(state):
             missing.append("native-peer-messaging>=2.1.224")
     if manifest.get("implementation_mode") == "delegated" and "--disallowedTools" not in results[1]:
         missing.append("--disallowedTools")
+    if manifest.get("intervention_enabled"):
+        if "--settings" not in results[1] and "--settings" not in missing:
+            missing.append("--settings")
+        version = re.search(r"\b(\d+)\.(\d+)\.(\d+)\b", results[0])
+        if version is None or tuple(map(int, version.groups())) < (2, 1, 295):
+            missing.append("blocking-hook-failure>=2.1.295")
     # Development channels use a documented hidden native switch. Help cannot
     # establish channel policy, interactive approval or delivery to this account.
     return {
@@ -1121,6 +1156,7 @@ def status(state):
         "native_peer_messaging_configured": bool(manifest.get("native_peer_messaging")),
         "pending_native_peer_messaging": bool(pending.get("native_peer_messaging")) if pending else None,
         "implementation_mode_configured": manifest.get("implementation_mode", "direct"),
+        "intervention_configured": bool(manifest.get("intervention_enabled")),
         "pending_implementation_mode": pending.get("implementation_mode", "direct") if pending else None,
         "native_peer_name": peer_name(manifest["native_session_id"], "executive") if manifest.get("native_peer_messaging") else None,
         "native_peer_delivery": "unverified" if manifest.get("native_peer_messaging") else "disabled",
@@ -1143,3 +1179,13 @@ def status(state):
         "service_budget_enforced": False,
         "service_reachability": _service_reachability(manifest),
     }
+
+
+def _intervention_hooks(manifest):
+    handler = {"type": "command", "command": "/usr/bin/env", "timeout": 5,
+               "onFailure": "block", "args": [f"PYTHONPATH={ROOT / 'python'}",
+               "PYTHONNOUSERSITE=1", manifest["python_executable"], "-m",
+               "odin.executive_intervention_hook", "--state", manifest["state"],
+               "--project", manifest["project"], "--session-id", manifest["native_session_id"]]}
+    return {name: [{"matcher": "Bash|Write|Edit|NotebookEdit", "hooks": [handler]}]
+            for name in ("PreToolUse", "PostToolUse", "PostToolUseFailure")}

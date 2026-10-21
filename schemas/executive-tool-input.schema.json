@@ -205,6 +205,36 @@
           "$ref": "#/$defs/odin_context_checkpoint"
         }
       }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_intervention_begin"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_intervention_begin"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_intervention_end"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_intervention_end"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_intervention_status"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_intervention_status"
+        }
+      }
     }
   ],
   "$defs": {
@@ -627,6 +657,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "view": {"type": "string", "enum": ["compact", "detail"]},
         "session_id": {
           "type": "string",
           "minLength": 26,
@@ -752,6 +783,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "view": {"type": "string", "enum": ["compact", "detail"]},
         "operation_id": {
           "type": "string",
           "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
@@ -775,6 +807,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "view": {"type": "string", "enum": ["compact", "detail"]},
         "operation_id": {
           "type": "string",
           "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
@@ -820,6 +853,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "view": {"type": "string", "enum": ["compact", "detail"]},
         "loop_id": {
           "type": "string",
           "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
@@ -927,6 +961,82 @@
         "checkpoint",
         "operation_id"
       ]
+    },
+    "odin_intervention_begin": {
+      "type": "object",
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "ttl_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300
+        },
+        "calls": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "properties": {
+              "tool": {
+                "enum": [
+                  "Bash",
+                  "Write",
+                  "Edit",
+                  "NotebookEdit"
+                ]
+              },
+              "input": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "tool",
+              "input"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        }
+      },
+      "required": [
+        "purpose",
+        "ttl_seconds",
+        "calls",
+        "operation_id"
+      ],
+      "additionalProperties": false
+    },
+    "odin_intervention_end": {
+      "type": "object",
+      "properties": {
+        "intervention_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        }
+      },
+      "required": [
+        "intervention_id",
+        "operation_id"
+      ],
+      "additionalProperties": false
+    },
+    "odin_intervention_status": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
     }
   }
 }

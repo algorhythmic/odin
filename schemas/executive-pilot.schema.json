@@ -16,7 +16,11 @@
   ],
   "properties": {
     "version": {
-      "enum": [1, 2, 3]
+      "enum": [
+        1,
+        2,
+        3
+      ]
     },
     "repository_root": {
       "type": "string",
@@ -54,7 +58,9 @@
       ]
     },
     "auto_compact_window_tokens": {
-      "type": "integer", "minimum": 100000, "maximum": 1000000
+      "type": "integer",
+      "minimum": 100000,
+      "maximum": 1000000
     },
     "remote_name": {
       "type": "string",
@@ -68,8 +74,15 @@
     "development_loop": {
       "const": true
     },
-    "native_peer_messaging": {"const": true},
-    "implementation_mode": {"enum": ["direct", "delegated"]},
+    "native_peer_messaging": {
+      "const": true
+    },
+    "implementation_mode": {
+      "enum": [
+        "direct",
+        "delegated"
+      ]
+    },
     "claude_binary": {
       "type": "string",
       "pattern": "^/",
@@ -85,27 +98,100 @@
     "native_session_id": {
       "type": "string",
       "format": "uuid"
+    },
+    "intervention_enabled": {
+      "const": true
     }
   },
   "allOf": [
     {
-      "if": {"required": ["native_peer_messaging"]},
-      "then": {"properties": {"version": {"const": 3}}}
-    },
-    {
-      "if": {"required": ["development_loop"]},
+      "if": {
+        "required": [
+          "native_peer_messaging"
+        ]
+      },
       "then": {
-        "properties": {"version": {"const": 3}, "enable_mcp": {"const": true}}
+        "properties": {
+          "version": {
+            "const": 3
+          }
+        }
       }
     },
     {
-      "if": {"required": ["implementation_mode"]},
-      "then": {"properties": {"version": {"const": 3}}}
+      "if": {
+        "required": [
+          "development_loop"
+        ]
+      },
+      "then": {
+        "properties": {
+          "version": {
+            "const": 3
+          },
+          "enable_mcp": {
+            "const": true
+          }
+        }
+      }
     },
     {
-      "if": {"properties": {"version": {"enum": [2, 3]}}},
-      "then": {"required": ["repository_root"]},
-      "else": {"not": {"required": ["repository_root"]}}
+      "if": {
+        "required": [
+          "implementation_mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "version": {
+            "const": 3
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "version": {
+            "enum": [
+              2,
+              3
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "repository_root"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "repository_root"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "intervention_enabled"
+        ]
+      },
+      "then": {
+        "properties": {
+          "version": {
+            "const": 3
+          },
+          "implementation_mode": {
+            "const": "delegated"
+          }
+        },
+        "required": [
+          "implementation_mode"
+        ]
+      }
     }
   ],
   "$schema": "https://json-schema.org/draft/2020-12/schema"
