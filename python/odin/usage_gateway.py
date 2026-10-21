@@ -1,5 +1,5 @@
 """Project-scoped metadata imports and non-authoritative context checkpoints."""
-from .contracts import canonical
+from .contracts import canonical, strict_loads
 from .store import Conflict
 
 EXECUTIVE_ACTIONS = {"usage_status", "context_status", "context_checkpoint"}
@@ -48,8 +48,14 @@ def dispatch(gateway, action, payload, context, operation):
                     if delegated:
                         native_sessions.add(gateway.store.get(delegated["session_id"])["native_session_id"])
                 else:
-                    native_sessions.update(s["native_session_id"] for s in gateway.store.records("PlanningSession")
-                                           if s["project"] == project)
+                    from .development_delegation import initialize
+                    initialize(gateway.store)
+                    for row in gateway.store.db.execute(
+                        "SELECT body FROM development_delegations WHERE loop_id=? AND project=?",
+                        (loop["id"], project),
+                    ):
+                        delegated = strict_loads(row[0])
+                        native_sessions.add(gateway.store.get(delegated["session_id"])["native_session_id"])
                 if item.get("session_id") not in native_sessions:
                     raise PermissionError("usage native session has no recorded loop/stage lineage; import project-only metadata")
             outcome = gateway.usage.ingest(item)

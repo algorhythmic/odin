@@ -8,6 +8,7 @@ from odin.coordination import Actor
 from odin.executive_service import submit_executive
 from odin.gateway import GatewayContext
 from odin.store import Conflict, now
+from odin.usage import request, _tokens
 from test_delegation import DelegationHarness
 
 
@@ -117,6 +118,23 @@ class StageDelegationTests(unittest.TestCase):
         with self.assertRaises((Conflict, PermissionError)):
             self.executive_call('loop_delegate', ids | {'stage_id': identifier(),
                 'orchestrator_session_id': wrong, 'limits': {'iterations': 3, 'budget_usd': 0.5}})
+
+    def test_usage_requires_orchestrator_binding_even_within_same_project(self):
+        loop_id, stage_id = self.stage({'harness': 'claude-code', 'model': 'opus'})
+        orchestrator = self.open_orchestrator()
+        native = self.h.service.store.get(orchestrator)['native_session_id']
+        observation = request(provider='claude', project_id=self.h.project,
+            source='synthetic', session_id=native, agent_id='orchestrator',
+            request_id='observed-request', model='opus', tokens=_tokens(1, 0, 0, 1),
+            loop_id=loop_id)
+        payload = {'source_id': 'fixture:orchestrator', 'observations': [observation]}
+        with self.assertRaisesRegex(PermissionError, 'lineage'):
+            self.operator_call('usage_import', payload)
+        ids = {'loop_id': loop_id, 'stage_id': stage_id, 'session_id': self.native_session}
+        self.executive_call('loop_claim', ids)
+        self.executive_call('loop_delegate', ids | {'orchestrator_session_id': orchestrator,
+            'limits': {'iterations': 3, 'budget_usd': 0.5}})
+        self.assertEqual(self.operator_call('usage_import', payload)['outcomes'], {'inserted': 1})
 
     def test_default_loop_ready_without_delegation(self):
         loop_id, stage_id = self.stage()
