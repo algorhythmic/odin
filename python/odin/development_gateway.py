@@ -292,7 +292,13 @@ def _evaluator_executions(gateway, state, processes):
                 named.add(arg[len(prefix):].split(b"/", 1)[0].decode(errors="replace"))
     for job_id in sorted(named):
         outstanding += 1
-        details.append({"kind": "evaluator_job", "id": job_id, "reason": "process names its spool"})
+        details.append(
+            {
+                "kind": "evaluator_job",
+                "id": job_id if ID.fullmatch(job_id) else None,
+                "reason": "process names its spool",
+            }
+        )
     dispatched = (
         "FROM development_loop_jobs j WHERE EXISTS (SELECT 1 FROM development_loop_receipts r "
         "WHERE r.operation>='evaluator-start:'||j.id||':' AND r.operation<'evaluator-start:'||j.id||';')"

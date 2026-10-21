@@ -375,19 +375,23 @@ the stage evidence, never in the checkout):
   the gate reads process evidence, not the job state. A job without a durable
   evaluator-start receipt never spawned a process. A process whose arguments
   name a job's spool `development-evaluator/<job>/` keeps that job
-  outstanding in any state. A completed job needs nothing more: its result
-  was accepted only after its harness exited. Every other dispatched job is
-  checked against its dispatch reservation and `started.json`: it stays
-  outstanding while a recorded runner or harness process group has a live
-  member, and unresolved while those files are missing, unreadable or not
-  private. A reused process ID can only make the reading conservative.
-  Inspection is bounded: at most 1024 dispatched, uncompleted jobs and 65536
-  process entries; beyond either the reading is unresolved. Unresolved
-  dispatch evidence keeps the gate false until the files are restored as
-  private regular files; if they cannot be, replacing the service needs the
-  same explicit supervisor decision as a lost turn, based on no live process
-  naming the job's spool and none in the process groups of the runner and
-  harness PIDs recorded there, where still readable.
+  outstanding in any state. A completed job is not checked further: its
+  result was accepted only after its harness exited, so a descendant the
+  harness left running in its process group without naming the spool is not
+  seen. Every other dispatched job is checked against its dispatch
+  reservation and `started.json`: it stays outstanding while a recorded
+  runner or harness process group has a live member, and unresolved while
+  those files are missing, unreadable or not private. A reused process ID can
+  only make the reading conservative. Inspection is bounded: at most 1024
+  dispatched, uncompleted jobs and 65536 process entries; beyond either the
+  reading is unresolved. Cancelled, lost and unknown jobs are never deleted,
+  so past 1024 of them the gate stays false permanently and every restart
+  needs the external observation below. Unresolved dispatch evidence keeps
+  the gate false until the files are restored as private regular files; if
+  they cannot be, replacing the service needs the same explicit supervisor
+  decision as a lost turn, based on no live process naming the job's spool
+  and none in the process groups of the runner and harness PIDs recorded
+  there, where still readable.
 
   Lost delegated turns: a lost turn's native outcome is unknown and no
   supported path records its resolution, so, as for `configure_delegation`,

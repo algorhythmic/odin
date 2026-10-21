@@ -1291,9 +1291,16 @@ class NoticeGatewayTests(unittest.TestCase):
         self.assertFalse(gate["restart_quiescent"])
         self.assertEqual(gate["evaluator_executions_outstanding"], 1)
         self.assertEqual(gate["unresolved"][0]["reason"], "process names its spool")
+        self.assertEqual(gate["unresolved"][0]["id"], job["id"])
         lingering.kill()
         lingering.wait()
         self.assertTrue(self.gate(loop_id)["restart_quiescent"])
+        stray = self.sleeper(str(directory.parent / ("x" * 4096) / "file"))
+        gate = self.gate(loop_id)
+        self.assertEqual(gate["evaluator_executions_outstanding"], 1)
+        self.assertIsNone(gate["unresolved"][0]["id"])  # unvalidated names are not echoed
+        stray.kill()
+        stray.wait()
 
     def test_stopped_loop_with_unresolved_evaluator_evidence_is_not_quiescent(self):
         result = self.send("loop_start", {"goal": "Unknown", "session_id": self.session})
@@ -1328,6 +1335,15 @@ class NoticeGatewayTests(unittest.TestCase):
         compact = project_receipt("odin_loop_status", {"result": status})
         self.assertEqual(compact["result"]["quiescence"], status["quiescence"])
         self.assertLessEqual(len(canonical(compact).encode()), MAX_COMPACT_BYTES)
+        status["loops"] *= 400  # past the compact budget: the overflow branch
+        compact = project_receipt("odin_loop_status", {"result": status})["result"]
+        self.assertTrue(compact["projection"]["incomplete_for_action"])
+        self.assertEqual(
+            compact["quiescence"],
+            {key: value for key, value in status["quiescence"].items()
+             if key not in {"loops", "unresolved"}} | {"detail_omitted": True},
+        )
+        self.assertFalse(compact["quiescence"]["restart_quiescent"])
 
     def test_restart_gate_is_service_wide(self):
         own = self.send("loop_start", {"goal": "Own", "session_id": self.session})

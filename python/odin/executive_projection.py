@@ -164,6 +164,13 @@ def project_receipt(name, receipt, *, view="compact", arguments=None):
                 "reason": "compact_response_budget_exceeded",
                 "counts": counts, "scopes": scopes, "detail": detail}
     minimal_result = {"projection": overflow}
+    if isinstance(result.get("quiescence"), dict):
+        # The restart gate's verdict and counters survive the overflow; only
+        # its per-loop list and unresolved detail are omitted.
+        minimal_result["quiescence"] = {
+            key: value for key, value in result["quiescence"].items()
+            if key not in {"loops", "unresolved"}
+        } | {"detail_omitted": True}
     if name in {"odin_loop_claim", "odin_loop_ready"}:
         # A write acknowledgement must retain its stage identity and receipt
         # outcome even when explanatory detail exceeds the display budget.
