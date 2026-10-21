@@ -609,7 +609,9 @@ class DelegationCycleTests(unittest.TestCase):
         )
         self.assertIsNotNone(unbudgeted_result["usage"])
         view = h.call("delegation_status", {"session_id": session})["sessions"][0]
-        self.assertEqual(view["cost_usd_known"], 0.025)
+        # Both turns resume one native session and the fake reports the same
+        # inclusive figure, so the second turn adds nothing (ODIN-ADR-036).
+        self.assertEqual(view["cost_usd_known"], 0.0125)
         self.assertEqual(view["turns_with_unknown_cost"], 0)
         close(budgeted["assignment"], with_budget["turns"][0]["id"])
         # An explicit null is the same as an omitted budget.

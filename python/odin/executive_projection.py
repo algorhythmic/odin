@@ -31,7 +31,7 @@ def _clip(value, limit=400):
 def _turn(turn):
     result = turn.get("result") or {}
     answer = _pick(turn, ("id", "seq", "kind", "state", "created_at", "finished_at",
-                          "native_session_mismatch"))
+                          "native_session_mismatch", "cost_usd_delta"))
     answer["failure"] = _clip(turn.get("failure"))
     if result:
         answer["result"] = _pick(result, ("native_session_id", "observed_model",
@@ -76,7 +76,8 @@ def _delegation(result, *, assignment_id=None):
         session = _pick(item, ("session", "options", "workstream", "role", "native_peer_name",
                                "native_peer_transport", "binding", "native_session_observed",
                                "turn_count", "running_turns", "cost_usd_known",
-                               "turns_with_unknown_cost", "adopted_commitments"))
+                               "turns_with_unknown_cost", "cost_accounting",
+                               "adopted_commitments"))
         assignments = item.get("assignments") or []
         active = [a for a in assignments if assignment_id or a.get("pending_notices") or
                   a.get("state") not in {"completed", "cancelled", "accepted"}]

@@ -260,6 +260,38 @@ def write_config(state, config):
     return path
 
 
+def _cost_deltas(harness, turns):
+    """Map turn id to its cost delta, or None where the cost is unknown.
+
+    A claude-code turn reports the inclusive cost of its resumed native session,
+    so each turn contributes the increase over the previous figure seen for the
+    same native session. Other harnesses report per-turn costs as-is.
+    """
+    deltas = {}
+    previous = {}
+    for turn in sorted(turns, key=lambda t: t["seq"]):
+        result = turn.get("result")
+        if not result:
+            continue
+        cost = result.get("cost_usd")
+        if cost is None:
+            deltas[turn["id"]] = None
+            continue
+        if harness == "claude-code":
+            key = result.get("native_session_id")
+            if key is None:
+                key = turn.get("native_session_id")
+            if key in previous and cost >= previous[key]:
+                delta = cost - previous[key]
+            else:
+                delta = cost
+            previous[key] = cost
+        else:
+            delta = cost
+        deltas[turn["id"]] = round(float(delta), 6)
+    return deltas
+
+
 class Delegation:
     def __init__(self, store, state, config=None, *, python_executable=None):
         store._core()
@@ -1771,11 +1803,8 @@ class Delegation:
 
     def _session_view(self, session, options, *, adopted=(), binding=None):
         turns = self._turns(session=session["id"])
-        known_cost = sum(
-            (t.get("result") or {}).get("cost_usd") or 0
-            for t in turns
-            if t.get("result") and (t["result"].get("cost_usd") is not None)
-        )
+        deltas = _cost_deltas(session["harness"], turns)
+        known_cost = sum(delta for delta in deltas.values() if delta is not None)
         unknown_cost = sum(
             1
             for t in turns
@@ -1827,6 +1856,11 @@ class Delegation:
                 t["id"] for t in turns if t["state"] in RUNNING_TURN_STATES
             ],
             "cost_usd_known": round(known_cost, 6),
+            "cost_accounting": (
+                "per_turn_delta_of_inclusive_native_session_cost"
+                if session["harness"] == "claude-code"
+                else "per_turn_reported_cost"
+            ),
             "turns_with_unknown_cost": unknown_cost,
             "adopted_commitments": list(adopted),
             "execution_backend": "local_native_harness",
@@ -1854,6 +1888,7 @@ class Delegation:
         views = []
         for session in sessions[-8:]:
             view = self._session_view(session, self._options(session["id"]))
+            deltas = _cost_deltas(session["harness"], self._turns(session=session["id"]))
             assignments = []
             for assignment in self.store.records("Assignment"):
                 if (
@@ -1912,6 +1947,7 @@ class Delegation:
                                     "native_session_mismatch", False
                                 ),
                                 "runner": t.get("runner"),
+                                "cost_usd_delta": deltas.get(t["id"]),
                                 "result": {
                                     k: v
                                     for k, v in (t.get("result") or {}).items()

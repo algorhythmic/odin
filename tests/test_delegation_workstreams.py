@@ -142,6 +142,12 @@ class WorkstreamSessionTests(unittest.TestCase):
         for assigned in (first, second):
             h.wait(lambda a=assigned: h.assignment_state(a["assignment"])["turns"][0]["state"]
                    == "returned", timeout=30)
+        # Each session's single turn is its own delta; the project sums sessions.
+        turn = h.assignment_state(second["assignment"])["turns"][0]
+        self.assertEqual(turn["cost_usd_delta"], 0.0125)
+        aggregate = h.call("delegation_status", {})["project_aggregate"]
+        self.assertEqual((aggregate["cost_usd_known"], aggregate["cost_label"]),
+                         (0.025, "attributed_not_verified"))
 
     def test_raised_lineage_limit_launches_across_sessions(self):
         h = self.harness
