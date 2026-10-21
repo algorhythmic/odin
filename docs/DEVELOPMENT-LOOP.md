@@ -324,22 +324,32 @@ summary can hide them. An `invalid` receipt reports `succeeded: null` and
 `commands_succeeded: null`.
 
 Consistency is checked, not assumed. Before any artifact is hashed the
-validator recomputes what the format claims: `succeeded` must equal
-`exit_status == 0`; a null exit status needs a recorded timeout, signal or
-uncertainty; `finished_at` must not precede `started_at`; exactly one
-`stdout` and one `stderr` artifact must be listed; each observation's
-`worktree_identity`, `clean` and `detached` must derive from its own digests,
-lists and branch; two observations must name one root, bracket the command
-in time and agree with `changed_during_run`, which must be null when either
-observation is missing. Any contradiction makes the receipt `invalid`; a
-failing, signalled, timed-out or uncertain command with consistent fields
-stays `valid` evidence of that outcome. Timestamps are compared as
-timestamps. Retained files are inspected through one non-blocking
-descriptor: non-regular files such as a FIFO are never read, byte limits are
-enforced against the bytes actually read, a file whose identity, size or
-mtime differs after the read is reported as changed, and the receipt is
-parsed from the exact bytes whose digest was checked. These inspections are
-point-in-time, not snapshots. Validation establishes internal consistency and
+validator recomputes the derived fields the format carries: `succeeded`
+must equal `exit_status == 0`; a null exit status needs a recorded timeout,
+signal or uncertainty, and a timed-out run has no exit status; `finished_at`
+must not precede `started_at` and `duration_seconds` must agree with them;
+exactly one `stdout` and one `stderr` artifact must be listed, with absolute
+paths; each observation's `untracked_digest`, list order and length,
+`untracked_coverage`, empty-diff digests, `worktree_identity`, `clean` and
+`detached` must derive from its own lists, digests and branch; the observed
+root must contain the repository path; two observations must name one root,
+bracket the command in time and agree with `changed_during_run`, which must
+be null when either observation is missing. Any contradiction makes the
+receipt `invalid`, and an invalid receipt reports no observed field (head,
+branch, clean, exit status) at all; a failing, signalled, timed-out or
+uncertain command with consistent fields stays `valid` evidence of that
+outcome. A claimed or expected `clean` is compared with the derived value and
+can only be met by a receipt with both observations and no change during the
+run. Timestamps are compared as timestamps (UTC, at most microseconds).
+Retained files are inspected through one descriptor: non-regular files such
+as a FIFO are never read (the open is non-blocking and the type is checked
+before any read), byte limits are enforced against the bytes actually read,
+a file whose size or mtime differs after the read, or whose path then names
+another inode, is reported as changed, and the receipt is parsed from the
+exact bytes whose digest was checked. An artifact beyond the 64 MiB
+inspection limit, or beyond the per-validation budget, makes the receipt
+`invalid`. These inspections are point-in-time, not snapshots, and a hung
+filesystem can still block an open or read. Validation establishes internal consistency and
 binding, not authorship: the executive principal runs as the same user as
 the collector and could write a receipt by hand; such a file is marked
 `collector_matches_validator: false` only when its collector digest differs

@@ -2032,11 +2032,12 @@ remain available in every profile.
 - **Evidence workflow:** development-loop evidence may reference receipts
   with compact typed references and structured claims. The controller
   validates them deterministically at ready and at completion capture and
-  records `validated`, `mismatched`, `missing`, `invalid` or
-  `legacy_no_receipt` with the stage and in the evaluator packet. Only
-  `validated` is a passing check; failures are recorded, never raised as
-  success, and receipt-less evidence is labelled legacy rather than
-  rejected. The evaluator is instructed to read retained receipts itself,
+  records `validated`, `validated_unobserved`, `uncertain`, `mismatched`,
+  `missing`, `invalid` or `legacy_no_receipt` with the stage and in the
+  evaluator packet. Only `validated` is a passing check (and
+  `commands_succeeded` is reported separately from validity); failures and
+  uncertainty are recorded, never raised as success, and receipt-less
+  evidence is labelled legacy rather than rejected. The evaluator is instructed to read retained receipts itself,
   compare executive prose with observed fields and recompute artifact
   digests; a JSON success flag is not evidence.
 - **Trust limits:** a receipt is attributed local execution evidence. The
@@ -2068,7 +2069,12 @@ remain available in every profile.
   post-run observation summarised as clean, blocking and unbounded file
   inspection); the corrective commit adds recomputed consistency checks, the
   `uncertain` outcome for a single available observation, and bounded
-  non-blocking inspection bound to the parsed bytes. Live receipts for
+  non-blocking inspection bound to the parsed bytes. A second independent
+  review of that correction found that list-derived digests and coverage
+  were still not recomputed and that a timed-out run could carry an exit
+  status; the follow-up recomputes every derived field, treats those as
+  contradictions, reports no observed field for an invalid receipt and
+  bounds the validation summaries in the schemas. Live receipts for
   actual stages are retained privately and are themselves subject to the
   evaluator's independent inspection.
 

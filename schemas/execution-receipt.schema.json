@@ -67,7 +67,7 @@
         "started_at": {"$ref": "#/$defs/timestamp"},
         "finished_at": {"$ref": "#/$defs/timestamp"},
         "duration_seconds": {"type": "number", "minimum": 0},
-        "exit_status": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+        "exit_status": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
         "succeeded": {"type": "boolean"},
         "timed_out": {"type": "boolean"},
         "signal": {"anyOf": [{"type": "integer", "minimum": 1}, {"type": "null"}]},
@@ -94,7 +94,7 @@
         "required": ["name", "path", "sha256", "bytes"],
         "properties": {
           "name": {"type": "string", "minLength": 1, "maxLength": 64},
-          "path": {"type": "string", "minLength": 1, "maxLength": 1024},
+          "path": {"type": "string", "minLength": 1, "maxLength": 1024, "pattern": "^/"},
           "sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
           "bytes": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]}
         }
@@ -116,7 +116,7 @@
     "ulid": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
-    "timestamp": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"},
+    "timestamp": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?Z$"},
     "path_entry": {
       "type": "object",
       "additionalProperties": false,
@@ -208,13 +208,266 @@
         "receipts": {
           "type": "array",
           "maxItems": 16,
-          "items": {
+          "items":
+          {
             "type": "object",
-            "required": ["outcome", "path", "problems"],
+            "additionalProperties": false,
+            "required": [
+              "outcome",
+              "path",
+              "problems"
+            ],
             "properties": {
-              "outcome": {"enum": ["valid", "uncertain", "invalid", "missing", "mismatched"]},
-              "path": {"type": "string", "maxLength": 1024},
-              "problems": {"type": "array", "maxItems": 256, "items": {"type": "string", "maxLength": 1400}}
+              "outcome": {
+                "enum": [
+                  "valid",
+                  "uncertain",
+                  "invalid",
+                  "missing",
+                  "mismatched"
+                ]
+              },
+              "path": {
+                "type": "string",
+                "maxLength": 1024
+              },
+              "sha256": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "receipt_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 26
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "binding": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "maxProperties": 4
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "collector_revision": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "collector_matches_validator": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "observed": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "observed_before": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "observed_after": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "before_reason": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "after_reason": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "root": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 1024
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "cwd": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 1024
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "head": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "branch": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "detached": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "clean_before": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "clean": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "worktree_identity": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "argv_head": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "argv_digest": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "started_at": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "exit_status": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "succeeded": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "uncertainty": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "changed_during_run": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "problems": {
+                "type": "array",
+                "maxItems": 256,
+                "items": {
+                  "type": "string",
+                  "maxLength": 1400
+                }
+              }
             }
           }
         },
