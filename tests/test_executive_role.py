@@ -42,6 +42,9 @@ class ExecutiveRoleTests(unittest.TestCase):
         self.assertEqual(argv[argv.index("--tools") + 1], "default")
         self.assertEqual(argv[argv.index("--disallowedTools") + 1],
                          ",".join(runtime.DELEGATED_DISALLOWED_TOOLS))
+        denied = set(argv[argv.index("--disallowedTools") + 1].split(","))
+        self.assertTrue({"Monitor", "Workflow"}.issubset(denied))
+        self.assertNotIn("REPL", denied)
         self.assertEqual(argv[argv.index("--resume") + 1], before["native_session_id"])
         self.assertIn("--name", argv)
         settings = json.loads(argv[argv.index("--settings") + 1])
