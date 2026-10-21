@@ -299,19 +299,19 @@ dispatches to it.
 
 ### Activation and recovery of the notice release
 
-Records written by this release add `deadlines`, `attention` and
-`delegation_profile` (ODIN-ADR-031) to the loops the new service touches, and
-`development_loop_notices` rows. Per write, the new code adds: `start` all
-three (`attention` as null); a status transition `attention` (null); a stall
-observation `attention`; an operator deadline edit `deadlines`; configuring
-delegation `delegation_profile`. The pre-notice service (972a92d and earlier)
-validates loops against a closed schema when it writes them and rejects any
-of these three fields, so one is enough to make its next write of that loop
-fail; its command schema also rejects the bridge's `accept` field.
-Consequences, stated exactly, each exercised with real
-service and bridge processes in isolated temporary state (the current tree
-against an extracted 972a92d tree; the output is retained privately with the
-stage evidence, never in the checkout):
+Records written by this release add `deadlines` and `attention`
+(ODIN-ADR-030) and `delegation_profile` (ODIN-ADR-031) to the loops the new
+service touches, and `development_loop_notices` rows. Per write, the new code
+adds: `start` all three (`attention` as null); a status transition
+`attention` (null); a stall observation `attention`; an operator deadline
+edit `deadlines`; configuring delegation `delegation_profile`. The pre-notice
+service (972a92d and earlier) validates loops against a closed schema when it
+writes them and rejects any of these three fields, so one is enough to make
+its next write of that loop fail; its command schema also rejects the
+bridge's `accept` field. Consequences, stated exactly, each exercised with
+real service and bridge processes in isolated temporary state (the current
+tree against an extracted 972a92d tree; the output is retained privately with
+the stage evidence, never in the checkout):
 
 - **Supported recovery is forward only**: restart the service on the same or
   a later reviewed revision that carries these schemas. State is preserved
@@ -328,16 +328,16 @@ stage evidence, never in the checkout):
   `attention` until the new code first touches it: status reports
   `work.deadlines` as all null, no attention and no notices, and an
   operator deadline edit adds `deadlines` without a transition.
-- **Unsupported**: downgrading the service to a pre-notice revision after
-  any loop has been started, transitioned, observed as stalled or
-  re-configured by the new code.
-  That revision reads and reports such records without complaint (it
-  validates only on write), so status looks healthy, but its next transition
-  fails its own schema: the bridge sees a generic write failure ("Write
-  outcome unavailable"), the record stays unchanged with its new fields, and
-  the loop is wedged rather than corrupted until a notice-era service is
-  restored. A loop never touched by the new code remains readable by both.
-  There is no supported in-place downgrade; recover forward instead.
+- **Unsupported**: downgrading the service to a pre-notice revision after any
+  loop has been started, transitioned, observed as stalled or re-configured
+  (deadline edit or delegation) by the new code. That revision reads and
+  reports such records without complaint (it validates only on write), so
+  status looks healthy, but its next write of that loop (a transition) fails
+  its own schema: the bridge sees a generic write failure ("Write outcome
+  unavailable"), the record stays unchanged with its new fields, and the loop
+  is wedged rather than corrupted until a notice-era service is restored. A
+  loop never touched by the new code remains readable by both. There is no
+  supported in-place downgrade; recover forward instead.
 - **Mixed versions**: a new service with an old bridge delivers assignments
   only (the old bridge never declares `accept`). A new bridge with an old
   service receives an error for `accept` and falls back, for that
