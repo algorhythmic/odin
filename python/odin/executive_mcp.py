@@ -149,9 +149,14 @@ TOOL_DESCRIPTIONS = {
         "project. These are unverified reports, separate from commitment truth."
     ),
     "odin_delegation_session": (
-        "Create, resume or stop the project's one accountable local orchestration "
-        "session (a persisted Claude Code or Codex worker conversation in a "
-        "configured workspace). Use it for work that must outlive this "
+        "Create, resume or stop a local orchestration session (a persisted Claude "
+        "Code or Codex worker conversation in a configured workspace). A project "
+        "has one integration-owner session (the default when no workstream or role "
+        "is given) and may have additional workstream sessions, each with its own "
+        "workstream label and distinct worktree. Workstream sessions never "
+        "fast-forward the canonical checkout; they return a merge-ready head plus "
+        "receipts. Turns on one credential lineage run one at a time by default, so "
+        "sessions interleave rather than run in parallel. Use it for work that must outlive this "
         "conversation, be resumed after restarts, or be accounted as a project "
         "commitment. For implementation stages use this separate orchestrator, with its own native subagents; "
         "Fable reviews the concise return. Records are local-backend "

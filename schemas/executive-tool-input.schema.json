@@ -463,6 +463,17 @@
         },
         "native_peer_messaging": {
           "type": "boolean"
+        },
+        "workstream": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "integration_owner",
+            "workstream"
+          ]
         }
       },
       "allOf": [

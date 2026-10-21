@@ -68,11 +68,12 @@ def _assignment(item):
 def _delegation(result, *, assignment_id=None):
     if "sessions" not in result:
         return result
-    answer = _pick(result, ("enabled", "reason", "project", "attention", "verification"))
+    answer = _pick(result, ("enabled", "reason", "project", "project_aggregate", "attention",
+                            "verification"))
     answer["sessions"] = []
     omitted_assignments = 0
     for item in result["sessions"]:
-        session = _pick(item, ("session", "options", "native_peer_name",
+        session = _pick(item, ("session", "options", "workstream", "role", "native_peer_name",
                                "native_peer_transport", "binding", "native_session_observed",
                                "turn_count", "running_turns", "cost_usd_known",
                                "turns_with_unknown_cost", "adopted_commitments"))

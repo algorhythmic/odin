@@ -124,6 +124,23 @@ def _commitment_open_after_turns(assignment, commitment, turns):
     )
 
 
+def _role(options):
+    """Effective ADR-036 role; a session declaring neither field is legacy."""
+    return options.get("role") or ("workstream" if options.get("workstream") else "integration_owner")
+
+
+def _legacy(options):
+    return options.get("workstream") is None and options.get("role") is None
+
+
+WORKSTREAM_BRIEFING = (
+    "You are a workstream session (workstream {workstream}). Work on your own "
+    "branch in your own worktree. Never fast-forward, merge into or commit on the "
+    "canonical checkout. Return a merge-ready head plus receipts; the executive "
+    "assigns integration to the project's integration owner."
+)
+
+
 def _refuse(code):
     raise DelegationRefused(code)
 
@@ -434,15 +451,36 @@ class Delegation:
             _refuse("unknown_assignment")
         return record, commitment
 
-    def _active_session(self, project):
-        for record in self.store.records("PlanningSession"):
-            if (
-                record["project"] == project
-                and record["adapter"] in ADAPTERS.values()
-                and record["state"] in ACTIVE_SESSION_STATES
-            ):
-                return record
-        return None
+    def _active_sessions(self, project):
+        return [
+            record
+            for record in self.store.records("PlanningSession")
+            if record["project"] == project
+            and record["adapter"] in ADAPTERS.values()
+            and record["state"] in ACTIVE_SESSION_STATES
+        ]
+
+    def _check_identity(self, project, identity, workspace, *, exclude=None):
+        """ADR-036 uniqueness over the project's other active sessions."""
+        others = [
+            (record, self._options(record["id"]))
+            for record in self._active_sessions(project)
+            if record["id"] != exclude
+        ]
+        if _legacy(identity) and any(_legacy(options) for _, options in others):
+            _refuse("project_already_has_active_session")
+        workstream = identity.get("workstream")
+        if workstream and any(options.get("workstream") == workstream for _, options in others):
+            _refuse("workstream_already_has_active_session")
+        if _role(identity) == "integration_owner" and any(
+            _role(options) == "integration_owner" for _, options in others
+        ):
+            _refuse("project_already_has_integration_owner")
+        if workspace and any(
+            options.get("workspace") and _same_path(options["workspace"], workspace)
+            for _, options in others
+        ):
+            _refuse("workspace_in_use_by_active_session")
 
     def _turns(self, *, session=None, assignment=None, project=None):
         rows = self.store.db.execute(
@@ -486,8 +524,11 @@ class Delegation:
     def open_session(self, payload, *, project, actor, operation):
         harness = self._harness(payload["harness"])
         workspace = self._workspace(payload["workspace"])
-        if self._active_session(project) is not None:
-            _refuse("project_already_has_active_session")
+        workstream, role = payload.get("workstream"), payload.get("role")
+        if role == "workstream" and not workstream:
+            _refuse("workstream_label_required")
+        identity = {"workstream": workstream, "role": role}
+        self._check_identity(project, identity, workspace)
         model = payload.get("model") or harness.get("default_model")
         if payload["harness"] == "claude-code" and not model:
             _refuse("model_required")
@@ -526,6 +567,8 @@ class Delegation:
                 key: lineage[key] for key in ("policy", "shared_with", "lease_enforced")
             },
             "workspace": workspace,
+            "workstream": workstream,
+            "role": role,
             "model": model,
             "subagent_model": subagent_model,
             "subagent_model_force": subagent_model_force,
@@ -584,6 +627,8 @@ class Delegation:
                 if (
                     owner["adapter"] in ADAPTERS.values()
                     and owner["state"] == "retired"
+                    # ADR-036: a replacement adopts only its own workstream's work.
+                    and self._options(owner["id"]).get("workstream") == workstream
                 ):
                     self.store._put(
                         commitment
@@ -613,15 +658,17 @@ class Delegation:
             binding = None
             if session["native_session_id"]:
                 binding = self._bind(session, environment, predecessor=None)
-            self.store._put(
-                project_record
-                | {
-                    "interface_decision_owner": session["id"],
-                    "rev": project_record["rev"] + 1,
-                    "updated_at": stamp,
-                },
-                project_record["rev"],
-            )
+            if _role(options) == "integration_owner":
+                # Workstream sessions never take the project's planning ownership.
+                self.store._put(
+                    project_record
+                    | {
+                        "interface_decision_owner": session["id"],
+                        "rev": project_record["rev"] + 1,
+                        "updated_at": stamp,
+                    },
+                    project_record["rev"],
+                )
             self.store._history(
                 "delegation.session",
                 {
@@ -632,6 +679,8 @@ class Delegation:
                     "project": project,
                     "harness": payload["harness"],
                     "workspace": workspace,
+                    "workstream": workstream,
+                    "role": _role(options),
                     "adopted_commitments": adopted,
                 },
             )
@@ -678,9 +727,10 @@ class Delegation:
         self._harness(session["harness"])
         if session["state"] == "retired":
             _refuse("session_retired")
-        other = self._active_session(project)
-        if other is not None and other["id"] != session["id"]:
-            _refuse("project_already_has_active_session")
+        if payload.get("workstream") is not None or payload.get("role") is not None:
+            _refuse("session_identity_fixed_at_create")
+        options = self._options(session["id"])
+        self._check_identity(project, options, options.get("workspace"), exclude=session["id"])
         self.reconcile()
         running = [
             t
@@ -713,7 +763,10 @@ class Delegation:
                     predecessor=previous["id"] if previous else None,
                 )
             project_record = self._project(project)
-            if project_record["interface_decision_owner"] != session["id"]:
+            if (
+                _role(options) == "integration_owner"
+                and project_record["interface_decision_owner"] != session["id"]
+            ):
                 self.store._put(
                     project_record
                     | {
@@ -734,9 +787,7 @@ class Delegation:
                     "incarnation": session["incarnation"],
                 },
             )
-        return self._session_view(
-            session, self._options(session["id"]), binding=binding
-        )
+        return self._session_view(session, options, binding=binding)
 
     def stop_session(self, payload, *, project, actor, operation):
         session = self._session(payload["session_id"], project)
@@ -997,6 +1048,8 @@ class Delegation:
                 # session; never reuse its id. Rotate to a fresh identity.
                 session = self._rotate_native_session(session)
             briefing = session["briefing"]
+            if _role(options) == "workstream":
+                briefing += "\n\n" + WORKSTREAM_BRIEFING.format(workstream=options["workstream"])
             if options.get("subagent_model"):
                 briefing += (
                     "\n\nDelegate bounded implementation or research tasks to native workers "
@@ -1049,7 +1102,10 @@ class Delegation:
         else:
             last_message = str(directory / "last-message.txt")
             if first or not session["native_session_id"]:
-                text = session["briefing"] + "\n\n" + prompt
+                text = session["briefing"]
+                if _role(options) == "workstream":
+                    text += "\n\n" + WORKSTREAM_BRIEFING.format(workstream=options["workstream"])
+                text += "\n\n" + prompt
                 argv = [
                     harness["binary"],
                     "exec",
@@ -1099,17 +1155,28 @@ class Delegation:
             },
         }
 
+    def _lineage_limit(self):
+        return self.config.get("max_concurrent_turns_per_lineage", 1)
+
     def launch_pending(self):
-        """Spawn runners for queued turns; one running turn per session."""
+        """Spawn runners for queued turns; one running turn per session.
+
+        Turns on one credential lineage lock run up to
+        `max_concurrent_turns_per_lineage` at a time across sessions (default
+        1, so several sessions interleave their turns rather than run them in
+        parallel).
+        """
         if not self.enabled():
             return []
         launched = []
         busy = set()
-        busy_locks = set()
+        busy_locks = {}
+        limit = self._lineage_limit()
         for t in self._turns():
             if t["state"] in ("launching", "running", "interrupting"):
                 busy.add(t["session"])
-                busy_locks.add(self._lock_of(t["session"]))
+                lock = self._lock_of(t["session"])
+                busy_locks[lock] = busy_locks.get(lock, 0) + 1
         for turn in self._turns():
             if turn["state"] != "queued" or turn["session"] in busy:
                 continue
@@ -1117,7 +1184,7 @@ class Delegation:
             if session["state"] not in ("idle", "active"):
                 continue
             lock = self._lock_of(session["id"], session)
-            if lock is not None and lock in busy_locks:
+            if lock is not None and busy_locks.get(lock, 0) >= limit:
                 # Another session's turn holds this credential lineage; stay
                 # queued instead of being refused by the runner's lease.
                 continue
@@ -1139,7 +1206,7 @@ class Delegation:
                         failure=f"launch failed: {type(error).__name__}: {error}"[:200],
                     )
             busy.add(turn["session"])
-            busy_locks.add(lock)
+            busy_locks[lock] = busy_locks.get(lock, 0) + 1
         return launched
 
     def _lock_of(self, session_id, session=None):
@@ -1733,6 +1800,8 @@ class Delegation:
                 )
             },
             "options": options,
+            "workstream": options.get("workstream"),
+            "role": _role(options),
             "native_peer_name": (
                 peer_name(session["native_session_id"], "worker")
                 if session["harness"] == "claude-code" and options.get("native_peer_messaging")
@@ -1872,6 +1941,7 @@ class Delegation:
         return {
             "enabled": True,
             "project": project,
+            "project_aggregate": self._project_aggregate(project),
             "attention": {
                 "assignments": sorted(
                     a["id"] for v in views for a in v["assignments"] if a["attention"]
@@ -1882,6 +1952,88 @@ class Delegation:
             },
             "sessions": views,
             "verification": "worker returns are reports; acceptance is a separate executive action",
+        }
+
+    def _project_aggregate(self, project):
+        """ADR-036 view: sessions by workstream and role, lineage queues, cost."""
+        sessions = [
+            r
+            for r in self.store.records("PlanningSession")
+            if r["project"] == project and r["adapter"] in ADAPTERS.values()
+        ]
+        locks = {}
+        for name in self.config["harnesses"]:
+            try:
+                locks.setdefault(self._lineage(name)["lock"], []).append(name)
+            except DelegationRefused:
+                pass
+        lineages = {
+            lock: {"harnesses": sorted(names), "queued": 0, "running": 0,
+                   "running_any_project": 0}
+            for lock, names in locks.items()
+        }
+        lock_of = {}
+        for turn in self._turns():
+            if turn["session"] not in lock_of:
+                lock_of[turn["session"]] = self._lock_of(turn["session"])
+            entry = lineages.get(lock_of[turn["session"]])
+            if entry is None:
+                continue
+            running = turn["state"] in ("launching", "running", "interrupting")
+            entry["running_any_project"] += running
+            if turn["project"] == project:
+                entry["running"] += running
+                entry["queued"] += turn["state"] == "queued"
+        rows, known, unknown, owner = [], 0.0, 0, None
+        for session in sessions:
+            options = self._options(session["id"])
+            view = self._session_view(session, options)
+            active = session["state"] in ACTIVE_SESSION_STATES
+            if active and view["role"] == "integration_owner":
+                owner = session["id"]
+            known += view["cost_usd_known"]
+            unknown += view["turns_with_unknown_cost"]
+            if not active:
+                continue
+            attention = []
+            for assignment in self.store.records("Assignment"):
+                if (
+                    assignment["owner"] != session["id"]
+                    or assignment["backend"] != "local"
+                    or assignment["state"] in CLOSED_ASSIGNMENT_STATES
+                ):
+                    continue
+                turns = self._turns(assignment=assignment["id"])
+                commitment = self.store.get(assignment["commitment"])
+                if turns and (
+                    _turn_attention(turns[-1])
+                    or _commitment_open_after_turns(assignment, commitment, turns)
+                ):
+                    attention.append(assignment["id"])
+            rows.append(
+                {
+                    "id": session["id"],
+                    "workstream": view["workstream"],
+                    "role": view["role"],
+                    "legacy": _legacy(options),
+                    "state": session["state"],
+                    "running_turn": (view["running_turns"] or [None])[0],
+                    "attention_assignments": attention,
+                }
+            )
+        return {
+            "active_sessions": rows,
+            "integration_owner": owner,
+            "max_concurrent_turns_per_lineage": self._lineage_limit(),
+            "lineages": list(lineages.values()),
+            "execution": (
+                "turns on one credential lineage run at most "
+                "max_concurrent_turns_per_lineage at a time across sessions; "
+                "with 1, several sessions interleave turns and do not run in parallel"
+            ),
+            "cost_usd_known": round(known, 6),
+            "turns_with_unknown_cost": unknown,
+            "cost_label": "attributed_not_verified",
         }
 
     def result(self, payload, *, project):
@@ -2098,6 +2250,7 @@ def default_config(
     codex_model=None,
     turn_timeout_seconds=1800,
     lineage_policy="exclusive",
+    max_concurrent_turns_per_lineage=1,
 ):
     """Build an operator delegation configuration from explicit choices."""
     harnesses = {}
@@ -2136,5 +2289,6 @@ def default_config(
         "workspace_roots": [str(Path(root).absolute()) for root in workspace_roots],
         "turn_timeout_seconds": turn_timeout_seconds,
         "lineage_policy": lineage_policy,
+        "max_concurrent_turns_per_lineage": max_concurrent_turns_per_lineage,
         "harnesses": harnesses,
     }

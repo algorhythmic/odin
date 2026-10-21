@@ -138,6 +138,10 @@ def main():
         default="exclusive",
         help="refuse (exclusive) or accept worker turns on a credential lineage another process owns",
     )
+    parser.add_argument(
+        "--max-concurrent-turns-per-lineage", type=int, default=1,
+        help="delegated turns run at once on one credential lineage (default 1: sessions interleave)",
+    )
     parser.add_argument("--auto-compact-window-tokens", type=int, help="requested native Claude context window, 100000..1000000 tokens")
     parser.add_argument("--claude-subagent-model", help="default delegated Claude native subagent model")
     parser.add_argument("--claude-subagent-model-force", action="store_true", help="request native model override for ordinary subagents; native exceptions remain")
@@ -398,6 +402,7 @@ def main():
                 codex_model=args.codex_model,
                 turn_timeout_seconds=args.turn_timeout,
                 lineage_policy=args.lineage_policy,
+                max_concurrent_turns_per_lineage=args.max_concurrent_turns_per_lineage,
             )
             path = write_config(state, config)
         except (ValueError, PermissionError, OSError) as error:
