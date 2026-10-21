@@ -1917,6 +1917,24 @@ remain available in every profile.
   numeric `budget_usd`; the service does not use it, and reconciling it is
   left to I0. Reason: a
   resumed session near a harness USD cap could be stopped mid-turn.
+- **Amendment (2026-10-21, operator decision, failure surfacing):** when a
+  delegation turn ends failed (including a wall-clock timeout), interrupted
+  or lost, or leaves its assignment's commitment open with no turn queued or
+  running, the service records one durable notice in the same transaction as
+  the turn result. Its ID derives from the turn and its terminal state, so
+  reconciling or restarting cannot duplicate or drop it.
+  `odin_delegation_status` reports live attention reasons and pending notice
+  IDs in both compact and detail views. In development-loop bridge mode the
+  notice is redelivered through the loop inbox as a non-claimable `notice`
+  until acknowledged with `odin_loop_ack`; acknowledgement records
+  attribution only and is never approval, acceptance or verified evidence.
+  An open-commitment-only notice resolves when the executive queues a
+  follow-up or closes the assignment; a failure notice stays pending until
+  acknowledged. Outside development-loop mode only the status flags apply,
+  notices are addressed to the project rather than a specific executive
+  session, and a queued turn cancelled before launch produces no notice.
+  Reason: a timed-out delegation was found only when the operator asked for
+  a status report.
 - **Guidance to the executive:** use native subagents for quick bounded work
   whose result is integrated in the same conversation; use delegation
   sessions for work that must persist as a project commitment, run detached
@@ -2340,6 +2358,20 @@ uncertainty, bounded projections and detail/replay behavior. Live acceptance
 must observe the actual Fable tool manifest and hook decisions after activation,
 then test through the existing orchestrator. Synthetic tests alone are not
 proof of native enforcement. No stage identity or eight-round bound is reset.
+- **Amendment (2026-10-21, operator decision, executive memory notes):**
+  when the operator configures an absolute existing directory with
+  `executive-configure-memory-directory --memory-directory`, the native
+  intervention hook allows `Write` and `Edit` without a permit only when the
+  real target lies strictly inside that directory through existing real
+  directories. Relative paths, `..`, a symlink in any component and targets
+  outside the directory still need a permit; `Bash`, `NotebookEdit` and every
+  other tool are unchanged, and permits keep working as before. The setting
+  lives in a private state file (`executive-pilot/memory-directory.json`),
+  not the launch manifest or hook arguments, so launch schemas stay
+  unchanged; the hook revalidates it on every call, and an unconfigured
+  installation keeps the prior behaviour. Memory notes are working notes
+  only: they never record, replace or evidence Odin commitments, approvals
+  or acceptance.
 
 ## 5. Issues raised by the extraction
 
