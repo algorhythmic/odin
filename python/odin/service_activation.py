@@ -181,15 +181,20 @@ def _default_reachable(state):
     return True
 
 
+def validate_arguments(*, repository, branch, head):
+    """Usage checks that precede any record; a failure here is not a refusal."""
+    if not re.fullmatch(r"[0-9a-f]{40}", head or ""):
+        raise ValueError("--head must be a full lowercase commit id")
+    if not branch or len(branch) > 256 or len(str(Path(repository).absolute())) > 4096:
+        raise ValueError("--branch and --repository must be non-empty and bounded")
+
+
 def activate(state, *, repository, branch, head, controller=None, reachable=None,
              timeout=60.0, clock=time.monotonic, sleep=time.sleep):
     """Restart only the service unit when quiescent and the checkout is reviewed."""
     from .executive_runtime import _lease, _LeaseBusy
 
-    if not re.fullmatch(r"[0-9a-f]{40}", head or ""):
-        raise ValueError("--head must be a full lowercase commit id")
-    if not branch or len(branch) > 256 or len(str(Path(repository).absolute())) > 4096:
-        raise ValueError("--branch and --repository must be non-empty and bounded")
+    validate_arguments(repository=repository, branch=branch, head=head)
     controller = controller or SystemdUserUnit()
     reachable = reachable or _default_reachable
     record = {"version": 1, "id": identifier(), "unit": controller.unit,
