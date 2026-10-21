@@ -333,6 +333,29 @@ evidence outside the repository; they are local-backend evidence without
 isolation or Saga guarantees. Tools added after a conversation started are
 visible only after that conversation exits and resumes.
 
+### Optional executive memory directory
+
+In delegated implementation mode the native intervention hook permits
+`Write` and `Edit` only through a single-use permit. An operator may name one
+directory where the executive writes its own memory notes without a permit:
+
+```bash
+~/.local/state/odin-executive-pilot/run executive-configure-memory-directory \
+  --memory-directory /absolute/path/to/notes
+```
+
+The value must be an absolute existing directory, with no `..` component and
+no symlink in any component. It must not be the repository, the state
+directory, or a path containing either. Passing an empty value clears it. The
+setting lives in `executive-pilot/memory-directory.json` in the state directory;
+the hook re-checks it on every call, so it applies without a relaunch. A
+`Write` or `Edit` whose real target lies strictly inside that directory, through
+existing real directories, is allowed without a permit. Target paths that are
+symlinks, relative, contain `..`, or resolve outside the directory fall through
+to the normal permit path. `Bash`, `NotebookEdit` and all other tools are
+unchanged. Memory notes never replace Odin records of commitments, approvals
+or acceptance.
+
 ## Repository evidence and the retained read-only profile
 
 Version 3 already exposes native file tools. The following version 2 upgrade

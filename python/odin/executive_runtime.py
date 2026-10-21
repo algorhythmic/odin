@@ -21,6 +21,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from .contracts import ROOT, Contracts, canonical, strict_loads
+from .executive_intervention_hook import MEMORY_FILE, memory_directory
 from .executive_mcp import ExecutiveBridge, SocketGateway
 from .native_peer import guidance as peer_guidance, peer_name
 
@@ -841,6 +842,34 @@ def configure_execution_role(state, *, implementation_mode):
             "native_history_preserved": True,
             "native_tool_restriction": "requested_not_verified",
         }
+
+
+def configure_memory_directory(state, *, directory=None):
+    """Stage or clear the Write/Edit memory exception read by the intervention hook.
+
+    The setting lives in a private state file, not the manifest or hook arguments,
+    so launch schemas stay unchanged. The hook revalidates it on every call.
+    """
+    state = _private_directory(state)
+    base = _private_directory(state / "executive-pilot")
+    with _lease(base / "prepare.lock"):
+        _load(state)
+        path = base / MEMORY_FILE
+        if directory is None:
+            path.unlink(missing_ok=True)
+            return {"configured_memory_directory": None, "effective_on_next_tool_call": True}
+        value = str(memory_directory(directory, state=state))
+        temporary = path.with_name(path.name + ".new")
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        try:
+            with os.fdopen(fd, "w") as handle:
+                handle.write(canonical({"memory_directory": value}) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+        finally:
+            temporary.unlink(missing_ok=True)
+        return {"configured_memory_directory": value, "effective_on_next_tool_call": True}
 
 
 def login_spec(state):

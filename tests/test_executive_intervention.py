@@ -16,7 +16,7 @@ from odin import executive_runtime as runtime
 from odin.executive_service import prepare_project, submit_executive
 from odin.executive_mcp import ExecutiveBridge, SocketGateway
 from odin.executive_intervention import delegation_guard, initialize
-from odin.executive_intervention_hook import handle
+from odin.executive_intervention_hook import configured_memory, handle
 from odin.gateway import Gateway, GatewayContext
 from odin.service import Service
 from odin.store import Conflict
@@ -286,5 +286,141 @@ class InterventionTests(unittest.TestCase):
             self.assertEqual(hook['onFailure'],'block')
             self.assertIn('odin.executive_intervention_hook',hook['args'])
         self.assertEqual(argv[argv.index('--resume')+1],self.native)
+
+class MemoryDirectoryTests(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
+        self.temp = Path(temp.name)
+        self.state = self.temp / 'state'
+        self.project = prepare_project(self.state)
+        runtime.prepare(self.state, config_dir=self.temp/'login', project=self.project,
+                        claude_binary=sys.executable, python_executable=sys.executable)
+        runtime.enable_development(self.state)
+        with runtime._owned_runtime(self.state): pass
+        runtime.configure_execution_role(self.state, implementation_mode='delegated')
+        with runtime._owned_runtime(self.state): pass
+        self.manifest = runtime._load(self.state)[0]
+        self.service = Service(self.state); self.addCleanup(self.service.close)
+        self.gateway = Gateway(self.service)
+        self.native = self.manifest['native_session_id']
+        self.bridge = ExecutiveBridge(self.project, self.send, development_loop=True, session_id=self.native)
+        self.memory = self.temp / 'memory'; self.memory.mkdir()
+        self.outside = self.temp / 'outside'; self.outside.mkdir()
+        self.calls = []
+
+    def send(self, command):
+        return submit_executive(self.gateway, {'command':command}, self.project)
+
+    def refuse(self, request):
+        self.calls.append(request)
+        return {'error': 'refused'}
+
+    def event(self, tool, tool_input, kind='PreToolUse'):
+        return {'hook_event_name':kind,'session_id':self.native,'cwd':self.manifest['repository_root'],
+                'tool_name':tool,'tool_use_id':'synthetic-tool-1','tool_input':tool_input}
+
+    def decide(self, event, gateway=None):
+        return handle(event, state=self.state, project=self.project, session=self.native,
+                      gateway=gateway or self.refuse, memory=configured_memory(self.state))
+
+    def configure(self, path=None):
+        runtime.configure_memory_directory(self.state, directory=str(path or self.memory))
+
+    def assertGateway(self, event):
+        self.calls.clear()
+        with self.assertRaises(ValueError): self.decide(event)
+        self.assertEqual(len(self.calls), 1)
+
+    def test_unconfigured_write_goes_to_gateway(self):
+        self.assertGateway(self.event('Write', {'file_path': str(self.memory/'n.md'), 'content': 'x'}))
+
+    def test_configured_write_and_edit_allowed_without_gateway(self):
+        self.configure()
+        (self.memory/'old.md').write_text('a')
+        (self.memory/'sub').mkdir()
+        for tool, inputs in [('Write', {'file_path': str(self.memory/'n.md'), 'content': 'x'}),
+                             ('Edit', {'file_path': str(self.memory/'old.md'), 'old_string': 'a', 'new_string': 'b'}),
+                             ('Write', {'file_path': str(self.memory/'sub'/'n.md'), 'content': 'x'})]:
+            result = self.decide(self.event(tool, inputs))
+            self.assertEqual(result['hookSpecificOutput']['permissionDecision'], 'allow')
+            self.assertEqual(result['hookSpecificOutput']['permissionDecisionReason'], 'Configured executive memory directory.')
+            self.assertEqual(self.decide(self.event(tool, inputs, 'PostToolUse')), {})
+        self.assertEqual(self.calls, [])
+
+    def test_rejected_memory_writes_fall_through_to_gateway(self):
+        self.configure()
+        (self.memory/'real.md').write_text('a')
+        (self.outside/'secret.md').write_text('s')
+        os.symlink(self.outside, self.memory/'linkdir')
+        os.symlink(self.outside/'secret.md', self.memory/'link.md')
+        cases = [
+            {'file_path': str(self.memory/'..'/'outside'/'x.md'), 'content': 'x'},
+            {'file_path': str(self.memory/'link.md'), 'content': 'x'},
+            {'file_path': str(self.memory/'linkdir'/'x.md'), 'content': 'x'},
+            {'file_path': str(self.outside/'x.md'), 'content': 'x'},
+            {'file_path': str(self.memory), 'content': 'x'},
+            {'file_path': str(self.memory/'missing'/'x.md'), 'content': 'x'},
+        ]
+        for inputs in cases:
+            self.assertGateway(self.event('Write', inputs))
+        # Relative or non-string paths are refused by the existing normalizer before any gateway call.
+        for inputs in [{'file_path': 'note.md', 'content': 'x'}, {'file_path': 7, 'content': 'x'}]:
+            self.calls.clear()
+            with self.assertRaises(ValueError): self.decide(self.event('Write', inputs))
+        self.assertEqual(self.calls, [])
+
+    def test_symlinked_configured_directory_rejected(self):
+        real = self.temp / 'real'; real.mkdir()
+        link = self.temp / 'link'; os.symlink(real, link)
+        with self.assertRaises(ValueError): self.configure(link)
+        self.configure()
+        moved = self.temp / 'moved'; self.memory.rename(moved); os.symlink(moved, self.memory)
+        self.assertGateway(self.event('Write', {'file_path': str(self.memory/'n.md'), 'content': 'x'}))
+
+    def test_bash_and_notebook_inside_directory_still_gateway(self):
+        self.configure()
+        self.assertGateway(self.event('Bash', {'command': f'touch {self.memory}/n.md'}))
+        self.assertGateway(self.event('NotebookEdit', {'notebook_path': str(self.memory/'n.ipynb')}))
+
+    def test_post_failure_for_memory_write_does_not_call_gateway(self):
+        self.configure()
+        event = self.event('Write', {'file_path': str(self.memory/'n.md'), 'content': 'x'}, 'PostToolUseFailure')
+        self.assertEqual(self.decide(event), {})
+        self.assertEqual(self.calls, [])
+
+    def test_existing_permit_still_allows_write_outside_directory(self):
+        self.configure()
+        target = str(self.outside/'x.md')
+        call = {'tool': 'Write', 'input': {'file_path': target, 'content': 'x'}}
+        result = self.bridge.call('odin_intervention_begin', {'operation_id': identifier(),
+            'purpose': 'Write a synthetic note', 'ttl_seconds': 60, 'calls': [call]})
+        self.assertFalse(result['isError'], result)
+        event = self.event('Write', call['input'])
+        allowed = self.decide(event, gateway=self.send)
+        self.assertEqual(allowed['hookSpecificOutput']['permissionDecisionReason'],
+                         'Recorded single-use Odin intervention permit.')
+
+    def test_configuration_validation(self):
+        bad = ['relative', str(self.memory/'..'/'outside'), str(self.temp/'missing'),
+               str(self.temp/'state'), str(ROOT), str(ROOT/'python')]
+        for value in bad:
+            with self.assertRaises(ValueError, msg=value): runtime.configure_memory_directory(self.state, directory=value)
+        file = self.temp/'file.md'; file.write_text('x')
+        with self.assertRaises(ValueError): runtime.configure_memory_directory(self.state, directory=str(file))
+        os.symlink(self.memory, self.temp/'alias')
+        with self.assertRaises(ValueError): runtime.configure_memory_directory(self.state, directory=str(self.temp/'alias'))
+        self.assertIsNone(configured_memory(self.state))
+        self.configure()
+        self.assertEqual(configured_memory(self.state), str(self.memory))
+        runtime.configure_memory_directory(self.state, directory=None)
+        self.assertIsNone(configured_memory(self.state))
+
+    def test_hook_arguments_unchanged_when_configured(self):
+        before = runtime._intervention_hooks(self.manifest)
+        self.configure()
+        after = runtime._intervention_hooks(self.manifest)
+        self.assertEqual(before, after)
+        self.assertNotIn('--memory-directory', json.dumps(after))
+
 
 if __name__=='__main__':unittest.main()

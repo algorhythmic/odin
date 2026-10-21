@@ -63,6 +63,7 @@ def main():
             "executive-configure-context",
             "executive-configure-peer-messaging",
             "executive-configure-execution-role",
+            "executive-configure-memory-directory",
             "executive-login",
             "executive-start",
             "executive-new-session",
@@ -141,6 +142,7 @@ def main():
     parser.add_argument("--claude-subagent-model-force", action="store_true", help="request native model override for ordinary subagents; native exceptions remain")
     parser.add_argument("--native-peer-messaging", action=argparse.BooleanOptionalAction, default=None, help="opt into session-scoped native Claude peer messaging")
     parser.add_argument("--implementation-mode", choices=["direct", "delegated"], help="stage the executive's native implementation role for its next resume")
+    parser.add_argument("--memory-directory", help="absolute executive memory directory for Write/Edit; empty string clears it")
     parser.add_argument("--usage-semantics", choices=["per_turn", "session_cumulative"], default="per_turn", help="explicit Codex source counter semantics")
     parser.add_argument("--once", action="store_true", help="poll configured usage-watch sources once and exit")
     parser.add_argument("--usage-provider", choices=["claude", "codex", "claude-status"])
@@ -224,6 +226,10 @@ def main():
             if args.implementation_mode is None:
                 parser.error("executive-configure-execution-role requires --implementation-mode")
             print(canonical(executive_runtime.configure_execution_role(state, implementation_mode=args.implementation_mode)))
+        elif args.action == "executive-configure-memory-directory":
+            if args.memory_directory is None:
+                parser.error("executive-configure-memory-directory requires --memory-directory")
+            print(canonical(executive_runtime.configure_memory_directory(state, directory=args.memory_directory or None)))
         elif args.action == "executive-status":
             print(canonical(executive_runtime.status(state)))
         elif args.action == "executive-login":
