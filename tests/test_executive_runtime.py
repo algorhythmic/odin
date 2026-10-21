@@ -359,7 +359,7 @@ class ExecutiveRuntimeTests(unittest.TestCase):
                 [], 0, stdout=" ".join(runtime.DEVELOPMENT_REQUIRED_FLAGS)
             ),
         ]
-        with patch.object(runtime.subprocess, "run", side_effect=outputs):
+        with patch.object(runtime, "_probe_output", side_effect=[r.stdout for r in outputs]):
             self.assertEqual(runtime.probe(self.state)["missing_flags"], [])
         self.assertNotIn("--mcp-config", runtime.launch_spec(self.state)["argv"])
 
@@ -459,7 +459,7 @@ class ExecutiveRuntimeTests(unittest.TestCase):
             subprocess.CompletedProcess([], 0, stdout="2.1.synthetic"),
             subprocess.CompletedProcess([], 0, stdout=" ".join(runtime.REQUIRED_FLAGS)),
         ]
-        with patch.object(runtime.subprocess, "run", side_effect=results):
+        with patch.object(runtime, "_probe_output", side_effect=[r.stdout for r in results]):
             self.assertEqual(runtime.probe(self.state)["missing_flags"], ["--add-dir"])
 
     def test_repository_upgrade_keeps_recorded_launch_and_rotation_keeps_profile(self):

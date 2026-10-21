@@ -6,7 +6,6 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from subprocess import CompletedProcess
 
 from odin import executive_runtime as runtime
 from odin.native_peer import peer_name
@@ -86,6 +85,14 @@ class ExecutivePeerMessagingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             peer_name("ambiguous-display-name", "worker")
 
+    def test_probe_capture_uses_regular_file_and_retains_flags_after_pipe_boundary(self):
+        script = "import os,stat; assert stat.S_ISREG(os.fstat(1).st_mode); os.write(1, b'x'*22000+b' --name --remote-control')"
+        text = runtime._probe_output([sys.executable, "-c", script], cwd=self.state, env=None)
+        self.assertEqual(len(text), 22000 + len(" --name --remote-control"))
+        self.assertTrue(text.endswith(" --name --remote-control"))
+        with self.assertRaisesRegex(ValueError, "128 KiB"):
+            runtime._probe_output([sys.executable, "-c", "import os; os.write(1,b'x'*131073)"], cwd=self.state, env=None)
+
     def test_disabling_loop_preserves_other_pending_options(self):
         runtime.enable_development_loop(self.state)
         with runtime._owned_runtime(self.state):
@@ -106,9 +113,7 @@ class ExecutivePeerMessagingTests(unittest.TestCase):
         runtime.configure_peer_messaging(self.state, enabled=True)
         help_text = " ".join(runtime.DEVELOPMENT_REQUIRED_FLAGS) + " --name --settings"
         for version, supported in [("2.1.223", False), ("unknown", False), ("2.1.224", True), ("2.1.303", True)]:
-            with self.subTest(version=version), patch.object(runtime.subprocess, "run", side_effect=[
-                CompletedProcess([], 0, stdout=version), CompletedProcess([], 0, stdout=help_text)
-            ]):
+            with self.subTest(version=version), patch.object(runtime, "_probe_output", side_effect=[version, help_text]):
                 self.assertEqual(not runtime.probe(self.state)["missing_flags"], supported)
 
 

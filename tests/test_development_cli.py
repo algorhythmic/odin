@@ -388,7 +388,7 @@ class DevelopmentCLITests(unittest.TestCase):
                 subprocess.CompletedProcess([], 0, stdout="synthetic CLI\n"),
                 subprocess.CompletedProcess([], 0, stdout=help_text),
             ]
-            with patch.object(runtime.subprocess, "run", side_effect=outputs):
+            with patch.object(runtime, "_probe_output", side_effect=[r.stdout for r in outputs]):
                 self.assertEqual(runtime.probe(self.state)["missing_flags"], missing)
 
 

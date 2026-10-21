@@ -15,6 +15,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -809,6 +810,20 @@ def _socket_ready(state, project):
         raise PermissionError("scoped executive service is unavailable")
 
 
+def _probe_output(argv, *, cwd, env):
+    # Some native CLI builds exit before their pipe-backed stdout is flushed.
+    # A regular private file retains the full help text (observed: 8190 vs
+    # 22102 bytes), so missing flags are not inferred from a truncated pipe.
+    with tempfile.TemporaryFile() as output:
+        subprocess.run(argv, cwd=cwd, env=env, stdout=output,
+                       stderr=subprocess.DEVNULL, timeout=15, check=True)
+        output.seek(0)
+        raw = output.read(131073)
+    if len(raw) > 131072:
+        raise ValueError("native CLI probe output exceeds 128 KiB")
+    return raw.decode("utf-8", errors="replace")
+
+
 def probe(state):
     """Read-only CLI help/version probe; no authentication or model request."""
     manifest, base = _load(state)
@@ -816,16 +831,12 @@ def probe(state):
     environment = _environment(manifest, base)
     results = []
     for flag in ("--version", "--help"):
-        result = subprocess.run(
+        result = _probe_output(
             [manifest["claude_binary"], flag],
             cwd=base / "workspace",
             env=environment,
-            capture_output=True,
-            text=True,
-            timeout=15,
-            check=True,
         )
-        results.append(result.stdout)
+        results.append(result)
     required = (
         DEVELOPMENT_REQUIRED_FLAGS if manifest["version"] == 3 else REQUIRED_FLAGS
     )
