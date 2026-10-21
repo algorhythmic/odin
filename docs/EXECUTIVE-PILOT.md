@@ -276,10 +276,11 @@ that is safe to replay with identical arguments:
    binding and host `Environment` record) and makes it the planning owner.
 2. `odin_delegation_assign` records an open `Commitment` with acceptance
    criteria and a `backend: local` `Assignment`, and queues the first turn.
-   Claude Code turns pass `--max-turns` and `--max-budget-usd`; Codex offers
-   no such options, so an assignment there requires
-   `allow_unenforced_limits`. Odin records limits and reported usage; it
-   enforces no ceiling.
+   Claude Code turns pass `--max-turns`, and `--max-budget-usd` only when a
+   budget is requested (`limits.budget_usd` is optional; an omitted budget is
+   recorded as `not_requested`). Codex offers no such options, so an
+   assignment there requires `allow_unenforced_limits`. Odin records limits
+   and reported usage; it enforces no ceiling.
 3. The service launches a detached runner on its next tick. The runner
    executes `claude -p --output-format json --session-id` (later
    `--resume`) or `codex exec --json` (later `codex exec resume`), forwards

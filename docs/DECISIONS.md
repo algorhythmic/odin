@@ -1898,6 +1898,19 @@ remain available in every profile.
   new incarnation and binding, and a runner that exits without a result is
   recorded as `lost`, never retried. A replacement session adopts open
   commitments left by a retired one with a new ownership generation.
+- **Amendment (2026-10-21, operator decision):** the budget limit is
+  optional. `limits.budget_usd` may be absent or null in
+  `odin_delegation_assign` and `odin_loop_delegate`; `iterations` stays
+  required. Without a requested budget the runner passes no
+  `--max-budget-usd` (Claude Code's treatment of 0 is not relied on), the
+  assignment, its `delegation.assigned` history and
+  `odin_delegation_status` record `budget_usd: null` with
+  `limit_enforcement.budget: not_requested`, and a new session stores
+  `budget_usd: null` instead of 0. A requested budget behaves as before.
+  Admission is governed by the ADR-031 quota policy; the harness-reported
+  `cost_usd` is an API-list-rate estimate retained as a reported comparison
+  figure, not a subscription charge and not an enforced ceiling. Reason: a
+  resumed session near a harness USD cap could be stopped mid-turn.
 - **Guidance to the executive:** use native subagents for quick bounded work
   whose result is integrated in the same conversation; use delegation
   sessions for work that must persist as a project commitment, run detached

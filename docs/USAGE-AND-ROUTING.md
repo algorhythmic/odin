@@ -29,6 +29,14 @@ with loop/stage IDs, the **Odin** `orchestrator_session_id`, native harness limi
 and a stable operation ID. The service creates the stage's commitment,
 assignment and queued turn atomically. Retries do not create another assignment.
 
+`limits.iterations` is required; `limits.budget_usd` is optional. Admission is
+governed by the ADR-031 quota policy below, not by a USD cap. When no budget is
+requested, Odin passes no `--max-budget-usd` to Claude Code and records the
+budget as `limit_enforcement.budget: not_requested`; the harness's USD figure
+(`cost_usd`, an API-list-rate estimate) is still reported for comparison but
+is not enforced. A supplied `budget_usd` is passed as the harness option, as
+before (ODIN-ADR-027, 2026-10-21 amendment).
+
 The orchestrator receives the complete fixed stage prompt and instructions to
 delegate independent bounded tasks to native subagents, integrate, test, obtain
 review and return concise evidence. Fable reads the result, sends follow-ups
