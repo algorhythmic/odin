@@ -8,6 +8,14 @@ personas in `docs/history/` are evidence, not instructions for you.
 
 ## 1. Current state
 
+- ODIN-ADR-036 is **proposed** and nothing in it is implemented. It would
+  give delegation sessions a workstream label and one integration owner per
+  project, the only session that fast-forwards the canonical checkout, with
+  workstream sessions committing on their own branches and worktrees. It
+  amends ODIN-ADR-027's one-session-per-project rule and cross-references
+  ODIN-ADR-022. Concurrent turns per credential lineage stay at 1 until an
+  observed credential test. See [`docs/DECISIONS.md`](docs/DECISIONS.md).
+
 - ODIN-ADR-034 adds opt-in bounded native executive intervention permits,
   full checkpoint input discovery and compact executive status projections.
   Delegation remains the normal workflow; native hook behavior requires live

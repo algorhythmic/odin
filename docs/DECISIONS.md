@@ -1624,6 +1624,9 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
 - **Surfaces and adapters:** Herdr's layout may display portfolio, project, handoff and incident state, but it is a view of the service's records. Adapter lifecycle is a structured capability and status contract (start, resume, interrupt, retire, observation, error/unknown), checked before class admission; it does not create a universal framework. Voice becomes a recorded operator input through the same identity and command path, with transcription provenance and confirmation where the command requires it; voice never supplies approval. Explore a second adapter only as a controlled fixture after the first harness path and the ADR-015 Pi control gates, preserving D19's no-framework rule.
 - **Evaluation and limits:** Store exact requested and resolved model/harness/provider versions, profile, tools, packet revision, resource policy and outcomes. Apply ADR-020's paired controls and complete episode accounting; configuration examples are not empirical rankings. Local fake-backend tests establish only protocol behavior. X-7, X-12, X-13, X-15, X-1 and Saga Phase B remain open. No live external effect or cross-provider data transfer follows from this decision.
 - **Inherited relationship:** Amends Odin's D10/D19 single-project planning scope only to allow a portfolio coordinator above independent project owners; it does not amend Saga-owned interfaces. It refines D5–D8 and ADR-009/010/014/020 for packet, authority, surface and evaluation checks. It supersedes any Odin reading of D19 that every project must share one planning session; each project still has one accountable planning owner. This is not a replacement for Odin's service loop or Saga's worker boundary.
+- **Cross-reference:** amended by ODIN-ADR-036 (proposed). Workstream
+  sessions would allow more than one session per project; the project would
+  still have at most one integration owner, which is its planning owner.
 
 ### ODIN-ADR-023 — Local continuity and attributed memory
 
@@ -1907,6 +1910,9 @@ remain available in every profile.
   `odin_delegation_status` record `budget_usd: null` with
   `limit_enforcement.budget: not_requested`, and a new session stores
   `budget_usd: null` instead of 0. A requested budget behaves as before.
+  The session-level `budget_usd` given to `odin_delegation_session` is
+  informational: it is never passed to a harness or enforced, and sessions
+  opened before this change may show `0`.
   Admission is governed by the ADR-031 usage policy when the operator
   configures one (the default `observe` mode holds nothing). Usage
   accounting is unchanged: the harness-reported `cost_usd`, which the
@@ -1915,8 +1921,8 @@ remain available in every profile.
   cost stays unknown, and none of them is an enforced ceiling. The
   partial I0 runtime contract (`runtime/schemas/v1`) still requires a
   numeric `budget_usd`; the service does not use it, and reconciling it is
-  left to I0. Reason: a
-  resumed session near a harness USD cap could be stopped mid-turn.
+  left to I0. Reason: a resumed session near a harness USD cap could be
+  stopped mid-turn.
 - **Amendment (2026-10-21, operator decision, failure surfacing):** when a
   delegation turn ends failed (including a wall-clock timeout), interrupted
   or lost, or leaves its assignment's commitment open with no turn queued or
@@ -1973,6 +1979,8 @@ remain available in every profile.
   replay. Live receipts for actual Claude Code and Codex sessions belong in
   the operator's private evidence directory, labelled as local-backend
   evidence.
+- **Cross-reference:** amended by ODIN-ADR-036 (proposed) for the
+  one-session-per-project rule above. Nothing in ADR-036 is implemented.
 
 ### ODIN-ADR-028 — Independent development evaluator and feedback loop
 
@@ -2380,6 +2388,53 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
   Memory notes are working notes
   only: they never record, replace or evidence Odin commitments, approvals
   or acceptance.
+
+### ODIN-ADR-036 — Workstream delegation sessions and a single integration owner
+
+- **Date/status:** 2026-10-21; proposed, with operator-approved scope.
+  Nothing here is implemented: no code, schema, tool or test exists for it
+  yet, and the tests listed below are planned, not run.
+- **Decision:** a delegation session carries a `workstream` label and a
+  `role` of `integration_owner` or `workstream`, both stored in the
+  delegation session options. Uniqueness is per (project, workstream). A
+  project has at most one integration owner, and that owner is the project's
+  planning owner, so ODIN-ADR-022's one-planning-owner rule is preserved.
+- **Integration:** only the integration owner fast-forwards the canonical
+  checkout. A workstream session commits on its own branch, in its own git
+  worktree under `workspace_roots`, and returns a merge-ready head plus
+  receipts. The executive assigns integration to the integration owner as a
+  follow-up turn.
+- **No new model layer:** the integration owner is an ordinary Opus
+  orchestrator session with a flag. Haiku remains the only subagent tier.
+- **Typed refusals:** `workstream_already_has_active_session`,
+  `project_already_has_integration_owner` and
+  `workspace_in_use_by_active_session`.
+- **Routing and status:** routing stays by `session_id`. Status gains a
+  project aggregate: sessions by workstream, the running turn per session and
+  queued turns per credential lineage.
+- **Retirement:** commitment adoption when a session retires is restricted to
+  a replacement with the same workstream.
+- **Accounting and admission:** per-session, per-resume deltas are summed into
+  a project aggregate labelled attributed-not-verified. Admission holds per
+  credential lineage.
+- **Concurrency:** a new configuration key, `max_concurrent_turns_per_lineage`,
+  defaults to 1, which is today's `launch_pending` behaviour. Phase 2 may
+  raise it only after an observed concurrent-turn credential test on isolated
+  state, under open X-12 and D24.4a. Nothing in this ADR raises it before then.
+- **Legacy sessions:** a session without a `workstream` is treated as the
+  integration owner.
+- **Amends and cross-references:** the one-session-per-project rule of
+  ODIN-ADR-027 and ODIN-ADR-022. Each carries a cross-reference bullet to this
+  record. No Saga-owned interface, approval or guarantee changes.
+- **Planned checks (not done):**
+  - uniqueness refusal per (project, workstream);
+  - second integration owner refusal;
+  - workspace-in-use refusal;
+  - a legacy session is treated as the integration owner;
+  - only the integration owner may fast-forward the canonical checkout;
+  - retire adoption is restricted to the same workstream;
+  - the project aggregate in status;
+  - per-lineage concurrency defaults to 1 and preserves `launch_pending`.
 
 ## 5. Issues raised by the extraction
 
