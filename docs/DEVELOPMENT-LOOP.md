@@ -369,14 +369,25 @@ the stage evidence, never in the checkout):
   counts as absence. `quiescence.unresolved` names up to sixteen such records
   with a reason.
 
-  Evaluator executions: `loop_control stop` cancels the job and deactivates
-  the loop at once, but the evaluator scheduler stops the runner and harness
-  later. The status reads the job's dispatch reservation and `started.json`
-  under `development-evaluator/<job>/` and the process table; an execution
-  stays outstanding while a recorded runner or harness process group has a
-  live member or a process argument names the job's spool. A job without a
-  durable evaluator-start receipt never spawned a process. A reused process
-  ID can only make the reading conservative.
+  Evaluator executions: `loop_control stop` cancels the job (also relabelling
+  an `unknown` or `lost` job as `cancelled`) and deactivates the loop at
+  once, but the evaluator scheduler stops the runner and harness later, so
+  the gate reads process evidence, not the job state. A job without a durable
+  evaluator-start receipt never spawned a process. A process whose arguments
+  name a job's spool `development-evaluator/<job>/` keeps that job
+  outstanding in any state. A completed job needs nothing more: its result
+  was accepted only after its harness exited. Every other dispatched job is
+  checked against its dispatch reservation and `started.json`: it stays
+  outstanding while a recorded runner or harness process group has a live
+  member, and unresolved while those files are missing, unreadable or not
+  private. A reused process ID can only make the reading conservative.
+  Inspection is bounded: at most 1024 dispatched, uncompleted jobs and 65536
+  process entries; beyond either the reading is unresolved. Unresolved
+  dispatch evidence keeps the gate false until the files are restored as
+  private regular files; if they cannot be, replacing the service needs the
+  same explicit supervisor decision as a lost turn, based on no live process
+  naming the job's spool and none in the process groups of the runner and
+  harness PIDs recorded there, where still readable.
 
   Lost delegated turns: a lost turn's native outcome is unknown and no
   supported path records its resolution, so, as for `configure_delegation`,
