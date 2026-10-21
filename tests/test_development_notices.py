@@ -652,21 +652,49 @@ class NoticeRecoveryTests(unittest.TestCase):
         schema = copy.deepcopy(
             self.store.contracts.validators["development-loop"].schema
         )
-        for key in ("deadlines", "attention"):
+        new_keys = ("deadlines", "attention", "delegation_profile")
+        for key in new_keys:
             schema["properties"].pop(key)
-        closed = Draft202012Validator(
-            schema
-        )  # the 972a92d shape: additionalProperties false
+        # The 972a92d shape: exactly these properties, additionalProperties false.
+        self.assertEqual(
+            sorted(schema["properties"]),
+            [
+                "created_at",
+                "current_job",
+                "current_stage",
+                "goal",
+                "id",
+                "last_evidence_digest",
+                "max_rounds",
+                "no_progress_count",
+                "no_progress_limit",
+                "paused_from",
+                "project",
+                "reason",
+                "revision",
+                "round",
+                "schema_version",
+                "session_id",
+                "status",
+                "updated_at",
+            ],
+        )
+        self.assertIs(schema.get("additionalProperties"), False)
+        closed = Draft202012Validator(schema)
         with self.assertRaises(ValidationError):
             closed.validate(self.loops.get(loop["id"]))
         legacy = {
             k: v
             for k, v in self.loops.get(loop["id"]).items()
-            if k not in ("deadlines", "attention")
+            if k not in new_keys
         }
         closed.validate(
             legacy
         )  # a record never touched by new code stays readable by old code
+        # Each of the three new keys is individually fatal to the old schema.
+        for key in new_keys:
+            with self.assertRaises(ValidationError):
+                closed.validate(legacy | {key: None})
 
 
 class NoticeGatewayTests(unittest.TestCase):
@@ -994,9 +1022,9 @@ class NoticeGatewayTests(unittest.TestCase):
             loop_id, job["id"], job["packet_digest"], identifier()
         )
         # 2000 four-byte characters: schema-valid, 8000 bytes, and a quoted footer.
-        huge = (
-            verdict()
-        )  # round limit reached -> needs_operator with this assessment as reason
+        # Round limit -> needs_operator with the fixed reason "development round limit
+        # reached"; this assessment is carried in the notice's assessment narrative.
+        huge = verdict()
         huge["assessment"] = "\U0001f600" * 1990 + " " + ready["completion_marker"]
         core.accept_evaluation(
             loop_id, job["id"], job["packet_digest"], huge, identifier()
