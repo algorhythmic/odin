@@ -40,6 +40,9 @@ class ClaudeOutputParserTests(unittest.TestCase):
                     "cache_read_input_tokens": 30,
                     "cache_creation_input_tokens": 40,
                 },
+                "usage_scope": "inclusive_aggregate",
+                "model_usage": None,
+                "observed_model": None,
                 "permission_denials": 0,
                 "parse_error": None,
             },
@@ -56,6 +59,9 @@ class ClaudeOutputParserTests(unittest.TestCase):
                 "turns": None,
                 "cost_usd": None,
                 "usage": None,
+                "usage_scope": None,
+                "model_usage": None,
+                "observed_model": None,
                 "permission_denials": None,
                 "parse_error": None,
             },
@@ -189,9 +195,7 @@ class ClaudeOutputParserTests(unittest.TestCase):
                     usage[key] = value
                     usage["extra_tokens"] = 123
                     result = parse_claude_json(json.dumps({"usage": usage}))
-                    self.assertEqual(
-                        result["usage"], {other: 0 for other in keys if other != key}
-                    )
+                    self.assertEqual(result["usage"], {other: 0 for other in keys if other != key})
 
     def test_empty_or_invalid_usage_is_distinct_from_filtered_usage(self):
         for usage in (None, {}, [], True, 12, "tokens"):
@@ -199,7 +203,34 @@ class ClaudeOutputParserTests(unittest.TestCase):
                 result = parse_claude_json(json.dumps({"usage": usage}))
                 self.assertIsNone(result["usage"])
         result = parse_claude_json('{"usage": {"unknown_tokens": 5}}')
-        self.assertEqual(result["usage"], {})
+        self.assertIsNone(result["usage"])
+
+    def test_model_usage_preserves_resolved_ids_and_rejects_malformed_counters(self):
+        body = {"model": "claude-opus-5-5", "usage": {"input_tokens": 19},
+                "modelUsage": {
+                    "claude-opus-5-5": {"inputTokens": 10, "outputTokens": 3, "costUSD": 0.1},
+                    "claude-haiku-5-5": {"inputTokens": 9, "outputTokens": -1,
+                                           "cacheReadInputTokens": True, "costUSD": -4},
+                    "bad": {"inputTokens": "unknown"}}}
+        result = parse_claude_json(json.dumps(body))
+        self.assertEqual(result["observed_model"], "claude-opus-5-5")
+        self.assertEqual(result["usage_scope"], "inclusive_aggregate")
+        self.assertEqual(result["usage"], {"input_tokens": 19})
+        self.assertEqual(result["model_usage"], {
+            "claude-opus-5-5": {"inputTokens": 10, "outputTokens": 3, "costUSD": 0.1},
+            "claude-haiku-5-5": {"inputTokens": 9}})
+
+    def test_model_usage_cost_only_and_unknown_counters_stay_unknown(self):
+        body = {"usage": {"input_tokens": "unknown"}, "modelUsage": {
+            "claude-haiku-5-5": {"inputTokens": "unknown", "outputTokens": True, "costUSD": 0.02},
+            "claude-opus-5-5": {"contextWindow": 200000}}}
+        result = parse_claude_json(json.dumps(body))
+        self.assertIsNone(result["usage"])
+        self.assertEqual(result["model_usage"], {"claude-haiku-5-5": {"costUSD": 0.02}})
+        self.assertEqual(result["usage_scope"], "inclusive_aggregate")
+
+    def test_non_boolean_error_flag_is_not_promoted_to_failure(self):
+        self.assertFalse(parse_claude_json('{"is_error": "false"}')["is_error"])
 
     def test_permission_denials_count_list_entries_only(self):
         for denials, expected in (

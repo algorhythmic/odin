@@ -93,6 +93,37 @@ class DevelopmentCLITests(unittest.TestCase):
         self.assertEqual(process.returncode, 0, errors.decode())
         self.assertEqual(errors, b"")
 
+    def test_usage_metadata_commands_use_the_running_service(self):
+        self.start_service()
+        source = self.root / 'usage.jsonl'
+        source.write_text(canonical({
+            'type': 'assistant', 'sessionId': SESSION,
+            'timestamp': '2026-10-20T01:00:00Z',
+            'message': {'id': 'synthetic-request', 'model': 'haiku',
+                        'content': 'not retained', 'usage': {
+                            'input_tokens': 3, 'cache_read_input_tokens': 2,
+                            'cache_creation_input_tokens': 0, 'output_tokens': 1}}
+        }) + '\n')
+        args = ('usage-collect', '--project', self.project, '--usage-provider', 'claude',
+                '--native-session', SESSION, '--source-file', str(source))
+        self.assertEqual(self.result(*args)['result']['outcomes'], {'inserted': 1})
+        self.assertEqual(self.result(*args)['result']['outcomes'], {'duplicate': 1})
+        self.request.write_text(canonical({'project': self.project, 'policy': {
+            'mode': 'hold', 'limits': {'max_requests': 1}}}))
+        self.result('usage-configure', '--request', str(self.request))
+        status = self.result('usage-status', '--project', self.project)['result']
+        self.assertEqual(status['usage']['request_count'], 1)
+        self.assertEqual(status['admission']['decision'], 'hold')
+        self.assertIn('requests:threshold', status['admission']['reasons'])
+        checkpoint = {'revision': 1, 'branch': 'codex/synthetic', 'worktree': str(self.root),
+            'artifact_refs': [], 'open_obligations': [], 'pending_reviews': [],
+            'operation_ids': [], 'next_action': 'review evidence', 'summary': 'synthetic'}
+        self.request.write_text(canonical({'project': self.project, 'session_id': SESSION,
+                                          'checkpoint': checkpoint}))
+        self.result('context-checkpoint', '--request', str(self.request))
+        view = self.result('context-status', '--project', self.project, '--native-session', SESSION)
+        self.assertEqual(view['result']['checkpoint']['next_action'], 'review evidence')
+
     def start_loop(self, operation_id=None):
         arguments = ["development-start", "--request", str(self.request)]
         if operation_id:

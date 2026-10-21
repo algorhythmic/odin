@@ -43,13 +43,17 @@ TOOL_ACTIONS = {
     "odin_delegation_status": "delegation_status",
     "odin_delegation_result": "delegation_result",
     "odin_delegation_close": "delegation_close",
+    "odin_loop_delegate": "loop_delegate",
+    "odin_usage_status": "usage_status",
+    "odin_context_status": "context_status",
+    "odin_context_checkpoint": "context_checkpoint",
     "odin_loop_claim": "loop_claim",
     "odin_loop_ready": "loop_ready",
     "odin_loop_status": "loop_status",
     "odin_loop_ack": "loop_ack",
 }
 LOOP_TOOLS = frozenset(
-    {"odin_loop_claim", "odin_loop_ready", "odin_loop_status", "odin_loop_ack"}
+    {"odin_loop_claim", "odin_loop_ready", "odin_loop_status", "odin_loop_ack", "odin_loop_delegate", "odin_context_checkpoint"}
 )
 READ_ONLY_TOOLS = frozenset(
     {
@@ -59,7 +63,7 @@ READ_ONLY_TOOLS = frozenset(
         "odin_reports",
         "odin_delegation_status",
         "odin_delegation_result",
-        "odin_loop_status",
+        "odin_loop_status", "odin_usage_status", "odin_context_status",
     }
 )
 MUTATING_TOOLS = frozenset(TOOL_ACTIONS) - READ_ONLY_TOOLS
@@ -95,8 +99,8 @@ TOOL_DESCRIPTIONS = {
         "session (a persisted Claude Code or Codex worker conversation in a "
         "configured workspace). Use it for work that must outlive this "
         "conversation, be resumed after restarts, or be accounted as a project "
-        "commitment; use ordinary native subagents for quick bounded tasks whose "
-        "result you will integrate yourself now. Records are local-backend "
+        "commitment. For implementation stages use this separate orchestrator, with its own native subagents; "
+        "Fable reviews the concise return. Records are local-backend "
         "evidence with no isolation or Saga guarantees. Supply a new ULID "
         "operation_id; replaying the same arguments is idempotent."
     ),
@@ -130,11 +134,19 @@ TOOL_DESCRIPTIONS = {
         "executive-attributed acceptance, not Saga verification) or cancelled. "
         "Supply a new ULID operation_id."
     ),
+    "odin_loop_delegate": (
+        "Create the current claimed stage's owned commitment and assignment in a separate orchestrator session. "
+        "Use its returned assignment ID for follow-ups, result inspection and explicit acceptance before ready. "
+        "The service checks the requested loop profile. Native subagent use and models require observed evidence."
+    ),
+    "odin_usage_status": ("Read observed usage, missing telemetry and next-work admission policy. Token counts are not subscription quota or an enforced spend ceiling."),
+    "odin_context_status": ("Read the latest bounded, attributed context checkpoint; reconcile it with canonical commitments and live stage status."),
+    "odin_context_checkpoint": ("Save a bounded continuation note before compaction: revision, worktree, artifacts, obligations, reviews, stable operation IDs and next action. Does not complete work or compact the native session."),
     "odin_loop_claim": (
         "Claim an offered development-evaluator message before acting on it. "
         "The service fixes this project's executive session. Repeated delivery "
         "does not authorize repeated work; inspect the existing claim/result. "
-        "Use a stable operation_id when reconciling an uncertain claim."
+        "Use a stable operation_id when reconciling an uncertain claim. A held:true result has not claimed work; inspect usage status and wait for release."
     ),
     "odin_loop_ready": (
         "Record the current development stage's evidence and readiness for "
@@ -267,7 +279,7 @@ class ExecutiveBridge:
             "executive-tool-input", {"name": name, "arguments": arguments}
         )
         payload = dict(arguments)
-        if name in LOOP_TOOLS:
+        if name in LOOP_TOOLS or (name == "odin_usage_status" and self.session_id):
             payload["session_id"] = self.session_id
         operation = payload.pop("operation_id", None) or identifier()
         command = {

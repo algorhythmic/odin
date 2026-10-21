@@ -675,3 +675,15 @@ rounds, including capture during service outage and drainage after restart.
 It requires local Unix socket/process access. It does not invoke Fable,
 authenticate a new login or prove that a native Claude client accepts the
 custom channel.
+
+
+## Usage and orchestration experiment
+
+New loops can require an accountable separate orchestrator return through
+`delegation_profile` and `odin_loop_delegate`. Optional usage policies hold
+future admissions while retaining existing work identities; bounded context
+checkpoints preserve attributed continuation notes. Existing loops and their
+round limits remain unchanged. See [usage and routing](USAGE-AND-ROUTING.md)
+for the explicit collection commands, settings, limitations and staged live
+acceptance. These controls do not enforce in-flight native spend or establish
+that every native subagent source has been captured.

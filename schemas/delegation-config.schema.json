@@ -29,6 +29,9 @@
             "credential_ref": {"type": "string", "minLength": 8, "pattern": "^secret:"},
             "refresh_owner": {"type": "string", "minLength": 1},
             "default_model": {"type": "string", "minLength": 1, "maxLength": 128},
+            "default_subagent_model": {"type": "string", "minLength": 1, "maxLength": 128},
+            "default_subagent_model_force": {"type": "boolean"},
+            "default_auto_compact_window_tokens": {"type": "integer", "minimum": 100000, "maximum": 1000000},
             "default_permission_mode": {
               "enum": ["default", "acceptEdits", "plan", "dontAsk", "bypassPermissions"]
             }

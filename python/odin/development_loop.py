@@ -691,6 +691,7 @@ class DevelopmentLoop:
         max_rounds=12,
         no_progress_limit=3,
         deadlines=None,
+        delegation_profile=None,
     ):
         try:
             if (
@@ -710,6 +711,7 @@ class DevelopmentLoop:
             "max_rounds": max_rounds,
             "no_progress_limit": no_progress_limit,
             "deadlines": deadlines,
+            "delegation_profile": delegation_profile,
         }
 
         def apply():
@@ -746,6 +748,7 @@ class DevelopmentLoop:
                 "updated_at": stamp,
                 "deadlines": deadlines,
                 "attention": None,
+                "delegation_profile": delegation_profile,
             }
             self._save_loop(loop)
             job = self._queue_evaluator(loop, evidence)
@@ -925,6 +928,12 @@ class DevelopmentLoop:
         prompt_id=None,
     ):
         evidence = self._evidence(evidence_packet)
+        from .development_delegation import require_return
+
+        loop, stage = self._correlate_stage(loop_id, stage_id, session_id)
+        returned = require_return(self.store, loop, stage)
+        if returned:
+            evidence = evidence | {"delegation": returned}
         arguments = {
             "loop_id": loop_id,
             "stage_id": stage_id,

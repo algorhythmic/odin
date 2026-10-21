@@ -88,6 +88,8 @@ class ExecutiveMCPTests(unittest.TestCase):
                 "odin_read_evidence",
                 "odin_report",
                 "odin_reports",
+                "odin_usage_status",
+                "odin_context_status",
                 "odin_delegation_session",
                 "odin_delegation_assign",
                 "odin_delegation_followup",
@@ -337,7 +339,7 @@ class ExecutiveMCPTests(unittest.TestCase):
             )
         responses = [strict_loads(line) for line in completed.stdout.splitlines()]
         self.assertEqual([response["id"] for response in responses], [1, 2])
-        self.assertEqual(len(responses[1]["result"]["tools"]), 11)
+        self.assertEqual(len(responses[1]["result"]["tools"]), 13)
         self.assertEqual(completed.stderr, "")
 
 

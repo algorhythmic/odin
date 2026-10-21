@@ -65,7 +65,26 @@
             "stop_reason": {"anyOf": [{"type": "string"}, {"type": "null"}]},
             "turns": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
             "cost_usd": {"anyOf": [{"type": "number", "minimum": 0}, {"type": "null"}]},
-            "usage": {"anyOf": [{"type": "object"}, {"type": "null"}]},
+            "usage": {"anyOf": [{"type": "object", "additionalProperties": false,
+              "properties": {
+                "input_tokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                "output_tokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                "cache_read_input_tokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                "cache_creation_input_tokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                "cached_input_tokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                "reasoning_output_tokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991}
+              }}, {"type": "null"}]},
+            "usage_scope": {"enum": ["inclusive_aggregate", null]},
+            "model_usage": {"anyOf": [{"type": "object", "maxProperties": 32,
+              "patternProperties": {"^.{1,128}$": {"type": "object", "additionalProperties": false,
+                "properties": {
+                  "inputTokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                  "outputTokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                  "cacheReadInputTokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                  "cacheCreationInputTokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+                  "costUSD": {"type": "number", "minimum": 0, "maximum": 1000000}
+                }}}, "additionalProperties": false}, {"type": "null"}]},
+            "observed_model": {"anyOf": [{"type": "string", "minLength": 1, "maxLength": 128}, {"type": "null"}]},
             "permission_denials": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
             "parse_error": {"anyOf": [{"type": "string"}, {"type": "null"}]},
             "error_summary": {"anyOf": [{"type": "string"}, {"type": "null"}]},

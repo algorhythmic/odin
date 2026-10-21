@@ -2139,6 +2139,42 @@ remain available in every profile.
   control). These are synthetic; live acceptance requires an observed
   activation of the service and bridge.
 
+### ODIN-ADR-031 — Measured usage and accountable development orchestration
+
+- **Date:** 2026-10-20.
+- **Status:** operator-authorized local experiment; live activation and model
+  comparisons remain separate from synthetic implementation evidence.
+- **Authority:** the operator asked for implementation using Sol subagents after
+  refining the executive → separate project orchestrator → native subagent
+  hierarchy and the usage/context experiment. This refines ADR-027/028's local
+  workflow and ADR-005's bounded-context experiment; it does not change Saga
+  contracts, close X-12, remove required review, or replace D7 commitments.
+- **Decision:** new loops may pin a requested delegation profile. The service
+  creates one stage-bound assignment via `odin_loop_delegate` and refuses ready
+  without its successful separate-session return and executive-attributed
+  acceptance. Existing loops are unchanged. Requested Opus/Haiku profiles are
+  explicit experiments; native model observations remain separate from requests.
+- **Accounting:** a service-owned metadata ledger deduplicates request identities,
+  preserves nullable counters, excludes inclusive aggregates from additive totals
+  and records coverage. Explicit collectors and operator imports do not establish
+  complete automatic source discovery. Provider quota samples remain account-
+  scoped observations with timestamps; token totals imply neither subscription
+  quota nor charges. Imports are not cryptographic metering evidence.
+- **Controls:** optional policies observe or hold future stage/worker/evaluator
+  admission. Known cumulative project lower bounds count even with incomplete
+  telemetry. Missing/stale required samples stay explicit. No running native
+  process is interrupted; these are neither hard spending caps nor quota
+  reservations. Holds preserve work identities, objectives and round bounds.
+- **Continuity:** bounded attributed checkpoints retain obligations, review and
+  evidence references across native compaction without replacing canonical
+  records. Native compaction window configuration preserves the executive UUID
+  and activates on a subsequent start; actual compaction remains harness-owned.
+- **Checks and rollout:** usage/policy, profile, context, Gateway/MCP and staged
+  delegation synthetic tests cover the rules. The runnable experiment and its
+  remaining live acceptance work are in [USAGE-AND-ROUTING.md](USAGE-AND-ROUTING.md).
+  This is not proof of nested native delegation, automatic collection coverage,
+  cheaper accepted changes, or Saga isolation and limit guarantees.
+
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that

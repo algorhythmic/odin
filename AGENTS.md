@@ -8,6 +8,15 @@ personas in `docs/history/` are evidence, not instructions for you.
 
 ## 1. Current state
 
+- ODIN-ADR-031 adds an opt-in local usage/context and delegated-stage
+  experiment. New loops can require an accepted separate orchestrator return;
+  explicit metadata collectors retain unknown coverage, and admission policies
+  hold future work without enforcing native in-flight spend. Bounded attributed
+  checkpoints and requested native compaction windows preserve the executive
+  session identity. Existing loops are unchanged; complete live collection and
+  nested native delegation need observed acceptance. See
+  [`docs/USAGE-AND-ROUTING.md`](docs/USAGE-AND-ROUTING.md).
+
 - ODIN-ADR-030 gives the development loop durable **notices** (completion,
   failure, intervention, stop, stall) delivered at least once through the
   executive channel as events distinct from assignments, acknowledged with

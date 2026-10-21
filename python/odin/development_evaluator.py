@@ -664,6 +664,12 @@ class EvaluatorRunner:
                 if not self.config or loop["status"] == "paused":
                     continue
                 if job["state"] == "pending" and loop["status"] == "evaluator_pending":
+                    from .usage_policy import UsagePolicy
+                    admission = UsagePolicy(self.store).check(
+                        loop["project"], purpose="evaluator:" + job["id"], loop_id=loop["id"])
+                    if admission["decision"] == "hold":
+                        summary["held"].append(job["id"])
+                        continue
                     if not lineage_busy:
                         lineage_busy = True
                         if self._launch(job, directory, dispatch):

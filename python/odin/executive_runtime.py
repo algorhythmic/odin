@@ -301,6 +301,12 @@ def _mcp(manifest):
     return result
 
 
+def _auto_compact_window(value):
+    if type(value) is not int or not 100000 <= value <= 1000000:
+        raise ValueError("auto_compact_window_tokens must be 100000..1000000")
+    return value
+
+
 def prepare(
     state,
     *,
@@ -312,6 +318,7 @@ def prepare(
     python_executable=None,
     remote_name="Odin executive",
     enable_mcp=True,
+    auto_compact_window_tokens=None,
 ):
     """Prepare private runtime files. Does not authenticate or invoke a model."""
     state = _private_directory(state, create=True)
@@ -342,10 +349,14 @@ def prepare(
         "python_executable": _executable(python_executable or sys.executable),
         "native_session_id": str(uuid.uuid4()),
     }
+    if auto_compact_window_tokens is not None:
+        manifest["auto_compact_window_tokens"] = _auto_compact_window(auto_compact_window_tokens)
     Contracts().validate("executive-pilot", manifest)
     with _lease(base / "prepare.lock"):
         if (base / "manifest.json").exists():
             existing = _read(base / "manifest.json", "executive-pilot")
+            if auto_compact_window_tokens is None and "auto_compact_window_tokens" in existing:
+                manifest["auto_compact_window_tokens"] = existing["auto_compact_window_tokens"]
             manifest["native_session_id"] = existing["native_session_id"]
             if existing["version"] >= 2:
                 manifest.update(version=existing["version"], repository_root=str(ROOT))
@@ -402,13 +413,15 @@ def _load(state):
 
 
 def _environment(manifest, base):
+    compact = manifest.get("auto_compact_window_tokens")
+    compact_env = {"CLAUDE_CODE_AUTO_COMPACT_WINDOW": str(compact)} if compact is not None else {}
     if manifest["version"] == 3:
         # This operator-authorized development profile uses the ordinary host
         # environment. Retain the existing Claude login/session directory.
         return os.environ | {
             "HOME": pwd.getpwuid(os.getuid()).pw_dir,
             "CLAUDE_CONFIG_DIR": manifest["config_dir"],
-        }
+        } | compact_env
     # An allowlist prevents API keys, provider overrides, shell loaders,
     # developer SDK settings and unrelated service credentials from leaking.
     return {
@@ -421,7 +434,7 @@ def _environment(manifest, base):
         "TERM": os.environ.get("TERM", "xterm-256color"),
         "USER": pwd.getpwuid(os.getuid()).pw_name,
         "LOGNAME": pwd.getpwuid(os.getuid()).pw_name,
-    }
+    } | compact_env
 
 
 def _prompt(project, *, repository_root=None):
@@ -460,10 +473,12 @@ def _prompt(project, *, repository_root=None):
     return prompt
 
 
-def launch_spec(state, *, resume=False):
+def launch_spec(state, *, resume=False, auto_compact_window_tokens=None):
     """Return exact argv/cwd/environment without connecting or starting Claude."""
     manifest, base = _load(state)
     manifest = _pending_development(manifest, base) or manifest
+    if auto_compact_window_tokens is not None:
+        manifest = manifest | {"auto_compact_window_tokens": _auto_compact_window(auto_compact_window_tokens)}
     return _launch_spec(manifest, base, resume=resume)
 
 
@@ -580,8 +595,12 @@ def _pending_development(manifest, base):
         return None
     pending = _read(path, "executive-pilot")
     expected = manifest | {"version": 3, "repository_root": str(ROOT)}
-    comparable = {key: value for key, value in pending.items() if key != "development_loop"}
+    comparable = {key: value for key, value in pending.items()
+                  if key not in ("development_loop", "auto_compact_window_tokens")}
     expected.pop("development_loop", None)
+    expected.pop("auto_compact_window_tokens", None)
+    if manifest.get("auto_compact_window_tokens") is not None and pending.get("auto_compact_window_tokens") is None:
+        raise PermissionError("pending context configuration removed a configured window")
     if comparable != expected or (
         "development_loop" in pending and manifest["version"] != 3
     ):
@@ -628,7 +647,7 @@ def enable_development_loop(state, *, enabled=True):
         manifest, base = _load(state)
         if manifest["version"] != 3 or not manifest["enable_mcp"]:
             raise PermissionError("development loop requires the active v3 MCP profile")
-        pending = dict(manifest)
+        pending = dict(_pending_development(manifest, base) or manifest)
         if enabled:
             pending["development_loop"] = True
         else:
@@ -648,6 +667,31 @@ def enable_development_loop(state, *, enabled=True):
             "native_session_id": manifest["native_session_id"],
             "native_history_preserved": True,
             "channel_delivery": "unverified_requires_native_startup_confirmation",
+        }
+
+
+def configure_context(state, *, auto_compact_window_tokens):
+    """Stage a native auto-compact window for the next executive launch."""
+    window = _auto_compact_window(auto_compact_window_tokens)
+    state = _private_directory(state)
+    base = _private_directory(state / "executive-pilot")
+    with _lease(base / "prepare.lock"):
+        manifest, base = _load(state)
+        if manifest["version"] != 3:
+            raise PermissionError("context configuration requires the v3 development profile")
+        pending = dict(_pending_development(manifest, base) or manifest)
+        pending["auto_compact_window_tokens"] = window
+        if pending != manifest:
+            _write(base / "pending-development.json", "executive-pilot", pending)
+        else:
+            (base / "pending-development.json").unlink(missing_ok=True)
+        return {
+            "configured_auto_compact_window_tokens": manifest.get("auto_compact_window_tokens"),
+            "requested_auto_compact_window_tokens": window,
+            "pending_activation": pending != manifest,
+            "effective_on_next_start": True,
+            "native_session_id": manifest["native_session_id"],
+            "native_history_preserved": True,
         }
 
 
@@ -769,7 +813,7 @@ class ResumeRequired(PermissionError):
     """A saved launch needs the explicit resume command, not a new session."""
 
 
-def start(state, *, resume=False):
+def start(state, *, resume=False, auto_compact_window_tokens=None):
     """Run a foreground pilot. Its native UI reports login/model/RC outcomes."""
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise PermissionError("start the executive pilot in a foreground terminal")
@@ -783,6 +827,8 @@ def start(state, *, resume=False):
             )
         if manifest["enable_mcp"] and manifest["version"] < 3:
             _socket_ready(manifest["state"], manifest["project"])
+        launch_manifest = (manifest | {"auto_compact_window_tokens": _auto_compact_window(auto_compact_window_tokens)}
+                           if auto_compact_window_tokens is not None else manifest)
         capability = probe(state)
         if capability["missing_flags"]:
             raise PermissionError("installed Claude Code lacks required pilot flags")
@@ -795,10 +841,11 @@ def start(state, *, resume=False):
                 "state": "launch_requested",
                 "resume": resume,
                 "exit_code": None,
+                "auto_compact_window_tokens": launch_manifest.get("auto_compact_window_tokens"),
             },
         )
         result = _foreground(
-            _launch_spec(manifest, base, resume=resume), (runtime_lock, credential_lock)
+            _launch_spec(launch_manifest, base, resume=resume), (runtime_lock, credential_lock)
         )
         _write(
             receipt,
@@ -809,6 +856,7 @@ def start(state, *, resume=False):
                 "state": "process_exited",
                 "resume": resume,
                 "exit_code": result,
+                "auto_compact_window_tokens": launch_manifest.get("auto_compact_window_tokens"),
             },
         )
         return result
@@ -928,6 +976,8 @@ def status(state):
         ),
         "development_loop_delivery": "unverified",
         "pending_profile_version": pending["version"] if pending else None,
+        "configured_auto_compact_window_tokens": manifest.get("auto_compact_window_tokens"),
+        "pending_auto_compact_window_tokens": pending.get("auto_compact_window_tokens") if pending else None,
         "pending_activation_requires_resume": pending is not None,
         "process_lease_held": running,
         "last_launch": receipt,

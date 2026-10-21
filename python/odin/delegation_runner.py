@@ -150,6 +150,9 @@ def _refused_result(spec, started_at, lineage):
         "turns": None,
         "cost_usd": None,
         "usage": None,
+        "usage_scope": None,
+        "model_usage": None,
+        "observed_model": None,
         "permission_denials": None,
         "parse_error": None,
         "error_summary": (
@@ -316,6 +319,9 @@ def run(directory):
         "turns": parsed.get("turns"),
         "cost_usd": parsed.get("cost_usd"),
         "usage": parsed.get("usage"),
+        "usage_scope": parsed.get("usage_scope"),
+        "model_usage": parsed.get("model_usage"),
+        "observed_model": parsed.get("observed_model"),
         "permission_denials": parsed.get("permission_denials"),
         "parse_error": parsed.get("parse_error"),
         "error_summary": ("; ".join(parsed["errors"])[:2048] or None)

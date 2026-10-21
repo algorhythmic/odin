@@ -13,6 +13,7 @@ report; acceptance is a separate, attributed executive action.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import signal
 import socket
@@ -433,6 +434,25 @@ class Delegation:
         model = payload.get("model") or harness.get("default_model")
         if payload["harness"] == "claude-code" and not model:
             _refuse("model_required")
+        claude_only = ("subagent_model", "subagent_model_force", "auto_compact_window_tokens")
+        if payload["harness"] != "claude-code" and any(payload.get(key) is not None for key in claude_only):
+            _refuse("claude_options_unsupported_by_harness")
+        subagent_model = payload.get("subagent_model", harness.get("default_subagent_model"))
+        subagent_model_force = payload.get("subagent_model_force", harness.get("default_subagent_model_force", False))
+        auto_compact_window = payload.get("auto_compact_window_tokens", harness.get("default_auto_compact_window_tokens"))
+        if type(subagent_model_force) is not bool:
+            _refuse("invalid_subagent_model_force")
+        if subagent_model_force and not subagent_model:
+            _refuse("subagent_model_required_for_force")
+        if subagent_model_force:
+            version = self.versions.get("claude-code") or ""
+            match = re.search(r"\b(\d+)\.(\d+)\.(\d+)\b", version)
+            if match is None or tuple(map(int, match.groups())) < (2, 1, 257):
+                _refuse("subagent_model_force_unsupported_by_claude_version")
+        if subagent_model is not None and (not isinstance(subagent_model, str) or not 1 <= len(subagent_model) <= 128):
+            _refuse("invalid_subagent_model")
+        if auto_compact_window is not None and (type(auto_compact_window) is not int or not 100000 <= auto_compact_window <= 1000000):
+            _refuse("invalid_auto_compact_window_tokens")
         lineage = self._lineage(payload["harness"])
         if lineage["shared_with"] and lineage["policy"] != "shared_accepted":
             _refuse("lineage_shared_requires_acceptance")
@@ -442,6 +462,9 @@ class Delegation:
             },
             "workspace": workspace,
             "model": model,
+            "subagent_model": subagent_model,
+            "subagent_model_force": subagent_model_force,
+            "auto_compact_window_tokens": auto_compact_window,
             "effort": payload.get("effort"),
             "permission_mode": payload.get("permission_mode")
             or harness.get("default_permission_mode", "acceptEdits"),
@@ -909,6 +932,13 @@ class Delegation:
                 # An earlier launch may or may not have created the native
                 # session; never reuse its id. Rotate to a fresh identity.
                 session = self._rotate_native_session(session)
+            briefing = session["briefing"]
+            if options.get("subagent_model"):
+                briefing += (
+                    "\n\nDelegate bounded implementation or research tasks to native workers "
+                    "when useful. Integrate their results, run appropriate tests, review "
+                    "the final change, and return a concise report with evidence and limits."
+                )
             argv = [
                 harness["binary"],
                 "-p",
@@ -920,7 +950,7 @@ class Delegation:
                 "--permission-mode",
                 options["permission_mode"],
                 "--append-system-prompt",
-                session["briefing"],
+                briefing,
                 "--max-turns",
                 str(assignment["limits"]["iterations"]),
                 "--max-budget-usd",
@@ -935,6 +965,12 @@ class Delegation:
             else:
                 argv.extend(["--resume", session["native_session_id"]])
             env = {"CLAUDE_CONFIG_DIR": harness["config_dir"]}
+            if options.get("subagent_model"):
+                env["CLAUDE_CODE_SUBAGENT_MODEL"] = options["subagent_model"]
+            if options.get("subagent_model_force"):
+                env["CLAUDE_CODE_SUBAGENT_MODEL_FORCE"] = "1"
+            if options.get("auto_compact_window_tokens") is not None:
+                env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = str(options["auto_compact_window_tokens"])
             output_format = "json"
             last_message = None
         else:
@@ -1011,6 +1047,13 @@ class Delegation:
             if lock is not None and lock in busy_locks:
                 # Another session's turn holds this credential lineage; stay
                 # queued instead of being refused by the runner's lease.
+                continue
+            from .usage_policy import UsagePolicy
+            admission = UsagePolicy(self.store).check(
+                turn["project"], purpose="delegation:" + turn["id"],
+                session_id=session.get("native_session_id"),
+            )
+            if admission["decision"] == "hold":
                 continue
             try:
                 launched.append(self._launch(turn, session))
@@ -1363,6 +1406,9 @@ class Delegation:
             "turns": result.get("turns"),
             "cost_usd": result.get("cost_usd"),
             "usage": result.get("usage"),
+            "usage_scope": result.get("usage_scope"),
+            "model_usage": result.get("model_usage"),
+            "observed_model": result.get("observed_model"),
             "permission_denials": result.get("permission_denials"),
             "parse_error": result.get("parse_error"),
             "error_summary": result.get("error_summary"),
@@ -1728,6 +1774,9 @@ def default_config(
     claude_binary=None,
     codex_binary=None,
     claude_model="claude-sonnet-5-5",
+    claude_subagent_model=None,
+    claude_subagent_model_force=False,
+    claude_auto_compact_window_tokens=None,
     codex_model=None,
     turn_timeout_seconds=1800,
     lineage_policy="exclusive",
@@ -1746,6 +1795,9 @@ def default_config(
             "credential_ref": "secret:odin-delegation-claude-login",
             "refresh_owner": "odin-delegation-claude-config-dir",
             "default_model": claude_model,
+            **({"default_subagent_model": claude_subagent_model} if claude_subagent_model else {}),
+            **({"default_subagent_model_force": claude_subagent_model_force} if claude_subagent_model_force else {}),
+            **({"default_auto_compact_window_tokens": claude_auto_compact_window_tokens} if claude_auto_compact_window_tokens is not None else {}),
             "default_permission_mode": "acceptEdits",
         }
     codex = codex_binary or shutil.which("codex")

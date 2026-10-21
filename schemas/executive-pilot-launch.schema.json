@@ -31,6 +31,9 @@
         "integer",
         "null"
       ]
+    },
+    "auto_compact_window_tokens": {
+      "type": ["integer", "null"], "minimum": 100000, "maximum": 1000000
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema"

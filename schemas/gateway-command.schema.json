@@ -57,7 +57,13 @@
         "loop_continue",
         "loop_reconcile",
         "loop_ack",
-        "loop_hold"
+        "loop_hold",
+        "loop_delegate",
+        "usage_import",
+        "usage_status",
+        "usage_configure",
+        "context_checkpoint",
+        "context_status"
       ]
     },
     "payload": {

@@ -13,12 +13,7 @@ from .development_loop import ATTENTION_RULES, DEADLINE_KEYS, MARKER, clip_bytes
 from .store import Conflict, digest
 
 EXECUTIVE_ACTIONS = {
-    "loop_status",
-    "loop_inbox",
-    "loop_claim",
-    "loop_ready",
-    "loop_capture",
-    "loop_ack",
+    "loop_status", "loop_inbox", "loop_claim", "loop_ready", "loop_capture", "loop_ack", "loop_delegate",
 }
 NOTICE_HEADER = (
     "NOTICE, not an assignment. Development loop {loop_id} became {status} "
@@ -71,7 +66,7 @@ def check_scope(gateway, action, payload):
             raise PermissionError("development loop belongs to another project")
         if "session_id" in payload and payload["session_id"] != loop["session_id"]:
             raise PermissionError("development loop belongs to another native session")
-        if action in {"loop_claim", "loop_ready"}:
+        if action in {"loop_claim", "loop_ready", "loop_delegate"}:
             # A recorded acknowledgement is historical evidence. It must never
             # revive permission to execute after pause, stop or supersession.
             gateway.coordination._live()
@@ -313,13 +308,7 @@ def dispatch(gateway, action, payload, context, operation):
             "development-loop-command", action, payload
         )
     check_scope(gateway, action, payload)
-    if action in {
-        "loop_start",
-        "loop_claim",
-        "loop_ready",
-        "loop_reconcile",
-        "loop_continue",
-    }:
+    if action in {"loop_start", "loop_claim", "loop_ready", "loop_reconcile", "loop_continue", "loop_delegate"}:
         gateway.coordination._live()
     if action == "loop_control" and payload["action"] == "resume":
         gateway.coordination._live()
@@ -327,6 +316,9 @@ def dispatch(gateway, action, payload, context, operation):
         if not payload["goal"].strip():
             raise ValueError("development goal must not be blank")
         return controller.start(**payload, operation_id=operation)
+    if action == "loop_delegate":
+        from .development_delegation import assign
+        return assign(gateway, payload, operation, context.actor.subject)
     if action == "loop_status":
         loops = (
             [controller.get(payload["loop_id"])]
@@ -340,6 +332,9 @@ def dispatch(gateway, action, payload, context, operation):
         views = []
         for loop in loops:
             item = summary(controller, loop)
+            item["admission"] = gateway.usage_policy.check(loop["project"], purpose="development_status", loop_id=loop["id"], session_id=loop["session_id"])
+            from .development_delegation import binding
+            item["delegation"] = binding(gateway.store, loop["current_stage"]) if loop["current_stage"] else None
             if len(canonical(views + [item]).encode()) > 480000:
                 break
             views.append(item)
@@ -365,11 +360,16 @@ def dispatch(gateway, action, payload, context, operation):
         )[:8]:
             if "assignment" not in accept:
                 break
+            loop = controller.get(stage["loop_id"])
+            admission = gateway.usage_policy.check(loop["project"], purpose="executive_stage", loop_id=loop["id"], stage_id=stage["id"], session_id=loop["session_id"])
+            if admission["decision"] == "hold":
+                continue
             content = (
                 f"Development loop {stage['loop_id']}, stage {stage['id']}.\n"
                 "Before doing this assignment, call odin_loop_claim with these "
                 "exact loop_id and stage_id and a stable operation_id. If the claim "
                 "fails, inspect odin_loop_status and do not execute stale work.\n\n"
+                + ("This stage requires separate orchestration. After claiming, create or reuse a matching odin_delegation_session, call odin_loop_delegate, inspect the return and record odin_delegation_close acceptance before ready. Requested profile: " + canonical(loop["delegation_profile"]) + "\n\n" if loop.get("delegation_profile") else "")
                 + stage["prompt"]
                 + "\n\nWhen finished, call odin_loop_ready with the same identities, "
                 "a new stable operation_id and an evidence_packet containing exact "
@@ -426,6 +426,10 @@ def dispatch(gateway, action, payload, context, operation):
         )
     if action in {"loop_claim", "loop_ready"}:
         arguments = {key: value for key, value in payload.items() if key != "project"}
+        if action == "loop_claim":
+            decision = gateway.usage_policy.check(payload["project"], purpose="executive_stage", loop_id=payload["loop_id"], stage_id=payload["stage_id"], session_id=payload["session_id"])
+            if decision["decision"] == "hold":
+                return {"admission": decision, "held": True, "loop": summary(controller, controller.get(payload["loop_id"]))}
         method = controller.claim if action == "loop_claim" else controller.ready
         result = method(**arguments, operation_id=operation)
         # The source packet is available to the evaluator; do not repeat an

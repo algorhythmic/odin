@@ -60,6 +60,7 @@ def main():
             "evaluate",
             "executive-prepare",
             "executive-status",
+            "executive-configure-context",
             "executive-login",
             "executive-start",
             "executive-new-session",
@@ -73,6 +74,8 @@ def main():
             "development-continue",
             "development-status",
             "development-control",
+            "usage-import", "usage-collect", "usage-configure", "usage-status",
+            "context-checkpoint", "context-status",
             "receipt-run",
             "receipt-validate",
         ],
@@ -131,6 +134,16 @@ def main():
         default="exclusive",
         help="refuse (exclusive) or accept worker turns on a credential lineage another process owns",
     )
+    parser.add_argument("--auto-compact-window-tokens", type=int, help="requested native Claude context window, 100000..1000000 tokens")
+    parser.add_argument("--claude-subagent-model", help="default delegated Claude native subagent model")
+    parser.add_argument("--claude-subagent-model-force", action="store_true", help="request native model override for ordinary subagents; native exceptions remain")
+    parser.add_argument("--usage-semantics", choices=["per_turn", "session_cumulative"], default="per_turn", help="explicit Codex source counter semantics")
+    parser.add_argument("--usage-provider", choices=["claude", "codex", "claude-status"])
+    parser.add_argument("--source-file", help="explicit native usage JSON/JSONL file; only metadata is imported")
+    parser.add_argument("--native-session", help="native UUID for a usage source or checkpoint view")
+    parser.add_argument("--agent-id", default="executive", help="native agent identity for usage attribution")
+    parser.add_argument("--account-id", default="unknown", help="nonsecret provider account label for quota samples")
+    parser.add_argument("--stage", help="stage identity for explicitly attributed usage")
     args = parser.parse_args()
     from pathlib import Path
 
@@ -190,10 +203,14 @@ def main():
                 prepare_project(state, project)
             project = project or identifier()
             prepared = executive_runtime.prepare(
-                state, config_dir=args.claude_config, project=project,
+                state, config_dir=args.claude_config, project=project, auto_compact_window_tokens=args.auto_compact_window_tokens,
             )
             prepare_project(state, project, create=not bool(args.project))
             print(canonical(prepared))
+        elif args.action == "executive-configure-context":
+            if args.auto_compact_window_tokens is None:
+                parser.error("executive-configure-context requires --auto-compact-window-tokens")
+            print(canonical(executive_runtime.configure_context(state, auto_compact_window_tokens=args.auto_compact_window_tokens)))
         elif args.action == "executive-status":
             print(canonical(executive_runtime.status(state)))
         elif args.action == "executive-login":
@@ -219,7 +236,7 @@ def main():
             try:
                 if args.repository_reads:
                     executive_runtime.enable_repository_reads(state)
-                result = executive_runtime.start(state, resume=args.resume_session)
+                result = executive_runtime.start(state, resume=args.resume_session, auto_compact_window_tokens=args.auto_compact_window_tokens)
             except PermissionError as error:
                 parser.exit(2, f"odin: {error}\n")
             sys.exit(result)
@@ -250,6 +267,9 @@ def main():
         print(canonical(result))
         return
     address = str(state / "service.sock")
+    if args.action in {"usage-import", "usage-collect", "usage-configure", "usage-status", "context-checkpoint", "context-status"}:
+        from .usage_cli import run
+        sys.exit(run(args, address, _socket_command, parser))
     if args.action == "development-configure":
         from .development_evaluator import configure
 
@@ -322,6 +342,9 @@ def main():
                 workspace_roots=args.workspace_root,
                 codex_home=args.codex_home,
                 claude_model=args.claude_model,
+                claude_subagent_model=args.claude_subagent_model,
+                claude_subagent_model_force=args.claude_subagent_model_force,
+                claude_auto_compact_window_tokens=args.auto_compact_window_tokens,
                 codex_model=args.codex_model,
                 turn_timeout_seconds=args.turn_timeout,
                 lineage_policy=args.lineage_policy,

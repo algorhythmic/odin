@@ -55,6 +55,9 @@ class CodexJsonlParserTests(unittest.TestCase):
                     "cached_input_tokens": 100,
                     "reasoning_output_tokens": 5,
                 },
+                "usage_scope": "inclusive_aggregate",
+                "model_usage": None,
+                "observed_model": None,
                 "permission_denials": None,
                 "parse_error": None,
                 "errors": [],
@@ -189,13 +192,15 @@ class CodexJsonlParserTests(unittest.TestCase):
                     result = parse_codex_jsonl(
                         jsonl({"type": "turn.completed", "usage": {key: value}})
                     )
-                    self.assertEqual(result["usage"], {})
+                    self.assertIsNone(result["usage"])
+                    self.assertIsNone(result["usage_scope"])
             for value in (0, 12):
                 with self.subTest(key=key, value=value):
                     result = parse_codex_jsonl(
                         jsonl({"type": "turn.completed", "usage": {key: value}})
                     )
                     self.assertEqual(result["usage"], {key: value})
+                    self.assertEqual(result["usage_scope"], "inclusive_aggregate")
 
     def test_missing_or_nonobject_usage_remains_unavailable(self):
         for event in (
