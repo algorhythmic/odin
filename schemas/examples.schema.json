@@ -598,13 +598,15 @@
               "maximum": 9007199254740991
             },
             "budget_usd": {
-              "type": "number",
+              "type": [
+                "number",
+                "null"
+              ],
               "minimum": 0
             }
           },
           "required": [
-            "iterations",
-            "budget_usd"
+            "iterations"
           ],
           "additionalProperties": false
         },
@@ -757,7 +759,10 @@
           "minLength": 1
         },
         "budget_usd": {
-          "type": "number",
+          "type": [
+            "number",
+            "null"
+          ],
           "minimum": 0
         },
         "ownership_generation": {

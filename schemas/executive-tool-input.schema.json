@@ -436,7 +436,10 @@
           ]
         },
         "budget_usd": {
-          "type": "number",
+          "type": [
+            "number",
+            "null"
+          ],
           "minimum": 0,
           "maximum": 1000
         },
@@ -574,8 +577,7 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "iterations",
-            "budget_usd"
+            "iterations"
           ],
           "properties": {
             "iterations": {
@@ -584,7 +586,10 @@
               "maximum": 200
             },
             "budget_usd": {
-              "type": "number",
+              "type": [
+                "number",
+                "null"
+              ],
               "minimum": 0,
               "maximum": 200
             }
@@ -883,8 +888,7 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "iterations",
-            "budget_usd"
+            "iterations"
           ],
           "properties": {
             "iterations": {
@@ -893,7 +897,10 @@
               "maximum": 200
             },
             "budget_usd": {
-              "type": "number",
+              "type": [
+                "number",
+                "null"
+              ],
               "minimum": 0,
               "maximum": 200
             }

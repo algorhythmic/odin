@@ -12,7 +12,9 @@ import time
 import unittest
 from pathlib import Path
 
-from odin.contracts import canonical, identifier, strict_loads
+from jsonschema import ValidationError
+
+from odin.contracts import Contracts, canonical, identifier, strict_loads
 from odin.delegation import (
     CAPABILITIES,
     DelegationRefused,
@@ -315,6 +317,11 @@ class DelegationCycleTests(unittest.TestCase):
         )
         self.assertEqual(stdout["config_dir"], str(h.config_dir))
         self.assertEqual(stdout["system"], "You are a synthetic worker.")
+        self.assertEqual(stdout["budget"], "0.5")
+        self.assertEqual(
+            state["limit_enforcement"],
+            {"budget": "harness_option", "iterations": "harness_option"},
+        )
 
         # Restart the service: records, turns and the session survive.
         h.restart()
@@ -513,6 +520,145 @@ class DelegationCycleTests(unittest.TestCase):
         ]
         self.assertEqual([b["state"] for b in bindings], ["invalidated", "active"])
         self.assertEqual(bindings[1]["predecessor"], bindings[0]["id"])
+
+    def test_omitted_budget_passes_no_budget_option_and_is_not_requested(self):
+        h = self.harness
+        opened = h.call(
+            "delegation_session",
+            {
+                "action": "create",
+                "harness": "claude-code",
+                "workspace": str(h.workspace),
+                "briefing": "You are a synthetic worker.",
+                "model": "fake-model",
+            },
+        )
+        session = opened["session"]["id"]
+        self.assertIsNone(opened["session"]["budget_usd"])
+        self.assertIsNone(h.service.store.get(session)["budget_usd"])
+        assigned = self.assign(session, limits={"iterations": 3})
+        expected = {"budget": "not_requested", "iterations": "harness_option"}
+        self.assertEqual(assigned["limit_enforcement"], expected)
+        self.assertEqual(
+            h.service.store.get(assigned["assignment"])["limits"],
+            {"iterations": 3, "budget_usd": None},
+        )
+        history = [
+            strict_loads(row[0])["payload"]
+            for row in h.service.store.db.execute(
+                "SELECT body FROM history ORDER BY seq"
+            )
+            if strict_loads(row[0])["kind"] == "delegation.assigned"
+        ]
+        self.assertEqual(history[-1]["limits"], {"iterations": 3, "budget_usd": None})
+        self.assertEqual(history[-1]["limit_enforcement"], expected)
+        h.gateway.delegation.launch_pending()
+        state = h.wait(
+            lambda: (
+                h.assignment_state(assigned["assignment"])["turns"][0]["state"]
+                == "returned"
+                and h.assignment_state(assigned["assignment"])
+            )
+        )
+        self.assertEqual(state["limits"], {"iterations": 3, "budget_usd": None})
+        self.assertEqual(state["limit_enforcement"], expected)
+        # The harness's own USD estimate is still recorded as reported.
+        self.assertEqual(state["turns"][0]["result"]["cost_usd"], 0.0125)
+        result = h.call("delegation_result", {"assignment_id": assigned["assignment"]})
+        argv = strict_loads(
+            Path(result["transcript_paths"]["spec.json"]).read_text()
+        )["argv"]
+        self.assertNotIn("--max-budget-usd", argv)
+        self.assertEqual(argv[argv.index("--max-turns") + 1], "3")
+        stdout = strict_loads(
+            Path(result["transcript_paths"]["stdout.log"]).read_text()
+        )
+        self.assertIsNone(stdout["budget"])
+        self.assertEqual(stdout["max_turns"], "3")
+        # An explicit null is the same as an omitted budget.
+        h.call(
+            "delegation_close",
+            {
+                "assignment_id": assigned["assignment"],
+                "disposition": "accepted",
+                "evidence": {"c1": ["turn:" + state["turns"][0]["id"]]},
+                "reason": "inspected synthetic return",
+            },
+        )
+        explicit = self.assign(session, limits={"iterations": 2, "budget_usd": None})
+        self.assertEqual(
+            explicit["limit_enforcement"],
+            {"budget": "not_requested", "iterations": "harness_option"},
+        )
+        self.assertEqual(
+            h.service.store.get(explicit["assignment"])["limits"],
+            {"iterations": 2, "budget_usd": None},
+        )
+
+    def test_codex_without_budget_still_requires_unenforced_iterations(self):
+        opened = self.open_session("codex", model="fake-codex-model")
+        session = opened["session"]["id"]
+        with self.assertRaises(DelegationRefused) as refused:
+            self.assign(session, limits={"iterations": 3})
+        self.assertEqual(str(refused.exception), "limits_not_enforceable_on_harness")
+        assigned = self.assign(
+            session, limits={"iterations": 3}, allow_unenforced_limits=True
+        )
+        self.assertEqual(
+            assigned["limit_enforcement"],
+            {"budget": "not_requested", "iterations": "unavailable"},
+        )
+
+    def test_tool_schemas_accept_an_omitted_budget_and_require_iterations(self):
+        contracts = Contracts()
+        ulid = identifier()
+        assign = {
+            "operation_id": ulid,
+            "session_id": ulid,
+            "objective": "o",
+            "criteria": [{"id": "c1", "text": "t"}],
+            "scope": "s",
+            "output_contract": "c",
+            "instructions": "i",
+        }
+        loop_delegate = {
+            "operation_id": ulid,
+            "loop_id": ulid,
+            "stage_id": ulid,
+            "orchestrator_session_id": ulid,
+        }
+        command = {
+            "project": ulid,
+            "loop_id": ulid,
+            "stage_id": ulid,
+            "session_id": "11111111-2222-4333-8444-555555555555",
+            "orchestrator_session_id": ulid,
+        }
+        cases = (
+            ("executive-tool-input", "odin_delegation_assign", assign),
+            ("executive-tool-input", "odin_loop_delegate", loop_delegate),
+            ("development-loop-command", "loop_delegate", command),
+        )
+        for schema, definition, base in cases:
+            with self.subTest(definition=definition):
+                for limits in (
+                    {"iterations": 3},
+                    {"iterations": 3, "budget_usd": None},
+                    {"iterations": 3, "budget_usd": 0.5},
+                ):
+                    contracts.validate_definition(
+                        schema, definition, base | {"limits": limits}
+                    )
+                for limits in (
+                    {"budget_usd": 0.5},
+                    {},
+                    {"iterations": 3, "budget_usd": -1},
+                    {"iterations": 3, "budget_usd": 201},
+                ):
+                    with self.assertRaises(ValidationError):
+                        contracts.validate_definition(
+                            schema, definition, base | {"limits": limits}
+                        )
 
     def test_codex_adapter_shape_and_unenforced_limits(self):
         h = self.harness

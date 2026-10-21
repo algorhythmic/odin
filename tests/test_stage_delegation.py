@@ -4,8 +4,9 @@ import sys
 import tempfile
 import unittest
 import uuid
+from pathlib import Path
 
-from odin.contracts import identifier
+from odin.contracts import identifier, strict_loads
 from odin.coordination import Actor
 from odin.executive_service import submit_executive
 from odin.gateway import GatewayContext
@@ -138,6 +139,25 @@ class StageDelegationTests(unittest.TestCase):
         self.executive_call('loop_delegate', ids | {'orchestrator_session_id': orchestrator,
             'limits': {'iterations': 3, 'budget_usd': 0.5}})
         self.assertEqual(self.operator_call('usage_import', payload)['outcomes'], {'inserted': 1})
+
+    def test_stage_delegation_without_budget_passes_no_budget_option(self):
+        loop_id, stage_id = self.stage({'harness': 'claude-code', 'model': 'opus', 'subagent_model': 'haiku'})
+        ids = {'loop_id': loop_id, 'stage_id': stage_id, 'session_id': self.native_session}
+        orchestrator = self.open_orchestrator(budget_usd=None)
+        self.assertIsNone(self.h.service.store.get(orchestrator)['budget_usd'])
+        self.executive_call('loop_claim', ids)
+        assigned = self.executive_call('loop_delegate', ids | {'orchestrator_session_id': orchestrator,
+            'limits': {'iterations': 3}})
+        self.assertEqual(assigned['limit_enforcement'],
+                         {'budget': 'not_requested', 'iterations': 'harness_option'})
+        self.assertEqual(self.h.service.store.get(assigned['assignment'])['limits'],
+                         {'iterations': 3, 'budget_usd': None})
+        self.assertEqual(self.h.gateway.delegation.launch_pending(), [assigned['turn']])
+        self.h.wait(lambda: self.h.assignment_state(assigned['assignment'])['turns'][0]['state'] == 'returned')
+        result = self.h.call('delegation_result', {'assignment_id': assigned['assignment']})
+        argv = strict_loads(Path(result['transcript_paths']['spec.json']).read_text())['argv']
+        self.assertNotIn('--max-budget-usd', argv)
+        self.assertEqual(argv[argv.index('--max-turns') + 1], '3')
 
     def test_default_loop_ready_without_delegation(self):
         loop_id, stage_id = self.stage()

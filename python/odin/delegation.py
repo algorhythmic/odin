@@ -67,6 +67,16 @@ SANDBOXES = ("read-only", "workspace-write", "danger-full-access")
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 
 
+def _limit_enforcement(capabilities, limits):
+    """Report how each limit is handled; a budget nobody asked for is not one."""
+    return {
+        "budget": capabilities["budget"]
+        if limits.get("budget_usd") is not None
+        else "not_requested",
+        "iterations": capabilities["iterations"],
+    }
+
+
 class DelegationRefused(Conflict):
     """A fixed, safe refusal code the bridge may relay verbatim."""
 
@@ -501,7 +511,7 @@ class Delegation:
                 "incarnation": 1,
                 "state": "idle",
                 "briefing": payload["briefing"],
-                "budget_usd": payload.get("budget_usd", 0),
+                "budget_usd": payload.get("budget_usd"),
                 "ownership_generation": 1,
                 "profile": "planner",
                 "auth": {
@@ -746,10 +756,9 @@ class Delegation:
             _refuse("session_not_accepting_work")
         capabilities = CAPABILITIES[session["harness"]]
         limits = payload["limits"]
+        enforcement = _limit_enforcement(capabilities, limits)
         unenforced = [
-            name
-            for name in ("budget", "iterations")
-            if capabilities[name] == "unavailable"
+            name for name, value in enforcement.items() if value == "unavailable"
         ]
         if unenforced and not payload.get("allow_unenforced_limits"):
             _refuse("limits_not_enforceable_on_harness")
@@ -800,7 +809,7 @@ class Delegation:
                 "backend": "local",
                 "limits": {
                     "iterations": limits["iterations"],
-                    "budget_usd": limits["budget_usd"],
+                    "budget_usd": limits.get("budget_usd"),
                 },
                 "state": "dispatched",
                 "run": None,
@@ -825,9 +834,7 @@ class Delegation:
                     "assignment": assignment["id"],
                     "turn": turn["id"],
                     "limits": assignment["limits"],
-                    "limit_enforcement": {
-                        name: capabilities[name] for name in ("budget", "iterations")
-                    },
+                    "limit_enforcement": enforcement,
                 },
             )
         return {
@@ -836,9 +843,7 @@ class Delegation:
             "assignment": assignment["id"],
             "turn": turn["id"],
             "state": assignment["state"],
-            "limit_enforcement": {
-                name: capabilities[name] for name in ("budget", "iterations")
-            },
+            "limit_enforcement": enforcement,
             "launch": "queued_until_service_tick",
             "harness_version_note": harness.get("binary"),
         }
@@ -967,9 +972,11 @@ class Delegation:
                 briefing,
                 "--max-turns",
                 str(assignment["limits"]["iterations"]),
-                "--max-budget-usd",
-                str(assignment["limits"]["budget_usd"]),
             ]
+            if assignment["limits"].get("budget_usd") is not None:
+                argv.extend(
+                    ["--max-budget-usd", str(assignment["limits"]["budget_usd"])]
+                )
             if options.get("effort"):
                 argv.extend(["--effort", options["effort"]])
             if options["permission_mode"] == "bypassPermissions":
@@ -1550,6 +1557,9 @@ class Delegation:
                             for c in commitment["criteria"]
                         ],
                         "limits": assignment["limits"],
+                        "limit_enforcement": _limit_enforcement(
+                            CAPABILITIES[session["harness"]], assignment["limits"]
+                        ),
                         "turns": [
                             {
                                 "id": t["id"],

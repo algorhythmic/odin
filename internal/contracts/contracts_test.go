@@ -16,7 +16,7 @@ func TestSharedFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if count < 53 {
+	if count < 57 {
 		t.Fatal("missing fixture coverage")
 	}
 	paths, err := filepath.Glob("../../fixtures/*-contracts.json")
