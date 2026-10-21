@@ -36,8 +36,12 @@ requested, Odin passes no `--max-budget-usd` to Claude Code and records the
 budget as `limit_enforcement.budget: not_requested`. The harness's own USD
 figure (`cost_usd`, which the operator treats as an API-list-rate estimate, not
 a subscription charge), token usage and model usage are still recorded exactly
-as reported; unreported cost stays unknown. None of these is enforced. A supplied `budget_usd` is passed as the harness option, as
-before (ODIN-ADR-027, 2026-10-21 amendment).
+as reported; unreported cost stays unknown. None of these is enforced. A
+supplied `budget_usd` is passed as the harness option, as before, and can stop
+the turn. The session-level `budget_usd` given to `odin_delegation_session` is
+informational only: it is never passed to a harness or enforced, and a session
+opened before this change may still show `0` (ODIN-ADR-027, 2026-10-21
+amendment).
 
 The orchestrator receives the complete fixed stage prompt and instructions to
 delegate independent bounded tasks to native subagents, integrate, test, obtain
