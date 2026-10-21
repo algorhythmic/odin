@@ -249,6 +249,49 @@ class StageDelegationTests(unittest.TestCase):
         with self.assertRaisesRegex(Conflict, 'completion evidence'):
             self.operator_call('loop_control', payload)
 
+    def test_restart_gate_counts_lost_turns_even_after_retirement(self):
+        import subprocess
+        import sys
+        loop_id, _ = self.stage()
+        def gate():
+            return self.operator_call('loop_status', {'loop_id': loop_id})['quiescence']
+        self.assertTrue(gate()['restart_quiescent'])
+        orchestrator = self.open_orchestrator()
+        assigned = self.h.call('delegation_assign', {'session_id': orchestrator,
+            'objective': 'Synthetic lost work', 'criteria': [{'id': 'c', 'text': 'report'}],
+            'scope': 'synthetic', 'output_contract': 'text', 'instructions': 'wait',
+            'limits': {'iterations': 2, 'budget_usd': 0.5}})
+        self.assertEqual(gate()['delegated_turns_running'], 1)
+        delegation = self.h.gateway.delegation
+        turn = delegation._turn(assigned['turn'])
+        exited = subprocess.Popen([sys.executable, '-c', 'pass'], start_new_session=True)
+        exited.wait()
+        lost = turn | {'state': 'lost', 'finished_at': now(),
+            'failure': 'runner exited without a result; native outcome unknown',
+            'runner': {'pid': exited.pid, 'launched_at': now(), 'harness_pid': exited.pid,
+                       'started_at': now()}}
+        delegation._save_turn(lost)
+        reading = gate()
+        self.assertEqual(reading['delegated_turns_running'], 0)
+        self.assertEqual(reading['delegated_turns_lost'], 1)
+        self.assertFalse(reading['restart_quiescent'])
+        self.assertEqual(reading['unresolved'][0]['kind'], 'delegated_turn_lost')
+        self.assertEqual(reading['unresolved'][0]['id'], turn['id'])
+        # Observed process absence is reported but does not establish the outcome.
+        self.assertEqual(reading['unresolved'][0]['reason'],
+                         'native outcome unknown; recorded processes absent')
+        stopped = self.h.call('delegation_session', {'action': 'stop',
+            'session_id': orchestrator, 'reason': 'synthetic retirement after a lost turn'})
+        self.assertEqual(stopped['session']['state'], 'retired')
+        retired = gate()
+        self.assertFalse(retired['restart_quiescent'])
+        self.assertEqual(retired['delegated_turns_lost'], 1)
+        self.assertEqual(retired['unresolved'], reading['unresolved'])
+        self.assertEqual(delegation._turn(turn['id']), lost)  # never erased or relabelled
+        delegation._save_turn(lost | {'runner': None})
+        self.assertEqual(gate()['unresolved'][0]['reason'],
+                         'native outcome unknown; recorded processes unknown')
+
     def test_transition_refuses_existing_stage_binding(self):
         loop_id, stage_id = self.stage()
         paused = self.operator_call('loop_control', {'loop_id': loop_id, 'action': 'pause'})['loop']

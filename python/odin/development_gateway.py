@@ -210,40 +210,200 @@ def render_notice(notice, current_status):
     return clip_bytes(content, NOTICE_CONTENT_BYTES, suffix="")
 
 
-def quiescence(gateway, project=None):
-    """Durable facts a supervisor needs before replacing the service process.
+PROCESS_LIMIT = 65536
+RECORD_LIMIT = 1024
+UNRESOLVED_DETAIL = 16
+LOCK_NOTE = (
+    "an observation, not a lock: dispatch, delegation and capture continue "
+    "after this reading; read it immediately before replacing the service"
+)
 
-    A loop is quiescent when no evaluator job is running or unknown and no
-    executive stage is unknown; the capture spool must be empty and no
-    delegated turn may be running. This observes state; it does not know
-    whether the native conversation is mid-turn, which the supervisor
-    checks separately.
+
+def _processes(state):
+    """Index live non-zombie processes, or return None if unobservable.
+
+    Returns the set of their process groups and the arguments that name a path
+    under the state directory. Read-only. Processes of other users may be
+    hidden; Odin's runners and harnesses run as this user, so an unreadable
+    process of this user makes the whole table unobservable.
+    """
+    groups, references = set(), []
+    root = str(state).encode() + b"/"
+    try:
+        with os.scandir("/proc") as entries:
+            for inspected, entry in enumerate(entries, 1):
+                if inspected > PROCESS_LIMIT:
+                    return None
+                if not entry.name.isdigit():
+                    continue
+                try:
+                    fields = (
+                        Path(entry.path, "stat").read_text().rsplit(")", 1)[1].split()
+                    )
+                    argv = Path(entry.path, "cmdline").read_bytes().split(b"\0")
+                except (FileNotFoundError, ProcessLookupError):
+                    continue  # Exited while scanning.
+                except PermissionError:
+                    try:
+                        if entry.stat().st_uid != os.getuid():
+                            continue
+                    except (FileNotFoundError, ProcessLookupError):
+                        continue
+                    return None
+                if fields[0] != "Z":
+                    groups.add(int(fields[2]))
+                    references += [arg for arg in argv if arg.startswith(root)]
+    except (OSError, IndexError, ValueError):
+        return None
+    return groups, references
+
+
+def _present(processes, groups, directory):
+    """A recorded process group still has members or a process names the spool."""
+    live, references = processes
+    prefix = str(directory).encode()
+    return bool(live & groups) or any(
+        arg == prefix or arg.startswith(prefix + b"/") for arg in references
+    )
+
+
+def _evaluator_executions(gateway, state, processes):
+    """Classify every dispatched evaluator job by process evidence, read-only.
+
+    A job without an evaluator-start receipt was never spawned: the reservation
+    and the durable start precede any process. Every other job, including
+    cancelled jobs of stopped loops, stays outstanding while a recorded runner
+    or harness process group has members or a process names its spool, and
+    unresolved when the dispatch evidence or the process table is unreadable.
+    """
+    from jsonschema.exceptions import ValidationError
+
+    from .development_evaluator import ID, SCHEMA, _private_directory, _read
+
+    outstanding, unresolved, details = 0, 0, []
+    rows = gateway.store.db.execute(
+        "SELECT body FROM development_loop_jobs ORDER BY rowid LIMIT ?",
+        (RECORD_LIMIT + 1,),
+    ).fetchall()
+    if len(rows) > RECORD_LIMIT:
+        return 0, 1, [{"kind": "evaluator_job", "id": None, "reason": "inspection bound exceeded"}]
+    for row in rows:
+        job = strict_loads(row[0])
+        if ID.fullmatch(job["id"]) and not gateway.store.db.execute(
+            "SELECT 1 FROM development_loop_receipts WHERE operation>=? AND operation<? LIMIT 1",
+            (f"evaluator-start:{job['id']}:", f"evaluator-start:{job['id']};"),
+        ).fetchone():
+            continue
+        reason = None
+        try:
+            if not ID.fullmatch(job["id"]):
+                raise ValueError("invalid evaluator job identity")
+            directory = _private_directory(state / "development-evaluator" / job["id"])
+            dispatch = _read(directory / "dispatch.json", SCHEMA, definition="dispatch")
+            if (
+                dispatch["job_id"] != job["id"]
+                or dispatch["packet_digest"] != job["packet_digest"]
+            ):
+                raise Conflict("evaluator spool job/packet binding mismatch")
+            groups = {dispatch["runner_pid"]}
+            if (directory / "started.json").exists():
+                started = _read(directory / "started.json", SCHEMA, definition="started")
+                groups |= {started["runner_pid"], started["harness_pid"]}
+        except (OSError, ValueError, KeyError, ValidationError, Conflict):
+            reason = "dispatch evidence missing or unreadable"
+        else:
+            if processes is None:
+                reason = "process table unavailable"
+            elif _present(processes, groups - {None}, directory):
+                outstanding += 1
+                details.append(
+                    {"kind": "evaluator_job", "id": job["id"], "reason": f"process observed; job {job['state']}"}
+                )
+                continue
+        if reason:
+            unresolved += 1
+            details.append({"kind": "evaluator_job", "id": job["id"], "reason": reason})
+    return outstanding, unresolved, details
+
+
+def _lost_turns(gateway, state, processes):
+    """Lost turns stay unresolved: no supported path establishes their outcome.
+
+    As with configure_delegation, a lost record is never erased or relabelled
+    and retirement of its session does not resolve it. The process observation
+    is reported for the supervisor; it does not clear the gate.
+    """
+    rows = gateway.store.db.execute(
+        "SELECT body FROM delegation_turns WHERE state='lost' ORDER BY rowid LIMIT ?",
+        (UNRESOLVED_DETAIL,),
+    ).fetchall()
+    total = gateway.store.db.execute(
+        "SELECT COUNT(*) FROM delegation_turns WHERE state='lost'"
+    ).fetchone()[0]
+    details = []
+    for row in rows:
+        turn = strict_loads(row[0])
+        runner = turn.get("runner") or {}
+        directory = state / "delegations" / turn["session"] / turn["id"]
+        groups = {runner.get("pid"), runner.get("harness_pid")} - {None}
+        if processes is None:
+            observed = "unknown"
+        elif _present(processes, groups, directory):
+            observed = "present"
+        elif runner.get("pid") is None or runner.get("harness_pid") is None:
+            observed = "unknown"  # An unrecorded harness group cannot be observed.
+        else:
+            observed = "absent"
+        details.append(
+            {
+                "kind": "delegated_turn_lost",
+                "id": turn["id"],
+                "reason": "native outcome unknown; recorded processes " + observed,
+            }
+        )
+    return total, details
+
+
+def quiescence(gateway, project=None):
+    """Durable and process facts a supervisor needs before replacing the service.
+
+    The gate is service-wide: every loop, evaluator job, delegated turn and
+    the capture spool count whatever the requested project; per-loop detail is
+    listed for that project. Unreadable or missing evidence is never absence.
+    This observes only: it signals, reconciles or redispatches nothing, and it
+    cannot see whether the native conversation is mid-turn, which the
+    supervisor checks separately.
     """
     controller = gateway.development_loop
-    loops = []
+    loops, elsewhere = [], 0
     for row in gateway.store.db.execute(
         "SELECT body FROM development_loops WHERE active=1"
     ).fetchall():
         loop = strict_loads(row[0])
-        if project is not None and loop["project"] != project:
-            continue
         job = controller.job(loop["current_job"]) if loop["current_job"] else None
         stage = (
             controller.stage(loop["current_stage"]) if loop["current_stage"] else None
         )
+        quiet = (
+            loop["status"] not in {"evaluator_running", "unknown"}
+            and (job is None or job["state"] not in {"running", "unknown"})
+            and (stage is None or stage["state"] != "unknown")
+        )
+        if project is not None and loop["project"] != project:
+            elsewhere += not quiet
+            continue
         loops.append(
             {
                 "loop_id": loop["id"],
                 "status": loop["status"],
                 "evaluator_job_state": job["state"] if job else None,
                 "executive_stage_state": stage["state"] if stage else None,
-                "quiescent": loop["status"] not in {"evaluator_running", "unknown"}
-                and (job is None or job["state"] not in {"running", "unknown"})
-                and (stage is None or stage["state"] != "unknown"),
+                "quiescent": quiet,
             }
         )
     store_path = getattr(gateway.store, "path", None)
-    spool = Path(store_path).parent / "executive-loop-spool" if store_path else None
+    state = Path(store_path).parent if store_path else None
+    spool = state / "executive-loop-spool" if state else None
     # Presence is sufficient to veto a restart. Bound directory inspection;
     # unreadable or unexpectedly large spools are unsafe, not empty.
     spooled = 0
@@ -259,20 +419,41 @@ def quiescence(gateway, project=None):
         except OSError:
             spooled = 1
     delegation = getattr(gateway, "delegation", None)
-    running_turns = 0
-    if delegation is not None:
-        running_turns = gateway.store.db.execute(
-            "SELECT COUNT(*) FROM delegation_turns WHERE state IN (?,?,?,?)",
-            ("queued", "launching", "running", "interrupting"),
-        ).fetchone()[0]
+    running_turns, lost_turns, details = 0, 0, []
+    outstanding, unresolved = 0, 0
+    if state is None:
+        unresolved, details = 1, [{"kind": "state", "id": None, "reason": "state directory unknown"}]
+    else:
+        processes = _processes(state)
+        if delegation is not None:
+            running_turns = gateway.store.db.execute(
+                "SELECT COUNT(*) FROM delegation_turns WHERE state IN (?,?,?,?)",
+                ("queued", "launching", "running", "interrupting"),
+            ).fetchone()[0]
+            lost_turns, details = _lost_turns(gateway, state, processes)
+        outstanding, unresolved, evaluator_details = _evaluator_executions(
+            gateway, state, processes
+        )
+        details += evaluator_details
     return {
+        "scope": "service",
         "loops": loops,
+        "loops_not_quiescent_other_projects": elsewhere,
         "spooled_captures": spooled,
         "delegated_turns_running": running_turns,
+        "delegated_turns_lost": lost_turns,
+        "evaluator_executions_outstanding": outstanding,
+        "evaluator_executions_unresolved": unresolved,
+        "unresolved": details[:UNRESOLVED_DETAIL],
         "restart_quiescent": all(item["quiescent"] for item in loops)
+        and elsewhere == 0
         and spooled == 0
-        and running_turns == 0,
+        and running_turns == 0
+        and lost_turns == 0
+        and outstanding == 0
+        and unresolved == 0,
         "native_conversation": "not observable here; the supervisor confirms the executive turn is idle",
+        "observation": LOCK_NOTE,
     }
 
 

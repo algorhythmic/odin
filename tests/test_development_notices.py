@@ -1,5 +1,8 @@
 """Synthetic notices, acknowledgement and deadline attention; no live loop or model."""
 
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 import uuid
@@ -9,6 +12,7 @@ from unittest.mock import patch
 
 from odin.contracts import canonical, identifier
 from odin.coordination import Actor
+from odin.development_evaluator import SCHEMA as EVALUATOR_SCHEMA, _write
 from odin.development_loop import MARKER, DevelopmentLoop, clip_bytes, normalize_deadlines
 from odin.executive_service import prepare_project, submit_executive
 from odin.gateway import Gateway, GatewayContext
@@ -1151,6 +1155,140 @@ class NoticeGatewayTests(unittest.TestCase):
             ],
             1,
         )
+
+    def dispatch_evaluator(self, loop_id, job):
+        """Record an isolated launch the way EvaluatorRunner does; no model runs."""
+        directory = Path(self.temp.name) / "development-evaluator" / job["id"]
+        directory.mkdir(mode=0o700, parents=True)
+        os.chmod(directory.parent, 0o700)
+        dispatch = {
+            "schema_version": 1,
+            "job_id": job["id"],
+            "packet_digest": job["packet_digest"],
+            "spec_digest": "b" * 64,
+            "attempt": 1,
+            "state": "reserved",
+            "runner_pid": None,
+            "runner_start": None,
+            "created_at": "2026-10-21T00:00:00.000000Z",
+        }
+        _write(directory / "dispatch.json", dispatch, EVALUATOR_SCHEMA, definition="dispatch")
+        self.gateway.development_loop.mark_evaluator_started(
+            loop_id, job["id"], job["packet_digest"], f"evaluator-start:{job['id']}:1"
+        )
+        return directory, dispatch
+
+    def sleeper(self, *argv):
+        process = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(120)", *argv],
+            start_new_session=True,
+        )
+        self.addCleanup(process.wait)
+        self.addCleanup(process.kill)
+        return process
+
+    def gate(self, loop_id, project=None):
+        payload = {"loop_id": loop_id} | ({"project": project} if project else {})
+        return self.send("loop_status", payload)["quiescence"]
+
+    def test_quiet_service_reads_quiescent_with_scope_and_no_lock(self):
+        result = self.send("loop_start", {"goal": "Quiet", "session_id": self.session})
+        before = self.gateway.development_loop.get(result["loop"]["id"])
+        quiet = self.gate(result["loop"]["id"])
+        self.assertTrue(quiet["restart_quiescent"])
+        self.assertEqual(quiet["scope"], "service")
+        for key in (
+            "loops_not_quiescent_other_projects", "spooled_captures", "delegated_turns_running",
+            "delegated_turns_lost", "evaluator_executions_outstanding",
+            "evaluator_executions_unresolved",
+        ):
+            self.assertEqual(quiet[key], 0, key)
+        self.assertEqual(quiet["unresolved"], [])
+        self.assertIn("not a lock", quiet["observation"])
+        self.assertEqual(self.gateway.development_loop.get(result["loop"]["id"]), before)
+        # An unobservable process table alone is not evidence of anything here:
+        # no job was ever dispatched.
+        with patch("odin.development_gateway._processes", return_value=None):
+            self.assertTrue(self.gate(result["loop"]["id"])["restart_quiescent"])
+
+    def test_stopped_loop_with_running_evaluator_is_not_quiescent(self):
+        result = self.send("loop_start", {"goal": "Stop", "session_id": self.session})
+        loop_id, job = result["loop"]["id"], result["job"]
+        directory, dispatch = self.dispatch_evaluator(loop_id, job)
+        runner = self.sleeper(str(directory))
+        dispatch.update(state="spawned", runner_pid=runner.pid)
+        _write(directory / "dispatch.json", dispatch, EVALUATOR_SCHEMA, definition="dispatch")
+        stopped = self.send("loop_control", {"loop_id": loop_id, "action": "stop"})
+        self.assertTrue(stopped["external_process_stop_required"])
+        self.assertEqual(self.gateway.development_loop.job(job["id"])["state"], "cancelled")
+        gate = self.gate(loop_id)
+        self.assertFalse(gate["restart_quiescent"])
+        self.assertEqual(gate["evaluator_executions_outstanding"], 1)
+        self.assertEqual(gate["unresolved"][0]["id"], job["id"])
+        self.assertIsNone(runner.poll())  # status observes; it never signals
+        self.assertEqual(self.gateway.development_loop.job(job["id"])["state"], "cancelled")
+        # A harness that outlives its runner keeps its recorded group busy
+        # even though its arguments do not name the spool.
+        runner.kill()
+        runner.wait()
+        harness = self.sleeper()
+        _write(
+            directory / "started.json",
+            {"schema_version": 1, "runner_pid": runner.pid, "harness_pid": harness.pid,
+             "harness_start": "1", "started_at": "2026-10-21T00:00:01.000000Z"},
+            EVALUATOR_SCHEMA, definition="started",
+        )
+        self.assertEqual(self.gate(loop_id)["evaluator_executions_outstanding"], 1)
+        harness.kill()
+        harness.wait()
+        gate = self.gate(loop_id)
+        self.assertEqual(gate["evaluator_executions_outstanding"], 0)
+        self.assertEqual(gate["evaluator_executions_unresolved"], 0)
+        self.assertTrue(gate["restart_quiescent"])
+        with patch("odin.development_gateway._processes", return_value=None):
+            gate = self.gate(loop_id)
+        self.assertFalse(gate["restart_quiescent"])
+        self.assertEqual(gate["evaluator_executions_unresolved"], 1)
+        self.assertEqual(gate["unresolved"][0]["reason"], "process table unavailable")
+
+    def test_stopped_loop_with_unresolved_evaluator_evidence_is_not_quiescent(self):
+        result = self.send("loop_start", {"goal": "Unknown", "session_id": self.session})
+        loop_id, job = result["loop"]["id"], result["job"]
+        directory, _ = self.dispatch_evaluator(loop_id, job)
+        # Reserved with no runner identity: only the spool argument can show it.
+        reserved = self.sleeper(str(directory))
+        self.send("loop_control", {"loop_id": loop_id, "action": "stop"})
+        self.assertEqual(self.gate(loop_id)["evaluator_executions_outstanding"], 1)
+        reserved.kill()
+        reserved.wait()
+        self.assertTrue(self.gate(loop_id)["restart_quiescent"])
+        os.chmod(directory / "dispatch.json", 0o644)
+        unreadable = self.gate(loop_id)
+        self.assertFalse(unreadable["restart_quiescent"])
+        self.assertEqual(unreadable["evaluator_executions_unresolved"], 1)
+        (directory / "dispatch.json").unlink()
+        missing = self.gate(loop_id)
+        self.assertFalse(missing["restart_quiescent"])
+        self.assertEqual(
+            missing["unresolved"][0]["reason"], "dispatch evidence missing or unreadable"
+        )
+
+    def test_restart_gate_is_service_wide(self):
+        own = self.send("loop_start", {"goal": "Own", "session_id": self.session})
+        other = self.send(
+            "loop_start", {"project": self.other, "goal": "Other", "session_id": str(uuid.uuid4())}
+        )
+        self.assertTrue(self.gate(own["loop"]["id"])["restart_quiescent"])
+        job = other["job"]
+        self.gateway.development_loop.mark_evaluator_started(
+            other["loop"]["id"], job["id"], job["packet_digest"], identifier()
+        )
+        gate = self.gate(own["loop"]["id"])
+        self.assertEqual([item["loop_id"] for item in gate["loops"]], [own["loop"]["id"]])
+        self.assertTrue(gate["loops"][0]["quiescent"])
+        self.assertEqual(gate["loops_not_quiescent_other_projects"], 1)
+        self.assertFalse(gate["restart_quiescent"])
+        self.assertEqual(gate, self.gate(own["loop"]["id"]))
 
     def test_notice_scope_is_checked_before_any_replay(self):
         self.complete_a_loop()
