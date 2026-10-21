@@ -104,6 +104,38 @@ acknowledgement is project-scoped. The failure excerpt is labelled as
 untrusted harness output. Delegation notices have no separate contract schema;
 the bridge validates the inbox item shape.
 
+### Workstream sessions and lineage concurrency (ODIN-ADR-036, phase 1)
+
+A delegation session can be opened with an optional `workstream` label and a
+`role` of `integration_owner` or `workstream`. A label alone makes a workstream
+session. A session declaring neither is legacy and acts as the integration
+owner. Refusals are fixed codes: `workstream_label_required`,
+`workstream_already_has_active_session`, `project_already_has_integration_owner`,
+`project_already_has_active_session` (legacy sessions meeting each other only)
+and `workspace_in_use_by_active_session`. Resume applies the same checks.
+Only the integration owner sets the project's interface decision owner. A
+workstream session works on its own branch and worktree, never fast-forwards
+the canonical checkout, and returns a merge-ready head with receipts; the
+executive assigns integration to the integration owner. Odin cannot enforce
+these git rules. They are stated in the session briefing.
+
+`max_concurrent_turns_per_lineage` (integer 1–8, default 1, set with
+`delegation-configure --max-concurrent-turns-per-lineage`) bounds the running
+turns per credential lineage across sessions. Each session still runs one turn
+at a time. At the default, Odin runs one `claude -p` turn at a time on the
+dedicated login. Several orchestrator sessions therefore interleave their turns;
+they are not parallel execution. Nothing raises the value now. Phase 2 needs an
+observed concurrent-turn credential test on isolated state (X-12, D24.4a).
+
+Claude Code print results report cost as an inclusive figure for the resumed
+native session. Views therefore use per-turn deltas: each turn's figure minus
+the previous inclusive figure of that native session. The first turn of a native
+session counts as its own delta, unknown stays unknown, and a drop below the
+previous figure counts as its own figure. A session's cost is the sum of its
+deltas. The project aggregate in status (`project_aggregate`) sums the sessions
+and is labelled `attributed_not_verified`. Raw inclusive figures stay in each
+turn result for audit. Codex per-turn costs are summed as reported.
+
 ## Executive role and existing-loop transition
 
 ADR-033 separates the executive's context from project implementation. This is

@@ -31,7 +31,8 @@ make this distinction explicit; it does not confer live Saga guarantees.
 | Improvement | Inspect, edit, execute commands/tests and use native agents for operator-directed development; report evidence and resulting changes |
 | Authority | `fable-executive` is a coordinator bound by the service to one project; model tool arguments cannot select a different principal |
 | Execution | Normal native development execution with permission bypass; the added MCP bridge does not itself expose Saga worker launch or approval/grant tools |
-| Delegation | Six `odin_delegation_*` tools under ADR-027 open one accountable local-backend session per project, assign owned commitments, run detached Claude Code or Codex turns, send follow-ups, collect unverified returns and record executive acceptance; no Saga launch, approval or grant |
+| Delegation | Six `odin_delegation_*` tools under ADR-027 open accountable local-backend sessions (a legacy or integration-owner session per project, plus workstream sessions under ADR-036), assign owned commitments, run detached Claude Code or Codex turns, send follow-ups, collect unverified returns and record executive acceptance; no Saga launch, approval or grant |
+| Workstream delegation sessions | ADR-036 phase 1: optional `workstream` label and `role`, with per-workstream, one-integration-owner and distinct-workspace refusals; only the integration owner sets the interface decision owner. Default concurrency is one turn per credential lineage, so sessions interleave rather than run in parallel. Odin does not enforce the git rules; status reports `project_aggregate` with cost labelled `attributed_not_verified` |
 | Runtime | An operator-launched local pilot; the authenticated homelab/workstation daemon and full SDK lifecycle remain future work |
 
 There is no service-enforced model cost or turn budget in this pilot. Native
@@ -272,8 +273,11 @@ The cycle, with every mutating call carrying a fresh ULID `operation_id`
 that is safe to replay with identical arguments:
 
 1. `odin_delegation_session` `create` with harness, workspace, briefing and
-   options opens the project's one active session (a `PlanningSession`,
-   binding and host `Environment` record) and makes it the planning owner.
+   options opens the session (a `PlanningSession`, binding and host
+   `Environment` record). A session that declares neither `workstream` nor
+   `role` (legacy), or declares `role: integration_owner`, becomes the
+   project's planning owner (interface decision owner); a `workstream` label
+   alone makes a workstream session under ADR-036, which never does.
 2. `odin_delegation_assign` records an open `Commitment` with acceptance
    criteria and a `backend: local` `Assignment`, and queues the first turn.
    Claude Code turns pass `--max-turns`, and `--max-budget-usd` only when a
@@ -303,7 +307,9 @@ that is safe to replay with identical arguments:
    A service restart retires an active session; `resume` opens a new
    incarnation and binding when no turn is running. A runner that exits
    without a result is `lost`, never retried. A new session adopts open
-   commitments left by a retired one with a new ownership generation.
+   commitments left by a retired one with a new ownership generation; under
+   ADR-036 adoption is restricted to the same workstream, and a legacy session
+   adopts only from unlabelled sessions.
 
 Observed on 2026-10-20 with Claude Code 2.1.303: a `-p` worker under
 `permission_mode: acceptEdits` can edit files but every shell command returns
@@ -325,8 +331,10 @@ is still open (`awaiting_executive`), with `review a delegated return` as
 the recommended next action; no separate status call is needed to notice
 outstanding delegated work. Refusals reach the executive as fixed codes
 such as `project_already_has_active_session`, `turn_still_running`,
-`limits_not_enforceable_on_harness`, `lineage_shared_requires_acceptance`
-or `delegation_not_configured`.
+`limits_not_enforceable_on_harness`, `lineage_shared_requires_acceptance`,
+`delegation_not_configured` or, under ADR-036, `workstream_label_required`,
+`workstream_already_has_active_session`, `project_already_has_integration_owner`
+and `workspace_in_use_by_active_session`.
 `tests/test_delegation.py` covers the cycle with synthetic harness binaries
 and real detached runners. Live Claude Code and Codex receipts are operator
 evidence outside the repository; they are local-backend evidence without

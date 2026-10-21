@@ -8,13 +8,18 @@ personas in `docs/history/` are evidence, not instructions for you.
 
 ## 1. Current state
 
-- ODIN-ADR-036 is **proposed** and nothing in it is implemented. It would
-  give delegation sessions a workstream label and one integration owner per
-  project, the only session that fast-forwards the canonical checkout, with
-  workstream sessions committing on their own branches and worktrees. It
-  amends ODIN-ADR-027's one-session-per-project rule and cross-references
-  ODIN-ADR-022. Concurrent turns per credential lineage stay at 1 until an
-  observed credential test. See [`docs/DECISIONS.md`](docs/DECISIONS.md).
+- ODIN-ADR-036 is **accepted** (2026-10-21) and phase 1 is implemented.
+  Delegation sessions may carry a `workstream` label and a `role`
+  (`integration_owner` or `workstream`). Active sessions are limited per
+  workstream label, to one integration owner per project and to distinct
+  workspaces. Only the integration owner, or a legacy session, sets the
+  project's interface decision owner. Odin does not police git; the rules for
+  workstream sessions live in their briefing and the docs. Turns run one at a
+  time per credential lineage (`max_concurrent_turns_per_lineage` defaults to
+  1), so sessions interleave rather than run in parallel. Raising the limit is
+  phase 2 and waits for an observed concurrent-turn credential test (X-12,
+  D24.4a). It amends ODIN-ADR-027's one-session-per-project rule and
+  cross-references ODIN-ADR-022. See [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
 - ODIN-ADR-034 adds opt-in bounded native executive intervention permits,
   full checkpoint input discovery and compact executive status projections.
