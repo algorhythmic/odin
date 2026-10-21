@@ -152,6 +152,15 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(offset['observed_at'], '2020-01-01T00:00:00Z')
         self.assertTrue(self.ledger.summary(project_id='p', as_of='2019-12-31T23:59:59Z')['quota_stale'])
 
+    def test_native_quota_epoch_reset_is_normalized(self):
+        status = {'rate_limits': {'five_hour': {'used_percentage': 23.5, 'resets_at': 1738425600}}}
+        sample = normalize_claude_status(status, project_id='p', session_id='s')
+        self.assertEqual(sample['rate_limits']['five_hour']['resets_at'], '2025-02-01T16:00:00Z')
+        for invalid in (True, float('inf'), float('nan'), 'invalid'):
+            status['rate_limits']['five_hour']['resets_at'] = invalid
+            with self.subTest(reset=invalid), self.assertRaises(ValueError):
+                normalize_claude_status(status, project_id='p', session_id='s')
+
     def test_invalid_counters_and_parsed_rows(self):
         with self.assertRaises(ValueError):
             _tokens(True, None, None, None)

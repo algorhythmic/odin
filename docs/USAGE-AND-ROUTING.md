@@ -96,10 +96,27 @@ subscription quota can be inferred from token totals. See
 [native monitoring](https://code.claude.com/docs/en/monitoring-usage) and
 [status-line fields](https://code.claude.com/docs/en/statusline).
 
-Continuous discovery, automatic collection from every native executive,
-orchestrator, subagent and evaluator, and complete live coverage are subsequent
-activation work. This increment provides explicit collectors and the service
-ledger; an empty ledger remains missing evidence.
+The incremental watcher below continuously collects explicit session sources.
+Live activation must still establish each executive, orchestrator, child and
+evaluator source; an empty ledger remains missing evidence. Discovery is bounded
+to configured paths, and continuous coverage remains explicitly incomplete.
+
+For native context and account quota, an opt-in status-line command is available:
+
+```bash
+python -m odin.usage_statusline --output /private/telemetry/fable-status.json \
+  --session-id NATIVE_UUID --project PROJECT_ULID
+```
+
+Configure this command in the dedicated Claude profile's `statusLine` setting,
+preserving any existing display configuration. It reads bounded native stdin,
+requires the configured native UUID, and retains only context counters and the
+five-hour/seven-day quota windows in a schema-validated private snapshot. It
+never stores working paths, message contents or credentials. Identical rerenders
+leave the snapshot mtime unchanged rather than refreshing cached evidence.
+The watcher imports this file with its configured account label; native epoch
+reset times are normalized to UTC timestamps. The helper does not query the
+provider or guarantee that native cached quota is current.
 
 ## Admission controls
 
@@ -193,7 +210,10 @@ it never opens the service database or stores message content. The service must
 be running. A private cursor SQLite file and exclusive lock allow one watcher
 for that cursor. Pending metadata batches are retained before sending and replayed
 with the same operation ID after an uncertain reply; byte cursors advance only
-after the service acknowledges them.
+after the service acknowledges them. The private cursor also retains per-request
+metadata high-water marks, so older samples replayed after transcript rotation
+cannot reduce already observed counters. A sample that mixes increased and
+decreased counters is treated as invalid coverage while other requests continue.
 
 ```json
 {
@@ -232,12 +252,27 @@ and their exact sibling subagent directories. This directory mode is explicit
 permission to discover future native sessions in that one directory; it gives
 them project-only usage attribution. File counts, directory depth, read bytes,
 source JSON size, import batch size and poll cadence are bounded. Missing files
-remain unavailable and may appear in a later poll. Codex sources may declare
+remain unavailable and may appear in a later poll; one unavailable or oversized
+directory does not stop other configured sources. Existing cursor and lock files
+must be owner-only regular files. A status snapshot must carry the configured
+native session ID. A bounded committed-prefix fingerprint detects same-inode
+rewrites that grow beyond the previous byte cursor. Codex sources may declare
 `usage_semantics: "session_cumulative"` when confirmed for that source.
 
-A discovered child retains the parent native session for the service's scope
-check; its agent identity includes the child filename and native child metadata.
-This is provenance from local transcripts, not proof of which model executed.
+For the development evaluator's ephemeral Codex jobs, configure an additional
+source with `{"provider":"codex","spool_dir":"/explicit/development-evaluator",
+"discover_jobs":true,"usage_semantics":"session_cumulative"}`. This scans only
+direct job directories for `stdout.log`; it does not read prompt, result, or
+last-message files. The watcher persists `thread.started` identity across
+polls and uses that native thread ID for later usage. Usage before an observed
+thread ID is marked unidentified rather than attributed to the job directory.
+
+A discovered child retains its own reported native session ID. It receives
+project-only attribution, while its source records the configured parent
+directory and its agent identity includes the child filename and native child
+metadata. Rows without a native child session ID are omitted and counted as
+unidentified coverage. This is provenance from local transcripts, not proof of
+which model executed.
 Repeated native messages, a lost socket reply, rotation and truncation cannot
 advance the cursor before an acknowledged import. Continuous sources always
 report incomplete coverage because more lines or undiscovered agents may appear.

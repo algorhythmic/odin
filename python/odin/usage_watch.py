@@ -22,6 +22,7 @@ from .usage import normalize_claude_status, usage_from_claude_jsonl, usage_from_
 
 DEFAULT_CHUNK = 262144
 MAX_COMMAND_BYTES = 480000
+PREFIX_BYTES = 4096
 
 
 def _regular(path):
@@ -43,17 +44,36 @@ def _entries(directory, max_files):
     _directory(directory)
     result = []
     with os.scandir(directory) as stream:
-        for entry in stream:
+        for inspected, entry in enumerate(stream, 1):
+            if inspected > max_files:
+                raise ValueError("configured session root exceeds max_files entries; narrow the root")
             if not entry.name.endswith(".jsonl") or not entry.is_file(follow_symlinks=False):
                 continue
             result.append(Path(entry.path))
-            if len(result) > max_files:
-                raise ValueError("configured session root exceeds max_files; narrow the root")
+    return sorted(result)
+
+
+def _spool_entries(directory, max_files):
+    _directory(directory)
+    result = []
+    with os.scandir(directory) as stream:
+        for inspected, entry in enumerate(stream, 1):
+            if inspected > max_files:
+                raise ValueError("evaluator spool exceeds max_files entries")
+            if entry.is_dir(follow_symlinks=False):
+                result.append(Path(entry.path) / "stdout.log")
     return sorted(result)
 
 
 def _status_time(info):
     return datetime.fromtimestamp(info.st_mtime, timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _prefix_signature(fd, length):
+    data = os.pread(fd, length, 0)
+    if len(data) != length:
+        raise OSError("usage source changed while reading prefix")
+    return canonical([length, hashlib.sha256(data).hexdigest()])
 
 
 def _child_agent(path, row):
@@ -62,6 +82,13 @@ def _child_agent(path, row):
     raw = canonical([path.stem, native_agent, native_session])
     short = hashlib.sha256(raw.encode()).hexdigest()[:16]
     return f"child:{path.stem[:64]}:{str(native_agent)[:64]}:{str(native_session)[:64]}:{short}"[:256]
+
+
+def _private_file(fd, label):
+    info = os.fstat(fd)
+    if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or
+            stat.S_IMODE(info.st_mode) & 0o077):
+        raise PermissionError(f"watch {label} must be an owner-only regular file")
 
 
 class UsageWatcher:
@@ -77,7 +104,13 @@ class UsageWatcher:
         _directory(cursor.parent)
         if cursor.parent.stat().st_mode & 0o077:
             raise PermissionError("watch cursor directory must be private")
-        self.lock = os.fdopen(os.open(str(cursor) + ".lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600), "r+")
+        lock_fd = os.open(str(cursor) + ".lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            _private_file(lock_fd, "lock")
+        except BaseException:
+            os.close(lock_fd)
+            raise
+        self.lock = os.fdopen(lock_fd, "r+")
         try:
             fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
@@ -85,7 +118,10 @@ class UsageWatcher:
             raise RuntimeError("usage watcher already owns this cursor") from None
         try:
             fd = os.open(cursor, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
-            os.close(fd)
+            try:
+                _private_file(fd, "cursor")
+            finally:
+                os.close(fd)
             self.db = sqlite3.connect(cursor)
             self.db.row_factory = sqlite3.Row
             self.db.execute("PRAGMA journal_mode=WAL")
@@ -100,6 +136,10 @@ class UsageWatcher:
                   (path TEXT NOT NULL, ordinal INTEGER NOT NULL, operation_id TEXT NOT NULL,
                    payload TEXT NOT NULL, next_state TEXT NOT NULL,
                    PRIMARY KEY(path,ordinal));
+                CREATE TABLE IF NOT EXISTS watch_requests
+                  (provider TEXT NOT NULL, project_id TEXT NOT NULL, session_id TEXT NOT NULL,
+                   agent_id TEXT NOT NULL, request_id TEXT NOT NULL, body TEXT NOT NULL,
+                   PRIMARY KEY(provider,project_id,session_id,agent_id,request_id));
             """)
             old = self.db.execute("SELECT value FROM watch_meta WHERE key='project'").fetchone()
             if old and old[0] != config["project_id"]:
@@ -123,31 +163,40 @@ class UsageWatcher:
         self.close()
 
     def _sources(self):
-        result = []
+        result, unavailable = [], 0
         for spec in self.config["sources"]:
-            if "session_file" in spec:
-                main = Path(spec["session_file"]).absolute()
-                result.append((main, spec, spec["session_id"], spec["agent_id"], False))
-                if spec.get("discover_children"):
-                    children = main.with_suffix("") / "subagents"
-                    if children.exists():
-                        for path in _entries(children, self.max_files):
-                            result.append((path, spec, spec["session_id"], path.stem, True))
-            else:
-                directory = Path(spec["sessions_dir"]).absolute()
-                if not directory.exists():
-                    continue
-                for main in _entries(directory, self.max_files):
-                    session = main.stem
-                    result.append((main, spec, session, "executive", False))
+            try:
+                candidates = []
+                if "session_file" in spec:
+                    main = Path(spec["session_file"]).absolute()
+                    candidates.append((main, spec, spec["session_id"], spec["agent_id"], False))
                     if spec.get("discover_children"):
                         children = main.with_suffix("") / "subagents"
                         if children.exists():
                             for path in _entries(children, self.max_files):
-                                result.append((path, spec, session, path.stem, True))
-            if len(result) > self.max_files:
-                raise ValueError("usage watch source count exceeds max_files")
-        return result
+                                candidates.append((path, spec, spec["session_id"], path.stem, True))
+                elif "spool_dir" in spec:
+                    for path in _spool_entries(Path(spec["spool_dir"]).absolute(), self.max_files):
+                        candidates.append((path, spec, None, "evaluator", False))
+                else:
+                    directory = Path(spec["sessions_dir"]).absolute()
+                    for main in _entries(directory, self.max_files):
+                        session = main.stem
+                        candidates.append((main, spec, session, "executive", False))
+                        if spec.get("discover_children"):
+                            children = main.with_suffix("") / "subagents"
+                            if children.exists():
+                                for path in _entries(children, self.max_files):
+                                    candidates.append((path, spec, session, path.stem, True))
+                        if len(result) + len(candidates) > self.max_files:
+                            raise ValueError("usage watch source count exceeds max_files")
+                if len(result) + len(candidates) > self.max_files:
+                    raise ValueError("usage watch source count exceeds max_files")
+            except (OSError, ValueError):
+                unavailable += 1
+                continue
+            result.extend(candidates)
+        return result, unavailable
 
     def _send(self, operation_id, payload):
         command = {"schema_version": 1, "operation_id": operation_id,
@@ -170,6 +219,14 @@ class UsageWatcher:
             self._send(batch["operation_id"], strict_loads(batch["payload"]))
         next_state = strict_loads(batches[0]["next_state"])
         with self.db:
+            for batch in batches:
+                for observation in strict_loads(batch["payload"])["observations"]:
+                    if observation["kind"] != "request":
+                        continue
+                    key = self._request_key(observation)
+                    self.db.execute("""INSERT INTO watch_requests VALUES(?,?,?,?,?,?)
+                        ON CONFLICT(provider,project_id,session_id,agent_id,request_id)
+                        DO UPDATE SET body=excluded.body""", (*key, canonical(observation)))
             self.db.execute("""INSERT INTO watch_cursors VALUES(?,?,?,?,?,?,?,?)
                 ON CONFLICT(path) DO UPDATE SET identity=excluded.identity,dev=excluded.dev,
                 ino=excluded.ino,offset=excluded.offset,skipping=excluded.skipping,
@@ -179,6 +236,53 @@ class UsageWatcher:
                  canonical(next_state.get("coverage", {}))))
             self.db.execute("DELETE FROM watch_pending WHERE path=?", (str(path),))
         return len(batches)
+
+    @staticmethod
+    def _request_key(item):
+        return tuple(item[name] for name in
+                     ("provider", "project_id", "session_id", "agent_id", "request_id"))
+
+    def _revisions(self, observations):
+        """Advance only monotonic request samples; quarantine mixed regressions.
+
+        High-water records are committed with the byte cursor after the socket
+        acknowledgment, so a lost reply replays exactly the same pending batch.
+        """
+        accepted, local = [], {}
+        invalid = 0
+        for item in observations:
+            if item["kind"] != "request":
+                accepted.append(item)
+                continue
+            key = self._request_key(item)
+            old = local.get(key)
+            if old is None:
+                row = self.db.execute("""SELECT body FROM watch_requests WHERE provider=?
+                    AND project_id=? AND session_id=? AND agent_id=? AND request_id=?""", key).fetchone()
+                old = strict_loads(row[0]) if row else None
+            if old is not None:
+                if any(old[name] is not None and item[name] != old[name]
+                       for name in ("model", "scope", "loop_id", "stage_id")):
+                    invalid += 1
+                    continue
+                grew = shrank = False
+                for name in ("uncached_input", "cache_read", "cache_write", "output"):
+                    before, after = old["tokens"][name], item["tokens"][name]
+                    grew |= after is not None and (before is None or after > before)
+                    shrank |= before is not None and (after is None or after < before)
+                if shrank:
+                    if grew:
+                        invalid += 1
+                    continue
+                changed = (grew or item["model"] != old["model"] or
+                           item["loop_id"] != old["loop_id"] or
+                           item["stage_id"] != old["stage_id"])
+                if not changed:
+                    continue
+                item["revision"] = old["revision"] + 1
+            local[key] = item
+            accepted.append(item)
+        return accepted, invalid
 
     def _queue(self, path, identity, state, observations, coverage):
         source_id = str(path)
@@ -203,7 +307,8 @@ class UsageWatcher:
                                 (str(path), index, operation, canonical(payload), canonical(state)))
         return self._flush(path)
 
-    def _parse_lines(self, path, spec, session_id, agent_id, child, lines, turn):
+    def _parse_lines(self, path, spec, session_id, agent_id, child, lines, turn,
+                     native_thread=None, native_model=None):
         observations = []
         malformed = unidentified = aggregates = 0
         for raw in lines:
@@ -211,12 +316,24 @@ class UsageWatcher:
                 row = strict_loads(raw.decode("utf-8"))
                 if not isinstance(row, dict):
                     raise ValueError("nonobject JSONL row")
+                if "spool_dir" in spec and row.get("type") == "thread.started":
+                    native_thread = row.get("thread_id") if isinstance(row.get("thread_id"), str) and row["thread_id"] else None
+                    native_model = row.get("model") if isinstance(row.get("model"), str) else None
+                    turn = 0
+                elif "spool_dir" in spec and native_thread and isinstance(row.get("model"), str):
+                    native_model = row["model"]
+                if "spool_dir" in spec and row.get("type") in ("turn.completed", "result") and isinstance(row.get("usage"), dict) and not native_thread:
+                    unidentified += 1
+                    continue
                 collector = usage_from_claude_jsonl if spec["provider"] == "claude" else usage_from_codex_jsonl
-                args = {"project_id": self.config["project_id"], "session_id": session_id,
+                args = {"project_id": self.config["project_id"],
+                        "session_id": native_thread if "spool_dir" in spec else session_id,
                         "agent_id": agent_id, "loop_id": spec.get("loop_id"),
                         "stage_id": spec.get("stage_id")}
                 if spec["provider"] == "codex":
                     args["usage_semantics"] = spec.get("usage_semantics", "per_turn")
+                    if "spool_dir" in spec:
+                        args["model"] = native_model
                     if row.get("type") == "turn.started":
                         turn += 1
                     elif row.get("type") == "turn.completed" and not row.get("turn_id") and not row.get("request_id"):
@@ -224,17 +341,21 @@ class UsageWatcher:
                 result = collector([row], **args)
                 for item in result["observations"]:
                     if child:
-                        native_session = item["session_id"]
-                        item["session_id"] = session_id
+                        native_session = row.get("sessionId") or row.get("session_id")
+                        if not isinstance(native_session, str) or not native_session:
+                            unidentified += 1
+                            continue
                         item["agent_id"] = _child_agent(path, row)
-                        item["source"] = ("claude_jsonl:child:" + str(native_session))[:256]
+                        item["source"] = ("claude_jsonl:subagents_dir:" + session_id)[:256]
+                        item["loop_id"] = None
+                        item["stage_id"] = None
                     observations.append(item)
                 coverage = result["coverage"]
                 unidentified += coverage.get("unidentified_usage", 0)
                 aggregates += coverage.get("aggregate_usage", 0)
             except (ValueError, TypeError, UnicodeError, ValidationError):
                 malformed += 1
-        return observations, malformed, unidentified, aggregates, turn
+        return observations, malformed, unidentified, aggregates, turn, native_thread, native_model
 
     def _file(self, path, spec, session_id, agent_id, child):
         self._flush(path)
@@ -247,14 +368,20 @@ class UsageWatcher:
             raise ValueError("usage source identity changed; use a separate cursor")
         try:
             fd, info = _regular(path)
-        except FileNotFoundError:
+        except OSError:
             return "unavailable"
         try:
-            rotated = bool(old and (old["dev"] != info.st_dev or old["ino"] != info.st_ino or info.st_size < old["offset"]))
-            offset = 0 if rotated or not old else old["offset"]
-            skipping = False if rotated or not old else bool(old["skipping"])
-            raw = os.pread(fd, self.max_chunk, offset)
-            after = os.fstat(fd)
+            try:
+                rotated = bool(old and (old["dev"] != info.st_dev or old["ino"] != info.st_ino or info.st_size < old["offset"]))
+                if old and not rotated and old["signature"]:
+                    prefix_length = strict_loads(old["signature"])[0]
+                    rotated = _prefix_signature(fd, prefix_length) != old["signature"]
+                offset = 0 if rotated or not old else old["offset"]
+                skipping = False if rotated or not old else bool(old["skipping"])
+                raw = os.pread(fd, self.max_chunk, offset)
+                after = os.fstat(fd)
+            except OSError:
+                return "unavailable"
             if (info.st_dev, info.st_ino) != (after.st_dev, after.st_ino) or after.st_size < offset:
                 return "changed"
         finally:
@@ -288,9 +415,13 @@ class UsageWatcher:
         if consumed == 0 and prefix_advanced == 0 and not rotated:
             return "partial"
         previous = strict_loads(old["coverage"]) if old else {}
-        turn = previous.get("turn", 0)
-        observations, malformed, unidentified, aggregates, turn = self._parse_lines(
-            path, spec, session_id, agent_id, child, lines, turn)
+        turn = 0 if rotated else previous.get("turn", 0)
+        native_thread = None if rotated else previous.get("native_thread")
+        native_model = None if rotated else previous.get("native_model")
+        observations, malformed, unidentified, aggregates, turn, native_thread, native_model = self._parse_lines(
+            path, spec, session_id, agent_id, child, lines, turn, native_thread, native_model)
+        observations, invalid = self._revisions(observations)
+        malformed += invalid
         if skipping and not (old and old["skipping"]):
             malformed += 1
         coverage = {"truncated": bool(previous.get("truncated") or rotated),
@@ -300,7 +431,22 @@ class UsageWatcher:
                     "complete": False}
         next_state = {"identity": identity, "dev": info.st_dev, "ino": info.st_ino,
                       "offset": offset + consumed, "skipping": skipping,
-                      "coverage": coverage | {"turn": turn}}
+                      "coverage": coverage | {"turn": turn, "native_thread": native_thread,
+                                              "native_model": native_model}}
+        try:
+            check_fd, check_info = _regular(path)
+        except OSError:
+            return "unavailable"
+        try:
+            if ((check_info.st_dev, check_info.st_ino) != (info.st_dev, info.st_ino) or
+                    check_info.st_size < next_state["offset"]):
+                return "changed"
+            next_state["signature"] = _prefix_signature(
+                check_fd, min(PREFIX_BYTES, next_state["offset"]))
+        except OSError:
+            return "changed"
+        finally:
+            os.close(check_fd)
         self._queue(path, identity, next_state, observations, coverage)
         return "imported"
 
@@ -313,13 +459,16 @@ class UsageWatcher:
             raise ValueError("status source identity changed; use a separate cursor")
         try:
             fd, info = _regular(path)
-        except FileNotFoundError:
+        except OSError:
             return "unavailable"
         try:
-            if info.st_size > 65536:
-                raise ValueError("status sample exceeds 64 KiB")
-            raw = os.pread(fd, 65537, 0)
-            after = os.fstat(fd)
+            try:
+                if info.st_size > 65536:
+                    raise ValueError("status sample exceeds 64 KiB")
+                raw = os.pread(fd, 65537, 0)
+                after = os.fstat(fd)
+            except OSError:
+                return "unavailable"
             if (info.st_size, info.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
                 return "changed"
         finally:
@@ -330,7 +479,10 @@ class UsageWatcher:
         if len(raw) != info.st_size:
             return "changed"
         try:
-            sample = normalize_claude_status(strict_loads(raw), project_id=self.config["project_id"],
+            native = strict_loads(raw)
+            if not isinstance(native, dict) or native.get("session_id") != item["session_id"]:
+                return "invalid"
+            sample = normalize_claude_status(native, project_id=self.config["project_id"],
                 session_id=item["session_id"], agent_id=item["agent_id"],
                 account_id=item["account_id"], observed_at=_status_time(info))
         except (ValueError, ValidationError):
@@ -345,7 +497,7 @@ class UsageWatcher:
 
     def poll(self):
         counts = {"imported": 0, "idle": 0, "partial": 0, "unavailable": 0, "changed": 0, "invalid": 0}
-        sources = self._sources()
+        sources, counts["unavailable"] = self._sources()
         for path, spec, session_id, agent_id, child in sources:
             result = self._file(path, spec, session_id, agent_id, child)
             counts[result] += 1

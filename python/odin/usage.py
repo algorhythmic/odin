@@ -81,7 +81,16 @@ def normalize_claude_status(status, *, project_id, session_id, agent_id="executi
         if utilization is not None and (type(utilization) not in (int, float) or
                                          not 0 <= utilization <= 100):
             raise ValueError("invalid utilization")
-        return {"used_percentage": utilization, "resets_at": value.get("resets_at")}
+        reset = value.get("resets_at")
+        if reset is not None:
+            if type(reset) in (int, float):
+                try:
+                    reset = datetime.fromtimestamp(reset, timezone.utc).isoformat().replace("+00:00", "Z")
+                except (ValueError, OverflowError, OSError) as error:
+                    raise ValueError("invalid quota reset timestamp") from error
+            else:
+                reset = _timestamp(reset)
+        return {"used_percentage": utilization, "resets_at": reset}
     item = {"schema_version": 1, "kind": "quota", "provider": "claude",
             "source": "claude_status", "project_id": project_id, "session_id": session_id,
             "agent_id": agent_id, "account_id": account_id,
