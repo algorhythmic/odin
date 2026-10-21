@@ -380,18 +380,21 @@ the stage evidence, never in the checkout):
   group, so a successful harness can leave a descendant in its recorded group
   whose arguments name no spool. Every dispatched job, completed, cancelled,
   lost or unknown, is therefore checked against its dispatch reservation and
-  `started.json` (required once completed, since the runner writes it before
-  its result): it stays outstanding while a recorded runner or harness
-  process group has a live member, and unresolved while those files are
-  missing, unreadable or not private. A reused process ID can only make the
-  reading conservative.
+  `started.json`: it stays outstanding while a recorded runner or harness
+  process group has a live member, and unresolved while `dispatch.json`, or
+  `started.json` when present or the job is completed (the runner writes it
+  before its result), is missing, unreadable or not private. A job that is
+  not completed and has no `started.json` is checked against the runner group
+  alone. Until the attempt is recorded quiet, a reused process ID can only
+  make the reading conservative.
 
   Decision (stage 7): the evaluator scheduler, not the status, records when a
   finished (`completed`, `cancelled` or `lost`) job's latest started attempt
   has been observed quiet: one process-table reading found no member of the
   runner and harness groups recorded for that attempt and no process naming
-  its spool, with its dispatch (`spawned`, runner PID recorded) and, once
-  completed, `started.json` readable. The record is a durable loop receipt
+  its spool (the runner's and harness's own arguments name it), with its
+  dispatch for that attempt and, when present or once completed,
+  `started.json` readable and private. The record is a durable loop receipt
   `evaluator-quiet:<job>:<attempt>`; it changes no loop or job state, signals
   nothing and is never written from missing or unreadable evidence or an
   unreadable process table. An empty process group cannot regain members, so
@@ -405,19 +408,23 @@ the stage evidence, never in the checkout):
   remaining fail-closed residual) and every restart needs the external
   observation below. A service older than this decision writes no
   `evaluator-quiet` record: after replacement, the new scheduler records each
-  earlier finished job whose evidence it can read, and the gate keeps every
-  other one open.
+  earlier finished job whose evidence it can read, and the gate keeps reading
+  every other one, so it stays closed or unresolved until they are recorded.
 
   Unresolved dispatch evidence keeps the gate false until the files are
   restored as private regular files; if they cannot be, replacing the service
   needs the same explicit supervisor decision as a lost turn, based on no
   live process naming the job's spool and none in the process groups of the
   runner and harness PIDs recorded there (`pgrep -g <pid>` for each), where
-  still readable. The gate cannot see a descendant that left its recorded
-  process group (by `setsid` or `setpgid`) without naming a spool, a harness
-  whose group was never recorded (the runner exited before writing
-  `started.json`), or the groups of an attempt superseded by a later
-  dispatch, whose `dispatch.json` and `started.json` the relaunch replaced.
+  still readable. The runner's and harness's arguments name the job's spool,
+  so a runner or harness whose group was never recorded, or that belongs to
+  an attempt superseded by a relaunch, is still seen while it runs. The gate
+  cannot see a process that left every recorded group (by `setsid` or
+  `setpgid`) and names no spool, including a descendant of an unrecorded or
+  superseded attempt, nor a process of another user it cannot read. The quiet
+  record makes one observation durable: a member hidden from that reading,
+  such as another user's process, is not revisited, and after it a reused
+  process ID no longer holds the gate.
 
   Lost delegated turns: a lost turn's native outcome is unknown and no
   supported path records its resolution, so, as for `configure_delegation`,

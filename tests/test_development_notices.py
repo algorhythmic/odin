@@ -1308,6 +1308,23 @@ class NoticeGatewayTests(unittest.TestCase):
         loop.mark_evaluator_quiet(job["id"], job["packet_digest"], 1)
         with patch("odin.development_gateway.RECORD_LIMIT", 0):
             self.assertTrue(self.gate(loop_id)["restart_quiescent"])
+        # A later attempt needs its own record. The latest attempt is the
+        # numeric maximum (10 after 9), and the scheduler, whose dispatch.json
+        # still names attempt 1, records nothing for it.
+        for attempt in range(2, 11):
+            self.gateway.store.db.execute(
+                "INSERT INTO development_loop_receipts VALUES(?,?,?)",
+                (f"evaluator-start:{job['id']}:{attempt}", "d" * 64, "{}"),
+            )
+        self.gateway.store.db.commit()
+        with patch("odin.development_gateway.RECORD_LIMIT", 0):
+            self.assertFalse(self.gate(loop_id)["restart_quiescent"])
+        self.assertEqual(EvaluatorRunner(loop, Path(self.temp.name), None)._observe_finished(), [])
+        with self.assertRaises(Conflict):
+            loop.mark_evaluator_quiet(job["id"], job["packet_digest"], 9)
+        loop.mark_evaluator_quiet(job["id"], job["packet_digest"], 10)
+        with patch("odin.development_gateway.RECORD_LIMIT", 0):
+            self.assertTrue(self.gate(loop_id)["restart_quiescent"])
         (directory / "started.json").unlink()  # an observed attempt is not reread
         self.assertTrue(self.gate(loop_id)["restart_quiescent"])
         # A process naming the spool still counts after the observation.
@@ -1330,13 +1347,27 @@ class NoticeGatewayTests(unittest.TestCase):
     def test_mark_evaluator_quiet_requires_a_finished_started_attempt(self):
         result = self.send("loop_start", {"goal": "Busy", "session_id": self.session})
         job, loop = result["job"], self.gateway.development_loop
-        with self.assertRaises(Conflict):  # never started
+        with self.assertRaises(Conflict):  # pending: not finished
             loop.mark_evaluator_quiet(job["id"], job["packet_digest"], 1)
-        self.dispatch_evaluator(result["loop"]["id"], job)
+        directory, _ = self.dispatch_evaluator(result["loop"]["id"], job)
         with self.assertRaises(Conflict):  # running
             loop.mark_evaluator_quiet(job["id"], job["packet_digest"], 1)
         with self.assertRaises(Conflict):
             loop.mark_evaluator_quiet(job["id"], "c" * 64, 1)
+        # Lost from a reservation that never recorded a runner: only the
+        # spool check can show a runner, and while one names it nothing is
+        # recorded.
+        self.send("loop_control", {"loop_id": result["loop"]["id"], "action": "stop"})
+        runner = EvaluatorRunner(loop, Path(self.temp.name), None)
+        with self.assertRaises(Conflict):  # cancelled, but attempt 2 never started
+            loop.mark_evaluator_quiet(job["id"], job["packet_digest"], 2)
+        named = self.sleeper(str(directory))
+        self.assertEqual(runner._observe_finished(), [])
+        named.kill()
+        named.wait()
+        self.assertEqual(runner._observe_finished(), [job["id"]])
+        with patch("odin.development_gateway.RECORD_LIMIT", 0):
+            self.assertTrue(self.gate(result["loop"]["id"])["restart_quiescent"])
 
     def test_completed_evaluator_descendant_in_its_harness_group_keeps_gate_closed(self):
         """A real runner and harness complete successfully; a descendant stays
@@ -1358,6 +1389,16 @@ class NoticeGatewayTests(unittest.TestCase):
         state = Path(self.temp.name)
         runner = EvaluatorRunner(self.gateway.development_loop, state, config)
         self.addCleanup(lambda: [child.kill() or child.wait() for child in runner._children])
+
+        def kill_descendant():
+            # Registered before launch, so an early failure cannot leak it.
+            try:
+                pid = int((root / "workspace" / "descendant.pid").read_text())
+                if b"time.sleep(60)" in Path(f"/proc/{pid}/cmdline").read_bytes():
+                    os.kill(pid, signal.SIGKILL)
+            except (OSError, ValueError):
+                pass
+        self.addCleanup(kill_descendant)
         self.assertEqual(runner.tick()["started"], [job["id"]])
         deadline = time.monotonic() + 15
         while self.gateway.development_loop.job(job["id"])["state"] != "completed" or runner._children:
@@ -1365,13 +1406,6 @@ class NoticeGatewayTests(unittest.TestCase):
             runner.tick()
             time.sleep(0.03)
         pid = int((root / "workspace" / "descendant.pid").read_text())
-
-        def kill_descendant():
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-        self.addCleanup(kill_descendant)
         directory = state / "development-evaluator" / job["id"]
         started = json.loads((directory / "started.json").read_text())
         harness = started["harness_pid"]

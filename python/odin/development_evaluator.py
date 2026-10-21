@@ -608,7 +608,7 @@ class EvaluatorRunner:
         process-table observation per tick, taken only while a finished
         attempt is unobserved, must find no member of the runner and harness
         groups recorded in dispatch.json and started.json and no process
-        naming the job's spool. Missing or unreadable evidence, or an
+        naming the job's spool (the runner's and harness's arguments do). Missing or unreadable evidence, or an
         unreadable table, records nothing, so the restart gate keeps reading
         the attempt. Never signals.
         """
@@ -634,15 +634,18 @@ class EvaluatorRunner:
                 if not ID.fullmatch(job["id"]):
                     continue
                 directory = _private_directory(self.spool / job["id"])
-                dispatch = self._read_dispatch(directory, job)
+                # The same evidence the restart gate reads, bound to the job.
+                dispatch = _read(directory / "dispatch.json", SCHEMA, definition="dispatch")
                 if (
-                    dispatch is None
+                    dispatch["job_id"] != job["id"]
+                    or dispatch["packet_digest"] != job["packet_digest"]
                     or dispatch["attempt"] != attempt
-                    or dispatch["state"] != "spawned"
-                    or dispatch["runner_pid"] is None
                 ):
                     continue
-                groups = {dispatch["runner_pid"]}
+                # A reservation without a runner PID: a runner that did start
+                # has exec'd with the spool in its arguments, so the spool
+                # check below covers it.
+                groups = {dispatch["runner_pid"]} - {None}
                 if (directory / "started.json").exists():
                     started = _read(directory / "started.json", SCHEMA, definition="started")
                     groups |= {started["runner_pid"], started["harness_pid"]}
