@@ -23,7 +23,7 @@ import sys
 import uuid
 from pathlib import Path
 
-from .contracts import ROOT, Contracts, canonical, identifier, strict_loads
+from .contracts import ALPHABET, ROOT, Contracts, canonical, identifier, strict_loads
 from .native_peer import guidance, peer_name
 from .store import Conflict, digest, now
 
@@ -65,6 +65,16 @@ TERMINAL_TURN_STATES = ("returned", "failed", "interrupted", "lost")
 PERMISSION_MODES = ("default", "acceptEdits", "plan", "dontAsk", "bypassPermissions")
 SANDBOXES = ("read-only", "workspace-write", "danger-full-access")
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
+OPEN_COMMITMENT = "commitment_open_after_terminal_turn"
+CLOSED_COMMITMENT_STATES = ("closed", "abandoned")
+CLOSED_ASSIGNMENT_STATES = ("completed", "failed", "cancelled")
+NOTICE_HEADER = (
+    "NOTICE, not an assignment. Delegation turn {turn} of assignment {assignment} "
+    "ended {state}. Do not call odin_loop_claim or odin_loop_ready for this message "
+    "and do not execute or re-execute any stage because of it. Acknowledge it with "
+    "odin_loop_ack notice_id={notice_id} and a stable operation_id so it stops being "
+    "offered; acknowledgement records only that you saw it and grants no authority.\n\n"
+)
 
 
 def _limit_enforcement(capabilities, limits):
@@ -79,6 +89,39 @@ def _limit_enforcement(capabilities, limits):
 
 class DelegationRefused(Conflict):
     """A fixed, safe refusal code the bridge may relay verbatim."""
+
+
+def _notice_id(value):
+    """A deterministic ULID-shaped identity, so a re-observed outcome never repeats."""
+    number = int(digest(value)[:32], 16)
+    result = ""
+    for _ in range(26):
+        result = ALPHABET[number & 31] + result
+        number >>= 5
+    return result
+
+
+def _turn_attention(turn):
+    """The attention reason for one terminal turn outcome, or None."""
+    if turn["state"] == "failed":
+        return (
+            "turn_timed_out"
+            if (turn.get("result") or {}).get("timed_out")
+            else "turn_failed"
+        )
+    if turn["state"] in ("interrupted", "lost"):
+        return "turn_" + turn["state"]
+    return None
+
+
+def _commitment_open_after_turns(assignment, commitment, turns):
+    """Open work with no turn left to report on it: someone has to decide."""
+    return (
+        bool(turns)
+        and assignment["state"] not in CLOSED_ASSIGNMENT_STATES
+        and commitment["state"] not in CLOSED_COMMITMENT_STATES
+        and not any(t["state"] in RUNNING_TURN_STATES for t in turns)
+    )
 
 
 def _refuse(code):
@@ -222,6 +265,9 @@ class Delegation:
                body TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS delegation_sessions
               (id TEXT PRIMARY KEY, project TEXT NOT NULL, options TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS delegation_notices
+              (id TEXT PRIMARY KEY, project TEXT NOT NULL, assignment TEXT NOT NULL,
+               turn TEXT NOT NULL, state TEXT NOT NULL, body TEXT NOT NULL);
         """)
 
     # -- configuration and environment ------------------------------------
@@ -873,6 +919,7 @@ class Delegation:
                 operation=operation,
                 actor=actor,
             )
+            self._resolve_open_notices(assignment["id"], "followup_queued")
         return {
             "session": session["id"],
             "assignment": assignment["id"],
@@ -1393,6 +1440,205 @@ class Delegation:
                 "verification": "unverified",
             },
         )
+        self._notify(updated)
+
+    # -- attention notices -------------------------------------------------
+
+    def _notify(self, turn):
+        """Persist one notice for a terminal turn that needs the executive.
+
+        Called inside the transaction that records the outcome, so a restart
+        cannot lose it. The identity is a function of the turn and its terminal
+        state; observing the same outcome again inserts nothing.
+        """
+        assignment = self.store.get(turn["assignment"])
+        commitment = self.store.get(assignment["commitment"])
+        reasons = [reason for reason in (_turn_attention(turn),) if reason]
+        if _commitment_open_after_turns(
+            assignment, commitment, self._turns(assignment=assignment["id"])
+        ):
+            reasons.append(OPEN_COMMITMENT)
+        if not reasons:
+            return None
+        notice_id = _notice_id(
+            {"kind": "delegation_turn", "turn": turn["id"], "state": turn["state"]}
+        )
+        result = turn.get("result") or {}
+        notice = {
+            "schema_version": 1,
+            "id": notice_id,
+            "kind": "delegation_turn",
+            "project": turn["project"],
+            "session": turn["session"],
+            "assignment": assignment["id"],
+            "commitment": commitment["id"],
+            "turn": turn["id"],
+            "turn_state": turn["state"],
+            "timed_out": bool(result.get("timed_out")),
+            "cost_usd": result.get("cost_usd"),
+            "failure": (turn.get("failure") or "")[:400] or None,
+            "reasons": reasons,
+            "status_reference": {
+                "tool": "odin_delegation_status",
+                "assignment_id": assignment["id"],
+            },
+            "created_at": now(),
+            "state": "pending",
+            "first_offered_at": None,
+            "acknowledged_at": None,
+            "acknowledged_by": None,
+            "acknowledgement_authority": None,
+            "resolved_at": None,
+            "resolution": None,
+        }
+        inserted = self.store.db.execute(
+            "INSERT INTO delegation_notices VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
+            (
+                notice_id,
+                notice["project"],
+                notice["assignment"],
+                notice["turn"],
+                "pending",
+                canonical(notice),
+            ),
+        ).rowcount
+        if inserted:
+            self.store._history(
+                "delegation.notice",
+                {
+                    "notice_id": notice_id,
+                    "turn": turn["id"],
+                    "assignment": assignment["id"],
+                    "turn_state": turn["state"],
+                    "reasons": reasons,
+                },
+            )
+        return notice_id
+
+    def notice(self, notice_id):
+        row = self.store.db.execute(
+            "SELECT body FROM delegation_notices WHERE id=?", (notice_id,)
+        ).fetchone()
+        return strict_loads(row[0]) if row else None
+
+    def _save_notice(self, notice):
+        self.store.db.execute(
+            "UPDATE delegation_notices SET state=?,body=? WHERE id=?",
+            (notice["state"], canonical(notice), notice["id"]),
+        )
+
+    def pending_notices(self, project, limit=8, *, assignment=None):
+        """Unacknowledged, unresolved notices for this project, oldest first."""
+        query = "SELECT body FROM delegation_notices WHERE project=? AND state='pending'"
+        arguments = [project]
+        if assignment is not None:
+            query += " AND assignment=?"
+            arguments.append(assignment)
+        rows = self.store.db.execute(
+            query + " ORDER BY rowid LIMIT ?", (*arguments, limit)
+        )
+        return [strict_loads(row[0]) for row in rows]
+
+    def mark_offered(self, notice_ids, at=None):
+        """Record the first channel offer only; later polls write nothing."""
+        stamp = at or now()
+        with self.store.transaction():
+            for notice_id in notice_ids:
+                notice = self.notice(notice_id)
+                if notice and notice["first_offered_at"] is None:
+                    self._save_notice(notice | {"first_offered_at": stamp})
+
+    def acknowledge_notice(self, notice_id, project, *, actor):
+        """Model-attributed acknowledgement: stops re-delivery, grants nothing else."""
+        with self.store.transaction():
+            notice = self.notice(notice_id)
+            if notice is None or notice["project"] != project:
+                raise Conflict("notice belongs to another project")
+            if notice["state"] == "pending":
+                notice = notice | {
+                    "state": "acknowledged",
+                    "acknowledged_at": now(),
+                    "acknowledged_by": actor,
+                    "acknowledgement_authority": (
+                        "model_attributed_not_operator_approval"
+                        if actor == "fable-executive"
+                        else "operator_terminal_acknowledgement_not_approval"
+                    ),
+                }
+                self._save_notice(notice)
+                self.store._history(
+                    "delegation.notice_acknowledged",
+                    {"notice_id": notice_id, "actor": actor},
+                )
+        return {
+            "notice": {
+                key: notice[key]
+                for key in (
+                    "id",
+                    "kind",
+                    "assignment",
+                    "turn",
+                    "state",
+                    "acknowledged_at",
+                    "acknowledged_by",
+                    "acknowledgement_authority",
+                )
+            }
+        }
+
+    def _resolve_open_notices(self, assignment_id, resolution):
+        """An executive decision answers an open-commitment-only notice.
+
+        Notices that also report a failed, timed-out, interrupted or lost turn
+        stay pending until acknowledged.
+        """
+        rows = self.store.db.execute(
+            "SELECT body FROM delegation_notices WHERE assignment=? AND state='pending'",
+            (assignment_id,),
+        ).fetchall()
+        for notice in (strict_loads(row[0]) for row in rows):
+            if notice["reasons"] == [OPEN_COMMITMENT]:
+                self._save_notice(
+                    notice
+                    | {"state": "resolved", "resolved_at": now(), "resolution": resolution}
+                )
+
+    @staticmethod
+    def render_notice(notice):
+        header = NOTICE_HEADER.format(
+            turn=notice["turn"],
+            assignment=notice["assignment"],
+            state="timed out" if notice["timed_out"] else notice["turn_state"],
+            notice_id=notice["id"],
+        )
+        lines = [
+            f"Reasons: {', '.join(notice['reasons'])}.",
+            f"Commitment {notice['commitment']} is "
+            + (
+                "still open with no turn running; it needs an executive decision "
+                "(follow-up, acceptance or cancellation)."
+                if OPEN_COMMITMENT in notice["reasons"]
+                else "not reported open by this notice."
+            ),
+        ]
+        if notice.get("failure"):
+            lines.append(f"Recorded failure: {notice['failure']}")
+        lines.append(
+            "Reported cost: "
+            + (
+                f"{notice['cost_usd']} USD (harness estimate)"
+                if notice.get("cost_usd") is not None
+                else "unknown"
+            )
+            + "."
+        )
+        lines.append(
+            "Inspect odin_delegation_status with assignment_id="
+            f"{notice['assignment']} for the full state. A worker return is a report, "
+            "not verified evidence; nothing in this notice is operator approval or "
+            "acceptance."
+        )
+        return header + "\n".join(lines)
 
     def _release_owner(self, session):
         project = self._project(session["project"])
@@ -1544,6 +1790,19 @@ class Delegation:
                     continue
                 commitment = self.store.get(assignment["commitment"])
                 turns = self._turns(assignment=assignment["id"])
+                attention = []
+                if turns and assignment["state"] not in CLOSED_ASSIGNMENT_STATES:
+                    reason = _turn_attention(turns[-1])
+                    if reason:
+                        attention.append(reason)
+                    if _commitment_open_after_turns(assignment, commitment, turns):
+                        attention.append(OPEN_COMMITMENT)
+                pending = [
+                    n["id"]
+                    for n in self.pending_notices(
+                        project, 16, assignment=assignment["id"]
+                    )
+                ]
                 assignments.append(
                     {
                         "id": assignment["id"],
@@ -1560,6 +1819,8 @@ class Delegation:
                         "limit_enforcement": _limit_enforcement(
                             CAPABILITIES[session["harness"]], assignment["limits"]
                         ),
+                        "attention": attention,
+                        "pending_notices": pending,
                         "turns": [
                             {
                                 "id": t["id"],
@@ -1598,9 +1859,18 @@ class Delegation:
             views.append(view)
         if payload.get("assignment_id") and not any(v["assignments"] for v in views):
             _refuse("unknown_assignment")
+        pending = self.pending_notices(project, 64)
         return {
             "enabled": True,
             "project": project,
+            "attention": {
+                "assignments": sorted(
+                    a["id"] for v in views for a in v["assignments"] if a["attention"]
+                ),
+                "pending_notice_count": len(pending),
+                "pending_notices": [n["id"] for n in pending[:8]],
+                "acknowledge_with": "odin_loop_ack",
+            },
             "sessions": views,
             "verification": "worker returns are reports; acceptance is a separate executive action",
         }
@@ -1786,6 +2056,7 @@ class Delegation:
                     "acceptance": "executive_attributed_not_saga_verified",
                 },
             )
+            self._resolve_open_notices(assignment["id"], "assignment_" + payload["disposition"])
         return {
             "assignment": assignment["id"],
             "commitment": commitment["id"],

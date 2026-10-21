@@ -61,6 +61,13 @@ def check_scope(gateway, action, payload):
             ] != payload.get("project"):
                 raise PermissionError("completion project differs from native session")
     elif action == "loop_ack":
+        # Delegation notices are project-scoped: the delegation does not know
+        # which native executive session will read them.
+        delegated = gateway.delegation.notice(payload["notice_id"])
+        if delegated is not None:
+            if delegated["project"] != payload.get("project"):
+                raise PermissionError("notice belongs to another project")
+            return
         notice = gateway.development_loop.notice(payload["notice_id"])
         if notice["project"] != payload.get("project"):
             raise PermissionError("notice belongs to another project")
@@ -654,8 +661,33 @@ def dispatch(gateway, action, payload, context, operation):
         if notices and context.actor.subject == "fable-executive":
             # Only the executive's own poll counts as an offer to it.
             controller.mark_offered([notice["id"] for notice in notices])
+        # Delegation turn notices (ODIN-ADR-027) share the channel and the
+        # acknowledgement path; they carry no loop or stage and are never
+        # claimable.
+        delegated = (
+            gateway.delegation.pending_notices(payload["project"], limit=8)
+            if "notice" in accept
+            else []
+        )
+        for notice in delegated:
+            messages.append(
+                {
+                    "kind": "notice",
+                    "message_id": notice["id"],
+                    "notice_id": notice["id"],
+                    "loop_id": None,
+                    "stage_id": None,
+                    "content": gateway.delegation.render_notice(notice),
+                }
+            )
+        if delegated and context.actor.subject == "fable-executive":
+            gateway.delegation.mark_offered([notice["id"] for notice in delegated])
         return {"messages": messages}
     if action == "loop_ack":
+        if gateway.delegation.notice(payload["notice_id"]) is not None:
+            return gateway.delegation.acknowledge_notice(
+                payload["notice_id"], payload["project"], actor=context.actor.subject
+            )
         return controller.acknowledge(
             payload["notice_id"],
             payload["project"],

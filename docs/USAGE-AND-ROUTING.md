@@ -69,6 +69,31 @@ added to their children. Claude's force setting has exceptions, including
 forked agents and inherited skill models, and does not override all provider
 fallbacks. See [native subagent controls](https://code.claude.com/docs/en/sub-agents#run-every-subagent-on-one-model).
 
+Delegation failures are surfaced, not left for the executive to find. When a
+turn ends `failed` (reported as `turn_timed_out` when the runner hit the
+wall-clock deadline, otherwise `turn_failed`), `interrupted` or `lost`, or when
+any terminal turn leaves the assignment's commitment open with no turn running
+(`commitment_open_after_terminal_turn`), the service writes one notice to the
+`delegation_notices` table in the same transaction as the turn result. The
+notice ID is derived from the turn ID and terminal state, and the insert ignores
+conflicts, so reconciling or restarting never duplicates it and a restart never
+drops it. `odin_delegation_status` shows the live `attention` reasons and
+`pending_notices` for each open assignment, in both the compact and the detail
+view, and a top-level `attention` summary. A closed assignment stays in the
+compact view while it still has a pending notice.
+
+In development-loop bridge mode, `odin_loop_inbox` offers pending delegation
+notices as `kind: notice` with no loop or stage. They are redelivered until
+acknowledged with `odin_loop_ack`, are never claimable, grant no authority and
+point at `odin_delegation_status`. Acknowledgement records attribution, not
+operator approval or acceptance. A notice whose only reason is the open
+commitment resolves itself when the executive queues a follow-up or closes the
+assignment, so an accepted return leaves nothing pending. A failure notice stays
+pending until acknowledged, even after the assignment is cancelled. Without
+development-loop mode the bridge has no inbox or acknowledgement tool, and only
+the status flags apply. A queued turn that is cancelled by `odin_delegation_close`
+or session retirement before launch does not produce a notice.
+
 ## Executive role and existing-loop transition
 
 ADR-033 separates the executive's context from project implementation. This is

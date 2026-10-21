@@ -50,7 +50,8 @@ def _turn(turn):
 
 def _assignment(item):
     answer = _pick(item, ("id", "rev", "state", "commitment", "commitment_state",
-                          "criteria", "limits", "limit_enforcement"))
+                          "criteria", "limits", "limit_enforcement", "attention",
+                          "pending_notices"))
     answer["objective"] = _clip(item.get("objective"), 240)
     turns = item.get("turns") or []
     # Keep all unresolved turns and the four latest terminal returns. Earlier
@@ -67,7 +68,7 @@ def _assignment(item):
 def _delegation(result, *, assignment_id=None):
     if "sessions" not in result:
         return result
-    answer = _pick(result, ("enabled", "reason", "project", "verification"))
+    answer = _pick(result, ("enabled", "reason", "project", "attention", "verification"))
     answer["sessions"] = []
     omitted_assignments = 0
     for item in result["sessions"]:
@@ -76,8 +77,8 @@ def _delegation(result, *, assignment_id=None):
                                "turn_count", "running_turns", "cost_usd_known",
                                "turns_with_unknown_cost", "adopted_commitments"))
         assignments = item.get("assignments") or []
-        active = [a for a in assignments if assignment_id or a.get("state") not in
-                  {"completed", "cancelled", "accepted"}]
+        active = [a for a in assignments if assignment_id or a.get("pending_notices") or
+                  a.get("state") not in {"completed", "cancelled", "accepted"}]
         session["assignments"] = [_assignment(a) for a in active]
         session["omitted_terminal_assignment_count"] = len(assignments) - len(active)
         omitted_assignments += len(assignments) - len(active)
