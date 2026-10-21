@@ -24,7 +24,6 @@ import signal
 import stat
 import subprocess
 import sys
-import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -436,7 +435,7 @@ def run(
     stdout_path, stderr_path = out / "stdout.log", out / "stderr.log"
     before = observe_repository(repository)
     executable, interpreter = _resolve_executable(argv, cwd)
-    started_at, started_monotonic = _now(), time.monotonic()
+    started_at = _now()
     exit_status, uncertainty, signal_number, timed_out = None, None, None, False
     with _open_fresh(stdout_path) as stdout, _open_fresh(stderr_path) as stderr:
         try:
@@ -472,8 +471,12 @@ def run(
                     uncertainty = f"command terminated by signal {signal_number}"
             elif process.returncode is not None:
                 exit_status = process.returncode
-    duration = round(time.monotonic() - started_monotonic, 3)
     finished_at = _now()
+    # Derived from the same wall-clock timestamps the receipt records, so a
+    # clock step or suspend during the command cannot contradict itself.
+    duration = round(
+        (_timestamp(finished_at) - _timestamp(started_at)).total_seconds(), 3
+    )
     after = observe_repository(repository)
     artifacts = []
     for name, path in (("stdout", stdout_path), ("stderr", stderr_path)):
@@ -942,7 +945,7 @@ def _finish(path, receipt, actual_digest, outcome, problems, checks):
         else None,
         "argv_head": _clip(" ".join(argv), 160),
         "argv_digest": hashlib.sha256(canonical(argv).encode()).hexdigest(),
-        "started_at": receipt["execution"]["started_at"],
+        "started_at": receipt["execution"]["started_at"] if usable else None,
         "exit_status": receipt["execution"]["exit_status"] if usable else None,
         "succeeded": receipt["execution"]["succeeded"] if usable else None,
         "uncertainty": receipt["execution"]["uncertainty"] if usable else None,

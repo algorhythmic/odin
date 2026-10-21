@@ -319,9 +319,10 @@ in the evaluator packet:
 that exited nonzero is valid evidence of a failure, never success, and the
 bridge answer, stage record and packet all carry each receipt's
 `exit_status`, `succeeded`, `observed_before`, `observed_after`,
-`after_reason`, `clean_before`, `clean` and `changed_during_run` so that no
-summary can hide them. An `invalid` receipt reports `succeeded: null` and
-`commands_succeeded: null`.
+`before_reason`, `after_reason`, `clean_before`, `clean` and
+`changed_during_run` so that no summary can hide them. An `invalid` receipt
+reports `succeeded: null` and `commands_succeeded: null` and keeps only its
+path, digest, binding, `cwd` and `argv` identity fields.
 
 Consistency is checked, not assumed. Before any artifact is hashed the
 validator recomputes the derived fields the format carries: `succeeded`
@@ -336,7 +337,7 @@ root must contain the repository path; two observations must name one root,
 bracket the command in time and agree with `changed_during_run`, which must
 be null when either observation is missing. Any contradiction makes the
 receipt `invalid`, and an invalid receipt reports no observed field (head,
-branch, clean, exit status) at all; a failing, signalled, timed-out or
+branch, clean, exit status, start time) at all; a failing, signalled, timed-out or
 uncertain command with consistent fields stays `valid` evidence of that
 outcome. A claimed or expected `clean` is compared with the derived value and
 can only be met by a receipt with both observations and no change during the
