@@ -241,8 +241,11 @@ def main():
                 parser.error("executive-activate-service requires --repository, --branch and --head")
             from .service_activation import activate
 
-            record = activate(state, repository=args.repository, branch=args.branch,
-                              head=args.head, timeout=args.activation_timeout)
+            try:
+                record = activate(state, repository=args.repository, branch=args.branch,
+                                  head=args.head, timeout=args.activation_timeout)
+            except ValueError as error:
+                parser.error(str(error))
             print(canonical(record))
             sys.exit({"activated": 0, "refused": 2}.get(record["outcome"], 1))
         elif args.action == "executive-login":

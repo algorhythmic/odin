@@ -211,7 +211,7 @@ def activate(state, *, repository, branch, head, controller=None, reachable=None
                                  head=head, controller=controller, reachable=reachable,
                                  timeout=timeout, clock=clock, sleep=sleep)
             except Exception:
-                # Never leave an unexplained `restarting` record behind.
+                # An ordinary error never leaves an unexplained `restarting` record.
                 finish("failed", "activation_error")
                 raise
     except _LeaseBusy:

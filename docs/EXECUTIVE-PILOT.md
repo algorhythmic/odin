@@ -380,9 +380,11 @@ when the unit has no main process; or when another activation holds the lease.
 Delegated workers are children of the service; with the unit's default
 `KillMode=control-group` a restart would stop them, which is why a running
 turn blocks activation. The unit's kill mode is an assumption about the
-external unit, not something Odin checks. Quiescence is read through a read-only SQLite
-connection and is a point-in-time check: work admitted between the check and
-the restart is not prevented.
+external unit, not something Odin checks. Quiescence is read last, just before
+the restart, through a read-only SQLite connection. It is a point-in-time
+check: work admitted between the check and the restart is not prevented. A
+`--head` that is not a full lowercase commit id, or an unbounded `--branch`,
+is a usage error (exit 2) and leaves no record.
 
 `serve` records its own process id, checkout revision and cleanliness in
 `service-revision.json` in the state directory once its sockets are bound.

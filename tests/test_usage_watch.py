@@ -327,6 +327,22 @@ class WatchTests(unittest.TestCase):
         self.assertNotIn(secret, json.dumps(self.receipts))
         self.assertNotIn(secret, json.dumps(snapshots))
 
+    def test_each_limit_probe_runs_only_when_configured(self):
+        calls = []
+
+        def transport(url, headers, timeout):
+            calls.append(url)
+            return 500, b''
+
+        self.config['sources'] = []
+        self.config['limit_probes'] = {'codex_home': str(self.root / 'absent-codex-home')}
+        with UsageWatcher(self.config, address='synthetic', send=self.send,
+                          limit_transport=transport) as watch:
+            self.assertEqual(watch.poll()['limit_samples'], 1)
+        self.assertEqual(calls, [])
+        snapshots = self.gateway.usage.summary(project_id=self.project)['limit_snapshots']
+        self.assertEqual([s['label'] for s in snapshots], ['codex.probe'])
+
 
 if __name__ == '__main__':
     unittest.main()
