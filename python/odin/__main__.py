@@ -100,7 +100,11 @@ def main():
     )
     parser.add_argument("--delivery", help="delivered view ID to acknowledge")
     parser.add_argument("--loop", help="exact development loop ID")
-    parser.add_argument("--control", choices=["pause", "resume", "stop"])
+    parser.add_argument("--control", choices=["pause", "resume", "stop", "deadlines"])
+    parser.add_argument(
+        "--deadlines",
+        help='JSON object for --control deadlines, e.g. {"offer_seconds": 600, "claim_seconds": null}',
+    )
     parser.add_argument("--operation-id", help="stable ID for a retried development command")
     parser.add_argument("--claude-config", help="dedicated Odin Claude login directory")
     parser.add_argument("--executive-project", help="bind private executive socket to this project")
@@ -277,6 +281,12 @@ def main():
                 if not args.loop or not args.control:
                     parser.error("development-control requires --loop and --control")
                 payload["action"] = args.control
+                if args.control == "deadlines":
+                    if not args.deadlines:
+                        parser.error("--control deadlines requires --deadlines JSON")
+                    payload["deadlines"] = strict_loads(args.deadlines)
+                elif args.deadlines:
+                    parser.error("--deadlines applies only to --control deadlines")
         action = {
             "development-start": "loop_start",
             "development-continue": "loop_continue",

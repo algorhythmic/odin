@@ -306,9 +306,6 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
             "goal": "Demonstrate two synthetic autonomous development stages.",
             "max_rounds": 4, "no_progress_limit": 3,
             "evidence_packet": {"baseline": "synthetic fixture"},
-            # Short offer deadline: round two is left unanswered on purpose so the
-            # live service raises attention and offers a stalled notice.
-            "deadlines": {"offer_seconds": 1},
         })
         loop_id = started["loop"]["id"]
         first = self.bridge.notification()
@@ -339,9 +336,16 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
             self.assertEqual(notification["meta"]["kind"], "assignment")
             stage_id = notification["meta"]["stage_id"]
             if round_number == 2:
-                # Leave the offer unanswered past its deadline: the service's own
-                # tick (real clock, ~6 s) raises attention and offers a stalled
+                # Set a one-second offer deadline through the operator control now
+                # that the offer is pending, then leave it unanswered: the service's
+                # own tick (real clock, ~6 s) raises attention and offers a stalled
                 # notice over the channel without redispatching anything.
+                timed = self.operator("loop_control", {
+                    "project": self.project, "loop_id": loop_id, "action": "deadlines",
+                    "deadlines": {"offer_seconds": 1},
+                })
+                self.assertEqual(timed["loop"]["deadlines"]["offer_seconds"], 1)
+                self.assertEqual(timed["loop"]["status"], "executive_pending")
                 deadline = time.monotonic() + 30
                 stalled = None
                 while time.monotonic() < deadline:
@@ -370,6 +374,12 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
                 acked = self.bridge.result("odin_loop_ack", {"operation_id": ack_operation, "notice_id": stalled["meta"]["notice_id"]})
                 self.assertEqual(acked["notice"]["state"], "acknowledged")
                 self.assertEqual(acked, self.bridge.result("odin_loop_ack", {"operation_id": ack_operation, "notice_id": stalled["meta"]["notice_id"]}))
+                untimed = self.operator("loop_control", {
+                    "project": self.project, "loop_id": loop_id, "action": "deadlines",
+                    "deadlines": {"offer_seconds": None},
+                })
+                self.assertIsNone(untimed["loop"]["deadlines"]["offer_seconds"])
+                self.assertEqual(untimed["loop"]["revision"], timed["loop"]["revision"])
             claim_args = {
                 "operation_id": identifier(), "loop_id": loop_id, "stage_id": stage_id,
             }
@@ -516,7 +526,14 @@ class DevelopmentLoopIntegrationTests(unittest.TestCase):
         scenario.append({"step": "stop_notice", "meta": stop_notice["meta"]})
         retained = Path(self.temp.name) / "scenario-output.json"
         retained.write_text(canonical(scenario) + "\n")
-        self.scenario_output = canonical(scenario)
+        # When ODIN_SCENARIO_RETAIN names a private directory outside the
+        # checkout, keep the exact scenario output there as stage evidence.
+        keep = os.environ.get("ODIN_SCENARIO_RETAIN")
+        if keep and Path(keep).is_absolute() and ROOT not in Path(keep).resolve().parents:
+            target = Path(keep) / "integration-scenario-output.json"
+            fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as handle:
+                handle.write(canonical(scenario) + "\n")
         self.bridge.close()
         self.bridge = None
         self.stop_service()

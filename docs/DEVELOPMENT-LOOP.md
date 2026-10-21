@@ -394,14 +394,27 @@ and loop revision, so a replayed or repeated transition never creates a
 second notice. It carries the loop, stage and job identities, the
 transition, a bounded summary, the evaluator's assessment and decision when
 one exists, what needs attention, and a status reference
-(`odin_loop_status`). It never carries a completion footer.
+(`odin_loop_status`). Any completion footer quoted in model text (an
+evaluator assessment or loop reason) is redacted before the notice is
+written, and again on delivery, so a notice never carries a usable footer
+and a quoted footer never blocks the inbox. A `stalled` notice's identity
+also includes the observation and the deadline in force.
 
 Notices travel through the existing channel as events with
 `meta.kind: "notice"` and `meta.notice_id`, beside assignments with
-`meta.kind: "assignment"`. The inbox returns at most eight of each per poll
+`meta.kind: "assignment"`. The bridge declares the kinds it accepts in each
+inbox read (`accept`); a bridge from before notices declares nothing and
+keeps receiving assignments only, so the service and the bridge can be
+reloaded in either order and a pending notice waits for a current bridge. The inbox returns at most eight of each per poll
 so neither starves the other. A notice is offered until the executive
 acknowledges it with `odin_loop_ack`; it stays deliverable after the loop
-has ended or while it awaits the operator. Delivery is **at least once**: a
+has ended or while it awaits the operator. The channel offers the eight
+oldest unacknowledged notices; later ones wait their turn but are always
+visible in status. Only the executive's own inbox reads count as offers;
+an operator reading the inbox over the socket records nothing. An operator
+acknowledgement over the socket is labelled by role
+(`operator_terminal_acknowledgement_not_approval`); like a model
+acknowledgement it stops re-delivery and approves nothing. Delivery is **at least once**: a
 channel write, a bridge emission or a lost reply proves nothing, a reconnect
 replays the same `message_id`, and the service records only the first offer
 (`first_offered_at`), never one write per poll. Acknowledgement is
@@ -419,9 +432,12 @@ surface is still future work and is not provided by notices.
 `offer_seconds` (stage offered, unclaimed), `claim_seconds` (claimed, not
 ready), `ready_seconds` (ready, not captured) and `evaluator_seconds`
 (evaluator pending or running). They are set at `loop_start` or changed by
-the operator with `development-control --control deadlines` (the
-`loop_control` action `deadlines`), each a positive number of seconds up to
-one week or null. The service checks waiting loops every few seconds. When
+the operator with `development-control --control deadlines --deadlines
+'{"offer_seconds": 600}'` (the `loop_control` action `deadlines`), each a
+positive number of seconds up to one week or null. A deadline edit is not a
+transition: status, revision, timing and delivery identities are untouched,
+and only an attention observation made under the deadline being changed is
+cleared. The service checks waiting loops every few seconds. When
 the time since the loop's last transition exceeds the applicable deadline,
 the controller records an **attention** observation on the loop
 (`observed`: `offer_unanswered`, `claimed_stalled`, `ready_uncaptured` or

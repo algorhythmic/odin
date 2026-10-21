@@ -80,6 +80,12 @@
         "session_id": {
           "type": "string",
           "format": "uuid"
+        },
+        "accept": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 2,
+          "items": {"enum": ["assignment", "notice"]}
         }
       },
       "required": [

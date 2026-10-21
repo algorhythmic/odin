@@ -47,10 +47,10 @@
     },
     "created_at": {"type": "string", "format": "date-time"},
     "state": {"enum": ["pending", "acknowledged"]},
-    "first_offered_at": {"type": ["string", "null"]},
-    "acknowledged_at": {"type": ["string", "null"]},
+    "first_offered_at": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
+    "acknowledged_at": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
     "acknowledged_by": {"type": ["string", "null"], "maxLength": 128},
     "acknowledgement_operation": {"type": ["string", "null"], "maxLength": 128},
-    "acknowledgement_authority": {"anyOf": [{"const": "model_attributed_not_operator_approval"}, {"type": "null"}]}
+    "acknowledgement_authority": {"anyOf": [{"enum": ["model_attributed_not_operator_approval", "operator_terminal_acknowledgement_not_approval"]}, {"type": "null"}]}
   }
 }

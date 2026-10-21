@@ -94,7 +94,7 @@ class ChannelTests(unittest.TestCase):
         self.assertEqual(gateway.call_args.args[0]["action"], "loop_inbox")
         self.assertEqual(
             gateway.call_args.args[0]["payload"],
-            {"project": PROJECT, "session_id": SESSION},
+            {"project": PROJECT, "session_id": SESSION, "accept": ["assignment", "notice"]},
         )
         resumed = MCPServer(bridge)
         initialize(resumed)
@@ -135,6 +135,7 @@ class ChannelTests(unittest.TestCase):
             self.notice(notice_id=None),
             self.notice(kind="bulletin"),
             self.message(stage_id=None),  # assignments need a stage
+            self.message(notice_id=NOTICE),  # assignments carry no notice id
         ):
             with self.subTest(bad=bad):
                 broken, _ = self.bridge([bad])

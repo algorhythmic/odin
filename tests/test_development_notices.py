@@ -390,26 +390,92 @@ class NoticeControllerTests(unittest.TestCase):
             [],
         )
 
-    def test_deadlines_can_be_changed_on_a_live_loop_but_not_a_terminal_one(self):
-        loop = self.start()["loop"]
+    def test_deadline_edits_are_not_transitions(self):
+        started = self.start(deadlines={"offer_seconds": 10})
+        stage = self.evaluate(started["job"])["stage"]
+        loop = self.loops.get(stage["loop_id"])
+        self.assertEqual(
+            self.loops.check_attention(at=later(loop["updated_at"], 11), force=True),
+            [loop["id"]],
+        )
+        stalled_first = self.loops.get(loop["id"])["attention"]["notice_id"]
+        # Changing an unrelated deadline keeps status, revision, timing, attention and delivery identity.
         changed = self.loops.set_deadlines(
             loop["id"],
-            {"offer_seconds": 5},
+            {"offer_seconds": 10, "claim_seconds": 5},
             identifier(),
             expected_revision=loop["revision"],
+        )["loop"]
+        self.assertEqual(
+            (changed["status"], changed["revision"], changed["updated_at"]),
+            (loop["status"], loop["revision"], loop["updated_at"]),
         )
-        self.assertEqual(changed["loop"]["deadlines"]["offer_seconds"], 5)
-        self.assertEqual(changed["loop"]["status"], loop["status"])
+        self.assertEqual(changed["attention"]["notice_id"], stalled_first)
+        self.assertEqual(len(self.loops.notices(loop["id"])), 1)
+        # Changing the governing deadline clears the observation; a later re-observation
+        # under the new limit gets its own notice, and repeated checks still write nothing.
+        changed = self.loops.set_deadlines(
+            loop["id"],
+            {"offer_seconds": 20},
+            identifier(),
+            expected_revision=loop["revision"],
+        )["loop"]
+        self.assertIsNone(changed["attention"])
+        self.assertEqual(changed["revision"], loop["revision"])
+        self.assertEqual(
+            self.loops.check_attention(at=later(loop["updated_at"], 15), force=True), []
+        )
+        self.assertEqual(
+            self.loops.check_attention(at=later(loop["updated_at"], 21), force=True),
+            [loop["id"]],
+        )
+        self.assertNotEqual(
+            self.loops.get(loop["id"])["attention"]["notice_id"], stalled_first
+        )
+        self.assertEqual(len(self.loops.notices(loop["id"])), 2)
+        self.assertEqual(
+            self.loops.check_attention(at=later(loop["updated_at"], 22), force=True), []
+        )
+        # An intervention-bound loop gains no spurious notice from a deadline edit.
+        self.loops.control(loop["id"], "stop", identifier())
+        self.store.close()
+        self.store = Store(self.temp.name)
+        self.loops = DevelopmentLoop(self.store)
+        started = self.loops.start(P, "Second", SESSION, identifier(), max_rounds=1)
+        stage = self.evaluate(started["job"])["stage"]
+        captured = self.finish(stage)
+        held = self.evaluate(captured["job"])["loop"]
+        self.assertEqual(held["status"], "needs_operator")
+        self.loops.set_deadlines(held["id"], {"offer_seconds": 5}, identifier())
+        self.assertEqual(
+            [n["kind"] for n in self.loops.notices(held["id"])], ["intervention"]
+        )
         with self.assertRaises(Conflict):
             self.loops.set_deadlines(
-                loop["id"],
+                held["id"],
                 {"offer_seconds": 5},
                 identifier(),
-                expected_revision=loop["revision"],
+                expected_revision=held["revision"] + 1,
             )
-        self.loops.control(loop["id"], "stop", identifier())
+        self.loops.control(held["id"], "stop", identifier())
         with self.assertRaises(Conflict):
-            self.loops.set_deadlines(loop["id"], {"offer_seconds": 5}, identifier())
+            self.loops.set_deadlines(held["id"], {"offer_seconds": 5}, identifier())
+
+    def test_quoted_completion_footer_is_redacted_and_never_blocks_delivery(self):
+        started = self.start()
+        stage = self.evaluate(started["job"])["stage"]
+        captured = self.finish(stage)
+        marker = self.loops.stage(stage["id"])["completion_marker"]
+        quoting = verdict("complete")
+        quoting["assessment"] = "The response ended with " + marker + " as required."
+        loop = self.evaluate(captured["job"], quoting)["loop"]
+        notice = self.loops.pending_notices(P, SESSION)[0]
+        self.assertIsNone(MARKER.search(canonical(notice)))
+        self.assertIn("[completion footer redacted]", notice["assessment"])
+        self.assertIn("[completion footer redacted]", notice["summary"])
+        self.assertEqual(
+            loop["reason"], quoting["assessment"]
+        )  # the loop record itself is unchanged
 
     def test_records_without_deadline_fields_remain_valid_and_untimed(self):
         loop = self.start()["loop"]
@@ -512,7 +578,11 @@ class NoticeGatewayTests(unittest.TestCase):
 
     def test_inbox_delivers_notice_without_assignment_and_ack_stops_it(self):
         loop_id, marker = self.complete_a_loop()
-        inbox = self.send("loop_inbox", {"session_id": self.session}, executive=True)
+        inbox = self.send(
+            "loop_inbox",
+            {"session_id": self.session, "accept": ["assignment", "notice"]},
+            executive=True,
+        )
         self.assertEqual([m["kind"] for m in inbox["messages"]], ["notice"])
         notice = inbox["messages"][0]
         self.assertEqual(notice["message_id"], notice["notice_id"])
@@ -534,13 +604,21 @@ class NoticeGatewayTests(unittest.TestCase):
         )
         self.assertFalse(captured["captured"])
         # Same identity on every poll until acknowledged; first offer recorded once.
-        again = self.send("loop_inbox", {"session_id": self.session}, executive=True)
+        again = self.send(
+            "loop_inbox",
+            {"session_id": self.session, "accept": ["assignment", "notice"]},
+            executive=True,
+        )
         self.assertEqual(again["messages"][0]["message_id"], notice["message_id"])
         offered = self.gateway.development_loop.notice(notice["notice_id"])[
             "first_offered_at"
         ]
         self.assertIsNotNone(offered)
-        self.send("loop_inbox", {"session_id": self.session}, executive=True)
+        self.send(
+            "loop_inbox",
+            {"session_id": self.session, "accept": ["assignment", "notice"]},
+            executive=True,
+        )
         self.assertEqual(
             self.gateway.development_loop.notice(notice["notice_id"])[
                 "first_offered_at"
@@ -574,20 +652,142 @@ class NoticeGatewayTests(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            self.send("loop_inbox", {"session_id": self.session}, executive=True)[
-                "messages"
-            ],
+            self.send(
+                "loop_inbox",
+                {"session_id": self.session, "accept": ["assignment", "notice"]},
+                executive=True,
+            )["messages"],
             [],
         )
         self.assertEqual(
             self.gateway.development_loop.get(loop_id)["status"], "complete"
         )
 
+    def test_bridge_without_notice_acceptance_receives_assignments_only(self):
+        self.complete_a_loop()
+        legacy = self.send("loop_inbox", {"session_id": self.session}, executive=True)
+        self.assertEqual(legacy["messages"], [])
+        current = self.send(
+            "loop_inbox",
+            {"session_id": self.session, "accept": ["assignment", "notice"]},
+            executive=True,
+        )
+        self.assertEqual([m["kind"] for m in current["messages"]], ["notice"])
+        # The legacy poll did not count as an offer.
+        self.assertIsNotNone(
+            self.gateway.development_loop.notice(current["messages"][0]["notice_id"])[
+                "first_offered_at"
+            ]
+        )
+        with self.assertRaises(Exception):
+            self.send(
+                "loop_inbox",
+                {"session_id": self.session, "accept": ["bulletin"]},
+                executive=True,
+            )
+
+    def test_inbox_delivers_despite_a_quoted_footer_and_labels_operator_acks(self):
+        result = self.send(
+            "loop_start", {"goal": "Footer test", "session_id": self.session}
+        )
+        loop_id, job = result["loop"]["id"], result["job"]
+        core = self.gateway.development_loop
+        core.mark_evaluator_started(
+            loop_id, job["id"], job["packet_digest"], identifier()
+        )
+        stage = core.accept_evaluation(
+            loop_id, job["id"], job["packet_digest"], verdict(), identifier()
+        )["stage"]
+        self.send(
+            "loop_claim",
+            {"loop_id": loop_id, "stage_id": stage["id"], "session_id": self.session},
+            executive=True,
+        )
+        ready = self.send(
+            "loop_ready",
+            {
+                "loop_id": loop_id,
+                "stage_id": stage["id"],
+                "session_id": self.session,
+                "evidence_packet": {"r": 1},
+            },
+            executive=True,
+        )
+        captured = self.send(
+            "loop_capture",
+            {
+                "session_id": self.session,
+                "hook_event_name": "Stop",
+                "last_assistant_message": "Done\n" + ready["completion_marker"],
+            },
+            executive=True,
+        )
+        job = core.job(captured["job"]["id"])
+        core.mark_evaluator_started(
+            loop_id, job["id"], job["packet_digest"], identifier()
+        )
+        quoting = verdict("complete")
+        quoting["assessment"] = "Final text ended with " + ready["completion_marker"]
+        core.accept_evaluation(
+            loop_id, job["id"], job["packet_digest"], quoting, identifier()
+        )
+        second = self.send("loop_start", {"goal": "Next", "session_id": self.session})
+        job = second["job"]
+        core.mark_evaluator_started(
+            second["loop"]["id"], job["id"], job["packet_digest"], identifier()
+        )
+        core.accept_evaluation(
+            second["loop"]["id"],
+            job["id"],
+            job["packet_digest"],
+            verdict(),
+            identifier(),
+        )
+        inbox = self.send(
+            "loop_inbox",
+            {"session_id": self.session, "accept": ["assignment", "notice"]},
+            executive=True,
+        )
+        self.assertEqual(
+            [m["kind"] for m in inbox["messages"]], ["assignment", "notice"]
+        )
+        self.assertNotIn(ready["completion_marker"], inbox["messages"][1]["content"])
+        self.assertIsNone(MARKER.search(inbox["messages"][1]["content"]))
+        # An operator poll over the socket is not an offer to the executive, and an
+        # operator acknowledgement is labelled by role, never as approval.
+        core.control(second["loop"]["id"], "stop", identifier())
+        fresh = self.send(
+            "loop_start", {"goal": "Third", "session_id": str(uuid.uuid4())}
+        )
+        core.control(fresh["loop"]["id"], "stop", identifier())
+        operator_view = self.send(
+            "loop_inbox",
+            {
+                "session_id": fresh["loop"]["session_id"],
+                "accept": ["assignment", "notice"],
+            },
+        )
+        stop_notice = operator_view["messages"][0]
+        self.assertIsNone(core.notice(stop_notice["notice_id"])["first_offered_at"])
+        acked = self.send(
+            "loop_ack",
+            {
+                "session_id": fresh["loop"]["session_id"],
+                "notice_id": stop_notice["notice_id"],
+            },
+        )
+        self.assertEqual(
+            acked["notice"]["acknowledgement_authority"],
+            "operator_terminal_acknowledgement_not_approval",
+        )
+
     def test_notice_scope_is_checked_before_any_replay(self):
         self.complete_a_loop()
-        notice = self.send("loop_inbox", {"session_id": self.session}, executive=True)[
-            "messages"
-        ][0]
+        notice = self.send(
+            "loop_inbox",
+            {"session_id": self.session, "accept": ["assignment", "notice"]},
+            executive=True,
+        )["messages"][0]
         operation = identifier()
         self.send(
             "loop_ack",
@@ -615,9 +815,11 @@ class NoticeGatewayTests(unittest.TestCase):
             )
         # Another session's inbox never sees this session's notice.
         self.assertEqual(
-            self.send("loop_inbox", {"session_id": str(uuid.uuid4())}, executive=True)[
-                "messages"
-            ],
+            self.send(
+                "loop_inbox",
+                {"session_id": str(uuid.uuid4()), "accept": ["assignment", "notice"]},
+                executive=True,
+            )["messages"],
             [],
         )
 
@@ -640,7 +842,9 @@ class NoticeGatewayTests(unittest.TestCase):
         kinds = [
             m["kind"]
             for m in self.send(
-                "loop_inbox", {"session_id": self.session}, executive=True
+                "loop_inbox",
+                {"session_id": self.session, "accept": ["assignment", "notice"]},
+                executive=True,
             )["messages"]
         ]
         self.assertEqual(kinds, ["assignment", "notice"])
@@ -694,7 +898,11 @@ class NoticeGatewayTests(unittest.TestCase):
         self.assertEqual(status["work"]["attention"]["observed"], "evaluator_stalled")
         self.assertEqual(status["notices"]["pending"], 1)
         self.assertEqual(status["notices"]["latest"][0]["kind"], "stalled")
-        inbox = self.send("loop_inbox", {"session_id": self.session}, executive=True)
+        inbox = self.send(
+            "loop_inbox",
+            {"session_id": self.session, "accept": ["assignment", "notice"]},
+            executive=True,
+        )
         self.assertEqual(inbox["messages"][0]["kind"], "notice")
         self.assertIn("evaluator_stalled", inbox["messages"][0]["content"])
         # Attention is observation only: the evaluator job is still pending and dispatchable.

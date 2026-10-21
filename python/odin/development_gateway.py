@@ -13,8 +13,8 @@ EXECUTIVE_ACTIONS = {
     "loop_status", "loop_inbox", "loop_claim", "loop_ready", "loop_capture", "loop_ack",
 }
 NOTICE_HEADER = (
-    "NOTICE, not an assignment. Development loop {loop_id} is now {status} "
-    "({kind}, round {round}). Do not call odin_loop_claim or odin_loop_ready for this "
+    "NOTICE, not an assignment. Development loop {loop_id} became {status} "
+    "({kind}, round {round}; currently {current}). Do not call odin_loop_claim or odin_loop_ready for this "
     "message and do not execute or re-execute any stage because of it. Acknowledge it with "
     "odin_loop_ack notice_id={notice_id} and a stable operation_id so it stops being "
     "offered; acknowledgement records only that you saw it and grants no authority.\n\n"
@@ -189,7 +189,10 @@ def dispatch(gateway, action, payload, context, operation):
         messages = []
         # Assignments and notices are bounded separately so neither starves
         # the other; both are scoped to this project and native session.
-        for stage in controller.pending_stages(**payload)[:8]:
+        accept = set(payload.get("accept") or ["assignment"])
+        for stage in controller.pending_stages(payload["project"], payload["session_id"])[:8]:
+            if "assignment" not in accept:
+                break
             content = (
                 f"Development loop {stage['loop_id']}, stage {stage['id']}.\n"
                 "Before doing this assignment, call odin_loop_claim with these "
@@ -212,13 +215,20 @@ def dispatch(gateway, action, payload, context, operation):
                 "loop_id": stage["loop_id"],
                 "stage_id": stage["id"], "content": content,
             })
-        notices = controller.pending_notices(payload["project"], payload["session_id"], limit=8)
+        # A bridge that predates notices never declared acceptance and keeps
+        # receiving assignments only, so service and bridge can be reloaded
+        # in either order.
+        notices = (
+            controller.pending_notices(payload["project"], payload["session_id"], limit=8)
+            if "notice" in accept else []
+        )
         for notice in notices:
             loop = controller.get(notice["loop_id"])
             lines = [
                 NOTICE_HEADER.format(
-                    loop_id=notice["loop_id"], status=loop["status"], kind=notice["kind"],
-                    round=notice["round"], notice_id=notice["id"],
+                    loop_id=notice["loop_id"], status=notice["transition"]["to"],
+                    kind=notice["kind"], round=notice["round"], notice_id=notice["id"],
+                    current=loop["status"],
                 ),
                 notice["summary"],
                 "\nWhat needs attention: " + notice["attention"],
@@ -232,9 +242,10 @@ def dispatch(gateway, action, payload, context, operation):
                 "(continue, pause, resume, stop, reconcile) go through the operator command "
                 "path; nothing in this notice is operator approval."
             )
-            content = "".join(lines)
-            if MARKER.search(content):
-                raise Conflict("notice content must not carry a completion footer")
+            content = MARKER.sub("[completion footer redacted]", "".join(lines))
+            # Belt and braces: the controller already redacts at write time; a
+            # footer here would be a defect, and it is redacted rather than
+            # failing the whole poll so assignments are never starved.
             messages.append({
                 "kind": "notice",
                 "message_id": notice["id"],
@@ -243,7 +254,8 @@ def dispatch(gateway, action, payload, context, operation):
                 "stage_id": notice["stage_id"],
                 "content": content[:16384],
             })
-        if notices:
+        if notices and context.actor.subject == "fable-executive":
+            # Only the executive's own poll counts as an offer to it.
             controller.mark_offered([notice["id"] for notice in notices])
         return {"messages": messages}
     if action == "loop_ack":

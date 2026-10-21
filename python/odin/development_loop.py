@@ -49,6 +49,11 @@ def _ulid_from_digest(value):
     return result
 
 
+def _redact(text):
+    """Strip any completion footer quoted in model text before it is persisted."""
+    return MARKER.sub("[completion footer redacted]", text or "")
+
+
 def _parse(stamp):
     return datetime.strptime(
         stamp, "%Y-%m-%dT%H:%M:%S.%fZ" if "." in stamp else "%Y-%m-%dT%H:%M:%SZ"
@@ -241,7 +246,7 @@ class DevelopmentLoop:
 
     # -- notices --------------------------------------------------------------
 
-    def _notice(self, loop, kind, *, previous, observed=None):
+    def _notice(self, loop, kind, *, previous, observed=None, deadline=None):
         notice_id = _ulid_from_digest(
             {
                 "loop": loop["id"],
@@ -249,6 +254,7 @@ class DevelopmentLoop:
                 "status": loop["status"],
                 "revision": loop["revision"],
                 "observed": observed,
+                "deadline": deadline,
             }
         )
         assessment = None
@@ -256,7 +262,7 @@ class DevelopmentLoop:
         if loop["current_job"]:
             job = self.job(loop["current_job"])
             if job["result"]:
-                assessment = job["result"]["assessment"][:NOTICE_SUMMARY_BYTES]
+                assessment = _redact(job["result"]["assessment"])[:NOTICE_SUMMARY_BYTES]
                 decision = job["result"]["decision"]
         stage_state = None
         if loop["current_stage"]:
@@ -280,7 +286,7 @@ class DevelopmentLoop:
         summary = (
             f"Development loop {loop['id']} {kind}: status {loop['status']} (from {previous}) "
             f"at round {loop['round']} of {loop['max_rounds']}, revision {loop['revision']}."
-            + (f" Reason: {loop['reason']}" if loop.get("reason") else "")
+            + (f" Reason: {_redact(loop['reason'])}" if loop.get("reason") else "")
         )[:NOTICE_SUMMARY_BYTES]
         notice = {
             "schema_version": 1,
@@ -399,7 +405,11 @@ class DevelopmentLoop:
                     acknowledged_at=now(),
                     acknowledged_by=actor,
                     acknowledgement_operation=operation_id,
-                    acknowledgement_authority="model_attributed_not_operator_approval",
+                    acknowledgement_authority=(
+                        "model_attributed_not_operator_approval"
+                        if actor == "fable-executive"
+                        else "operator_terminal_acknowledgement_not_approval"
+                    ),
                 )
                 self._save_notice(notice)
             return {
@@ -423,10 +433,16 @@ class DevelopmentLoop:
 
     def notice_counts(self, loop_id):
         counts = {"pending": 0, "acknowledged": 0, "unoffered": 0}
-        for notice in self.notices(loop_id):
-            counts[notice["state"]] += 1
-            if notice["state"] == "pending" and notice["first_offered_at"] is None:
-                counts["unoffered"] += 1
+        for state, total in self.store.db.execute(
+            "SELECT state, COUNT(*) FROM development_loop_notices WHERE loop_id=? GROUP BY state",
+            (loop_id,),
+        ):
+            counts[state] = total
+        counts["unoffered"] = self.store.db.execute(
+            "SELECT COUNT(*) FROM development_loop_notices WHERE loop_id=? AND state='pending' "
+            "AND json_extract(body, '$.first_offered_at') IS NULL",
+            (loop_id,),
+        ).fetchone()[0]
         return counts
 
     # -- deadlines and attention ------------------------------------------------
@@ -447,8 +463,20 @@ class DevelopmentLoop:
                 raise Conflict("stale development loop revision")
             if loop["status"] in FINAL:
                 raise Conflict("development loop is terminal")
+            # A configuration edit is not a transition: status, revision,
+            # updated_at and reason stay, so delivery identities, cached
+            # receipts and timing are untouched. Only an observation that was
+            # made under the deadline being changed is cleared.
+            previous = loop.get("deadlines") or normalize_deadlines(None)
+            rule = ATTENTION_RULES.get(loop["status"])
+            if (
+                rule
+                and loop.get("attention")
+                and previous.get(rule[0]) != normalized.get(rule[0])
+            ):
+                loop["attention"] = None
             loop["deadlines"] = normalized
-            self._advance(loop, loop["status"], loop.get("reason"))
+            self._save_loop(loop)
             return {"loop": loop}
 
         return self._mutate(operation_id, "deadlines", arguments, apply)
@@ -506,7 +534,11 @@ class DevelopmentLoop:
                     "notice_id": None,
                 }
                 current["attention"]["notice_id"] = self._notice(
-                    current, "stalled", previous=current["status"], observed=observed
+                    current,
+                    "stalled",
+                    previous=current["status"],
+                    observed=observed,
+                    deadline=limit,
                 )
                 self._save_loop(current)
                 self.store._history(

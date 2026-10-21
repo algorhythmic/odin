@@ -2093,9 +2093,14 @@ remain available in every profile.
 
 ### ODIN-ADR-030 — Durable loop notices and conservative attention
 
-- **Date/status:** 2026-10-21; operator-authorized implementation under the
-  ADR-028 development loop's second objective (operator visibility and
-  stalled-work handling).
+- **Date/status:** 2026-10-21 UTC (committed 2026-10-20 local time);
+  operator-authorized implementation under the ADR-028 development loop's
+  second objective (operator visibility and stalled-work handling). An
+  independent review of the first revision found that a completion footer
+  quoted in an evaluator assessment could block the inbox and that deadline
+  edits were routed through a transition; the follow-up redacts quoted
+  footers at write and delivery time and makes deadline edits
+  configuration-only.
 - **Decision:** the development loop controller writes a durable **notice**
   in the same transaction as every completion, intervention, failure or stop
   transition, and one `stalled` notice per attention observation. Notices

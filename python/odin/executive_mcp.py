@@ -317,7 +317,13 @@ class ExecutiveBridge:
                 "schema_version": 1,
                 "operation_id": operation,
                 "action": "loop_inbox",
-                "payload": {"project": self.project, "session_id": self.session_id},
+                "payload": {
+                    "project": self.project,
+                    "session_id": self.session_id,
+                    # Declares the message kinds this bridge understands; an
+                    # older bridge omits it and receives assignments only.
+                    "accept": ["assignment", "notice"],
+                },
             }
         )
         self.contracts.validate("gateway-receipt", receipt)
@@ -341,6 +347,7 @@ class ExecutiveBridge:
                     PROJECT_ID.fullmatch(item[key]) for key in ("message_id", "loop_id")
                 )
                 or (kind == "assignment" and not isinstance(stage_id, str))
+                or (kind == "assignment" and "notice_id" in item)
                 or (
                     stage_id is not None
                     and not (
