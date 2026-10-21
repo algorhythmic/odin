@@ -50,7 +50,7 @@ def _turn(turn):
 
 def _assignment(item):
     answer = _pick(item, ("id", "rev", "state", "commitment", "commitment_state",
-                          "criteria", "limits"))
+                          "criteria", "limits", "limit_enforcement"))
     answer["objective"] = _clip(item.get("objective"), 240)
     turns = item.get("turns") or []
     # Keep all unresolved turns and the four latest terminal returns. Earlier

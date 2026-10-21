@@ -59,6 +59,23 @@ class ProjectionTests(unittest.TestCase):
                                  arguments={"assignment_id": "terminal"})
         self.assertEqual(len(scoped["result"]["sessions"][0]["assignments"]), 2)
 
+    def test_delegation_compact_view_keeps_an_unrequested_budget_explicit(self):
+        enforcement = {"budget": "not_requested", "iterations": "harness_option"}
+        assignment = {"id": IDENTITY, "rev": 1, "state": "active",
+                      "commitment": IDENTITY, "commitment_state": "open",
+                      "objective": "work", "criteria": [],
+                      "limits": {"iterations": 3, "budget_usd": None},
+                      "limit_enforcement": enforcement, "turns": []}
+        session = {"session": {"id": IDENTITY, "rev": 1, "state": "idle",
+                               "native_session_id": NATIVE},
+                   "options": {"model": "opus"}, "assignments": [assignment],
+                   "running_turns": []}
+        projected = project_receipt("odin_delegation_status", receipt(
+            {"enabled": True, "project": PROJECT, "sessions": [session]}))
+        view = projected["result"]["sessions"][0]["assignments"][0]
+        self.assertEqual(view["limits"], {"iterations": 3, "budget_usd": None})
+        self.assertEqual(view["limit_enforcement"], enforcement)
+
     def test_loop_status_keeps_active_attention_and_exposes_omissions(self):
         loop = {"id": IDENTITY, "revision": 12, "status": "executive_claimed",
                 "round": 3, "max_rounds": 8, "current_stage": IDENTITY,

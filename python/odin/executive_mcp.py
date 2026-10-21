@@ -161,8 +161,10 @@ TOOL_DESCRIPTIONS = {
     "odin_delegation_assign": (
         "Assign bounded work to the session: creates an open commitment with "
         "acceptance criteria, a local assignment and the first worker turn. The "
-        "turn launches on the next service tick and runs detached. Budget and "
-        "iteration limits are harness options where available and must be "
+        "turn launches on the next service tick and runs detached. iterations is "
+        "required; budget_usd is optional and, when omitted or null, no harness "
+        "budget option is passed and the budget is recorded as not_requested. "
+        "Requested limits are harness options where available and must be "
         "explicitly allowed as unenforced otherwise. Supply a new ULID "
         "operation_id."
     ),

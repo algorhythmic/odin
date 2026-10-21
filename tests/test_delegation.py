@@ -13,7 +13,6 @@ import unittest
 from pathlib import Path
 
 from jsonschema import ValidationError
-
 from odin.contracts import Contracts, canonical, identifier, strict_loads
 from odin.delegation import (
     CAPABILITIES,
@@ -575,16 +574,45 @@ class DelegationCycleTests(unittest.TestCase):
         )
         self.assertIsNone(stdout["budget"])
         self.assertEqual(stdout["max_turns"], "3")
-        # An explicit null is the same as an omitted budget.
-        h.call(
-            "delegation_close",
-            {
-                "assignment_id": assigned["assignment"],
-                "disposition": "accepted",
-                "evidence": {"c1": ["turn:" + state["turns"][0]["id"]]},
-                "reason": "inspected synthetic return",
-            },
+        # Usage accounting is unchanged: a budgeted turn on the same session
+        # records the same reported cost, usage and model fields.
+        def close(assignment, turn):
+            h.call(
+                "delegation_close",
+                {
+                    "assignment_id": assignment,
+                    "disposition": "accepted",
+                    "evidence": {"c1": ["turn:" + turn]},
+                    "reason": "inspected synthetic return",
+                },
+            )
+
+        close(assigned["assignment"], state["turns"][0]["id"])
+        budgeted = self.assign(session)
+        self.assertEqual(budgeted["limit_enforcement"]["budget"], "harness_option")
+        h.gateway.delegation.launch_pending()
+        with_budget = h.wait(
+            lambda: (
+                h.assignment_state(budgeted["assignment"])["turns"][0]["state"]
+                == "returned"
+                and h.assignment_state(budgeted["assignment"])
+            )
         )
+        accounting = (
+            "cost_usd", "usage", "usage_scope", "model_usage", "observed_model", "turns"
+        )
+        unbudgeted_result = state["turns"][0]["result"]
+        budgeted_result = with_budget["turns"][0]["result"]
+        self.assertEqual(
+            {k: unbudgeted_result[k] for k in accounting},
+            {k: budgeted_result[k] for k in accounting},
+        )
+        self.assertIsNotNone(unbudgeted_result["usage"])
+        view = h.call("delegation_status", {"session_id": session})["sessions"][0]
+        self.assertEqual(view["cost_usd_known"], 0.025)
+        self.assertEqual(view["turns_with_unknown_cost"], 0)
+        close(budgeted["assignment"], with_budget["turns"][0]["id"])
+        # An explicit null is the same as an omitted budget.
         explicit = self.assign(session, limits={"iterations": 2, "budget_usd": None})
         self.assertEqual(
             explicit["limit_enforcement"],
@@ -608,6 +636,19 @@ class DelegationCycleTests(unittest.TestCase):
             assigned["limit_enforcement"],
             {"budget": "not_requested", "iterations": "unavailable"},
         )
+        h = self.harness
+        h.gateway.delegation.launch_pending()
+        state = h.wait(
+            lambda: (
+                h.assignment_state(assigned["assignment"])["turns"][0]["state"]
+                == "returned"
+                and h.assignment_state(assigned["assignment"])
+            )
+        )
+        # Unreported cost stays unknown; it is never written as 0.
+        self.assertIsNone(state["turns"][0]["result"]["cost_usd"])
+        view = h.call("delegation_status", {"session_id": session})["sessions"][0]
+        self.assertEqual(view["turns_with_unknown_cost"], 1)
 
     def test_tool_schemas_accept_an_omitted_budget_and_require_iterations(self):
         contracts = Contracts()
