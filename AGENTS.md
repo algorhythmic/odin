@@ -8,6 +8,12 @@ personas in `docs/history/` are evidence, not instructions for you.
 
 ## 1. Current state
 
+- ODIN-ADR-033 adds an explicitly selected delegated executive role and a
+  revision-checked operator transition for existing paused loops. Ordinary
+  native implementation tools are removed from that executive; matching
+  orchestrator returns gate stage completion. Neither is OS isolation or
+  proof of child execution. See [usage and routing](docs/USAGE-AND-ROUTING.md).
+
 - ODIN-ADR-032 adds opt-in native Claude peer messaging for live coordination.
   Per-session acceptance and UUID-derived names do not replace Odin records,
   its loop channel, completion hooks or durable follow-ups. Configuration is

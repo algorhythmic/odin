@@ -1279,6 +1279,79 @@ class DevelopmentLoop:
 
         return self._mutate(operation_id, "control", arguments, apply)
 
+    def configure_delegation(
+        self, loop_id, stage_id, session_id, profile, operation_id, *, expected_revision
+    ):
+        """Opt a paused, untouched executive stage into required delegation.
+
+        The current stage and executive claim remain intact. The profile only
+        affects future delegation admission and ready checks after resume.
+        """
+        if type(expected_revision) is not int or expected_revision < 1:
+            raise Conflict("expected development loop revision required")
+        arguments = {
+            "loop_id": loop_id,
+            "stage_id": stage_id,
+            "session_id": session_id,
+            "delegation_profile": profile,
+            "expected_revision": expected_revision,
+        }
+
+        def apply():
+            from .development_delegation import binding
+
+            loop, stage = self._correlate_stage(loop_id, stage_id, session_id)
+            if loop["revision"] != expected_revision:
+                raise Conflict("stale development loop revision")
+            if loop["status"] != "paused" or loop["paused_from"] not in {
+                "executive_pending", "executive_claimed"
+            }:
+                raise Conflict("pause an unfinished executive stage before configuring delegation")
+            if stage["state"] != {
+                "executive_pending": "pending", "executive_claimed": "claimed"
+            }[loop["paused_from"]]:
+                raise Conflict("paused stage state does not match its executive phase")
+            if loop.get("delegation_profile") is not None:
+                raise Conflict("existing delegation profile cannot be replaced")
+            if binding(self.store, stage_id) is not None:
+                raise Conflict("stage already has a delegated assignment")
+            if any(stage.get(key) is not None for key in (
+                "evidence", "completion_marker", "final_digest", "final_text", "receipt_validation"
+            )):
+                raise Conflict("stage already has completion evidence")
+            if self.store.db.execute(
+                "SELECT 1 FROM delegation_turns WHERE project=? "
+                "AND state IN ('queued','launching','running','interrupting') LIMIT 1",
+                (loop["project"],),
+            ).fetchone():
+                raise Conflict("project has an active delegated turn")
+            if self.store.db.execute(
+                "SELECT 1 FROM delegation_turns WHERE project=? AND state='lost' LIMIT 1",
+                (loop["project"],),
+            ).fetchone():
+                raise Conflict("project has a lost delegated turn with unknown native outcome")
+            if self.store.db.execute(
+                "SELECT 1 FROM development_loop_jobs AS j "
+                "JOIN development_loops AS l ON l.id=j.loop_id WHERE l.project=? "
+                "AND json_extract(j.body,'$.state') IN ('pending','running','unknown','lost') LIMIT 1",
+                (loop["project"],),
+            ).fetchone():
+                raise Conflict("project has an active or unresolved evaluator job")
+            loop["delegation_profile"] = profile
+            loop["revision"] += 1
+            loop["updated_at"] = now()
+            self._save_loop(loop)
+            self.store._history("development_loop.delegation_configured", {
+                "loop_id": loop_id,
+                "stage_id": stage_id,
+                "session_id": session_id,
+                "revision": loop["revision"],
+                "delegation_profile": profile,
+            })
+            return {"loop": loop, "stage": stage}
+
+        return self._mutate(operation_id, "configure_delegation", arguments, apply)
+
     def fail_pending_evaluator(
         self, loop_id, job_id, packet_digest, operation_id, *, reason
     ):

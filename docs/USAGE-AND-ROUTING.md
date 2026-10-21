@@ -1,8 +1,8 @@
 # Usage, orchestration and context experiment
 
 ODIN-ADR-031 adds an opt-in local experiment. It does not activate changes in an
-already running Fable session. Existing loops retain their objective, round
-bound and execution behavior. The first rollout is synthetic verification,
+already running Fable session. Existing loops retain their objective and round bound. ADR-033 adds an explicit
+operator transition for an existing paused loop; it is never implicit. The first rollout is synthetic verification,
 then one observed native cycle, then comparison of quality and usage before
 changing defaults. Opus/Haiku are requested routing choices, not a claim of
 measured superiority or guaranteed savings.
@@ -21,7 +21,8 @@ For a **new** `development-start` request, add:
 ```
 
 This is a property of the existing request object, alongside project, native
-executive session UUID, goal and bounds. It does not change an active loop.
+executive session UUID, goal and bounds. It does not automatically change an active loop; see the explicit paused-loop
+transition below.
 Fable claims an offered stage, creates or resumes a separate
 `odin_delegation_session` matching that profile, then calls `odin_loop_delegate`
 with loop/stage IDs, the **Odin** `orchestrator_session_id`, native harness limits
@@ -39,8 +40,8 @@ and required independent review are not replaced by executive acceptance.
 
 This check enforces accountable routing. It does not prevent Fable's native
 tools from editing files, prove that subagents were used, or establish which
-models ran. Those claims require native observations. The profile is fixed at
-loop creation; a cancelled stage assignment requires operator reconciliation,
+models ran. Those claims require native observations. The profile is fixed once selected, either at
+loop creation or the one-time paused-loop transition; a cancelled stage assignment requires operator reconciliation,
 not a replacement operation ID that silently repeats uncertain work.
 
 Session creation supports `subagent_model`, `subagent_model_force` and
@@ -53,6 +54,82 @@ result summaries retain observed `model_usage`, `observed_model` and
 added to their children. Claude's force setting has exceptions, including
 forked agents and inherited skill models, and does not override all provider
 fallbacks. See [native subagent controls](https://code.claude.com/docs/en/sub-agents#run-every-subagent-on-one-model).
+
+## Executive role and existing-loop transition
+
+ADR-033 separates the executive's context from project implementation. This is
+an explicit operator choice, composed with the existing v3 development profile.
+Stage the role, then resume the same executive once after its current work has
+drained:
+
+```bash
+python -m odin --state "$ODIN_PILOT_STATE" executive-configure-execution-role \
+  --implementation-mode delegated
+```
+
+The launch uses native `--disallowedTools` for Bash, PowerShell, REPL, Write,
+Edit, NotebookEdit, Agent, Task, EnterWorktree and ExitWorktree. Native reads,
+search/discovery, peer coordination and Odin MCP remain available. The profile
+preserves session/login identity and pending loop, peer and compaction settings.
+`executive-status` reports configured and pending implementation modes.
+Explicit `--implementation-mode direct` stages a return to the prior role;
+workers retain their independently configured native tool permissions.
+This is not OS isolation and does not restrict every plugin tool. The executive
+must not use alternate tools to bypass the role. Observe the live manifest and
+actual routing before claiming enforcement in a specific native session.
+
+Fable assigns the objective, current revision, constraints, acceptance criteria,
+remaining work and exact evidence references to a separate project orchestrator.
+Keep a resumable orchestrator for related work; send changes on follow-ups.
+Detailed source exploration, edits, integration, tests and worker progress stay
+there. The executive inspects concise results and selected evidence, records
+acceptance or an unresolved decision, and submits its stage. Raw worker
+transcripts and full logs should not be copied into each executive update.
+
+To enable the stage completion requirement on an existing loop, pause it using
+`development-control --control pause` and let native work drain. Preserve a
+checkpoint and unfinished work. Prepare a private JSON request with these
+fields, substituting actual identities and the newly observed revision:
+
+```json
+{
+  "action": "configure_delegation",
+  "project": "PROJECT_ULID",
+  "loop_id": "LOOP_ULID",
+  "stage_id": "CURRENT_STAGE_ULID",
+  "session_id": "EXISTING_FABLE_UUID",
+  "expected_revision": 30,
+  "delegation_profile": {
+    "harness": "claude-code",
+    "model": "opus",
+    "subagent_model": "haiku",
+    "subagent_model_force": true
+  }
+}
+```
+
+```bash
+python -m odin --state "$ODIN_PILOT_STATE" development-control \
+  --control configure_delegation --request /private/routing-request.json \
+  --operation-id STABLE_OPERATION_ULID
+```
+
+The service rejects stale/mismatched identity, an existing profile or stage
+binding, ready/captured evidence, unsupported paused states and active
+service-recorded evaluator/delegation work. It does not infer native quiescence
+from those records. The supervisor must observe the executive's outstanding
+tools and children finishing before restarting the service/bridge or executive.
+After activation, resume the existing loop and have Fable delegate the remaining
+stage through `odin_loop_delegate`; do not recreate the loop or reset its bound.
+Existing completed work remains attributed to its actual author. A resumed
+claimed stage is not a new claim, and a successful transition is not completion.
+
+Native tools are checked through launch construction and capability probing;
+`tests/test_executive_role.py` covers staged role behavior. Stage routing,
+operator authorization, quiescent-state refusals and replay are checked in
+`tests/test_stage_delegation.py`; CLI identity preservation is covered in
+`tests/test_routing_cli.py`. Transcript/model evidence establishes actual child
+execution, which the service's accepted-return gate alone does not establish.
 
 ## Metadata accounting and coverage
 
@@ -194,7 +271,7 @@ Reconcile the current unfinished stage before integrating this branch. Preserve
 its uncommitted work and fixed loop objective; do not restart uncertain native
 work as a new stage. Deploy the reviewed service and bridge together, then
 resume the same Fable UUID to refresh the tool manifest. Use a new explicitly
-configured loop for the delegation experiment. Verify separately: actual
+configured loop or the ADR-033 paused-loop transition for delegation. Verify separately: actual
 Opus orchestrator, actual Haiku child observations, complete collector coverage,
 no duplicate requests, quota freshness, hold/release with unchanged identities,
 checkpoint recovery, and final accepted evidence. Compare usage **and** quality

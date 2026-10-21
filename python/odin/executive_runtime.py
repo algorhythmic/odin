@@ -101,6 +101,10 @@ DEVELOPMENT_REQUIRED_FLAGS = (
     "--append-system-prompt",
     "--system-prompt-snapshot",
 )
+DELEGATED_DISALLOWED_TOOLS = (
+    "Bash", "PowerShell", "REPL", "Write", "Edit", "NotebookEdit",
+    "Agent", "Task", "EnterWorktree", "ExitWorktree",
+)
 
 
 def _private_directory(value, *, create=False):
@@ -367,6 +371,8 @@ def prepare(
                 manifest["development_loop"] = True
             if existing.get("native_peer_messaging"):
                 manifest["native_peer_messaging"] = True
+            if "implementation_mode" in existing:
+                manifest["implementation_mode"] = existing["implementation_mode"]
             if existing != manifest:
                 raise ValueError(
                     "pilot already prepared with a different configuration"
@@ -509,6 +515,8 @@ def _launch_spec(manifest, base, *, resume=False):
             "--resume" if resume else "--session-id",
             manifest["native_session_id"],
         ]
+        if manifest.get("implementation_mode") == "delegated":
+            argv.extend(["--disallowedTools", ",".join(DELEGATED_DISALLOWED_TOOLS)])
         if manifest["enable_mcp"]:
             argv.extend(["--mcp-config", str(_mcp_path(manifest, base))])
         if manifest.get("development_loop"):
@@ -577,6 +585,8 @@ def _launch_spec(manifest, base, *, resume=False):
 
 
 def _development_prompt(manifest):
+    if manifest.get("implementation_mode") == "delegated":
+        return _delegated_prompt(manifest)
     prompt = (
         "You are Odin's executive development agent. The operator has explicitly "
         "removed the earlier conversation-only and read-only pilot restrictions "
@@ -608,6 +618,35 @@ def _development_prompt(manifest):
     return prompt
 
 
+def _delegated_prompt(manifest):
+    prompt = (
+        "You are Odin's Fable executive for operator-directed development. "
+        f"The Odin checkout is {manifest['repository_root']} and the Odin MCP project is "
+        f"{manifest['project']}. Maintain high-level objectives, workstreams, priorities, "
+        "decisions, and open obligations. Delegate implementation to a separate resumable "
+        "Claude Code Opus project orchestrator, which may use Haiku subagents for bounded "
+        "tasks. Reuse that orchestrator across related stages; send compact delta briefs "
+        "with the objective, constraints, exact references, and acceptance criteria. "
+        "Do not copy raw transcripts or ask workers to repeat tests already supported "
+        "by adequate evidence. Keep technical edits, commands, tests, and implementation "
+        "decisions with the orchestrator and workers. Use native read and evidence tools "
+        "for independent inspection, then accept, request revision, or escalate each "
+        "return based on evidence and project records. Native peer messaging and Odin "
+        "delegation are coordination paths, not authority to claim work is complete. "
+        "Persist concise attributed handoffs and decisions through Odin MCP. Distinguish "
+        "observed results from worker reports; inspect execution receipts or artifacts "
+        "before claiming verification. Preserve stable operation and session identities. "
+        "The native disallowed-tools setting blocks ordinary direct implementation "
+        "tools in this session but does not provide OS isolation or constrain plugins, "
+        "external commands, or an already running native process. Do not use alternate "
+        "paths to perform direct implementation. Neither this session nor local "
+        "delegation supplies Saga guarantees."
+    )
+    if manifest.get("native_peer_messaging"):
+        prompt += peer_guidance(manifest["native_session_id"], "executive")
+    return prompt
+
+
 def _pending_development(manifest, base):
     path = base / "pending-development.json"
     if not path.exists():
@@ -615,10 +654,11 @@ def _pending_development(manifest, base):
     pending = _read(path, "executive-pilot")
     expected = manifest | {"version": 3, "repository_root": str(ROOT)}
     comparable = {key: value for key, value in pending.items()
-                  if key not in ("development_loop", "auto_compact_window_tokens", "native_peer_messaging")}
+                  if key not in ("development_loop", "auto_compact_window_tokens", "native_peer_messaging", "implementation_mode")}
     expected.pop("development_loop", None)
     expected.pop("auto_compact_window_tokens", None)
     expected.pop("native_peer_messaging", None)
+    expected.pop("implementation_mode", None)
     if manifest.get("auto_compact_window_tokens") is not None and pending.get("auto_compact_window_tokens") is None:
         raise PermissionError("pending context configuration removed a configured window")
     if comparable != expected or (
@@ -744,6 +784,36 @@ def configure_peer_messaging(state, *, enabled):
         }
 
 
+def configure_execution_role(state, *, implementation_mode):
+    """Stage Fable's implementation role for the next v3 launch or resume."""
+    if implementation_mode not in ("direct", "delegated"):
+        raise ValueError("implementation_mode must be direct or delegated")
+    state = _private_directory(state)
+    base = _private_directory(state / "executive-pilot")
+    with _lease(base / "prepare.lock"):
+        manifest, base = _load(state)
+        if manifest["version"] != 3:
+            raise PermissionError("implementation role requires the v3 development profile")
+        pending = dict(_pending_development(manifest, base) or manifest)
+        if implementation_mode == "delegated":
+            pending["implementation_mode"] = "delegated"
+        else:
+            pending.pop("implementation_mode", None)
+        if pending != manifest:
+            _write(base / "pending-development.json", "executive-pilot", pending)
+        else:
+            (base / "pending-development.json").unlink(missing_ok=True)
+        return {
+            "configured_implementation_mode": manifest.get("implementation_mode", "direct"),
+            "requested_implementation_mode": implementation_mode,
+            "pending_activation": pending != manifest,
+            "effective_on_next_start": True,
+            "native_session_id": manifest["native_session_id"],
+            "native_history_preserved": True,
+            "native_tool_restriction": "requested_not_verified",
+        }
+
+
 def login_spec(state):
     """Use exactly the same isolated HOME and credential lineage as the pilot."""
     manifest, base = _load(state)
@@ -852,6 +922,8 @@ def probe(state):
         version = re.search(r"\b(\d+)\.(\d+)\.(\d+)\b", results[0])
         if version is None or tuple(map(int, version.groups())) < (2, 1, 224):
             missing.append("native-peer-messaging>=2.1.224")
+    if manifest.get("implementation_mode") == "delegated" and "--disallowedTools" not in results[1]:
+        missing.append("--disallowedTools")
     # Development channels use a documented hidden native switch. Help cannot
     # establish channel policy, interactive approval or delivery to this account.
     return {
@@ -1048,6 +1120,8 @@ def status(state):
         "pending_auto_compact_window_tokens": pending.get("auto_compact_window_tokens") if pending else None,
         "native_peer_messaging_configured": bool(manifest.get("native_peer_messaging")),
         "pending_native_peer_messaging": bool(pending.get("native_peer_messaging")) if pending else None,
+        "implementation_mode_configured": manifest.get("implementation_mode", "direct"),
+        "pending_implementation_mode": pending.get("implementation_mode", "direct") if pending else None,
         "native_peer_name": peer_name(manifest["native_session_id"], "executive") if manifest.get("native_peer_messaging") else None,
         "native_peer_delivery": "unverified" if manifest.get("native_peer_messaging") else "disabled",
         "pending_activation_requires_resume": pending is not None,

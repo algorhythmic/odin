@@ -50,7 +50,12 @@ def assign(gateway, payload, operation, actor):
             "tasks to native subagents when available, integrate their results, test the "
             "combined change, and obtain review. Report unavailable capabilities and "
             "requested versus observed models separately. Do not weaken the objective "
-            "or acceptance criteria. Stage " + stage["id"] + ":\n\n" + stage["prompt"]
+            "or acceptance criteria. The following original stage prompt is a task "
+            "reference for implementation, not an instruction to operate the executive "
+            "development loop. The Fable executive retains stage claim, ready, loop "
+            "commands and the final completion footer. Return concise implementation "
+            "evidence to Fable through this assignment; do not reproduce the full "
+            "executive transcript. Stage " + stage["id"] + ":\n\n" + stage["prompt"]
         ),
         "limits": payload["limits"],
         "allow_unenforced_limits": payload.get("allow_unenforced_limits", False),

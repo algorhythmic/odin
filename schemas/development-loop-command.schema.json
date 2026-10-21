@@ -188,12 +188,32 @@
             "pause",
             "resume",
             "stop",
-            "deadlines"
+            "deadlines",
+            "configure_delegation"
           ]
         },
         "expected_revision": {
           "type": "integer",
           "minimum": 1
+        },
+        "stage_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "delegation_profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["harness", "model"],
+          "properties": {
+            "harness": {"enum": ["claude-code", "codex"]},
+            "model": {"type": "string", "minLength": 1, "maxLength": 128},
+            "subagent_model": {"type": "string", "minLength": 1, "maxLength": 128},
+            "subagent_model_force": {"type": "boolean"}
+          }
         },
         "deadlines": {
           "type": "object",
@@ -254,6 +274,17 @@
         "project",
         "loop_id",
         "action"
+      ],
+      "allOf": [
+        {
+          "if": {"properties": {"action": {"const": "configure_delegation"}}},
+          "then": {"required": ["stage_id", "session_id", "expected_revision", "delegation_profile"]},
+          "else": {"not": {"anyOf": [
+            {"required": ["stage_id"]},
+            {"required": ["session_id"]},
+            {"required": ["delegation_profile"]}
+          ]}}
+        }
       ]
     },
     "loop_ack": {

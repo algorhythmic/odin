@@ -369,7 +369,7 @@ def dispatch(gateway, action, payload, context, operation):
                 "Before doing this assignment, call odin_loop_claim with these "
                 "exact loop_id and stage_id and a stable operation_id. If the claim "
                 "fails, inspect odin_loop_status and do not execute stale work.\n\n"
-                + ("This stage requires separate orchestration. After claiming, create or reuse a matching odin_delegation_session, call odin_loop_delegate, inspect the return and record odin_delegation_close acceptance before ready. Requested profile: " + canonical(loop["delegation_profile"]) + "\n\n" if loop.get("delegation_profile") else "")
+                + ("This stage requires separate orchestration. After claiming, create or reuse a matching odin_delegation_session, call odin_loop_delegate, inspect the concise implementation return and record odin_delegation_close acceptance before ready. You retain the executive-only claim, ready, loop commands and final completion footer; the orchestrator receives the stage prompt as a task reference. Requested profile: " + canonical(loop["delegation_profile"]) + "\n\n" if loop.get("delegation_profile") else "")
                 + stage["prompt"]
                 + "\n\nWhen finished, call odin_loop_ready with the same identities, "
                 "a new stable operation_id and an evidence_packet containing exact "
@@ -506,6 +506,14 @@ def dispatch(gateway, action, payload, context, operation):
             evidence_packet=payload.get("evidence_packet"),
         )
     if action == "loop_control":
+        if payload["action"] == "configure_delegation":
+            if "deadlines" in payload:
+                raise ValueError("deadlines belong to the deadlines control only")
+            return controller.configure_delegation(
+                loop["id"], payload["stage_id"], payload["session_id"],
+                payload["delegation_profile"], operation,
+                expected_revision=payload["expected_revision"],
+            )
         if payload["action"] == "deadlines":
             if "deadlines" not in payload:
                 raise ValueError("deadlines control requires a deadlines object")

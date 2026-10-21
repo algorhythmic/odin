@@ -2214,6 +2214,50 @@ remain available in every profile.
   required review and Saga guarantees remain unchanged. See
   [the transport comparison and activation procedure](NATIVE-PEER-MESSAGING.md).
 
+### ODIN-ADR-033 — Executive ownership and delegated implementation
+
+- **Date:** 2026-10-21.
+- **Authority:** the operator observed Fable doing implementation instead of
+  preserving executive context, approved changing the operating pattern now,
+  and requested activation and a continuation prompt. This amends ADR-026's
+  direct-development role when explicitly configured and ADR-031's restriction
+  that a delegation profile can only be selected at loop creation. It changes
+  no producer interface, Saga guarantee or required review.
+- **Decision:** the version 3 executive can stage `implementation_mode: delegated`
+  for its next owned resume. Fable retains objectives, workstreams, decisions,
+  evidence inspection and acceptance. A separate resumable Opus project
+  orchestrator owns implementation, integration, tests and detailed progress,
+  with Haiku children for suitable bounded tasks. Reuse the orchestrator and
+  send compact changes and artifact references rather than full executive
+  histories. Native child use and model identity need observations, not just a
+  matching requested configuration. Do not create useless child work to meet
+  a count or weaken independent review to fit the worker model.
+- **Executive controls:** the native launch removes ordinary shell/REPL,
+  editing, worktree mutation and native child-spawn tools through
+  `--disallowedTools`. Native reads, discovery, peer tools and Odin MCP remain.
+  This is a native workflow boundary, not OS isolation or a sandbox for plugins
+  and alternate tools. Model instructions forbid routing around it. Existing
+  unrestricted profiles are retained unless the operator selects the role;
+  an explicit `direct` rollback is staged in the same way. The session UUID,
+  login, MCP channel, hooks and context settings are preserved.
+- **Existing-loop transition:** `loop_control/configure_delegation` is operator
+  only. It requires the expected loop revision and exact stage/session plus
+  requested profile. It accepts only a paused pending/claimed executive stage
+  without a profile, binding, ready evidence or capture, and refuses active
+  evaluator/delegation work. It preserves stage/claim identities, objectives,
+  round bounds and prior history. The operator must separately drain native
+  work before activation; service quiescence does not establish that a native
+  tool or subagent has stopped. Retries reuse the same operation identity.
+- **Enforcement and limits:** on resume, existing stage delegation checks require
+  a matching separate orchestrator and accepted successful return before ready.
+  Already completed work is handed over as evidence, never relabelled as
+  delegated execution. Executive-only claim/ready/footer instructions stay with
+  Fable even when the original stage text is supplied as task reference. The
+  launch and service checks do not prove the quality of a return, child-agent
+  execution or savings. Native observations, independent review and measured
+  context/usage are still required. Tests cover staging, controls, refusals,
+  identity preservation and recovery; live activation is separate evidence.
+
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that

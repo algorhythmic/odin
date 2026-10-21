@@ -62,6 +62,7 @@ def main():
             "executive-status",
             "executive-configure-context",
             "executive-configure-peer-messaging",
+            "executive-configure-execution-role",
             "executive-login",
             "executive-start",
             "executive-new-session",
@@ -104,7 +105,7 @@ def main():
     )
     parser.add_argument("--delivery", help="delivered view ID to acknowledge")
     parser.add_argument("--loop", help="exact development loop ID")
-    parser.add_argument("--control", choices=["pause", "resume", "stop", "deadlines"])
+    parser.add_argument("--control", choices=["pause", "resume", "stop", "deadlines", "configure_delegation"])
     parser.add_argument(
         "--deadlines",
         help='JSON object for --control deadlines, e.g. {"offer_seconds": 600, "claim_seconds": null}',
@@ -139,6 +140,7 @@ def main():
     parser.add_argument("--claude-subagent-model", help="default delegated Claude native subagent model")
     parser.add_argument("--claude-subagent-model-force", action="store_true", help="request native model override for ordinary subagents; native exceptions remain")
     parser.add_argument("--native-peer-messaging", action=argparse.BooleanOptionalAction, default=None, help="opt into session-scoped native Claude peer messaging")
+    parser.add_argument("--implementation-mode", choices=["direct", "delegated"], help="stage the executive's native implementation role for its next resume")
     parser.add_argument("--usage-semantics", choices=["per_turn", "session_cumulative"], default="per_turn", help="explicit Codex source counter semantics")
     parser.add_argument("--once", action="store_true", help="poll configured usage-watch sources once and exit")
     parser.add_argument("--usage-provider", choices=["claude", "codex", "claude-status"])
@@ -218,6 +220,10 @@ def main():
             if args.native_peer_messaging is None:
                 parser.error("executive-configure-peer-messaging requires --native-peer-messaging or --no-native-peer-messaging")
             print(canonical(executive_runtime.configure_peer_messaging(state, enabled=args.native_peer_messaging)))
+        elif args.action == "executive-configure-execution-role":
+            if args.implementation_mode is None:
+                parser.error("executive-configure-execution-role requires --implementation-mode")
+            print(canonical(executive_runtime.configure_execution_role(state, implementation_mode=args.implementation_mode)))
         elif args.action == "executive-status":
             print(canonical(executive_runtime.status(state)))
         elif args.action == "executive-login":
@@ -297,10 +303,20 @@ def main():
     }:
         from .contracts import Contracts
 
-        if args.action in {"development-start", "development-continue"}:
+        configure_delegation = args.action == "development-control" and args.control == "configure_delegation"
+        if args.action in {"development-start", "development-continue"} or configure_delegation:
             if not args.request:
                 parser.error(args.action + " requires --request payload JSON")
             payload = strict_loads(Path(args.request).read_bytes())
+            if configure_delegation:
+                if not isinstance(payload, dict) or payload.get("action") != "configure_delegation":
+                    parser.error("delegation transition request must specify action configure_delegation")
+                if args.project and payload.get("project") != args.project:
+                    parser.error("delegation transition request project differs from --project")
+                if args.loop and payload.get("loop_id") != args.loop:
+                    parser.error("delegation transition request loop differs from --loop")
+                if args.deadlines:
+                    parser.error("--deadlines applies only to --control deadlines")
         else:
             if not args.project:
                 parser.error("development commands require --project")

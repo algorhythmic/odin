@@ -69,6 +69,7 @@
       "const": true
     },
     "native_peer_messaging": {"const": true},
+    "implementation_mode": {"enum": ["direct", "delegated"]},
     "claude_binary": {
       "type": "string",
       "pattern": "^/",
@@ -96,6 +97,10 @@
       "then": {
         "properties": {"version": {"const": 3}, "enable_mcp": {"const": true}}
       }
+    },
+    {
+      "if": {"required": ["implementation_mode"]},
+      "then": {"properties": {"version": {"const": 3}}}
     },
     {
       "if": {"properties": {"version": {"enum": [2, 3]}}},
