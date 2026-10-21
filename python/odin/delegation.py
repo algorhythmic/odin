@@ -876,6 +876,8 @@ class Delegation:
         }
 
     def _queue_turn(self, session, assignment, *, kind, prompt, operation, actor):
+        from .executive_intervention import delegation_guard
+        delegation_guard(self.store, session["project"])
         seq = (
             self.store.db.execute(
                 "SELECT COALESCE(MAX(seq),0) FROM delegation_turns WHERE session=?",

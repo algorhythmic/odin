@@ -79,6 +79,12 @@ def dispatch(gateway, action, payload, context, operation):
         item = payload["checkpoint"]
         if item.get("session_id", payload["session_id"]) != payload["session_id"]:
             raise Conflict("checkpoint native session mismatch")
+        normalized = {"schema_version": 1, "project_id": project,
+                      "loop_id": None, "stage_id": None, **item,
+                      "session_id": payload["session_id"]}
+        if len(canonical(normalized).encode("utf-8")) > 16 * 1024:
+            raise ValueError("checkpoint exceeds 16 KiB")
+        gateway.store.contracts.validate("context-checkpoint", normalized)
         return {"checkpoint": gateway.checkpoints.checkpoint(
             project, item | {"session_id": payload["session_id"]}, operation,
             expected_session_id=payload["session_id"]),

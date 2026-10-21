@@ -41,7 +41,7 @@ class ExecutiveRoleTests(unittest.TestCase):
         argv = runtime.launch_spec(self.state, resume=True)["argv"]
         self.assertEqual(argv[argv.index("--tools") + 1], "default")
         self.assertEqual(argv[argv.index("--disallowedTools") + 1],
-                         ",".join(runtime.DELEGATED_DISALLOWED_TOOLS))
+                         ",".join(runtime.INTERVENTION_DISALLOWED_TOOLS))
         denied = set(argv[argv.index("--disallowedTools") + 1].split(","))
         self.assertTrue({"Monitor", "Workflow"}.issubset(denied))
         self.assertNotIn("REPL", denied)
@@ -85,6 +85,14 @@ class ExecutiveRoleTests(unittest.TestCase):
         with runtime._owned_runtime(self.state):
             pass
         self.assertEqual(runtime.status(self.state)["implementation_mode_configured"], "direct")
+
+    def test_intervention_requires_fail_closed_hook_support(self):
+        runtime.configure_execution_role(self.state, implementation_mode="delegated")
+        with patch.object(runtime, "_probe_output", side_effect=[
+            "2.1.294 (Claude Code)",
+            " ".join(runtime.DEVELOPMENT_REQUIRED_FLAGS) + " --disallowedTools --settings",
+        ]):
+            self.assertIn("blocking-hook-failure>=2.1.295", runtime.probe(self.state)["missing_flags"])
 
     def test_profile_version_and_capability_guard(self):
         with self.assertRaises(ValueError):

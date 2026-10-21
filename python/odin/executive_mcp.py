@@ -10,6 +10,7 @@ https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle
 """
 
 import argparse
+import copy
 import os
 import re
 import socket
@@ -20,9 +21,11 @@ import threading
 import uuid
 from pathlib import Path
 
+from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
-from .contracts import ROOT, Contracts, canonical, identifier, strict_loads
+from .contracts import ROOT, Contracts, FORMATS, canonical, identifier, strict_loads
+from .executive_projection import project_receipt
 
 MAX_REQUEST_BYTES = 65536
 MAX_RESPONSE_BYTES = 1048576
@@ -51,9 +54,12 @@ TOOL_ACTIONS = {
     "odin_loop_ready": "loop_ready",
     "odin_loop_status": "loop_status",
     "odin_loop_ack": "loop_ack",
+    "odin_intervention_begin": "intervention_begin",
+    "odin_intervention_end": "intervention_end",
+    "odin_intervention_status": "intervention_status",
 }
 LOOP_TOOLS = frozenset(
-    {"odin_loop_claim", "odin_loop_ready", "odin_loop_status", "odin_loop_ack", "odin_loop_delegate", "odin_context_checkpoint"}
+    {"odin_loop_claim", "odin_loop_ready", "odin_loop_status", "odin_loop_ack", "odin_loop_delegate", "odin_context_checkpoint", "odin_intervention_begin", "odin_intervention_end", "odin_intervention_status"}
 )
 READ_ONLY_TOOLS = frozenset(
     {
@@ -63,12 +69,60 @@ READ_ONLY_TOOLS = frozenset(
         "odin_reports",
         "odin_delegation_status",
         "odin_delegation_result",
-        "odin_loop_status", "odin_usage_status", "odin_context_status",
+        "odin_loop_status", "odin_usage_status", "odin_context_status", "odin_intervention_status",
     }
 )
 MUTATING_TOOLS = frozenset(TOOL_ACTIONS) - READ_ONLY_TOOLS
 REFUSAL_CODE = re.compile(r"[a-z][a-z0-9_]{0,63}")
+
+
+def _checkpoint_input_schema(contracts):
+    """Expose the canonical checkpoint fields except trusted bridge additions."""
+    schema = copy.deepcopy(contracts.validators["context-checkpoint"].schema)
+    injected = {"schema_version", "project_id", "session_id"}
+    schema.pop("$id", None)
+    schema["properties"] = {key: value for key, value in schema["properties"].items()
+                            if key not in injected}
+    schema["required"] = [key for key in schema["required"] if key not in injected]
+    return schema
+
+
+def _checkpoint_validation_error(error):
+    """Return a bounded schema-only error; never reflect input values or keys."""
+    parts = []
+    for part in error.path:
+        if isinstance(part, int) and 0 <= part <= 99999:
+            if parts:
+                parts[-1] += f"[{part}]"
+        elif isinstance(part, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", part):
+            parts.append(part)
+    if error.validator == "required" and isinstance(error.instance, dict):
+        missing = next((name for name in error.validator_value
+                        if name not in error.instance), None)
+        if isinstance(missing, str) and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", missing):
+            parts.append(missing)
+        reason = "required field missing"
+    elif error.validator == "type":
+        expected = error.validator_value
+        if isinstance(expected, list):
+            expected = " or ".join(expected)
+        reason = f"expected {expected}"
+    elif error.validator == "additionalProperties":
+        reason = "unexpected field"
+    elif error.validator in {"minLength", "minItems", "minimum"}:
+        reason = "below allowed minimum"
+    elif error.validator in {"maxLength", "maxItems", "maximum"}:
+        reason = "exceeds allowed maximum"
+    elif error.validator == "pattern":
+        reason = "invalid format"
+    else:
+        reason = "invalid field"
+    return ("Input not dispatched: " + (".".join(parts) or "arguments")[:120]
+            + ": " + reason + ".")[:220]
 TOOL_DESCRIPTIONS = {
+    "odin_intervention_begin": "Temporarily authorize up to eight exact native Bash/Write/Edit/NotebookEdit inputs for an operator-authorized diagnostic or repair, for at most 300 seconds, only while delegated work is idle. State purpose; no credentials in commands. The hook consumes each permit once. Copy the exact executable inputs, including timeout; description is ignored. No background commands or sandbox override. This records local pilot authority, not OS isolation. Prefer orchestrators for implementation.",
+    "odin_intervention_end": "Close an intervention and return to executive mode. Refuses while a native call has no observed completion; inspect status and resolve uncertainty before new work.",
+    "odin_intervention_status": "Read executive/intervention mode, exact-input permit digests, expiration and any native calls whose completion is unknown.",
     "odin_resume": (
         "Read the launch-bound project's current commitments, decisions, "
         "blockers and coverage. Follow returned pagination tokens. Read-only; "
@@ -254,11 +308,13 @@ class ExecutiveBridge:
 
     def tools(self):
         definitions = self.contracts.validators["executive-tool-input"].schema["$defs"]
+        checkpoint_definition = copy.deepcopy(definitions["odin_context_checkpoint"])
+        checkpoint_definition["properties"]["checkpoint"] = _checkpoint_input_schema(self.contracts)
         return [
             {
                 "name": name,
                 "description": TOOL_DESCRIPTIONS[name],
-                "inputSchema": definitions[name],
+                "inputSchema": checkpoint_definition if name == "odin_context_checkpoint" else definitions[name],
                 "annotations": {
                     "readOnlyHint": name in READ_ONLY_TOOLS,
                     "destructiveHint": False,
@@ -275,10 +331,20 @@ class ExecutiveBridge:
             raise ValueError("tool name must be a string")
         if name in LOOP_TOOLS and not self.development_loop:
             raise ValueError("development loop is not enabled")
+        if name == "odin_context_checkpoint":
+            definition = next(tool["inputSchema"] for tool in self.tools()
+                              if tool["name"] == name)
+            error = next(Draft202012Validator(definition, format_checker=FORMATS).iter_errors(arguments), None)
+            if error is not None:
+                return {"content": [{"type": "text", "text": _checkpoint_validation_error(error)}],
+                        "isError": True}
         self.contracts.validate(
             "executive-tool-input", {"name": name, "arguments": arguments}
         )
         payload = dict(arguments)
+        # This is a presentation choice for the native bridge, not a gateway
+        # command field. Canonical records and operator responses stay intact.
+        view = payload.pop("view", "compact")
         if name in LOOP_TOOLS or (name == "odin_usage_status" and self.session_id):
             payload["session_id"] = self.session_id
         operation = payload.pop("operation_id", None) or identifier()
@@ -300,7 +366,17 @@ class ExecutiveBridge:
             self.contracts.validate("gateway-receipt", receipt)
             if receipt["operation_id"] != operation:
                 raise ToolFailure("Invalid executive service receipt.")
-            body = canonical(receipt)
+            displayed = project_receipt(name, receipt, view=view, arguments=arguments)
+            body = canonical(displayed)
+            if len(body.encode("utf-8")) > MAX_RESPONSE_BYTES // 2 and view == "detail":
+                # A valid write receipt must not turn into an ambiguous
+                # unknown-write error just because its detail exceeds MCP's
+                # response budget. Return an explicit bounded projection.
+                displayed = project_receipt(name, receipt, arguments=arguments)
+                if displayed is not receipt and isinstance(displayed["result"].get("projection"), dict):
+                    displayed["result"]["projection"]["detail_transport_limited"] = True
+                    displayed["result"]["projection"]["requested_view"] = "detail"
+                    body = canonical(displayed)
             if len(body.encode("utf-8")) > MAX_RESPONSE_BYTES // 2:
                 raise ToolFailure("Tool result exceeds the response budget.")
         except (ToolFailure, ValidationError, ValueError, OSError, RecursionError):

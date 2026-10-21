@@ -2258,6 +2258,70 @@ remain available in every profile.
   context/usage are still required. Tests cover staging, controls, refusals,
   identity preservation and recovery; live activation is separate evidence.
 
+### ODIN-ADR-034 — Bounded executive intervention and concise working context
+
+**Date:** 2026-10-21. **Status:** recorded, operator-authorized local pilot change.
+
+**Context.** The delegated executive repeatedly attempted removed native tools
+for diagnostics and housekeeping, guessed the checkpoint's undisclosed schema,
+and consumed large historical status payloads. The operator requested a bounded
+way to intervene, then directed implementation, live testing and continuation
+of the existing eight-round development loop.
+
+**Decision.** Amend ADR-033's blanket removal of ordinary implementation tools
+for an explicitly reconfigured v3 delegated executive. Keep delegation as the
+normal workflow. `executive-configure-execution-role --implementation-mode
+ delegated` stages intervention support for the next resume; an older manifest
+without `intervention_enabled` retains its prior deny list. After that one
+activation, `odin_intervention_begin/end/status` operates within the same
+native session without another restart or native permission-mode change.
+
+A begin command records a purpose, at most eight exact tool-input digests and a
+lifetime of at most 300 seconds. Bash, Write, Edit and NotebookEdit admissions
+use a synchronous native PreToolUse hook. Each permit is single-use, bound to
+the project, native session, configured cwd and executable input; cosmetic
+Bash descriptions are ignored. Background requests and sandbox overrides are
+refused. Native child/orchestrator creation remains with Odin delegation.
+A native completion/failure hook closes an admitted call; exhausting all
+permits closes the intervention, and unused permits expire. Explicit end is
+also available. Expiry does not kill a process. An admitted call with no
+observed completion remains uncertain and prevents new delegated work.
+A separate operator-only `intervention_reconcile` command records an inspection
+statement, closes the window and marks those calls reconciled, never successful;
+it is unavailable to the executive tools.
+
+The service is the sole permit writer. Begin/admission refuses while any
+project turn is queued, launching, running or interrupting. Queueing another
+delegated turn refuses while a permit window or unresolved admission remains.
+These checks share the service transaction. Hooks fail closed on unavailable,
+invalid or contradictory service evidence; the launch requires native
+`onFailure: block` support (Claude Code 2.1.295 or later). Hook completion is
+native evidence, not independent process attestation. This same-user pilot
+is not an OS sandbox; an exact Bash command can itself access other paths or
+launch processes. No Saga guarantee or new privilege domain is introduced.
+Existing authorization is required; a permit is not permission to expand it.
+Do not place credentials in purposes or commands. Retain digests rather than
+raw tool arguments in intervention records and command audit history.
+
+Checkpoint tool discovery exposes its actual input fields. Invalid checkpoint
+arguments are rejected before dispatch with bounded schema diagnostics; a
+transport failure after dispatch retains explicit unknown-write handling.
+Executive delegation and loop responses default to a bounded compact view
+with exact identity/state, explicit omissions and scoped detail retrieval.
+Canonical records, operator CLI output and receipt operation identity stay
+unchanged. Native auto compaction remains separate from attributed checkpoints
+and from the planned independent memory compactor; retain the configured
+window while evaluating payload reduction first.
+
+**Checks.** Intervention tests cover exact matching, consumption, expiry,
+completion/failure, unknown outcomes, identity and active-work exclusions;
+launch tests cover preserved session identity and fail-closed hook settings.
+Bridge tests cover schema discovery, pre-dispatch rejection, transport
+uncertainty, bounded projections and detail/replay behavior. Live acceptance
+must observe the actual Fable tool manifest and hook decisions after activation,
+then test through the existing orchestrator. Synthetic tests alone are not
+proof of native enforcement. No stage identity or eight-round bound is reset.
+
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that

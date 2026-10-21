@@ -516,6 +516,12 @@ channel until the executive acknowledges them, plus optional per-loop
 deadlines whose attention observations never redispatch or terminate work; see
 [ADR-030](../DECISIONS.md#odin-adr-030--durable-loop-notices-and-conservative-attention).
 
+ODIN-ADR-034 amends ADR-033's blanket native-tool removal only for the
+operator-enabled delegated development executive, adding bounded per-call
+intervention permits and concise bridge views. It changes no Saga-owned
+contract or existing stage bound. See
+[ADR-034](../DECISIONS.md#odin-adr-034--bounded-executive-intervention-and-concise-working-context).
+
 ## Clauses superseded or amended by Odin ADRs
 
 The extraction superseded no clause on its merits. The operator's

@@ -149,7 +149,7 @@ class ChannelTests(unittest.TestCase):
         self.assertEqual(command["action"], "loop_ack")
         self.assertEqual(command["payload"], {"project": PROJECT, "session_id": SESSION, "notice_id": NOTICE})
         self.assertEqual(command["operation_id"], MESSAGE)
-        self.assertIn("never claim, execute", bridge.tools()[-1]["description"])
+        self.assertIn("never claim, execute", next(tool for tool in bridge.tools() if tool["name"] == "odin_loop_ack")["description"])
         self.assertIn("meta.kind=notice", initialize(MCPServer(bridge))["instructions"])
 
     def test_bridge_falls_back_to_a_legacy_poll_when_the_service_rejects_accept(self):

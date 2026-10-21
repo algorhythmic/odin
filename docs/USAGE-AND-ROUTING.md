@@ -67,16 +67,44 @@ python -m odin --state "$ODIN_PILOT_STATE" executive-configure-execution-role \
   --implementation-mode delegated
 ```
 
-The launch uses native `--disallowedTools` for Bash, PowerShell, REPL, Write,
-Edit, NotebookEdit, Agent, Task, EnterWorktree and ExitWorktree. Native reads,
-search/discovery, peer coordination and Odin MCP remain available. The profile
-preserves session/login identity and pending loop, peer and compaction settings.
-`executive-status` reports configured and pending implementation modes.
-Explicit `--implementation-mode direct` stages a return to the prior role;
-workers retain their independently configured native tool permissions.
-This is not OS isolation and does not restrict every plugin tool. The executive
-must not use alternate tools to bypass the role. Observe the live manifest and
-actual routing before claiming enforcement in a specific native session.
+With ADR-034, explicitly staging this role also enables bounded intervention
+support. After the one activation resume, Bash, Write, Edit and NotebookEdit
+are visible but gated by native hooks. PowerShell, Agent, Task, Monitor,
+Workflow, EnterWorktree and ExitWorktree remain removed from the executive.
+Native reads, search/discovery, peer coordination and Odin MCP stay available.
+Older manifests without intervention enablement retain the former deny list.
+The profile preserves session/login identity and pending loop, peer and
+compaction settings. `executive-status` reports configured and pending modes
+and intervention configuration. `--implementation-mode direct` stages rollback
+to the prior development role; worker permissions are independent.
+
+For a bounded authorized diagnostic or repair, call `odin_intervention_begin`
+with a purpose, `ttl_seconds` (1–300), and 1–8 `calls`, each containing `tool`
+and exact `input`. Keep Bash `command` and `timeout` identical when invoking
+the native tool; its description is ignored. Do not include secrets or request
+background execution or a sandbox override. The returned intervention ID is
+the begin operation ID. No orchestrator turn may be queued or running. The
+hook consumes each exact-input permit once; unmatched calls are denied with
+instructions to delegate or request a scoped permit. Close unused permits
+with `odin_intervention_end` before delegating again. Completed permits close
+automatically; expiry forbids new admissions but never stops an existing
+process. A missing completion remains visible as `in_flight_unknown` and
+blocks new delegation pending reconciliation. Never retry an uncertain native
+execution merely because a hook response was lost. A trusted local operator can
+resolve a missing completion through `odin command --request <command.json>`:
+use action `intervention_reconcile` and payload `project`, `session_id`,
+`intervention_id`, and a bounded `observation` explaining the process/effect
+inspection. This closes unused permits and marks admitted calls `reconciled`,
+not successful. Executive requests cannot use this operator-only action;
+its observation is attributed and does not attest process termination.
+
+This local role policy is not OS isolation or universal plugin enforcement.
+The executive must not use alternate tools to bypass it. Exact Bash arguments
+do not enforce filesystem containment of subprocess effects. A native hook
+completion is not proof that all descendants exited. Observe the live manifest
+and actual hook behavior before claiming activation. Hook settings use
+`onFailure: block` and require Claude Code 2.1.295 or newer; see the
+[native hook reference](https://code.claude.com/docs/en/hooks#block-the-action-when-a-hook-fails).
 
 Fable assigns the objective, current revision, constraints, acceptance criteria,
 remaining work and exact evidence references to a separate project orchestrator.
@@ -357,3 +385,20 @@ Oversized or malformed lines are skipped with an error count; they do not become
 zero usage. Status snapshots use the explicitly named file's modification time
 as the sample time, so a copied or touched file must be treated as a new local
 observation rather than an attested provider timestamp.
+
+## Compact executive responses and checkpoint diagnostics
+
+Executive delegation status and loop status/claim/ready responses default to
+compact projections, bounded to 16 KiB. Historical details have explicit
+omission counts. An overflow is marked `incomplete_for_action`; it must not be
+read as evidence that omitted work is complete. Use `view: "detail"` with a
+scoped session/assignment/loop ID when needed. Write detail retries retain the
+same operation ID and arguments; the display option does not change the
+canonical command. Operator CLI responses and stored records are unaffected.
+
+The checkpoint tool advertises every required caller-supplied field. Its
+schema version, project and native session identity are supplied by the bridge.
+Invalid arguments return a field-specific `not dispatched` error. Transport
+uncertainty still requires reconciliation or an identical retry with the same
+operation ID. Checkpoints are attributed handoffs; native auto compaction is
+separate and is not the planned OptChat/UniiChat memory compactor.
