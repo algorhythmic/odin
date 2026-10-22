@@ -624,6 +624,19 @@ plugin channel (`--channels` with a managed `allowedChannelPlugins` entry)
 would avoid it but needs plugin packaging and root-owned managed settings;
 that is not done.
 
+**Channel meta must be strings.** Claude Code 2.1.308 drops a
+`notifications/claude/channel` message whose `meta` holds any non-string
+value. The only trace is a debug-log line, "Invalid params for notification
+notifications/claude/channel: meta.loop_id: Invalid input: expected string".
+Until 2026-10-22 the bridge sent `loop_id` and `stage_id` as null for notices
+with no loop or stage, so every delegation, usage-limit, supervision and
+stopped-loop notice was offered but never reached the session. Only loop
+assignments arrived, and the executive fell back to polling. The bridge now
+omits absent fields. The startup notice `server:odin · no MCP server
+configured with that name` is unrelated and appears for servers given by
+`--mcp-config` even when delivery works; check delivery itself (a
+`<channel source="odin">` turn in the transcript), not that notice.
+
 **Live acceptance (operator).** Synthetic tests use a fake Claude binary. The
 following have not been observed and are the operator's to check at
 activation: that SIGTERM ends a real idle session cleanly with SessionEnd

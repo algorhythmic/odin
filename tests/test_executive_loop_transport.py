@@ -118,7 +118,7 @@ class ChannelTests(unittest.TestCase):
         emitted = server.channel_notifications()
         self.assertEqual([n["params"]["meta"]["kind"] for n in emitted], ["assignment", "notice"])
         self.assertEqual(emitted[1]["params"]["meta"]["notice_id"], NOTICE)
-        self.assertIsNone(emitted[1]["params"]["meta"]["stage_id"])
+        self.assertNotIn("stage_id", emitted[1]["params"]["meta"])
         self.assertEqual(server.channel_notifications(), [])  # same connection: no repeat
         resumed = MCPServer(bridge)
         initialize(resumed)
@@ -151,6 +151,23 @@ class ChannelTests(unittest.TestCase):
         self.assertEqual(command["operation_id"], MESSAGE)
         self.assertIn("never claim, execute", next(tool for tool in bridge.tools() if tool["name"] == "odin_loop_ack")["description"])
         self.assertIn("meta.kind=notice", initialize(MCPServer(bridge))["instructions"])
+
+    def test_channel_meta_holds_only_strings(self):
+        # Claude Code rejects a channel notification with any non-string meta
+        # value; a delegation notice has no loop or stage, so both are omitted.
+        bridge, _ = self.bridge([self.message(), self.notice(), self.notice(
+            message_id=STAGE, notice_id=STAGE, loop_id=None)])
+        server = MCPServer(bridge)
+        initialize(server)
+        emitted = server.channel_notifications()
+        self.assertEqual(len(emitted), 3)
+        for notification in emitted:
+            meta = notification["params"]["meta"]
+            self.assertTrue(all(isinstance(value, str) and value for value in meta.values()), meta)
+        self.assertEqual(emitted[0]["params"]["meta"],
+                         {"message_id": MESSAGE, "loop_id": LOOP, "stage_id": STAGE, "kind": "assignment"})
+        self.assertEqual(emitted[2]["params"]["meta"],
+                         {"message_id": STAGE, "kind": "notice", "notice_id": STAGE})
 
     def test_bridge_falls_back_to_a_legacy_poll_when_the_service_rejects_accept(self):
         calls = []

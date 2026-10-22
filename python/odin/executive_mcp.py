@@ -654,14 +654,20 @@ class MCPServer:
             if len(self.emitted) >= 4096:
                 break
             self.emitted.add(item["message_id"])
+            # Claude Code drops a channel notification whose meta holds a
+            # non-string value (only its debug log shows the error), so an
+            # absent loop or stage is omitted rather than sent as null.
             meta = {
-                "message_id": item["message_id"],
-                "loop_id": item["loop_id"],
-                "stage_id": item.get("stage_id"),
-                "kind": item.get("kind", "assignment"),
+                key: value
+                for key, value in (
+                    ("message_id", item["message_id"]),
+                    ("loop_id", item.get("loop_id")),
+                    ("stage_id", item.get("stage_id")),
+                    ("kind", item.get("kind", "assignment")),
+                    ("notice_id", item.get("notice_id")),
+                )
+                if isinstance(value, str) and value
             }
-            if item.get("notice_id"):
-                meta["notice_id"] = item["notice_id"]
             notifications.append(
                 {
                     "jsonrpc": "2.0",
