@@ -109,7 +109,9 @@ button[aria-pressed="true"] { background: var(--accent); color: #fff; border-col
 .card-title .role { font-weight: 700; text-transform: capitalize; }
 .card-title .assignment-short { font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-row { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.card-foot { display: flex; justify-content: space-between; gap: 6px; margin-top: auto; }
+/* The footer wraps instead of clipping: a long branch cost moves to its own line. */
+.card-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 6px; margin-top: auto; white-space: normal; overflow: visible; }
+.card-foot .branch-cost { min-width: 0; overflow-wrap: anywhere; }
 .toggle { padding: 0 6px; font-size: 0.8rem; }
 
 .list-tree { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); max-height: min(560px, 60vh); overflow: auto; overflow-anchor: none; position: relative; }
@@ -135,6 +137,7 @@ button[aria-pressed="true"] { background: var(--accent); color: #fff; border-col
 .actions-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .transcript { list-style: none; padding: 0; margin: 0; max-height: 320px; overflow: auto; overscroll-behavior: contain; }
 .pager { display: flex; gap: 8px; align-items: center; margin: 4px 0 8px; }
+.pager button[aria-disabled="true"] { opacity: 0.5; cursor: default; }
 .transcript li { border-left: 3px solid var(--border); padding-left: 8px; margin-bottom: 8px; }
 .transcript .gap { border-left-color: var(--offline); color: var(--offline); font-weight: 600; }
 .transcript-text { margin: 2px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: 0.85em; }

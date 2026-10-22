@@ -105,3 +105,48 @@ test('list view rows expand and collapse with the pointer on the large synthetic
   await expect(first).toHaveAttribute('aria-expanded', 'false');
   await expect(tree.locator(`[role="treeitem"][data-parent="${id}"]`)).toHaveCount(0);
 });
+
+// Card footers wrap instead of clipping: the branch cost text stays whole
+// and inside its card at a wide and a just-above-narrow viewport.
+for (const width of [1280, 800]) {
+  test(`card footers show the whole branch cost at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/#/projects/${PID}`);
+    const costs = page.getByTestId('branch-cost');
+    await expect(costs.first()).toBeVisible();
+    expect(await costs.count()).toBeGreaterThan(2);
+    const clipped = await costs.evaluateAll((els) => els.flatMap((el) => {
+      const card = el.closest('[data-testid="session-card"]').getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      const ok = el.scrollWidth <= el.clientWidth + 1 && r.right <= card.right + 1 && r.bottom <= card.bottom + 1 && r.left >= card.left - 1;
+      return ok ? [] : [`${el.closest('[data-session-id]').dataset.sessionId}: ${el.textContent}`];
+    }));
+    expect(clipped).toEqual([]);
+    await expect(page.locator('[data-testid="session-card"][data-session-id="ses-integ-01"]').getByTestId('branch-cost'))
+      .toHaveText(/^branch .*\+ unknown \(\d+\)$/);
+    if (width === 800) await shot(page, 'card-footers-800');
+  });
+}
+
+test('the transcript pager keeps keyboard focus across page loads', async ({ page }) => {
+  await page.goto(`/#/projects/${PID}/sessions/ses-worker-a2`);
+  const pager = page.getByTestId('transcript-pager');
+  await expect(pager).toContainText('Page 1 of 2');
+  const later = pager.getByRole('button', { name: 'Later' });
+  const earlier = pager.getByRole('button', { name: 'Earlier' });
+  await expect(earlier).toHaveAttribute('aria-disabled', 'true');
+  await later.focus();
+  await page.keyboard.press('Enter');
+  await expect(pager).toHaveCount(1); // still mounted while page 2 loads
+  await expect(pager).toContainText('Page 2 of 2');
+  await expect(later).toBeFocused();
+  await expect(later).toHaveAttribute('aria-disabled', 'true');
+  await page.keyboard.press('Enter'); // at the last page: nothing happens
+  await expect(pager).toContainText('Page 2 of 2');
+  await page.keyboard.press('Shift+Tab');
+  await expect(earlier).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(pager).toContainText('Page 1 of 2');
+  await expect(earlier).toBeFocused();
+  await expect(page.getByTestId('transcript')).toContainText('Progress note 1:');
+});

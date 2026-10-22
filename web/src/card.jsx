@@ -32,7 +32,7 @@ export function SessionCard({ session: s, childMap, style, selected, expanded, c
             onClick={(e) => { e.stopPropagation(); onToggle(s.id); }}>
             {expanded ? '▾' : '▸'} {childCount} started
           </button>
-          <span class="muted" title="Own costs of this session and its descendants">branch {branchCost(s, childMap)}</span>
+          <span class="muted branch-cost" data-testid="branch-cost" title="Own costs of this session and its descendants">branch {branchCost(s, childMap)}</span>
         </div>
       )}
     </div>

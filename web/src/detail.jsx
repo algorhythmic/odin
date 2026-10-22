@@ -22,15 +22,22 @@ function recordLabel(id) {
 export function DetailPanel({ session: s, childMap, onSelect }) {
   const [detail, setDetail] = useState(null);
   const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
   // Keyed on the session id and page only: an update event that changes this
   // session's record re-renders the panel without reloading the transcript,
-  // so the reading position is kept.
+  // so the reading position is kept. Turning a page keeps the current page
+  // (and the pager, with its keyboard focus) on screen until the next arrives.
   useEffect(() => {
     let live = true;
-    setDetail(null);
-    loadSessionDetail(s, page).then((d) => { if (live) setDetail(d); });
+    setLoading(true);
+    setDetail((d) => (d && d.session_id === s.id ? d : null));
+    loadSessionDetail(s, page).then((d) => { if (live) { setDetail(d); setLoading(false); } });
     return () => { live = false; };
   }, [s.id, page]);
+  // aria-disabled rather than disabled, so a button reaching the first or
+  // last page keeps keyboard focus.
+  const turn = (to) => { if (!loading && detail && to >= 1 && to <= detail.pages) setPage(to); };
+  const off = (blocked) => (blocked || loading ? 'true' : undefined);
 
   const assignment = getAssignment(s.assignment_id);
   // The tree parent; null for roots, including cycle members and parents
@@ -135,13 +142,13 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
         <p class="muted">Transcript text is untrusted and shown as plain text.</p>
         {detail && detail.pages > 1 && (
           <div class="pager" data-testid="transcript-pager">
-            <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>Earlier</button>
-            <span>Page {detail.page} of {detail.pages}</span>
-            <button type="button" disabled={page >= detail.pages} onClick={() => setPage(page + 1)}>Later</button>
+            <button type="button" aria-disabled={off(page <= 1)} onClick={() => turn(page - 1)}>Earlier</button>
+            <span aria-live="polite">{loading ? `Loading page ${page}…` : `Page ${detail.page} of ${detail.pages}`}</span>
+            <button type="button" aria-disabled={off(page >= detail.pages)} onClick={() => turn(page + 1)}>Later</button>
           </div>
         )}
         {!detail ? <p class="muted">Loading…</p> : (
-          <ol class="transcript" data-testid="transcript" tabIndex={0} aria-label="Transcript entries">
+          <ol class="transcript" data-testid="transcript" tabIndex={0} aria-label="Transcript entries" aria-busy={loading ? 'true' : undefined}>
             {detail.transcript.map((t, i) => (t.kind === 'gap' ? (
               <li key={`gap-${i}`} class="gap" data-testid="transcript-gap">
                 Transcript gap: entries {t.from_seq}–{t.to_seq} missing. {t.reason}

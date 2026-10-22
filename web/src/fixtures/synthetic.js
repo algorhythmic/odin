@@ -26,19 +26,20 @@ export function loadDataset(name) {
 }
 
 // Simulates a paginated detail request: transcripts and evidence load only
-// for the selected session, one page at a time.
+// for the selected session, one page at a time. The result has the draft
+// per-session detail shape (schemas/web-projection-session-detail.schema.json).
 export function loadSessionDetail(dataset, session, page = 1) {
   let result;
   if (dataset === 'large') {
     const { entries, pages } = loadLargeTranscriptPage(session.id, page);
-    result = { transcript: entries, page, pages, pageSize: LARGE_SPEC.pageSize, evidence: [] };
+    result = { session_id: session.id, page, pages, page_size: LARGE_SPEC.pageSize, transcript: entries, evidence: [] };
   } else {
     const all = details.transcripts[session.id]
       || [{ seq: 1, at: session.observed_at, speaker: session.id, text: `Synthetic transcript entry for ${session.id}.` }];
     const size = details.page_size;
     const pages = Math.max(1, Math.ceil(all.length / size));
     const p = Math.min(Math.max(1, page), pages);
-    result = { transcript: all.slice((p - 1) * size, p * size), page: p, pages, pageSize: size, evidence: details.evidence[session.id] || [] };
+    result = { session_id: session.id, page: p, pages, page_size: size, transcript: all.slice((p - 1) * size, p * size), evidence: details.evidence[session.id] || [] };
   }
   return new Promise((resolve) => { setTimeout(() => resolve(result), 30); });
 }
