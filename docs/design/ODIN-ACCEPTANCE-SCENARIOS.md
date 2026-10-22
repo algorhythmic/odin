@@ -207,6 +207,11 @@ charges from serialized bytes or WCU screenshot dimensions.
 | Baseline routing vs shadow evaluator vs activated evaluator | Does attention cost fall without unacceptable missed requests or delay? |
 | Existing WCU workflow vs textual decision-model workflow | Does verified task completion improve after model, approval and recovery costs? |
 | Odin on first and second harness | Which outcomes depend on the adapter's missing capabilities? |
+| Same lead and harness with a fixed child packet, varying only the eligible child model | Does the child meet the same acceptance criteria after checking and repair? |
+| Solo effort sweep vs same-model delegation vs mixed-model delegation | Is any gain due to decomposition, more inference or diversity? |
+| Repeated same-model samples/verification vs different-family reviewers | Does diversity reduce correlated misses beyond an equal verification budget? |
+| Bounded consultation vs delegated execution, measured separately | Is expensive reasoning useful as advice, and how much does integration/repair cost? |
+| Fixed code workflow vs adaptive decomposition on the same pool | Does adaptive planning earn its extra cost on this task class? |
 
 Keep execution/authority rules comparable across conditions. Where a required
 review cannot ethically/operationally be removed from a live deployment, use
