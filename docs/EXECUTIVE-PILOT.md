@@ -628,11 +628,13 @@ that is not done.
 `notifications/claude/channel` message whose `meta` holds any non-string
 value. The only trace is a debug-log line, "Invalid params for notification
 notifications/claude/channel: meta.loop_id: Invalid input: expected string".
-Until 2026-10-22 the bridge sent `loop_id` and `stage_id` as null for notices
-with no loop or stage, so every delegation, usage-limit, supervision and
-stopped-loop notice was offered but never reached the session. Only loop
-assignments arrived, and the executive fell back to polling. The bridge now
-omits absent fields. The startup notice `server:odin · no MCP server
+Until 2026-10-22 the bridge sent `loop_id` and `stage_id` as null when a
+notice had no loop or stage, so every such notice was offered but never
+reached the session: every delegation, usage-limit and supervision notice,
+and loop notices without a current stage, such as a loop stopped before its
+first stage. Assignments and
+loop notices with a stage arrived, so delegated work could only be followed by
+polling. The bridge now omits absent fields. The startup notice `server:odin · no MCP server
 configured with that name` is unrelated and appears for servers given by
 `--mcp-config` even when delivery works; check delivery itself (a
 `<channel source="odin">` turn in the transcript), not that notice.
