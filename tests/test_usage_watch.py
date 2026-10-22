@@ -390,6 +390,59 @@ class WatchTests(unittest.TestCase):
             with self.subTest(extra=extra), self.assertRaises(ValidationError):
                 Contracts().validate('usage-watch-config', dict(config, sources=[source | extra]))
 
+    def test_workspaces_root_discovers_new_workspaces_each_poll(self):
+        workspaces = self.root / 'workspaces'
+        workspaces.mkdir()
+        (workspaces / 'no-transcripts-yet').mkdir()
+        (workspaces / ('w' * 200)).mkdir()  # encoded project name exceeds 200 chars
+        config_dir = self.root / 'claude-config'
+        self.config['sources'] = [{'provider': 'claude',
+            'workspaces_root': str(workspaces), 'claude_config_dir': str(config_dir),
+            'discover_sessions': True, 'discover_children': True}]
+        alpha = workspaces / 'alpha-workspace'
+        alpha.mkdir()
+        project = claude_project_dir(config_dir, alpha)
+        project.mkdir(parents=True)
+        row = self.row('one')
+        del row['sessionId']  # the session ID falls back to the transcript stem
+        self.append(project / 'session-one.jsonl', row)
+        with self.watcher() as watch:
+            first = watch.poll()
+            self.assertEqual(first['imported'], 1)
+            self.assertEqual(first['unavailable'], 0)
+            beta = workspaces / 'beta-workspace'
+            beta.mkdir()
+            other = claude_project_dir(config_dir, beta)
+            other.mkdir(parents=True)
+            self.append(other / 'session-two.jsonl',
+                        self.row('two', session='session-two'))
+            self.assertEqual(watch.poll()['imported'], 1)
+        rows = [json.loads(item[0]) for item in self.service.store.db.execute(
+            'SELECT body FROM usage_requests ORDER BY agent_id')]
+        self.assertEqual([item['agent_id'] for item in rows],
+                         ['workstream:alpha-workspace', 'workstream:beta-workspace'])
+        self.assertEqual([item['session_id'] for item in rows],
+                         ['session-one', 'session-two'])
+
+    def test_workspaces_source_shape_is_schema_checked(self):
+        source = {'provider': 'claude', 'workspaces_root': str(self.root / 'workspaces'),
+                  'claude_config_dir': str(self.root / 'claude-config'),
+                  'discover_sessions': True}
+        config = dict(self.config, sources=[source])
+        Contracts().validate('usage-watch-config', config)
+        for extra in ({'session_id': 'native'}, {'session_file': str(self.file)},
+                      {'sessions_dir': str(self.root)}, {'spool_dir': str(self.root)},
+                      {'executive_state': str(self.root / 'executive')},
+                      {'loop_id': 'loop'}, {'stage_id': 'stage'},
+                      {'provider': 'codex'}):
+            with self.subTest(extra=extra), self.assertRaises(ValidationError):
+                Contracts().validate('usage-watch-config', dict(config, sources=[source | extra]))
+        mixed = {'provider': 'claude', 'session_file': str(self.file),
+                 'session_id': 'native', 'agent_id': 'executive',
+                 'workspaces_root': str(self.root)}
+        with self.assertRaises(ValidationError):
+            Contracts().validate('usage-watch-config', dict(config, sources=[mixed]))
+
     def test_limit_probes_import_label_keyed_samples_through_the_gateway(self):
         secret = 'SYNTHETIC-WATCH-TOKEN-51c2'
         login = self.root / 'claude-login'

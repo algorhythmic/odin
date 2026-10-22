@@ -553,6 +553,28 @@ directory>/<session>.jsonl`, so rotation moves to a new path with its own
 cursor and the old file is no longer polled. Alternatively, a `sessions_dir`
 source with `discover_sessions` picks up new session files in one directory.
 
+For workspace discovery, a claude source may instead name `workspaces_root`,
+`claude_config_dir` and `discover_sessions: true` (with optional
+`discover_children`); `loop_id` and `stage_id` are not accepted. Each
+poll lists the directories directly under `workspaces_root` — non-directories
+and symlinks are skipped and the order is sorted — and resolves each
+workspace's transcript directory as `<claude_config_dir>/projects/<absolute
+workspace path encoded as a Claude project directory>`. The encoding replaces
+every character outside `[A-Za-z0-9]` in the path with `-`; the rule was
+verified against real Claude project directory names, and encodings longer
+than 200 characters are unsupported — such a workspace is skipped rather than
+failing the whole source. A workspace whose project directory does not exist
+yet is skipped silently, and a workspace added later is discovered at the next
+poll with no configuration change. Each existing project directory is then read
+exactly like a `sessions_dir` source: every direct `*.jsonl` is a session named
+by its file stem, plus `<stem>/subagents` children when enabled. Its agent
+identity is `workstream:<workspace directory name>` truncated to the usage
+contract's 256-character bound, giving each workspace project-only usage
+attribution. On rotation the new native session is a new transcript path with
+its own byte cursor; under `executive_state` the old path is no longer polled,
+while under `workspaces_root` or `sessions_dir` the rotated file remains
+listed but simply reports `idle` once it stops growing.
+
 Run one poll with `python -m odin --state "$ODIN_PILOT_STATE" usage-watch
 --request /private/watch-config.json --once`; omit `--once` to poll at the
 configured interval. `session_file` watches that exact file and, when enabled,
@@ -590,6 +612,38 @@ Oversized or malformed lines are skipped with an error count; they do not become
 zero usage. Status snapshots use the explicitly named file's modification time
 as the sample time, so a copied or touched file must be treated as a new local
 observation rather than an attested provider timestamp.
+
+### Migrating an existing watch.json
+
+Replace the fixed executive entry
+
+```json
+{"provider":"claude","session_file":"/explicit/claude/project/SESSION_UUID.jsonl",
+ "session_id":"SESSION_UUID","agent_id":"executive","discover_children":true}
+```
+
+with an `executive_state` entry that follows rotation:
+
+```json
+{"provider":"claude","executive_state":"/explicit/odin/pilot/state",
+ "agent_id":"executive","discover_children":true}
+```
+
+and replace hand-written per-workstream `session_file` or `sessions_dir`
+entries with a single discovery entry:
+
+```json
+{"provider":"claude","workspaces_root":"/explicit/odin/workspaces",
+ "claude_config_dir":"/explicit/claude/config",
+ "discover_sessions":true,"discover_children":true}
+```
+
+then restart the watcher. Cursor rows are keyed by transcript path, so the
+existing private cursor file can be retained: an `executive_state` entry that
+resolves to the same native session keeps the same cursor identity and byte
+offset, and each later rotation or newly discovered workspace session simply
+begins a new path. The live `watch.json` migration is documented here and is
+not performed by this change.
 
 ## Compact executive responses and checkpoint diagnostics
 

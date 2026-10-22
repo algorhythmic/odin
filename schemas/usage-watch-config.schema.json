@@ -44,6 +44,8 @@
         "agent_id": {"type": "string", "minLength": 1},
         "sessions_dir": {"type": "string", "minLength": 1},
         "spool_dir": {"type": "string", "minLength": 1},
+        "workspaces_root": {"type": "string", "minLength": 1},
+        "claude_config_dir": {"type": "string", "minLength": 1},
         "discover_jobs": {"type": "boolean"},
         "discover_sessions": {"type": "boolean"},
         "discover_children": {"type": "boolean"},
@@ -52,10 +54,11 @@
         "usage_semantics": {"enum": ["per_turn", "session_cumulative"]}
       },
       "oneOf": [
-        {"required": ["session_file", "session_id", "agent_id"], "not": {"anyOf": [{"required": ["sessions_dir"]}, {"required": ["spool_dir"]}, {"required": ["executive_state"]}]}},
-        {"required": ["executive_state", "agent_id"], "properties": {"provider": {"const": "claude"}}, "not": {"anyOf": [{"required": ["session_file"]}, {"required": ["session_id"]}, {"required": ["sessions_dir"]}, {"required": ["spool_dir"]}]}},
-        {"required": ["sessions_dir", "discover_sessions"], "properties": {"discover_sessions": {"const": true}}, "not": {"anyOf": [{"required": ["session_file"]}, {"required": ["spool_dir"]}, {"required": ["session_id"]}, {"required": ["executive_state"]}, {"required": ["loop_id"]}, {"required": ["stage_id"]}]}},
-        {"required": ["spool_dir", "discover_jobs", "usage_semantics"], "properties": {"provider": {"const": "codex"}, "discover_jobs": {"const": true}, "usage_semantics": {"const": "session_cumulative"}}, "not": {"anyOf": [{"required": ["session_file"]}, {"required": ["sessions_dir"]}, {"required": ["session_id"]}, {"required": ["executive_state"]}, {"required": ["loop_id"]}, {"required": ["stage_id"]}, {"required": ["discover_children"]}]}}
+        {"required": ["session_file", "session_id", "agent_id"], "not": {"anyOf": [{"required": ["sessions_dir"]}, {"required": ["spool_dir"]}, {"required": ["executive_state"]}, {"required": ["workspaces_root"]}]}},
+        {"required": ["executive_state", "agent_id"], "properties": {"provider": {"const": "claude"}}, "not": {"anyOf": [{"required": ["session_file"]}, {"required": ["session_id"]}, {"required": ["sessions_dir"]}, {"required": ["spool_dir"]}, {"required": ["workspaces_root"]}]}},
+        {"required": ["sessions_dir", "discover_sessions"], "properties": {"discover_sessions": {"const": true}}, "not": {"anyOf": [{"required": ["session_file"]}, {"required": ["spool_dir"]}, {"required": ["session_id"]}, {"required": ["executive_state"]}, {"required": ["loop_id"]}, {"required": ["stage_id"]}, {"required": ["workspaces_root"]}]}},
+        {"required": ["workspaces_root", "claude_config_dir", "discover_sessions"], "properties": {"provider": {"const": "claude"}, "discover_sessions": {"const": true}}, "not": {"anyOf": [{"required": ["session_file"]}, {"required": ["session_id"]}, {"required": ["sessions_dir"]}, {"required": ["spool_dir"]}, {"required": ["executive_state"]}, {"required": ["loop_id"]}, {"required": ["stage_id"]}]}},
+        {"required": ["spool_dir", "discover_jobs", "usage_semantics"], "properties": {"provider": {"const": "codex"}, "discover_jobs": {"const": true}, "usage_semantics": {"const": "session_cumulative"}}, "not": {"anyOf": [{"required": ["session_file"]}, {"required": ["sessions_dir"]}, {"required": ["session_id"]}, {"required": ["executive_state"]}, {"required": ["loop_id"]}, {"required": ["stage_id"]}, {"required": ["discover_children"]}, {"required": ["workspaces_root"]}]}}
       ]
     }
   }

@@ -54,6 +54,18 @@ def _entries(directory, max_files):
     return sorted(result)
 
 
+def _subdirectories(directory, max_files):
+    _directory(directory)
+    result = []
+    with os.scandir(directory) as stream:
+        for inspected, entry in enumerate(stream, 1):
+            if inspected > max_files:
+                raise ValueError("configured workspaces root exceeds max_files entries; narrow the root")
+            if entry.is_dir(follow_symlinks=False):
+                result.append(Path(entry.path))
+    return sorted(result)
+
+
 def _spool_entries(directory, max_files):
     _directory(directory)
     result = []
@@ -207,18 +219,22 @@ class UsageWatcher:
                 elif "spool_dir" in spec:
                     for path in _spool_entries(Path(spec["spool_dir"]).absolute(), self.max_files):
                         candidates.append((path, spec, None, "evaluator", False))
+                elif "workspaces_root" in spec:
+                    root = Path(spec["workspaces_root"]).absolute()
+                    config_dir = Path(spec["claude_config_dir"]).absolute()
+                    for workspace in _subdirectories(root, self.max_files):
+                        try:
+                            transcripts = claude_project_dir(config_dir, workspace)
+                        except ValueError:
+                            continue
+                        if not transcripts.exists():
+                            continue
+                        self._session_dir(transcripts, spec,
+                                          ("workstream:" + workspace.name)[:256],
+                                          candidates, len(result))
                 else:
-                    directory = Path(spec["sessions_dir"]).absolute()
-                    for main in _entries(directory, self.max_files):
-                        session = main.stem
-                        candidates.append((main, spec, session, "executive", False))
-                        if spec.get("discover_children"):
-                            children = main.with_suffix("") / "subagents"
-                            if children.exists():
-                                for path in _entries(children, self.max_files):
-                                    candidates.append((path, spec, session, path.stem, True))
-                        if len(result) + len(candidates) > self.max_files:
-                            raise ValueError("usage watch source count exceeds max_files")
+                    self._session_dir(Path(spec["sessions_dir"]).absolute(), spec,
+                                      "executive", candidates, len(result))
                 if len(result) + len(candidates) > self.max_files:
                     raise ValueError("usage watch source count exceeds max_files")
             except (OSError, ValueError, ValidationError):
@@ -226,6 +242,18 @@ class UsageWatcher:
                 continue
             result.extend(candidates)
         return result, unavailable
+
+    def _session_dir(self, directory, spec, agent_id, candidates, seen):
+        for main in _entries(directory, self.max_files):
+            session = main.stem
+            candidates.append((main, spec, session, agent_id, False))
+            if spec.get("discover_children"):
+                children = main.with_suffix("") / "subagents"
+                if children.exists():
+                    for path in _entries(children, self.max_files):
+                        candidates.append((path, spec, session, path.stem, True))
+            if seen + len(candidates) > self.max_files:
+                raise ValueError("usage watch source count exceeds max_files")
 
     def _send(self, operation_id, payload):
         command = {"schema_version": 1, "operation_id": operation_id,
