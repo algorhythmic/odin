@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:delegation-config:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "workspace_roots", "harnesses", "turn_timeout_seconds"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "workspace_roots": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {"type": "string", "minLength": 1, "pattern": "^/"}
+    },
+    "turn_timeout_seconds": {"type": "integer", "minimum": 30, "maximum": 86400},
+    "lineage_policy": {"enum": ["exclusive", "shared_accepted"]},
+    "max_concurrent_turns_per_lineage": {"type": "integer", "minimum": 1, "maximum": 8},
+    "harnesses": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "claude-code": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["binary", "config_dir", "credential_ref", "refresh_owner", "default_model"],
+          "properties": {
+            "binary": {"type": "string", "minLength": 1, "pattern": "^/"},
+            "config_dir": {"type": "string", "minLength": 1, "pattern": "^/"},
+            "credential_ref": {"type": "string", "minLength": 8, "pattern": "^secret:"},
+            "refresh_owner": {"type": "string", "minLength": 1},
+            "default_model": {"type": "string", "minLength": 1, "maxLength": 128},
+            "default_subagent_model": {"type": "string", "minLength": 1, "maxLength": 128},
+            "default_subagent_model_force": {"type": "boolean"},
+            "default_auto_compact_window_tokens": {"type": "integer", "minimum": 100000, "maximum": 1000000},
+            "default_native_peer_messaging": {"type": "boolean"},
+            "default_permission_mode": {
+              "enum": ["default", "acceptEdits", "plan", "dontAsk", "bypassPermissions"]
+            }
+          }
+        },
+        "codex": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["binary", "credential_ref", "refresh_owner"],
+          "properties": {
+            "binary": {"type": "string", "minLength": 1, "pattern": "^/"},
+            "codex_home": {"anyOf": [{"type": "string", "minLength": 1, "pattern": "^/"}, {"type": "null"}]},
+            "credential_ref": {"type": "string", "minLength": 8, "pattern": "^secret:"},
+            "refresh_owner": {"type": "string", "minLength": 1},
+            "default_model": {"anyOf": [{"type": "string", "minLength": 1, "maxLength": 128}, {"type": "null"}]},
+            "default_sandbox": {"enum": ["read-only", "workspace-write", "danger-full-access"]}
+          }
+        }
+      }
+    }
+  }
+}

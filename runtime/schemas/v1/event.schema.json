@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/schemas/v1/event.schema.json",
+  "title": "Event envelope v1",
+  "description": "Odin inbox envelope. Namespace authorization, cursor deduplication and transactionality require runtime checks. execution_ledger is a read-only Saga mirror.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "envelope": {
+      "const": 1
+    },
+    "namespace": {
+      "type": "string",
+      "enum": [
+        "odin_history",
+        "transcript_archive",
+        "surface_events",
+        "execution_ledger"
+      ]
+    },
+    "producer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "$ref": "common.schema.json#/$defs/ulid"
+        },
+        "run": {
+          "$ref": "common.schema.json#/$defs/opaque_id"
+        },
+        "host": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session": {
+          "$ref": "common.schema.json#/$defs/ulid"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "source_seq": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "received_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "causation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payload_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payload": {
+      "type": "object"
+    },
+    "dedupe_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "wake": {
+      "type": "string",
+      "enum": [
+        "interrupt",
+        "wake",
+        "log_only",
+        "state_only"
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "envelope",
+    "namespace",
+    "producer",
+    "kind",
+    "scope",
+    "received_at",
+    "dedupe_key",
+    "wake"
+  ],
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "required": [
+        "payload_ref"
+      ],
+      "not": {
+        "required": [
+          "payload"
+        ]
+      }
+    },
+    {
+      "required": [
+        "payload"
+      ],
+      "not": {
+        "required": [
+          "payload_ref"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,499 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "DRAFT (ODIN-ADR-037 web app projection, pass 3, 2026-10-22): shape used by the synthetic prototype; not an accepted contract. See docs/design/WEB-APP-PROJECTION.md.",
+  "title": "Odin web app projection update event (synthetic prototype draft)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "revision",
+    "cursor",
+    "at",
+    "type",
+    "summary",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "cursor": {
+      "type": "string",
+      "minLength": 1
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "type": {
+      "enum": [
+        "session.lifecycle_changed",
+        "session.started",
+        "session.usage_updated",
+        "session.retired"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "const": "session.lifecycle_changed"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "payload"
+        ],
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "session_id",
+              "lifecycle",
+              "observed_at"
+            ],
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "lifecycle": {
+                "enum": [
+                  "running",
+                  "idle",
+                  "waiting_for_input",
+                  "ended",
+                  "retired",
+                  "host_offline"
+                ]
+              },
+              "observed_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "needs_operator_input": {
+                "type": "boolean"
+              },
+              "stale": {
+                "type": "boolean"
+              },
+              "run": {
+                "$ref": "#/$defs/run"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "const": "session.started"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "payload"
+        ],
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "session"
+            ],
+            "properties": {
+              "session": {
+                "$ref": "#/$defs/session"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "const": "session.usage_updated"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "payload"
+        ],
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "session_id",
+              "tokens"
+            ],
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "tokens": {
+                "$ref": "#/$defs/session/properties/tokens"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "const": "session.retired"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "payload"
+        ],
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "session_id",
+              "observed_at"
+            ],
+            "properties": {
+              "session_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "observed_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "project_id",
+        "assignment_id",
+        "session_id",
+        "outcome",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assignment_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outcome": {
+          "enum": [
+            "failed",
+            "unknown",
+            "unverified",
+            "verified"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "project_id",
+        "parent_session_id",
+        "provenance",
+        "role",
+        "assignment_id",
+        "model",
+        "lifecycle",
+        "needs_operator_input",
+        "observed_at",
+        "stale",
+        "tokens",
+        "elapsed_s",
+        "budget"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parent_session_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "provenance": {
+          "enum": [
+            "recorded",
+            "imported"
+          ]
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assignment_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "lifecycle": {
+          "enum": [
+            "running",
+            "idle",
+            "waiting_for_input",
+            "ended",
+            "retired",
+            "host_offline"
+          ]
+        },
+        "needs_operator_input": {
+          "type": "boolean"
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "stale": {
+          "type": "boolean"
+        },
+        "tokens": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "uncached_input",
+            "cache_read",
+            "cache_write",
+            "output",
+            "basis"
+          ],
+          "properties": {
+            "uncached_input": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "cache_read": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "cache_write": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "output": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "basis": {
+              "enum": [
+                "measured",
+                "estimate",
+                "unknown"
+              ]
+            }
+          },
+          "oneOf": [
+            {
+              "properties": {
+                "uncached_input": {
+                  "type": "null"
+                },
+                "cache_read": {
+                  "type": "null"
+                },
+                "cache_write": {
+                  "type": "null"
+                },
+                "output": {
+                  "type": "null"
+                },
+                "basis": {
+                  "const": "unknown"
+                }
+              }
+            },
+            {
+              "properties": {
+                "uncached_input": {
+                  "type": "integer"
+                },
+                "cache_read": {
+                  "type": "integer"
+                },
+                "cache_write": {
+                  "type": "integer"
+                },
+                "output": {
+                  "type": "integer"
+                },
+                "basis": {
+                  "enum": [
+                    "measured",
+                    "estimate"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "elapsed_s": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "budget": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "limit_tokens",
+            "basis"
+          ],
+          "properties": {
+            "limit_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "basis": {
+              "enum": [
+                "requested"
+              ]
+            }
+          }
+        },
+        "attempt_of": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "previous_attempt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "resumption": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "count",
+            "resumed_from_host_session",
+            "resumed_at"
+          ],
+          "properties": {
+            "count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resumed_from_host_session": {
+              "type": "string",
+              "minLength": 1
+            },
+            "resumed_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,443 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "project_valid",
+      "schema": "project.schema.json",
+      "file": "valid/project_valid.json",
+      "valid": true
+    },
+    {
+      "name": "commitment_valid",
+      "schema": "commitment.schema.json",
+      "file": "valid/commitment_valid.json",
+      "valid": true
+    },
+    {
+      "name": "assignment_valid",
+      "schema": "assignment.schema.json",
+      "file": "valid/assignment_valid.json",
+      "valid": true
+    },
+    {
+      "name": "planning_session_valid",
+      "schema": "planning_session.schema.json",
+      "file": "valid/planning_session_valid.json",
+      "valid": true
+    },
+    {
+      "name": "session_binding_valid",
+      "schema": "session_binding.schema.json",
+      "file": "valid/session_binding_valid.json",
+      "valid": true
+    },
+    {
+      "name": "environment_valid",
+      "schema": "environment.schema.json",
+      "file": "valid/environment_valid.json",
+      "valid": true
+    },
+    {
+      "name": "event_valid",
+      "schema": "event.schema.json",
+      "file": "valid/event_valid.json",
+      "valid": true
+    },
+    {
+      "name": "human_request_valid",
+      "schema": "human_request.schema.json",
+      "file": "valid/human_request_valid.json",
+      "valid": true
+    },
+    {
+      "name": "approval_valid",
+      "schema": "approval.schema.json",
+      "file": "valid/approval_valid.json",
+      "valid": true
+    },
+    {
+      "name": "evaluator_result_valid",
+      "schema": "evaluator_result.schema.json",
+      "file": "valid/evaluator_result_valid.json",
+      "valid": true
+    },
+    {
+      "name": "session_class_decision_valid",
+      "schema": "session_class_decision.schema.json",
+      "file": "valid/session_class_decision_valid.json",
+      "valid": true
+    },
+    {
+      "name": "attention_prompt_valid",
+      "schema": "attention_prompt.schema.json",
+      "file": "valid/attention_prompt_valid.json",
+      "valid": true
+    },
+    {
+      "name": "effect_valid",
+      "schema": "effect.schema.json",
+      "file": "valid/effect_valid.json",
+      "valid": true
+    },
+    {
+      "name": "message_valid",
+      "schema": "message.schema.json",
+      "file": "valid/message_valid.json",
+      "valid": true
+    },
+    {
+      "name": "workload_class_config_valid",
+      "schema": "workload_class_config.schema.json",
+      "file": "valid/workload_class_config_valid.json",
+      "valid": true
+    },
+    {
+      "name": "commitment_import_valid",
+      "schema": "commitment.schema.json",
+      "file": "valid/commitment_import_valid.json",
+      "valid": true
+    },
+    {
+      "name": "event_duplicate_key_valid",
+      "schema": "event.schema.json",
+      "file": "valid/event_duplicate_key_valid.json",
+      "valid": true
+    },
+    {
+      "name": "event_unknown_kind_valid",
+      "schema": "event.schema.json",
+      "file": "valid/event_unknown_kind_valid.json",
+      "valid": true
+    },
+    {
+      "name": "effect_unknown_valid",
+      "schema": "effect.schema.json",
+      "file": "valid/effect_unknown_valid.json",
+      "valid": true
+    },
+    {
+      "name": "project_invalid",
+      "schema": "project.schema.json",
+      "file": "invalid/project_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "commitment_invalid",
+      "schema": "commitment.schema.json",
+      "file": "invalid/commitment_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "assignment_invalid",
+      "schema": "assignment.schema.json",
+      "file": "invalid/assignment_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "planning_session_invalid",
+      "schema": "planning_session.schema.json",
+      "file": "invalid/planning_session_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "session_binding_invalid",
+      "schema": "session_binding.schema.json",
+      "file": "invalid/session_binding_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "environment_invalid",
+      "schema": "environment.schema.json",
+      "file": "invalid/environment_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "event_invalid",
+      "schema": "event.schema.json",
+      "file": "invalid/event_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "human_request_invalid",
+      "schema": "human_request.schema.json",
+      "file": "invalid/human_request_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "approval_invalid",
+      "schema": "approval.schema.json",
+      "file": "invalid/approval_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "evaluator_result_invalid",
+      "schema": "evaluator_result.schema.json",
+      "file": "invalid/evaluator_result_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "session_class_decision_invalid",
+      "schema": "session_class_decision.schema.json",
+      "file": "invalid/session_class_decision_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "attention_prompt_invalid",
+      "schema": "attention_prompt.schema.json",
+      "file": "invalid/attention_prompt_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "effect_invalid",
+      "schema": "effect.schema.json",
+      "file": "invalid/effect_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "message_invalid",
+      "schema": "message.schema.json",
+      "file": "invalid/message_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "workload_class_config_invalid",
+      "schema": "workload_class_config.schema.json",
+      "file": "invalid/workload_class_config_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "event_missing_payload_invalid",
+      "schema": "event.schema.json",
+      "file": "invalid/event_missing_payload_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "event_negative_sequence_invalid",
+      "schema": "event.schema.json",
+      "file": "invalid/event_negative_sequence_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "commitment_stale_revision_invalid",
+      "schema": "commitment.schema.json",
+      "file": "invalid/commitment_stale_revision_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "attention_prompt_missing_override_reason_invalid",
+      "schema": "attention_prompt.schema.json",
+      "file": "invalid/attention_prompt_missing_override_reason_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "event_unsafe_sequence_invalid",
+      "schema": "event.schema.json",
+      "file": "invalid/event_unsafe_sequence_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "event_overflow_sequence_invalid",
+      "schema": "event.schema.json",
+      "file": "invalid/event_overflow_sequence_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "event_unsafe_sequence_plus_one_invalid",
+      "schema": "event.schema.json",
+      "file": "invalid/event_unsafe_sequence_plus_one_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "event_nil_ulid_invalid",
+      "schema": "event.schema.json",
+      "file": "invalid/event_nil_ulid_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "event_max_safe_sequence_valid",
+      "schema": "event.schema.json",
+      "file": "valid/event_max_safe_sequence_valid.json",
+      "valid": true
+    },
+    {
+      "name": "assignment_overflow_budget_invalid",
+      "schema": "assignment.schema.json",
+      "file": "invalid/assignment_overflow_budget_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "assignment_saga_unstaged_draft_valid",
+      "schema": "assignment.schema.json",
+      "file": "valid/assignment_saga_unstaged_draft_valid.json",
+      "valid": true
+    },
+    {
+      "name": "assignment_saga_active_bound_valid",
+      "schema": "assignment.schema.json",
+      "file": "valid/assignment_saga_active_bound_valid.json",
+      "valid": true
+    },
+    {
+      "name": "assignment_local_with_saga_request_invalid",
+      "schema": "assignment.schema.json",
+      "file": "invalid/assignment_local_with_saga_request_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "assignment_desktop_with_saga_run_invalid",
+      "schema": "assignment.schema.json",
+      "file": "invalid/assignment_desktop_with_saga_run_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "assignment_saga_active_missing_run_invalid",
+      "schema": "assignment.schema.json",
+      "file": "invalid/assignment_saga_active_missing_run_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "assignment_saga_approved_missing_request_invalid",
+      "schema": "assignment.schema.json",
+      "file": "invalid/assignment_saga_approved_missing_request_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "effect_held_with_blocker_valid",
+      "schema": "effect.schema.json",
+      "file": "valid/effect_held_with_blocker_valid.json",
+      "valid": true
+    },
+    {
+      "name": "effect_held_without_blocker_invalid",
+      "schema": "effect.schema.json",
+      "file": "invalid/effect_held_without_blocker_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "effect_delivered_with_receipt_valid",
+      "schema": "effect.schema.json",
+      "file": "valid/effect_delivered_with_receipt_valid.json",
+      "valid": true
+    },
+    {
+      "name": "effect_delivered_without_receipt_invalid",
+      "schema": "effect.schema.json",
+      "file": "invalid/effect_delivered_without_receipt_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "planning_session_raw_credential_invalid",
+      "schema": "planning_session.schema.json",
+      "file": "invalid/planning_session_raw_credential_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "environment_empty_credential_handle_invalid",
+      "schema": "environment.schema.json",
+      "file": "invalid/environment_empty_credential_handle_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "attention_prompt_done_valid",
+      "schema": "attention_prompt.schema.json",
+      "file": "valid/attention_prompt_done_valid.json",
+      "valid": true
+    },
+    {
+      "name": "attention_prompt_shadow_expired_valid",
+      "schema": "attention_prompt.schema.json",
+      "file": "valid/attention_prompt_shadow_expired_valid.json",
+      "valid": true
+    },
+    {
+      "name": "attention_prompt_responded_as_expired_invalid",
+      "schema": "attention_prompt.schema.json",
+      "file": "invalid/attention_prompt_responded_as_expired_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "attention_prompt_expired_as_done_invalid",
+      "schema": "attention_prompt.schema.json",
+      "file": "invalid/attention_prompt_expired_as_done_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "attention_prompt_queued_with_response_invalid",
+      "schema": "attention_prompt.schema.json",
+      "file": "invalid/attention_prompt_queued_with_response_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "attention_prompt_live_logged_invalid",
+      "schema": "attention_prompt.schema.json",
+      "file": "invalid/attention_prompt_live_logged_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "commitment_closed_with_evidence_valid",
+      "schema": "commitment.schema.json",
+      "file": "valid/commitment_closed_with_evidence_valid.json",
+      "valid": true
+    },
+    {
+      "name": "commitment_closed_missing_evidence_invalid",
+      "schema": "commitment.schema.json",
+      "file": "invalid/commitment_closed_missing_evidence_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "commitment_satisfied_unmet_criterion_invalid",
+      "schema": "commitment.schema.json",
+      "file": "invalid/commitment_satisfied_unmet_criterion_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "assignment_decimal_budget_valid",
+      "schema": "assignment.schema.json",
+      "file": "valid/assignment_decimal_budget_valid.json",
+      "valid": true
+    },
+    {
+      "name": "assignment_fractional_revision_invalid",
+      "schema": "assignment.schema.json",
+      "file": "invalid/assignment_fractional_revision_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "assignment_underflow_budget_invalid",
+      "schema": "assignment.schema.json",
+      "file": "invalid/assignment_underflow_budget_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "commitment_unpaired_surrogate_invalid",
+      "schema": "commitment.schema.json",
+      "file": "invalid/commitment_unpaired_surrogate_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "commitment_emoji_escape_valid",
+      "schema": "commitment.schema.json",
+      "file": "valid/commitment_emoji_escape_valid.json",
+      "valid": true
+    },
+    {
+      "name": "commitment_invalid_utf8_invalid",
+      "schema": "commitment.schema.json",
+      "file": "invalid/commitment_invalid_utf8_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "event_year_zero_invalid",
+      "schema": "event.schema.json",
+      "file": "invalid/event_year_zero_invalid.json",
+      "valid": false
+    },
+    {
+      "name": "event_year_one_valid",
+      "schema": "event.schema.json",
+      "file": "valid/event_year_one_valid.json",
+      "valid": true
+    }
+  ]
+}

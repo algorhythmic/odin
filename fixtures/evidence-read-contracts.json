@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {"name": "exact-source-read", "schema": "memory-source-read", "valid": true,
+     "value": {"project": "fixture-project", "source_id": "fixture-source", "revision": 1}},
+    {"name": "exact-source-read-bounded", "schema": "memory-source-read", "valid": true,
+     "value": {"project": "fixture-project", "source_id": "fixture-source", "revision": 2, "max_bytes": 2048}},
+    {"name": "exact-source-read-rejects-bool", "schema": "memory-source-read", "valid": false,
+     "value": {"project": "fixture-project", "source_id": "fixture-source", "revision": true}},
+    {"name": "exact-source-read-rejects-caller-principal", "schema": "memory-source-read", "valid": false,
+     "value": {"project": "fixture-project", "source_id": "fixture-source", "revision": 1, "principal": "fixture-operator"}},
+    {"name": "exact-source-read-rejects-unbounded-result", "schema": "memory-source-read", "valid": false,
+     "value": {"project": "fixture-project", "source_id": "fixture-source", "revision": 1, "max_bytes": 1048577}}
+  ]
+}

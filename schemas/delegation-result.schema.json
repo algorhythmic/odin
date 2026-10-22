@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:delegation-result:1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "turn", "harness", "exit_code", "started_at", "finished_at", "timed_out",
+    "interrupted", "stdout_bytes", "stderr_tail", "native_session_id", "final_text", "is_error",
+    "stop_reason", "turns", "cost_usd", "usage", "permission_denials", "parse_error"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "turn": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+    "harness": {"enum": ["claude-code", "codex"]},
+    "exit_code": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+    "started_at": {"type": "string", "minLength": 1},
+    "finished_at": {"type": "string", "minLength": 1},
+    "timed_out": {"type": "boolean"},
+    "interrupted": {"type": "boolean"},
+    "stdout_bytes": {"type": "integer", "minimum": 0},
+    "stderr_tail": {"type": "string"},
+    "native_session_id": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+    "final_text": {"type": "string"},
+    "is_error": {"type": "boolean"},
+    "stop_reason": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+    "turns": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+    "cost_usd": {"anyOf": [{"type": "number", "minimum": 0}, {"type": "null"}]},
+    "usage": {"anyOf": [{"$ref": "#/$defs/usage"}, {"type": "null"}]},
+    "usage_scope": {"enum": ["inclusive_aggregate", null]},
+    "model_usage": {"anyOf": [{"$ref": "#/$defs/model_usage"}, {"type": "null"}]},
+    "observed_model": {"anyOf": [{"type": "string", "minLength": 1, "maxLength": 128}, {"type": "null"}]},
+    "permission_denials": {"anyOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]},
+    "parse_error": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+    "error_summary": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+    "lineage": {"$ref": "#/$defs/lineage"}
+  },
+  "$defs": {
+    "usage": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "input_tokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "output_tokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "cache_read_input_tokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "cache_creation_input_tokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "cached_input_tokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "reasoning_output_tokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991}
+      }
+    },
+    "model_usage": {
+      "type": "object", "maxProperties": 32,
+      "patternProperties": {"^.{1,128}$": {"type": "object", "additionalProperties": false,
+        "properties": {
+          "inputTokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+          "outputTokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+          "cacheReadInputTokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+          "cacheCreationInputTokens": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+          "costUSD": {"type": "number", "minimum": 0, "maximum": 1000000}
+        }
+      }},
+      "additionalProperties": false
+    },
+    "fingerprint": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mtime_ns", "size", "sha256"],
+          "properties": {
+            "mtime_ns": {"type": "integer", "minimum": 0},
+            "size": {"type": "integer", "minimum": 0},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        }
+      ]
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "shared_with", "lease", "refused", "credential_before", "credential_after", "credential_changed"],
+      "properties": {
+        "policy": {"enum": ["exclusive", "shared_accepted"]},
+        "shared_with": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+        "lease": {"enum": ["acquired", "busy", "unavailable", "not_applicable"]},
+        "refused": {"type": "boolean"},
+        "credential_before": {"$ref": "#/$defs/fingerprint"},
+        "credential_after": {"$ref": "#/$defs/fingerprint"},
+        "credential_changed": {"anyOf": [{"type": "boolean"}, {"type": "null"}]}
+      }
+    }
+  }
+}

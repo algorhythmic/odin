@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "hooks"
+  ],
+  "properties": {
+    "crossSessionInbound": {
+      "const": "accept"
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "SessionStart",
+        "UserPromptSubmit",
+        "Stop",
+        "StopFailure",
+        "SessionEnd"
+      ],
+      "properties": {
+        "SessionStart": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/group"
+          }
+        },
+        "UserPromptSubmit": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/group"
+          }
+        },
+        "Stop": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/group"
+          }
+        },
+        "StopFailure": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/group"
+          }
+        },
+        "SessionEnd": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/group"
+          }
+        },
+        "PreToolUse": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/group"
+          }
+        },
+        "PostToolUse": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/group"
+          }
+        },
+        "PostToolUseFailure": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/group"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hooks"
+      ],
+      "properties": {
+        "matcher": {
+          "const": "Bash|Write|Edit|NotebookEdit"
+        },
+        "hooks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/handler"
+          }
+        }
+      }
+    },
+    "handler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "command",
+        "args",
+        "timeout"
+      ],
+      "properties": {
+        "type": {
+          "const": "command"
+        },
+        "command": {
+          "const": "/usr/bin/env"
+        },
+        "timeout": {
+          "const": 5
+        },
+        "onFailure": {
+          "const": "block"
+        },
+        "args": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 11,
+          "items": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "prefixItems": [
+            {
+              "type": "string",
+              "pattern": "^PYTHONPATH=/"
+            },
+            {
+              "const": "PYTHONNOUSERSITE=1"
+            },
+            {
+              "type": "string",
+              "pattern": "^/"
+            },
+            {
+              "const": "-m"
+            },
+            {
+              "enum": [
+                "odin.executive_loop_hook",
+                "odin.executive_intervention_hook",
+                "odin.executive_turn_hook"
+              ]
+            },
+            {
+              "const": "--state"
+            },
+            {
+              "type": "string",
+              "pattern": "^/"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

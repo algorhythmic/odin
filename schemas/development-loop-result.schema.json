@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:development-loop-result:1",
+  "type": "object",
+  "properties": {
+    "decision": {
+      "enum": [
+        "continue",
+        "complete",
+        "needs_operator"
+      ]
+    },
+    "assessment": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16000
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4000
+      }
+    },
+    "next_prompt": {
+      "type": "string",
+      "maxLength": 32000
+    },
+    "evidence_refs": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "ref",
+          "revision",
+          "digest"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "decision",
+    "assessment",
+    "findings",
+    "next_prompt",
+    "evidence_refs"
+  ],
+  "additionalProperties": false
+}

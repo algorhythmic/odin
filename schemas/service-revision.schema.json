@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "pid", "revision", "clean", "started_at"],
+  "properties": {
+    "version": {"const": 1},
+    "pid": {"type": "integer", "minimum": 1},
+    "revision": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+    "clean": {"type": ["boolean", "null"]},
+    "started_at": {"type": "string", "format": "date-time"}
+  }
+}

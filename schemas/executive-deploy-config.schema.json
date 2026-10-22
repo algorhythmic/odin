@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {"const": 1},
+    "repository": {"type": "string", "pattern": "^/", "maxLength": 4096},
+    "branch": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,255}$"},
+    "deploy_root": {"type": "string", "pattern": "^/", "maxLength": 4096},
+    "keep": {"type": "integer", "minimum": 1, "maximum": 10},
+    "drain_timeout_seconds": {"type": "integer", "minimum": 60, "maximum": 86400}
+  },
+  "required": ["schema_version", "repository", "branch", "deploy_root", "keep", "drain_timeout_seconds"],
+  "additionalProperties": false
+}

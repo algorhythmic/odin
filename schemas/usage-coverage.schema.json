@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "truncated", "malformed_lines", "complete"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "truncated": {"type": "boolean"},
+    "malformed_lines": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+    "unidentified_usage": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+    "aggregate_usage": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+    "complete": {"type": "boolean"}
+  }
+}

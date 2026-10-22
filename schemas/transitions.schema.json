@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "revision",
+              "delivery",
+              "dedupe"
+            ]
+          },
+          "input": {
+            "type": "object"
+          },
+          "expected": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "input",
+          "expected"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "revision"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "input": {
+                  "type": "object",
+                  "properties": {
+                    "current": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "expected": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "current",
+                    "expected"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "dedupe"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "input": {
+                  "type": "object",
+                  "properties": {
+                    "seen": {
+                      "type": "boolean"
+                    },
+                    "same_content": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "seen",
+                    "same_content"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "delivery"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "input": {
+                  "type": "object",
+                  "properties": {
+                    "lookup": {
+                      "enum": [
+                        "completed",
+                        "failed",
+                        "superseded",
+                        "pending",
+                        "absent",
+                        "unknown_expired"
+                      ]
+                    },
+                    "idempotent": {
+                      "type": "boolean"
+                    },
+                    "authorized": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "lookup",
+                    "idempotent",
+                    "authorized"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "cases"
+  ],
+  "additionalProperties": false
+}

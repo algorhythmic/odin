@@ -1,0 +1,793 @@
+"""Local service CLI and explicit native Claude Code executive pilot."""
+
+import argparse
+import os
+import socket
+import socketserver
+import sys
+
+from .contracts import canonical, identifier, strict_loads
+from .service import Service
+
+
+def _socket_command(address, command):
+    frame = (canonical(command) + "\n").encode()
+    if len(frame) > 1048576:
+        raise ValueError("command exceeds local transport budget")
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+        client.settimeout(30)
+        client.connect(address)
+        client.sendall(frame)
+        with client.makefile("rb") as stream:
+            raw = stream.readline(1048577)
+    if len(raw) > 1048576 or not raw.endswith(b"\n"):
+        raise ValueError("invalid local service response")
+    return strict_loads(raw)
+
+
+def main():
+    # Receipt commands take a free-form trailing argv; dispatch them before the
+    # main parser so its options never swallow the wrapped command.
+    from .execution_receipt import dispatch_argv
+
+    receipt_argv = dispatch_argv(sys.argv[1:])
+    if receipt_argv is not None:
+        from .execution_receipt import main as receipt_main
+
+        sys.exit(receipt_main(receipt_argv))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--state",
+        required=False,
+        help="private local state directory outside the checkout",
+    )
+    parser.add_argument(
+        "action",
+        choices=[
+            "demo",
+            "orchestration-demo",
+            "continuity-demo",
+            "integration-demo",
+            "serve",
+            "status",
+            "stop",
+            "command",
+            "resume",
+            "acknowledge",
+            "memory",
+            "evidence",
+            "capabilities",
+            "evaluate",
+            "executive-prepare",
+            "executive-status",
+            "executive-configure-context",
+            "executive-configure-peer-messaging",
+            "executive-configure-execution-role",
+            "executive-configure-model",
+            "executive-configure-memory-directory",
+            "executive-register-script",
+            "executive-activate-service",
+            "executive-login",
+            "executive-start",
+            "executive-supervise",
+            "executive-configure-deploy",
+            "executive-deploy-prepare",
+            "executive-new-session",
+            "executive-enable-repository-reads",
+            "executive-enable-development",
+            "executive-enable-development-loop",
+            "repository-import",
+            "delegation-configure",
+            "development-configure",
+            "development-start",
+            "development-continue",
+            "development-status",
+            "development-control",
+            "development-handover",
+            "usage-import", "usage-collect", "usage-watch", "usage-configure", "usage-status",
+            "context-checkpoint", "context-status",
+            "receipt-run",
+            "receipt-validate",
+        ],
+    )
+    parser.add_argument("--reason", default=None)
+    parser.add_argument("--request", help="gateway command or evaluation request JSON")
+    parser.add_argument(
+        "--fixture-evidence",
+        action="store_true",
+        help="allow synthetic fixture evidence for offline evaluation only",
+    )
+    parser.add_argument("--surface", choices=["terminal", "voice"], default="terminal")
+    parser.add_argument(
+        "--project", help="explicit project ID for resume, memory or evidence"
+    )
+    parser.add_argument("--source", help="exact local memory source ID for evidence")
+    parser.add_argument(
+        "--revision", type=int, help="exact source revision for evidence"
+    )
+    parser.add_argument(
+        "--max-bytes",
+        type=int,
+        default=65536,
+        help="maximum exact evidence response size; evidence is never truncated",
+    )
+    parser.add_argument("--delivery", help="delivered view ID to acknowledge")
+    parser.add_argument("--loop", help="exact development loop ID")
+    parser.add_argument("--from-session", help="native session UUID currently owning the development loop")
+    parser.add_argument("--to-session", help="successor native session UUID for development-handover")
+    parser.add_argument("--expected-revision", type=int, help="expected development loop revision for development-handover")
+    parser.add_argument("--control", choices=["pause", "resume", "stop", "deadlines", "configure_delegation"])
+    parser.add_argument(
+        "--deadlines",
+        help='JSON object for --control deadlines, e.g. {"offer_seconds": 600, "claim_seconds": null}',
+    )
+    parser.add_argument("--operation-id", help="stable ID for a retried development command")
+    parser.add_argument("--claude-config", help="dedicated Odin Claude login directory")
+    parser.add_argument("--executive-project", help="bind private executive socket to this project")
+    parser.add_argument("--resume-session", action="store_true", help="resume the prepared native executive session")
+    parser.add_argument("--repository-reads", action="store_true", help="enable read-only checkout tools before starting the executive")
+    parser.add_argument("--repository", help="Git repository whose committed source snapshot to import")
+    parser.add_argument(
+        "--config",
+        help="experimental role configuration JSON; live dispatch remains disabled",
+    )
+    parser.add_argument(
+        "--workspace-root",
+        action="append",
+        default=[],
+        help="directory under which delegation workspaces may be created (repeatable)",
+    )
+    parser.add_argument("--codex-home", help="CODEX_HOME for delegated Codex workers")
+    parser.add_argument("--claude-model", default="claude-sonnet-5-5", help="default delegated Claude Code model")
+    parser.add_argument("--codex-model", help="default delegated Codex model")
+    parser.add_argument("--turn-timeout", type=int, default=1800, help="delegated turn wall-clock limit in seconds")
+    parser.add_argument(
+        "--lineage-policy",
+        choices=["exclusive", "shared_accepted"],
+        default="exclusive",
+        help="refuse (exclusive) or accept worker turns on a credential lineage another process owns",
+    )
+    parser.add_argument(
+        "--max-concurrent-turns-per-lineage", type=int, default=1,
+        help="delegated turns run at once on one credential lineage (default 1: sessions interleave)",
+    )
+    parser.add_argument("--auto-compact-window-tokens", type=int, help="requested native Claude context window, 100000..1000000 tokens")
+    parser.add_argument("--claude-subagent-model", help="default delegated Claude native subagent model")
+    parser.add_argument("--claude-subagent-model-force", action="store_true", help="request native model override for ordinary subagents; native exceptions remain")
+    parser.add_argument("--native-peer-messaging", action=argparse.BooleanOptionalAction, default=None, help="opt into session-scoped native Claude peer messaging")
+    parser.add_argument("--implementation-mode", choices=["direct", "delegated"], help="stage the executive's native implementation role for its next resume")
+    parser.add_argument("--model", help="stage the executive's claude-* model for its next resume")
+    parser.add_argument("--memory-directory", help="absolute executive memory directory for Write/Edit; empty string clears it")
+    parser.add_argument("--path", help="absolute script path for executive-register-script")
+    parser.add_argument("--remove", action="store_true", help="remove the registration for --path")
+    parser.add_argument("--usage-semantics", choices=["per_turn", "session_cumulative"], default="per_turn", help="explicit Codex source counter semantics")
+    parser.add_argument("--once", action="store_true", help="poll configured usage-watch sources once and exit")
+    parser.add_argument("--usage-provider", choices=["claude", "codex", "claude-status"])
+    parser.add_argument("--source-file", help="explicit native usage JSON/JSONL file; only metadata is imported")
+    parser.add_argument("--native-session", help="native UUID for a usage source or checkpoint view")
+    parser.add_argument("--agent-id", default="executive", help="native agent identity for usage attribution")
+    parser.add_argument("--account-id", default="unknown", help="nonsecret provider account label for quota samples")
+    parser.add_argument("--stage", help="stage identity for explicitly attributed usage")
+    parser.add_argument("--head", help="reviewed full commit the service must run after activation")
+    parser.add_argument("--branch", help="branch the canonical checkout must be on")
+    parser.add_argument("--deploy-root", help="private directory for pinned deploy copies (executive-configure-deploy)")
+    parser.add_argument("--keep", type=int, default=3, help="previous deploy copies to keep, 1-10")
+    parser.add_argument("--drain-timeout", type=int, default=3600, help="seconds a deploy waits for running work, 60-86400")
+    parser.add_argument("--activation-timeout", type=float, default=60.0, help="seconds to wait for the restarted service")
+    args = parser.parse_args()
+    from pathlib import Path
+
+    if args.fixture_evidence and args.action != "evaluate":
+        parser.error("--fixture-evidence applies only to evaluate")
+    if args.repository_reads and args.action != "executive-start":
+        parser.error("--repository-reads applies only to executive-start")
+    if args.action == "capabilities":
+        from .capabilities import inventory
+
+        print(canonical(inventory()))
+        return
+    if args.action == "evaluate":
+        from .contracts import Contracts
+        from .evaluation import evaluate
+
+        if not args.request:
+            parser.error(
+                "evaluate requires --request JSON with config and observations"
+            )
+        request = strict_loads(Path(args.request).read_bytes())
+        Contracts().validate("evaluation-request", request)
+        print(
+            canonical(
+                evaluate(
+                    request["config"],
+                    request["observations"],
+                    allow_fixture_evidence=args.fixture_evidence,
+                )
+            )
+        )
+        return
+    if not args.state:
+        parser.error("this action requires --state")
+
+    state = Path(args.state).resolve()
+    from .contracts import REPOSITORY_ROOT, ROOT
+
+    if any(state == root or root in state.parents for root in (ROOT, REPOSITORY_ROOT)):
+        parser.error("runtime state must be outside the repository")
+    state.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if state.stat().st_mode & 0o077:
+        parser.error("state directory must have mode 0700")
+    if args.action.startswith("executive-"):
+        from . import executive_runtime
+
+        if args.action == "executive-prepare":
+            if not args.claude_config:
+                parser.error("executive-prepare requires --claude-config")
+            from .executive_service import prepare_project
+
+            project = args.project
+            if (state / "executive-pilot" / "manifest.json").exists():
+                existing = executive_runtime.status(state)["configuration"]
+                project = project or existing["project"]
+            if args.project:
+                prepare_project(state, project)
+            project = project or identifier()
+            prepared = executive_runtime.prepare(
+                state, config_dir=args.claude_config, project=project, auto_compact_window_tokens=args.auto_compact_window_tokens,
+            )
+            prepare_project(state, project, create=not bool(args.project))
+            print(canonical(prepared))
+        elif args.action == "executive-configure-context":
+            if args.auto_compact_window_tokens is None:
+                parser.error("executive-configure-context requires --auto-compact-window-tokens")
+            print(canonical(executive_runtime.configure_context(state, auto_compact_window_tokens=args.auto_compact_window_tokens)))
+        elif args.action == "executive-configure-peer-messaging":
+            if args.native_peer_messaging is None:
+                parser.error("executive-configure-peer-messaging requires --native-peer-messaging or --no-native-peer-messaging")
+            print(canonical(executive_runtime.configure_peer_messaging(state, enabled=args.native_peer_messaging)))
+        elif args.action == "executive-configure-execution-role":
+            if args.implementation_mode is None:
+                parser.error("executive-configure-execution-role requires --implementation-mode")
+            print(canonical(executive_runtime.configure_execution_role(state, implementation_mode=args.implementation_mode)))
+        elif args.action == "executive-configure-model":
+            if not args.model:
+                parser.error("executive-configure-model requires --model")
+            print(canonical(executive_runtime.configure_model(state, model=args.model)))
+        elif args.action == "executive-configure-memory-directory":
+            if args.memory_directory is None:
+                parser.error("executive-configure-memory-directory requires --memory-directory")
+            print(canonical(executive_runtime.configure_memory_directory(state, directory=args.memory_directory or None)))
+        elif args.action == "executive-register-script":
+            if not args.path:
+                parser.error("executive-register-script requires --path")
+            try:
+                print(canonical(executive_runtime.register_script(state, path=args.path, remove=args.remove)))
+            except (ValueError, PermissionError) as error:
+                parser.exit(2, f"odin: {error}\n")
+        elif args.action == "executive-status":
+            print(canonical(executive_runtime.status(state)))
+        elif args.action == "executive-activate-service":
+            if not (args.repository and args.branch and args.head):
+                parser.error("executive-activate-service requires --repository, --branch and --head")
+            from .service_activation import activate, validate_arguments
+
+            try:
+                validate_arguments(repository=args.repository, branch=args.branch, head=args.head)
+            except ValueError as error:
+                parser.error(str(error))
+            record = activate(state, repository=args.repository, branch=args.branch,
+                              head=args.head, timeout=args.activation_timeout)
+            print(canonical(record))
+            sys.exit({"activated": 0, "refused": 2}.get(record["outcome"], 1))
+        elif args.action in ("executive-configure-deploy", "executive-deploy-prepare"):
+            from jsonschema import ValidationError
+
+            from .deploy_copies import DeployError, configure, prepare
+
+            try:
+                if args.action == "executive-configure-deploy":
+                    if not (args.repository and args.branch):
+                        parser.error("executive-configure-deploy requires --repository and --branch")
+                    result = configure(state, repository=args.repository, branch=args.branch,
+                                       deploy_root=args.deploy_root, keep=args.keep,
+                                       drain_timeout_seconds=args.drain_timeout)
+                else:
+                    if not args.head:
+                        parser.error("executive-deploy-prepare requires --head")
+                    result = prepare(state, head=args.head)
+            except (DeployError, ValidationError, PermissionError, ValueError) as error:
+                parser.exit(2, f"odin: {getattr(error, 'message', error)}\n")
+            print(canonical(result))
+        elif args.action == "executive-supervise":
+            from .executive_supervisor import supervise
+
+            try:
+                sys.exit(supervise(state))
+            except PermissionError as error:
+                parser.exit(2, f"odin: {error}\n")
+        elif args.action == "executive-login":
+            sys.exit(executive_runtime.login(state))
+        elif args.action == "executive-new-session":
+            print(canonical(executive_runtime.new_session(state)))
+        elif args.action == "executive-enable-development-loop":
+            try:
+                print(canonical(executive_runtime.enable_development_loop(state)))
+            except PermissionError as error:
+                parser.exit(2, f"odin: {error}\n")
+        elif args.action in ("executive-enable-repository-reads", "executive-enable-development"):
+            try:
+                enable = (
+                    executive_runtime.enable_development
+                    if args.action == "executive-enable-development"
+                    else executive_runtime.enable_repository_reads
+                )
+                print(canonical(enable(state)))
+            except PermissionError as error:
+                parser.exit(2, f"odin: {error}\n")
+        else:
+            try:
+                if args.repository_reads:
+                    executive_runtime.enable_repository_reads(state)
+                result = executive_runtime.start(state, resume=args.resume_session, auto_compact_window_tokens=args.auto_compact_window_tokens)
+            except PermissionError as error:
+                parser.exit(2, f"odin: {error}\n")
+            sys.exit(result)
+        return
+    if args.action in (
+        "demo",
+        "orchestration-demo",
+        "continuity-demo",
+        "integration-demo",
+    ):
+        if args.action == "demo":
+            from .demo import run
+
+            result = run(state)
+        elif args.action == "continuity-demo":
+            from .continuity_demo import run
+
+            result = run(state)
+        elif args.action == "integration-demo":
+            from .integration_demo import run
+
+            result = run(state)
+        else:
+            from .orchestration_config import OrchestrationConfig
+            from .orchestration_demo import run
+
+            result = run(state, OrchestrationConfig(args.config))
+        print(canonical(result))
+        return
+    address = str(state / "service.sock")
+    if args.action == "usage-watch":
+        from .usage_watch import run_cli
+        sys.exit(run_cli(args, state, address, _socket_command, parser))
+    if args.action in {"usage-import", "usage-collect", "usage-configure", "usage-status", "context-checkpoint", "context-status"}:
+        from .usage_cli import run
+        sys.exit(run(args, address, _socket_command, parser))
+    if args.action == "development-configure":
+        from .development_evaluator import configure
+
+        if not args.request:
+            parser.error("development-configure requires --request configuration JSON")
+        path = configure(state, strict_loads(Path(args.request).read_bytes()))
+        print(canonical({
+            "written": str(path),
+            "activation": "restart serve to load this configuration",
+        }))
+        return
+    if args.action in {
+        "development-start", "development-continue", "development-status",
+        "development-control",
+    }:
+        from .contracts import Contracts
+
+        configure_delegation = args.action == "development-control" and args.control == "configure_delegation"
+        if args.action in {"development-start", "development-continue"} or configure_delegation:
+            if not args.request:
+                parser.error(args.action + " requires --request payload JSON")
+            payload = strict_loads(Path(args.request).read_bytes())
+            if configure_delegation:
+                if not isinstance(payload, dict) or payload.get("action") != "configure_delegation":
+                    parser.error("delegation transition request must specify action configure_delegation")
+                if args.project and payload.get("project") != args.project:
+                    parser.error("delegation transition request project differs from --project")
+                if args.loop and payload.get("loop_id") != args.loop:
+                    parser.error("delegation transition request loop differs from --loop")
+                if args.deadlines:
+                    parser.error("--deadlines applies only to --control deadlines")
+        else:
+            if not args.project:
+                parser.error("development commands require --project")
+            payload = {"project": args.project}
+            if args.loop:
+                payload["loop_id"] = args.loop
+            if args.action == "development-control":
+                if not args.loop or not args.control:
+                    parser.error("development-control requires --loop and --control")
+                payload["action"] = args.control
+                if args.control == "deadlines":
+                    if not args.deadlines:
+                        parser.error("--control deadlines requires --deadlines JSON")
+                    payload["deadlines"] = strict_loads(args.deadlines)
+                elif args.deadlines:
+                    parser.error("--deadlines applies only to --control deadlines")
+        action = {
+            "development-start": "loop_start",
+            "development-continue": "loop_continue",
+            "development-status": "loop_status",
+            "development-control": "loop_control",
+        }[args.action]
+        Contracts().validate_definition("development-loop-command", action, payload)
+        command = {
+            "schema_version": 1, "operation_id": args.operation_id or identifier(),
+            "action": action, "payload": payload,
+        }
+        Contracts().validate("gateway-command", command)
+        try:
+            response = _socket_command(address, {"surface": "terminal", "command": command})
+        except (OSError, ValueError):
+            parser.exit(
+                2, "odin: development command outcome unavailable; inspect status or "
+                "retry identical arguments with --operation-id "
+                + command["operation_id"] + "\n",
+            )
+        print(canonical(response))
+        if "error" in response:
+            sys.exit(1)
+        return
+    if args.action == "development-handover":
+        from .contracts import Contracts
+
+        missing = [
+            name
+            for name, value in (
+                ("--loop", args.loop),
+                ("--from-session", args.from_session),
+                ("--to-session", args.to_session),
+                ("--expected-revision", args.expected_revision),
+                ("--reason", args.reason),
+            )
+            if value is None
+        ]
+        if missing:
+            parser.error("development-handover requires " + ", ".join(missing))
+        payload = {
+            "loop_id": args.loop,
+            "from_session": args.from_session,
+            "to_session": args.to_session,
+            "expected_revision": args.expected_revision,
+            "reason": args.reason,
+        }
+        if args.project:
+            payload["project"] = args.project
+        Contracts().validate_definition("development-loop-command", "loop_handover", payload)
+        command = {
+            "schema_version": 1, "operation_id": args.operation_id or identifier(),
+            "action": "loop_handover", "payload": payload,
+        }
+        Contracts().validate("gateway-command", command)
+        try:
+            response = _socket_command(address, {"surface": "terminal", "command": command})
+        except (OSError, ValueError):
+            parser.exit(
+                2, "odin: development command outcome unavailable; inspect status or "
+                "retry identical arguments with --operation-id "
+                + command["operation_id"] + "\n",
+            )
+        print(canonical(response))
+        if "error" in response:
+            sys.exit(1)
+        return
+    if args.action == "delegation-configure":
+        from .delegation import default_config, write_config
+
+        if not args.workspace_root:
+            parser.error("delegation-configure requires at least one --workspace-root")
+        if not 1 <= args.max_concurrent_turns_per_lineage <= 8:
+            parser.error("--max-concurrent-turns-per-lineage must be between 1 and 8")
+        try:
+            config = default_config(
+                claude_config_dir=args.claude_config,
+                workspace_roots=args.workspace_root,
+                codex_home=args.codex_home,
+                claude_model=args.claude_model,
+                claude_subagent_model=args.claude_subagent_model,
+                claude_subagent_model_force=args.claude_subagent_model_force,
+                claude_auto_compact_window_tokens=args.auto_compact_window_tokens,
+                claude_native_peer_messaging=bool(args.native_peer_messaging),
+                codex_model=args.codex_model,
+                turn_timeout_seconds=args.turn_timeout,
+                lineage_policy=args.lineage_policy,
+                max_concurrent_turns_per_lineage=args.max_concurrent_turns_per_lineage,
+            )
+            path = write_config(state, config)
+        except (ValueError, PermissionError, OSError) as error:
+            parser.exit(2, f"odin: {error}\n")
+        print(canonical({"written": str(path), "harnesses": sorted(config["harnesses"]),
+                         "workspace_roots": config["workspace_roots"],
+                         "activation": "restart serve to load this configuration"}))
+        return
+    if args.action == "repository-import":
+        from .repository_memory import prepare
+
+        if not args.project:
+            parser.error("repository-import requires --project")
+        batches = prepare(Path(args.repository) if args.repository else REPOSITORY_ROOT, args.project)
+        results = []
+        for payload in batches:
+            request = {
+                "surface": args.surface,
+                "command": {
+                    "schema_version": 1, "operation_id": identifier(),
+                    "action": "repository_import", "payload": payload,
+                },
+            }
+            try:
+                response = _socket_command(address, request)
+            except (OSError, ValueError):
+                parser.exit(2, "odin: import outcome unavailable; retry the same committed snapshot to reconcile.\n")
+            if "error" in response:
+                print(canonical(response))
+                sys.exit(1)
+            results.append(response["result"])
+        print(canonical({"project": args.project, "batches": results}))
+        return
+    if args.action in (
+        "status",
+        "stop",
+        "command",
+        "resume",
+        "acknowledge",
+        "memory",
+        "evidence",
+    ):
+        if args.action in ("resume", "memory", "evidence"):
+            if not args.project:
+                parser.error(
+                    "resume, memory and evidence require --project; no implicit routing"
+                )
+            payload = {"project": args.project}
+            if args.action == "evidence":
+                if not args.source or args.revision is None or args.revision < 1:
+                    parser.error("evidence requires --source and a positive --revision")
+                if not 2048 <= args.max_bytes <= 1048576:
+                    parser.error("--max-bytes must be between 2048 and 1048576")
+                payload.update(
+                    source_id=args.source,
+                    revision=args.revision,
+                    max_bytes=args.max_bytes,
+                )
+            command = {
+                "surface": args.surface,
+                "command": {
+                    "schema_version": 1,
+                    "operation_id": identifier(),
+                    "action": {
+                        "resume": "resume",
+                        "memory": "memory_snapshot",
+                        "evidence": "memory_source_read",
+                    }[args.action],
+                    "payload": payload,
+                },
+            }
+        elif args.action == "acknowledge":
+            if not args.delivery:
+                parser.error("acknowledge requires --delivery")
+            command = {
+                "surface": args.surface,
+                "command": {
+                    "schema_version": 1,
+                    "operation_id": identifier(),
+                    "action": "view_ack",
+                    "payload": {"delivery_id": args.delivery},
+                },
+            }
+        elif args.action == "command":
+            if not args.request:
+                parser.error("command requires --request JSON file")
+            from .contracts import Contracts
+
+            command = strict_loads(Path(args.request).read_bytes())
+            Contracts().validate("gateway-command", command)
+            # Surface identifies operator input only, never an actor or a grant.
+            command = {"surface": args.surface, "command": command}
+        else:
+            command = {
+                "schema_version": 1,
+                "operation_id": identifier(),
+                "action": args.action,
+                "reason": args.reason or "operator requested stop",
+            }
+        response = _socket_command(address, command)
+        print(canonical(response))
+        if "error" in response:
+            sys.exit(1)
+        return
+    with Service(state) as service:
+        service.recover()
+        from .coordination import Actor
+        from .delegation import load_config
+        from .development_evaluator import EvaluatorRunner, load_config as evaluator_config
+        from .gateway import Gateway, GatewayContext
+        from .orchestration_config import OrchestrationConfig
+
+        delegation_config = load_config(state)
+        development_config = evaluator_config(state)
+        gateway = Gateway(
+            service, OrchestrationConfig(args.config), delegation_config=delegation_config,
+            evaluator_configured=development_config is not None,
+        )
+        evaluator = EvaluatorRunner(gateway.development_loop, state, development_config)
+        if args.executive_project:
+            gateway.coordination._project(args.executive_project)
+        # The namespace lock proves no other service using this state is active.
+        if os.path.lexists(address):
+            import stat
+
+            if not stat.S_ISSOCK(os.lstat(address).st_mode):
+                raise ValueError("refusing to replace a non-socket path")
+            os.unlink(address)
+
+        class Handler(socketserver.StreamRequestHandler):
+            def handle(self):
+                self.request.settimeout(5)
+                try:
+                    raw = self.rfile.readline(1048577)
+                    if not raw:
+                        return
+                    if len(raw) > 1048576 or not raw.endswith(b"\n"):
+                        raise ValueError("invalid request frame")
+                    request = strict_loads(raw)
+                    if getattr(self.server, "executive_project", None):
+                        from .executive_service import submit_executive
+
+                        result = submit_executive(
+                            gateway, request, self.server.executive_project
+                        )
+                    elif set(request) == {"surface", "command"}:
+                        if request["surface"] not in ("terminal", "voice"):
+                            raise ValueError("unsupported operator surface")
+                        context = GatewayContext(
+                            request["surface"], Actor("operator", "local-operator")
+                        )
+                        result = gateway.submit(request["command"], context=context)
+                    else:
+                        service.store.contracts.validate("operator-command", request)
+                        payload = (
+                            {"reason": request["reason"]}
+                            if request["action"] == "stop"
+                            else {}
+                        )
+                        gateway.submit(
+                            {
+                                "schema_version": 1,
+                                "operation_id": request["operation_id"],
+                                "action": request["action"],
+                                "payload": payload,
+                            },
+                            context=GatewayContext(
+                                "terminal", Actor("operator", "local-operator")
+                            ),
+                        )
+                        result = service.status()
+                    # Delivery is outside the gateway's atomic local transaction.
+                    # Stop returns queued/uncertain until the fake receipt arrives.
+                    if service.store.dispatch_enabled:
+                        service.store.dispatch(service.backend)
+                        service.mirror.refresh(service.backend)
+                except Exception as error:
+                    # Keep protocol errors bounded; never dump a schema or input body.
+                    from .gateway import error_result
+
+                    result = error_result(error, service.label)
+                self.wfile.write((canonical(result) + "\n").encode())
+                self.wfile.flush()
+                # Runner launches follow the recorded command and its reply;
+                # a launch problem is a turn failure, never a command failure.
+                try:
+                    if not service.store.stopped():
+                        gateway.delegation.launch_pending()
+                except Exception as error:
+                    print(
+                        "delegation launch failed: " + type(error).__name__,
+                        file=sys.stderr,
+                        flush=True,
+                    )
+
+        import selectors
+        import stat
+        from contextlib import ExitStack
+
+        addresses = [address]
+        if args.executive_project:
+            addresses.append(str(state / "executive.sock"))
+        created = []
+        try:
+            with ExitStack() as stack:
+                selector = stack.enter_context(selectors.DefaultSelector())
+                for path in addresses:
+                    if os.path.lexists(path):
+                        if not stat.S_ISSOCK(os.lstat(path).st_mode):
+                            raise ValueError("refusing to replace non-socket path")
+                        os.unlink(path)
+                    server = stack.enter_context(socketserver.UnixStreamServer(path, Handler))
+                    created.append(path)
+                    os.chmod(path, 0o600)
+                    server.executive_project = args.executive_project if path != address else None
+                    selector.register(server, selectors.EVENT_READ)
+                print("Fixture service ready: " + address, flush=True)
+                try:
+                    from jsonschema import ValidationError
+
+                    from .service_activation import record_service_revision
+
+                    record_service_revision(state)
+                except (OSError, ValueError, ValidationError) as error:
+                    print("service revision not recorded: " + type(error).__name__,
+                          file=sys.stderr, flush=True)
+                # A detached service is stopped with SIGTERM; treat it like Ctrl-C
+                # so sockets are removed and the store closes cleanly.
+                import signal
+
+                def _terminate(*_):
+                    raise KeyboardInterrupt
+
+                signal.signal(signal.SIGTERM, _terminate)
+                if delegation_config is not None:
+                    print(
+                        "Delegation enabled for harnesses: "
+                        + ", ".join(sorted(delegation_config["harnesses"])),
+                        flush=True,
+                    )
+                while True:
+                    for key, _ in selector.select(timeout=0.5):
+                        key.fileobj._handle_request_noblock()
+                    service.tick()
+                    try:
+                        gateway.delegation.tick()
+                    except Exception as error:  # Keep the service up; report it.
+                        print(
+                            "delegation tick failed: " + type(error).__name__,
+                            file=sys.stderr,
+                            flush=True,
+                        )
+                    if args.executive_project:
+                        from .executive_loop_hook import drain_spool
+                        from .executive_service import submit_executive
+
+                        def capture(command):
+                            # Keep a failed capture pending without blocking other
+                            # entries. Never reconnect to this single-threaded server.
+                            try:
+                                return submit_executive(
+                                    gateway, {"command": command}, args.executive_project
+                                )
+                            except Exception as error:
+                                return {"error": type(error).__name__}
+
+                        try:
+                            drain_spool(
+                                state, submit=capture, project=args.executive_project
+                            )
+                        except Exception as error:
+                            print("development capture failed: " + type(error).__name__,
+                                  file=sys.stderr, flush=True)
+                    try:
+                        evaluator.tick()
+                    except Exception as error:
+                        print("development evaluator tick failed: " + type(error).__name__,
+                              file=sys.stderr, flush=True)
+                    try:
+                        gateway.development_loop.check_attention()
+                    except Exception as error:  # noqa: BLE001 - attention is an observation, never fatal
+                        print("development attention check failed: " + type(error).__name__, file=sys.stderr)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            for path in created:
+                os.unlink(path)
+
+
+if __name__ == "__main__":
+    main()

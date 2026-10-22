@@ -22,7 +22,7 @@
 > N7, N9 and N11) were then applied here, each resolved against the
 > decision record and recorded in
 > [`../provenance/REVIEW-RESOLUTIONS.md`](../provenance/REVIEW-RESOLUTIONS.md);
-> they are design corrections and describe nothing implemented. The
+> those corrections recorded design requirements, not runtime evidence. The
 > documentation handoff is not yet recorded (D14).
 >
 > **Consolidation decisions (2026-10-16).** ODIN-ADR-006 to 015 are
@@ -37,7 +37,23 @@
 > in effect: they wait on the Saga-side decisions of issue X-14. Saga's
 > interface, Appendix B, Bragi's and Eir's placement and the separate
 > repositories therefore stand, and a shared repository is a proposal.
-> These changes are design; nothing in them is implemented or tested.
+> Implementation has since begun with the unaffected I0 schemas and shared
+> contract fixtures ([runtime guide](../../runtime/README.md)). This is not
+> service or harness acceptance; X-7 still gates Review/guidance schemas.
+> A local service foundation and ADR-022 orchestration protocol now run against
+> synthetic fixtures; [implementation status](../IMPLEMENTATION-STATUS.md)
+> records their evidence and the remaining live gates.
+>
+> **Native development executive (2026-10-19).**
+> [ODIN-ADR-026](../DECISIONS.md#odin-adr-026--native-executive-development-access)
+> supersedes the restricted planner/tool/environment rules in this contract
+> for the operator's version 3 native executive only. It uses normal Claude
+> Code tools and prompt, permission bypass, the real checkout/HOME and
+> inherited environment. It may inspect, edit, execute tests/commands and use
+> native agents directly; that development work does not depend on fake Saga
+> or the unfinished managed worker path. The managed product requirements
+> below, Saga's interface/ledger guarantees and scoped MCP record semantics
+> remain separate. See the [pilot guide](../EXECUTIVE-PILOT.md).
 >
 > **Authority and reading order.** Odin's
 > [decision record](../DECISIONS.md) wins over this document; this
@@ -48,9 +64,9 @@
 > build increments (I0 to I7); the [ecosystem integration plan](ODIN-ECOSYSTEM-INTEGRATION.md)
 > gives the proposed cross-repository work (EC-01 to EC-16); the
 > [acceptance scenarios](ODIN-ACCEPTANCE-SCENARIOS.md) give the tests
-> (AC-01 to AC-41, DC-01 to DC-08; AC-37 to AC-41 are proposed
+> (AC-01 to AC-50, DC-01 to DC-08; AC-37 to AC-50 are proposed
 > scenarios), which must agree with this document; the decision
-> record's issues are X-1 to X-14.
+> record's issues are X-1 to X-15.
 > This document is the operational contract: what Odin perceives, does
 > and remembers, as records, events, routing rules, tools, profiles and
 > protocols. Where it is more specific than the blueprint, it refines;
@@ -72,6 +88,8 @@
 > agents. UniiChat is Victor Taelin's design (gist
 > `VictorTaelin/91837951a5ce5b38f341ec1ba1df6449`, no license shown),
 > adopted with attribution and adapted. Sizes are UTF-8 bytes.
+
+**ADR-022 — local experimental scope.** A configured portfolio coordinator may propose project priorities and issue typed requests to one accountable planning owner per project. The service stores the source revisions, authority, scope, dependencies and acceptance checks in each handoff packet. A bounded chirality response is read-only advice, never an approval or assignment. Worker execution stays behind the Saga adapter; incident grants are operator-issued, scoped, expiring records checked by the service. Herdr displays service state and voice supplies recorded input only. Neither can approve a run. Exact model and harness configuration is recorded for evaluation under ADR-020; this local design supplies no live provider capability.
 
 ## 1. Architecture in one page
 
@@ -405,6 +423,17 @@ or queue/escalate if unavailable. No learned model-tier router is enabled.
 Cache behavior is adapter-specific and measured; the claim that switching
 always costs more than it saves is not an established result.
 
+**Workload-class configuration** (ODIN-ADR-004, 014). A validated,
+versioned configuration is the canonical home for the available workload
+classes, their model/effort and budget settings, required host capabilities,
+and deterministic selection rules. The examples above (routine fleet
+handling, decomposition, retrospective, reviewer position) are illustrative,
+not a fixed enum or assigned model defaults. I0 must define the schema and
+fixtures before class routing is implemented. Workload classes select a
+session's work and launch settings; capability profiles (§7) enforce tool
+permissions, while process roles describe which component holds authority.
+The SessionClassDecision records the configuration revision used.
+
 **Class decisions are recorded** (ODIN-ADR-014). Each code-made class
 selection writes a SessionClassDecision record (§2) in the Odin-history
 namespace: the chosen class, the rejected candidate classes with their
@@ -413,8 +442,7 @@ An independent outcome assessment attaches its result later. The record
 never changes routing at run time; changing routing on the basis of
 these records needs D9's review, replay and shadow period. The records
 follow D9.5's sensitivity rule and D7.12's redaction (§8). Check: one
-record per selection, and identical routing with recording disabled; no
-scenario names it yet (AC-36's class-routing fixtures are its place).
+record per selection, and identical routing with recording disabled; (AC-36).
 
 **What a session sees**, through the integration package:
 
@@ -572,6 +600,16 @@ See [confidence](https://docs.typesafe.ai/confidence) and
 
 ## 7. Capability profiles
 
+**Scope exception (ODIN-ADR-026).** This section's restricted planner,
+read-only subagent, pre-tool denial and isolated environment requirements
+apply to the managed product profiles, not version 3 of the native
+executive. That development profile has the harness's normal tools,
+`bypassPermissions`, real checkout cwd and inherited HOME/environment; Odin
+adds no native-tool, path, plugin, hook or child-agent restriction. It is an
+operator-owned local development process with no claim of OS isolation,
+managed budgets or Saga execution guarantees. Its additional Odin MCP bridge
+still uses the fixed project/principal and truthful record semantics.
+
 Restricting Odin's wrapper tools is insufficient: the harness's native
 tools, loaded plugins and configuration must obey the same boundaries,
 enforced before tool execution. Each profile is applied by the runtime
@@ -647,6 +685,12 @@ guard (DC-03). Checks: DC-01 to DC-08, unchanged; enabling the process
 is I7 work by operator decision (§13).
 
 ## 8. Memory: requirements, implementation, retention
+
+ODIN-ADR-023 supplies local source/statement provenance, service learning
+times, freshness and dependency checks alongside this interface. The
+[memory implementation note](MEMORY-IMPLEMENTATION.md) states their local
+scope. This does not establish the compactor hypothesis, live retrieval,
+retention defaults or external redaction delivery described below.
 
 The memory **interface** is stable: append a message, build summaries,
 render a briefing, zoom to source, import a note, redact, export. The
@@ -956,22 +1000,29 @@ records on the Review, in one format: `request_id`, `type`, `result` ∈
 `minimal_correction`, `citations`.
 
 **Service-run consensus.** Service code, not a conversation and not a
-decision model (D9.1), combines the two verdicts. Approval requires both
-positions to approve; `APPROVE_UNCHANGED` remains a first-class
-outcome. Any `REJECT` or `INSUFFICIENT_EVIDENCE` from either position,
-or a disagreement that survives the single permitted corrective
-re-review, goes to the operator with both positions and their evidence
-(proposed AC-40). Agreement passes into the log without an operator
-message. One review and at most one corrective re-review; then the
-operator. The service submits the combined verdict through Saga's verdict
+decision model (D9.1), combines the two verdicts. The action-level
+rule covers every pair of the five results (proposed AC-40):
+
+| Pair of position results | Service action |
+|---|---|
+| Either result is `REJECT` or `INSUFFICIENT_EVIDENCE` (including pairs with `FLAG`) | Escalate to the operator with both positions and their evidence; no approving combined verdict |
+| Neither is `REJECT`/`INSUFFICIENT_EVIDENCE`, and either is `FLAG` (including `FLAG`/`FLAG`) | Escalate to the operator with both positions and their evidence under Saga ADM-7; no approving combined verdict. Whether a `FLAG` plus operator approval admits remains open (GAP-08) |
+| Both are `APPROVE` | Record matching approval without an operator message, subject to required approval/admission checks |
+| Both are `APPROVE_UNCHANGED` | Record matching approval without an operator message, subject to required approval/admission checks; guidance publication still follows X-7 |
+| One is `APPROVE`, the other `APPROVE_UNCHANGED` | The two approve, but the single combined `result` mapping is unresolved. Keep the review pending and submit no signed combined verdict until the I0 review schema defines it; if treated as a disagreement, the one corrective re-review limit still applies |
+
+Only matching approving pairs pass into the log without an operator
+message. One review and at most one corrective re-review; a disagreement
+that survives it goes to the operator. The service submits a defined
+combined verdict through Saga's verdict
 operation (B-10), which records it in Saga's ledger in the verdict format
 Saga verifies, under the reviewer identity key (held by the service's
 signer, never by a session; Saga verifies), and mirrors it into the
 planner's chat.
 The positions' own verdicts are Odin's Review records; Saga accepting
-per-position verdicts would be a change to its contract (B-10). How two
-approving results map to the one combined `result` is fixed with the
-review schemas and does not decide issue X-7. Roles are assigned per
+per-position verdicts would be a change to its contract (B-10). The
+mixed approving pair's mapping remains open for the I0 Review schema;
+that work does not decide issue X-7. Roles are assigned per
 project: one planning owner and one standing reviewer position, which
 may swap between projects. Review caps apply per position and in total
 (D8.6; §4). The model per position is open (§5.2); D8.5's single-model
@@ -988,17 +1039,20 @@ service API, and every one enters the same recorded command path: the
 terminal workspace (Herdr), Telegram (on the homelab, so approvals and
 stop work when the workstation is off), a summoned terminal
 conversation, a status bar, desktop notifications with typed actions,
-and later voice (backlog until issue X-13). Herdr and Telegram remain
-the first configuration (D20.11). The status bar, desktop notification
+and later voice (backlog until issue X-13), and the web app, which
+ODIN-ADR-037 makes the primary human view. The web app and Telegram are
+the first configuration (D20.11 as amended by ODIN-ADR-037); Herdr is an
+optional inspection and attachment adapter. The status bar, desktop notification
 and summoned-terminal adapters run in the workstation daemon (§11). No
 harness gateway faces the
 operator directly under Odin; the single gateway is what makes the
 running log complete. One human view shows commitments, runs and
-transcripts with their owners attributed (ODIN-ADR-007). The
-terminal workspace (Herdr) shows the overview (needs attention, open
-commitments and requests, approvals, budgets, evidence, coverage
-limits) and, per project, the planning conversation and each worker's
-terminal where the adapter supports attachment; Telegram
+transcripts with their owners attributed (ODIN-ADR-007); that view is the
+web app (ODIN-ADR-037). The web app shows the overview (needs attention,
+open commitments and requests, approvals, budgets, evidence, coverage
+limits) and, per project, the planning conversation, the agent tree and
+session details; a worker's terminal opens in Herdr or another terminal
+adapter only where the adapter supports attachment; Telegram
 (sender-allowlisted) reaches the same service and records. Approvals
 resolve against the specific request id and revision whichever channel
 gives them, and carry the digest of the exact proposal as the content
@@ -1022,6 +1076,66 @@ holds the session's pending outbox effects, which are revalidated at
 the handoff (AC-11).
 A worker question is shown with which worker asked, which assignment,
 what decision is needed and what answering authorizes.
+
+**Web operator surface** (ODIN-ADR-037). The web app is the primary human
+view and an adapter on the same service API; it adds no authority.
+
+- *Records and relationships.* Sessions, assignments, commitments and runs
+  keep stable identities. The projection carries each session's recorded
+  `parent_session_id` (ancestry: which recorded session started it) and its
+  provenance (`recorded` or `imported`). Ownership, review, delegation and
+  run association are separate typed relationships, each naming its two
+  identities and the record that asserts it; none of them is a parent edge.
+  A session without a recorded parent is a root, so a project may show
+  several roots; an imported session with no known parent stays unparented,
+  and ancestry is never inferred from timing, layout or transcript text.
+  Resumption keeps the session identity with a recorded resumption; a new
+  attempt is a new session linked to the same assignment with its attempt
+  number (§5). Each projected record names its owner and the source of its
+  evidence.
+- *States.* Session lifecycle, assignment progress and run outcome are
+  separate fields. A session ending, or a harness reporting "done", never
+  sets a run to `verified` (D5, D20.6). `host_offline`, unknown outcomes,
+  transcript gaps and stale observations are explicit values. Cost is a
+  measured figure, a labelled estimate or `unknown`, never a zero
+  substitute; each session carries its own share, and a parent's inclusive
+  figure is not added again to its descendants' sum (ODIN-ADR-036
+  accounting).
+- *Query and updates.* The browser loads a snapshot of a scope (overview,
+  project or session) with a revision, then follows a resumable update
+  stream from that cursor. Updates are idempotent by event identity, so a
+  duplicate never duplicates a node or an activity entry. On reconnect the
+  client resumes from its last cursor; if the cursor has expired the
+  service says so and the client replaces its state with a fresh snapshot.
+  Transcripts and evidence are paginated and loaded on demand; a collapsed
+  branch is not loaded. The transport is chosen during implementation.
+- *Freshness.* Every projection carries the observation time and the
+  revision it reflects. The client marks data stale when the stream is
+  disconnected or a host is `host_offline`, and keeps the selection and the
+  transcript reading position across updates.
+- *Commands and acknowledgements.* The browser submits commands with an
+  idempotency key through the recorded command path (§4). The service
+  replies with the created record: `acknowledged`, `rejected` with its
+  reason, or `uncertain` when the outcome cannot be established, for
+  example after a lost backend connection. A queued or sent request is
+  never shown as acknowledged. Repeated submission with the same key
+  returns the original result. The service publishes which commands a
+  principal may use on each record; unsupported actions are shown with the
+  reason. Stop keeps its four direct operations and reports acknowledged
+  and uncertain outcomes separately.
+- *Approval binding.* An approval control shows the request id, the
+  revision and the digest of the exact proposal, and submits all three. A
+  changed proposal creates a new request and invalidates any approval
+  context the browser holds for the old one (AC-06, AC-30).
+- *Security.* The app is served by the service deployment or alongside it
+  under the same authenticated origin. Authentication, authorization,
+  request validation and protection of state-changing requests are defined
+  before any real command is enabled; project and record access checks run
+  in the service. No model credential or service secret reaches browser
+  code or frontend storage; the browser stores only layout preferences and
+  selection. Transcript and evidence content is untrusted data: it is
+  rendered as text, links are not followed automatically, and rich text is
+  sanitized or shown as source.
 
 **Bragi** (D12). Model-driven; reads the chat histories, Saga's ledger
 and delegation records, project wikis and worker workspaces; writes the
@@ -1070,6 +1184,15 @@ this placement and route stand.
 
 ## 11. Runtime adapter
 
+The following describes the managed adapter. ADR-024 permits the native
+interactive conversation pilot, and ADR-026 additionally enables direct
+native development and agents in profile version 3. The latter uses the
+harness's normal system prompt with appended Odin context, loads the
+operator's available integrations normally, and preserves the dedicated
+Claude login and session identity. It does not wait for the SDK's managed
+child protocol to use native agents; it also does not establish that
+protocol's isolation, budgets, stop propagation or acceptance evidence.
+
 The service drives Claude Code through the Agent SDK, on the homelab
 or through the workstation session host (below): start a session
 with the briefing and the integration package, resume with new
@@ -1093,6 +1216,27 @@ host provides (sandbox and isolation, surfaces, credential lineages)
 comes from its Environment record (§2). The service refuses a session
 class whose required capabilities the adapter or the host lacks and
 says so in `now`.
+
+**Child capability evidence** (D19.4, ODIN-ADR-020). For the pinned
+harness, SDK, extensions and host, describe conversation inheritance,
+process/session lifetime and filesystem isolation separately. Record
+which native or default child types remain enabled, their effective
+tools/profile and requested versus resolved model/effort; an unobservable
+field is unknown. State whether children can resume, create descendants,
+survive parent exit, receive a stop, return partial results or retain
+provider-native session state. A separate conversation or worktree is not
+proof of process isolation or profile enforcement. Check the actual
+non-interactive adapter path (AC-42–AC-43); a CLI option, framework
+feature or optional extension alone is not capability evidence.
+
+Declare the scope and enforcing component of every limit: individual
+request/child/session, shared parent budget, concurrency and depth.
+Unknown aggregate usage does not establish a hard cap. Shared admission,
+in-flight accounting and crash/stop semantics remain open at X-15 and
+must be resolved before I2 enables child dispatch; AC-23 and proposed
+AC-44 exercise the resulting design. These are Odin harness checks, not
+new Saga worker controls. I1 supplies the matrix and its evidence format;
+I2 and each later adapter supply the observations.
 
 **Workstation session host** (ODIN-ADR-009; proposed AC-37). The Agent
 SDK runs a harness as a child of the process that calls it, so sessions
@@ -1178,6 +1322,21 @@ The D18 evaluation records the real numbers, including review,
 compaction, evaluators, operator time and worker resources, with
 transport deliveries counted separately from model turns.
 
+**Whole-task accounting** (ODIN-ADR-020; acceptance §3). Measure from
+original intake to independently verified completion, including waiting,
+synthesis and repair. An episode includes planning, every child/run,
+retries, verification/review, compaction, evaluators and tools. Attribute
+shared background work by a declared rule and count usage once when a
+parent total already includes children. Cost per accepted task is total
+episode cost over all attempted tasks divided by the number accepted;
+with zero accepted tasks it is undefined, never zero. Report known cost
+and missing coverage separately if any price or usage is unavailable.
+Keep provider-metered usage, priced estimates and actual charges distinct;
+pin rate date, endpoint/tier, cache categories and billing mode. API list
+prices do not convert subscription quota into dollars. Report defaults,
+dollar-capped and deadline-capped comparisons separately, with the scope
+of each cap and any overrun; summed worker durations are not elapsed time.
+
 **Haiku request budget** (ODIN-ADR-005; AC-35). Target each request below
 100,000 input tokens, with configurable headroom. Count the complete prompt
 with the selected model's tokenizer, including system/tools, briefing,
@@ -1218,8 +1377,8 @@ dependency; the Odin column is this repository's work.
 | Phase (D15) | Saga phase gate | Odin increments | Odin deliverables in this contract |
 |---|---|---|---|
 | **B** Saga service v1 | Saga delivers the API providing the Appendix B capabilities (run submission, cursor, evidence, guidance, cancel, the structured request protocol of §10 workers); D5 states; **minimum enforcement**: approval and verdict binding by digest at submission, reviewer-identity verification, cancellation, concurrency cap, the four stop operations and the kill switch; **minimum verification policy**: `verified` requires the success criteria matched to evidence and the stream branch pushed; the `needs_input` worker protocol in the Claude Code worker image; launcher defects fixed; `commands/` deleted. Its exit gates I3 | I0, I1: **non-production**, against fixtures and the fake Saga backend | I0 (ODIN-ADR-008): the versioned event envelope and namespaces (EC-01, §1), the record schemas of §2 and Appendix A, and fixtures for the duplicate, stale and unknown cases, validated by both the Go and the Python implementation against the same fixture set. I1: the service foundation (blueprint §7) with the adapter capability matrix, the fake Saga backend, the synthetic three-document fixture and the ownership mapping, moved from I0. The planner tool-isolation check moves with the profile schemas and must pass before I2 claims the planner profile. No live submission, no deployment |
-| **C** Odin v1 | Phase B exit met before I3 and before any live submission | I2 (**non-production**, fake backend), then the Pi RPC control after I2's exit (fixture-only, ODIN-ADR-015), then I3 (live, against Saga) | §2 records and operations; §3 history; §4 routing and lifecycle handler; §5 sessions with compaction off the critical path; §6 tools; §7 planner, reviewer and subagent profiles; §8 memory first implementation; §9 recovery; the Claude Code adapter and integration package; the workstation session host and Environment record (§11; X-12 decided first); Telegram; review sessions with reviewer positions (§10); the capture spool against synthetic fixtures (§9; live capture is I6); **read-only** workspace inspection through the Herdr CLI (§11) in I3 (overview, attachable sessions where supported; no adopt or take-control) and the shared command path with direct stop; the single-project proof |
-| **D** Richer policy | Saga Phase D policy (TTL, budgets, presence gate, per-project-type verification policies, action-authority boundaries for any new connector) for the phase exit | I4 | Second project; the full Herdr workspace adapter (through the Herdr CLI, §11) with explicit bindings; adopt-into-supervision and take-control; ownership rules exercised; one-time heimdall import (§14 step 6, after G-10; proposed AC-38); human view v0; attention prompts begin shadow logging (ODIN-ADR-010) |
+| **C** Odin v1 | Phase B exit met before I3 and before any live submission | I2 (**non-production**, fake backend), then the Pi RPC control after I2's exit (fixture-only, ODIN-ADR-015), then I3 (live, against Saga) | §2 records and operations; §3 history; §4 routing and lifecycle handler; §5 sessions with compaction off the critical path; §6 tools; §7 planner, reviewer and subagent profiles; §8 memory first implementation; §9 recovery; the Claude Code adapter and integration package; the workstation session host and Environment record (§11; X-12 decided first); Telegram; review sessions with reviewer positions (§10); the capture spool against synthetic fixtures (§9; live capture is I6); **read-only** workspace inspection through the Herdr CLI (§11) in I3 (attachable sessions where supported; no adopt or take-control; the overview is the web app's, ODIN-ADR-037) and the shared command path with direct stop; the single-project proof |
+| **D** Richer policy | Saga Phase D policy (TTL, budgets, presence gate, per-project-type verification policies, action-authority boundaries for any new connector) for the phase exit | I4 | Second project; the full Herdr workspace adapter (through the Herdr CLI, §11) with explicit bindings; adopt-into-supervision and take-control; ownership rules exercised; one-time heimdall import (§14 step 6, after G-10; proposed AC-38); attention prompts begin shadow logging (ODIN-ADR-010) |
 | **E** Workers and portability | Saga worker contract document, Codex and Pi worker images for the phase exit | I5 | **The second Odin runtime adapter** (portable harness) with its capability matrix; controlled memory comparison with identical fixture retrieval (§8); no heimdall external views (EC-05 withdrawn by ODIN-ADR-007) |
 | **F** Integrations | Bragi on the new inputs; observability (Saga's part) | I6 | `recall` on braid as an in-process library; skald source enrollment through the capture module, writing the transcript-archive namespace, and the `archive` scope; repeat memory comparison with live retrieval; `decide`; first evaluator in shadow; selected preservation to Odin's own export directory with receipts, without dotprivate (ODIN-ADR-012); attention prompts leave shadow mode on logged outcomes (proposed AC-39); local backend; observability |
 | **G** Evaluation | Saga runs both arms and supplies its evidence | I7 and the acceptance report | D18 comparisons, including the reviewer-position arm against single review and the equal-budget baseline (ODIN-ADR-013); the gated desktop-input process (§7) and the desktop workflow only by operator decision (D21; open §5.9) |
@@ -1231,7 +1390,8 @@ v1 is built against the API and meets the boundary on its first live
 submission (D15; AC-03, AC-06, AC-10). D14 has code extraction enter in
 the blueprint's increments, and the blueprint (§7) lets I0 to I2 use a
 fake Saga backend; the extraction plan adds that a fake backend
-establishes no production readiness. So I0 to I2 are non-production
+establishes no production readiness. So I0 uses fixtures; I1 to I2
+also use a fake backend. These are non-production
 development and may proceed while Phase B is in progress; I3, every
 live delegated run, every live Saga submission, deployment cutover and
 the Phase C exit require Phase B's exit criterion and minimum
@@ -1242,6 +1402,15 @@ archive scope in I6. Work on any of them in an earlier increment is
 fixture work only and is labelled as such. The Pi RPC control after I2
 is such fixture work: it does not move Phase E's exit or establish
 portability (ODIN-ADR-015).
+
+**Human-view packages** (ODIN-ADR-037) run inside these increments and
+add none: the synthetic UI prototype has no gate; identities, ancestry and
+the browser projection and update schemas are I0 schema work; service read
+integration uses the I1/I2 fake backend and is labelled fake-backend
+evidence; operator commands wait for the web surface's security
+definitions and, where they reach Saga, for the live gates above; desktop
+delivery follows read integration. None waits for the I4 heimdall import,
+which keeps G-10.
 
 ## 14. Migration
 
@@ -1274,9 +1443,11 @@ a fixture or by copying runtime directories into this repository.
    revision as provenance, and the import writes one receipt. Running it
    again on the same database adds nothing: one set of commitments, one
    receipt. Afterwards heimdall's task layer is retired for work run
-   through Odin; a later heimdall-side edit is refused, or, where heimdall
-   cannot refuse, ignored with a visible record, and never changes a commitment (proposed
-   AC-38). The mapping from heimdall's record types is kept with the
+   through Odin; a later heimdall-side edit must be refused and must never
+   change a commitment (proposed AC-38). Ignoring a permitted source edit
+   is not passing retirement evidence. If refusal cannot be enforced,
+   migration remains incomplete; no transitional policy is selected.
+   The mapping from heimdall's record types is kept with the
    record schemas (Appendix A). Retirement on heimdall's side is
    heimdall's to record (EC-13).
 7. (I6; after G-10.) Ingest the transcript archive incrementally from skald's existing
@@ -1314,7 +1485,8 @@ Steps 6 and 7 change no Saga file.
   (ODIN-ADR-001); it does not grant third-party rights.
 - The compatibility gaps Appendix B records against the Saga contract
   (`DECISIONS.md` issue X-3): delegation reads, a published admission
-  schema, and the wire details Saga still has open; recheck when the
+  schema, worker-event notification coverage (B-12), and the wire details
+  Saga still has open; recheck when the
   contract is repinned.
 - Which guidance-review results authorize publishing guidance
   (`DECISIONS.md` issue X-7). Until it is decided no verdict string
@@ -1351,6 +1523,12 @@ Steps 6 and 7 change no Saga file.
 
 Field types: `id` ULID, `ts` ISO-8601 UTC, `digest` sha256 hex, `rev`
 integer. Every record has `id`, `rev`, `created_at`, `updated_at`.
+
+The first machine-readable implementations of the unaffected schemas are
+in [`runtime/schemas/v1`](../../runtime/schemas/v1/README.md), with shared
+Go/Python validation and synthetic fixtures. Review/guidance schemas remain
+absent pending X-7. The examples below describe the full target, not a claim
+that all records or operations have been implemented.
 
 ```jsonc
 // Project (Odin)
@@ -1530,7 +1708,7 @@ the [frozen original](../history/saga-extraction/2026-10-14-14fdab3/docs/design/
 A capability the pinned contract lacks or defines differently is a
 compatibility gap recorded against that snapshot and resolved at Saga;
 the Saga adapter declares which capabilities it found. The fake Saga
-backend used for I0 to I2 implements this list and must not be
+backend used for I1 to I2 implements this list and must not be
 presented as Saga.
 
 The last column is a document-level compatibility check (issue X-3)
@@ -1555,7 +1733,7 @@ gap or gate that leaves a wire detail undecided.
 | B-09 | Saga records the worker's consumption acknowledgement and emits it as a run event | §10 workers | RQ-4 records it. Open: its ledger event kind (EV-4, GAP-11) |
 | B-10 | Record a verdict only under the reviewer identity key, which Saga verifies | `deliver_verdict` (D2.4) | ID-1, `POST /reviews`. Open: key scheme (GAP-03) |
 | B-11 | Record an operator approval bound to the request id, request revision and proposal digest | approval handling (AC-06, AC-30) | REC-3, ADM-5, `POST /approvals`. Open: operator principal (GAP-02, gate G1) |
-| B-12 | A resumable event cursor over the ledger by monotonically increasing sequence | §9 intake and recovery (AC-03) | EV-1, EV-2, `GET /events`. Open: envelope, paging, retention (GAP-11) |
+| B-12 | A resumable event cursor over the ledger by monotonically increasing sequence. Odin needs notifications of D5 run and side-state transitions, submission refusals, structured requests and consumption acknowledgements, recorded verdicts and approvals, delegation changes, stop outcomes, and worker per-iteration status transitions, journal entries, plateau signals and alerts used by §4 routing. Saga receives the worker-originated signals through its worker transport and delivers ledger notifications through its API cursor; Odin does not consume worker MQTT directly. The cursor must identify each category and its run/iteration and evidence reference where applicable. Evidence and status reads (B-03, B-06) provide details after notification; they do not supply notification delivery | §4 routing, §9 intake and recovery (AC-03), §10 workers | EV-1 to EV-4 and `GET /events` specify the listed lifecycle, refusal, request, verdict, approval, delegation and stop notifications. RQ-4 records consumption acknowledgement; its event kind remains open (B-09). **Gap:** EV-4 does not expressly promise cursor delivery of worker per-iteration status, journals, plateau signals or alerts; B-03/B-06 reads do not close it. Saga must publish the coverage and delivery semantics, then Odin repins and checks compatibility. Open: envelope, kind names, paging, retention (GAP-11) |
 | B-13 | Operation lookup by operation id returning `pending`, `completed` (with the original receipt and the resource it produced), `failed`, `superseded` (guidance only: recorded, but a newer `guidance_rev` was delivered first), `absent`, or `unknown_expired` when the record aged out; records kept at least 30 days and never expired while their run or request is open; every write accepts the operation id as its idempotency key; a submission's request id is its operation id | §9 reconciliation (AC-02, AC-28) | OP-2 to OP-4, `GET /operations/{operation_id}`. The `superseded` result is a design clarification in 0.1.1; its name and body are Proposed until GAP-12 |
 | B-14 | Withdrawn as a requirement (source review B5): `emit_event` records Odin's lifecycle events locally (§6). The identifier is kept | — | Not in the contract; nothing required |
 | B-15 | Stop with scope `delegation` or `all` and the operations to apply; per-operation outcomes reported | `/stop` (D2, AC-10) | ST-1 to ST-4, `POST /stop`. Open: which operations each side performs, report schema, kill-switch persistence (GAP-17, gate G2; issue X-2) |
@@ -1584,7 +1762,8 @@ typed rule), `host.{registered,offline,returned}` (log; `offline` sets
 `raised` prompt is logged and never sent), `review.position` (log; one
 position's verdict, never acted on alone; `review.verdict` carries the
 combined verdict or the escalation), `import.heimdall.{completed,later_edit}`
-(log; a later heimdall-side edit is refused, or ignored with a visible record, never applied).
+(log; a later heimdall-side edit must be refused; failure to enforce
+refusal keeps the migration incomplete).
 
 These kind names are Odin's. D5 spells the side state `limit-paused`;
 `limit_paused` here is Odin's event-kind spelling, and Saga's wire

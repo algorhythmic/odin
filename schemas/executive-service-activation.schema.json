@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version", "id", "unit", "requested_head", "requested_branch", "repository",
+    "previous_revision", "previous_pid", "started_at", "finished_at", "outcome",
+    "reason", "quiescence", "running_revision", "running_pid"
+  ],
+  "properties": {
+    "version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"},
+    "unit": {"type": "string", "minLength": 1, "maxLength": 128},
+    "requested_head": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "requested_branch": {"type": "string", "minLength": 1, "maxLength": 256},
+    "repository": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "previous_revision": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+    "previous_pid": {"type": ["integer", "null"], "minimum": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": ["string", "null"], "format": "date-time"},
+    "outcome": {"enum": ["refused", "restarting", "activated", "failed"]},
+    "reason": {"type": ["string", "null"], "pattern": "^[a-z_]{1,64}$"},
+    "quiescence": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["quiescent", "blockers"],
+      "properties": {
+        "quiescent": {"type": "boolean"},
+        "blockers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["delegated_turns", "live_interventions", "claimed_loop_stages"],
+          "properties": {
+            "delegated_turns": {"type": "array", "maxItems": 32, "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["turn", "session", "state"],
+              "properties": {"turn": {"type": "string"}, "session": {"type": "string"},
+                             "state": {"type": "string"}}}},
+            "live_interventions": {"type": "array", "maxItems": 32, "items": {"type": "string"}},
+            "claimed_loop_stages": {"type": "array", "maxItems": 32, "items": {"type": "string"}}
+          }
+        }
+      }
+    },
+    "running_revision": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+    "running_pid": {"type": ["integer", "null"], "minimum": 1}
+  }
+}

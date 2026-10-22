@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:coordination-handoff:1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "operation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1
+    },
+    "project_rev": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "commitment": {
+      "type": "string",
+      "minLength": 1
+    },
+    "commitment_rev": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "assignment": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "assignment_rev": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ownership_generation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "from_subject": {
+      "type": "string",
+      "minLength": 1
+    },
+    "to_subject": {
+      "type": "string",
+      "minLength": 1
+    },
+    "to_session": {
+      "type": "string",
+      "minLength": 1
+    },
+    "to_incarnation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "requirements": {
+      "type": "object",
+      "properties": {
+        "objective": {
+          "type": "string",
+          "minLength": 1
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "objective",
+        "criteria"
+      ],
+      "additionalProperties": false
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "ref",
+          "digest"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "artifact_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "ref",
+          "digest"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "repository_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "grant_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "budget_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "deadline": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+    },
+    "model_config_rev": {
+      "type": "string",
+      "minLength": 1
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+    }
+  },
+  "required": [
+    "schema_version",
+    "operation_id",
+    "project",
+    "project_rev",
+    "commitment",
+    "commitment_rev",
+    "assignment",
+    "assignment_rev",
+    "ownership_generation",
+    "from_subject",
+    "to_subject",
+    "to_session",
+    "to_incarnation",
+    "requirements",
+    "evidence_refs",
+    "artifact_refs",
+    "repository_revision",
+    "grant_id",
+    "budget_ref",
+    "deadline",
+    "model_config_rev",
+    "issued_at"
+  ],
+  "additionalProperties": false
+}

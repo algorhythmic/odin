@@ -1,0 +1,238 @@
+{
+  "schema": "odin.web.projection.session-details/v0-draft",
+  "synthetic": true,
+  "dataset": "default",
+  "page_size": 20,
+  "transcripts": {
+    "ses-worker-a2": [
+      {
+        "seq": 1,
+        "at": "2026-10-21T09:03:00Z",
+        "speaker": "ses-integ-01",
+        "text": "Attempt 2: rebuild the tree prototype after attempt 1 failed checks."
+      },
+      {
+        "seq": 2,
+        "at": "2026-10-21T09:10:00Z",
+        "speaker": "ses-worker-a2",
+        "text": "Pasted from a tool: <img src=x onerror=alert(1)> <script>alert(\"xss\")</script> [click me](javascript:alert(1)) <a href=\"javascript:alert(2)\">link</a>"
+      },
+      {
+        "kind": "gap",
+        "from_seq": 3,
+        "to_seq": 7,
+        "reason": "Transcript capture interrupted (synthetic gap)"
+      },
+      {
+        "seq": 8,
+        "at": "2026-10-21T09:57:00Z",
+        "speaker": "ses-worker-a2",
+        "text": "Done. Returning for review."
+      },
+      {
+        "seq": 9,
+        "at": "2026-10-21T09:58:00Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 1: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 10,
+        "at": "2026-10-21T09:58:02Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 2: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 11,
+        "at": "2026-10-21T09:58:04Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 3: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 12,
+        "at": "2026-10-21T09:58:06Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 4: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 13,
+        "at": "2026-10-21T09:58:08Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 5: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 14,
+        "at": "2026-10-21T09:58:10Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 6: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 15,
+        "at": "2026-10-21T09:58:12Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 7: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 16,
+        "at": "2026-10-21T09:58:14Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 8: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 17,
+        "at": "2026-10-21T09:58:16Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 9: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 18,
+        "at": "2026-10-21T09:58:18Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 10: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 19,
+        "at": "2026-10-21T09:58:20Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 11: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 20,
+        "at": "2026-10-21T09:58:22Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 12: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 21,
+        "at": "2026-10-21T09:58:24Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 13: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 22,
+        "at": "2026-10-21T09:58:26Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 14: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 23,
+        "at": "2026-10-21T09:58:28Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 15: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 24,
+        "at": "2026-10-21T09:58:30Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 16: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 25,
+        "at": "2026-10-21T09:58:32Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 17: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 26,
+        "at": "2026-10-21T09:58:34Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 18: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 27,
+        "at": "2026-10-21T09:58:36Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 19: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 28,
+        "at": "2026-10-21T09:58:38Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 20: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 29,
+        "at": "2026-10-21T09:58:40Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 21: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 30,
+        "at": "2026-10-21T09:58:42Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 22: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 31,
+        "at": "2026-10-21T09:58:44Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 23: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 32,
+        "at": "2026-10-21T09:58:46Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 24: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 33,
+        "at": "2026-10-21T09:58:48Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 25: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 34,
+        "at": "2026-10-21T09:58:50Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 26: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 35,
+        "at": "2026-10-21T09:58:52Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 27: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 36,
+        "at": "2026-10-21T09:58:54Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 28: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 37,
+        "at": "2026-10-21T09:58:56Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 29: synthetic work log line kept long enough to wrap in the detail panel."
+      },
+      {
+        "seq": 38,
+        "at": "2026-10-21T09:58:58Z",
+        "speaker": "ses-worker-a2",
+        "text": "Progress note 30: synthetic work log line kept long enough to wrap in the detail panel."
+      }
+    ]
+  },
+  "evidence": {
+    "ses-worker-a2": [
+      {
+        "id": "ev-1",
+        "label": "Playwright run (synthetic)",
+        "source": "execution receipt rcpt-synthetic-1",
+        "owner": "ses-worker-a2"
+      },
+      {
+        "id": "ev-2",
+        "label": "Diff summary (synthetic)",
+        "source": "session return",
+        "owner": "ses-worker-a2"
+      }
+    ],
+    "ses-worker-a1": [
+      {
+        "id": "ev-3",
+        "label": "Failing check log (synthetic)",
+        "source": "execution receipt rcpt-synthetic-0",
+        "owner": "ses-worker-a1"
+      }
+    ]
+  }
+}

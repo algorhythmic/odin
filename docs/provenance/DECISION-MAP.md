@@ -2,7 +2,7 @@
 
 Status: candidate, written for the documentation handoff of extraction
 snapshot `2026-10-14-14fdab3`; part of the D14 handoff gate, which is
-under independent review. The handoff is **not yet recorded**.
+awaiting independent re-review. The handoff is **not yet recorded**.
 
 This map resolves every inherited decision reference. Findings of the
 source review ([`SOURCE-REVIEW.md`](SOURCE-REVIEW.md)) are tracked in
@@ -153,12 +153,12 @@ joint Saga and Odin decision record frozen at
 | Clause | Content | Owner | Odin location | Status | Supersession / notes |
 |---|---|---|---|---|---|
 | D7.1 | Runtime statement: build on Claude Code through supported interfaces; Odin owns memory, commitments, scheduling, delegation and review coordination; custom Messages API runtime only on measured unmet requirements | Odin | DECISIONS.md D7 | locked | Reverses the first record version's custom-runtime choice (§2) |
-| D7.2 | The service starts, resumes and retires sessions through the Agent SDK | Odin | IO §5, §11 | locked | ODIN-ADR-009 clarifies: the SDK call may originate in a workstation session host acting only on the service's command |
+| D7.2 | The service starts, resumes and retires sessions through the Agent SDK | Odin | IO §5, §11 | locked | ODIN-ADR-009 permits a service-commanded workstation host; ADR-024/026 permit native executive invocation and development. Full SDK/host delivery remains open |
 | D7.3 | Authentication per adapter launch configuration (D24); default planning credential an API key from the linked Console organization; subscription lineage supported | Odin | IO §11 | locked (runtime); default per D24.8a | Default confirmation is open (§5.12) |
 | D7.4 | Two loops: service outer loop in ordinary code, harness inner loop | Odin | IO §1; BP §2 | locked | — |
 | D7.5 | Resume while context is useful; replace with a fresh briefed session at boundaries | Odin | IO §5 | locked | — |
 | D7.6 | Narrow runtime adapter so a second harness can be added (D19); one implementation built and validated first | Odin | IO §11; BP §2 | locked | ODIN-ADR-015 places a fixture-only Pi RPC control after I2; full second adapter stays I5 |
-| D7.7 | Interactive-only behaviours (channels, plugin monitors, teammates) not relied on; the service supplies its own Telegram adapter and event intake | Odin | IO §11 | locked | — |
+| D7.7 | Interactive-only behaviours (channels, plugin monitors, teammates) not relied on; the service supplies its own Telegram adapter and event intake | Odin | IO §11 | locked | ADR-024 permits Remote Control conversation; ADR-026 permits native development tools/integrations/agents; ADR-028 adds an opt-in development channel and completion hook. None turns model-relayed text into authenticated Odin operator commands |
 | D7.8 | Memory interface and six requirements | Odin | IO §8 | locked | — |
 | D7.9 | UniiChat ideas adapted to the runtime boundary; not promised: fresh call per message, exact prompt layout, cache economics, constant context | Odin | IO §8, §11 | hypothesis | Victor Taelin's design; gist shows no license (§5.5) |
 | D7.10 | Implementation stays only if it beats the simpler baseline on D18 memory measures at comparable cost; "nothing is lost" means retained bytes | Odin | IO §8; AS §3 | hypothesis | ODIN-ADR-003 sets rolling summary plus notes and identical fixture retrieval at I5; repeat with live retrieval after I6. No outcome claimed |
@@ -172,7 +172,7 @@ joint Saga and Odin decision record frozen at
 | D8.1 | When: review where mistakes multiply; routine operations get mechanical checks | Odin | DECISIONS.md D8; BP §6; IO §6 `publish_guidance` | default | Replaces "review every project-shaping decision" (§2). Guidance: routine gets mechanical checks, material its required review, unresolved held (review B4); which results authorize publication open (issue X-7) |
 | D8.2 | Mechanical checks first; results given to Mimir as evidence | Odin | IO §10 Mimir | default | — |
 | D8.3 | Evidence, not narrative; no exposure to Odin's reasoning; no perpetual reviewer memory; prior verdicts attached deterministically | Odin | IO §10 Mimir | default | Replaces the earlier "precedent view" mode (§2). ODIN-ADR-013 supersedes the single-reviewer reading: two positions, same evidence pack, no view of each other's findings |
-| D8.4 | Bounded, actionable findings; five verdicts including `INSUFFICIENT_EVIDENCE`; one review and at most one re-review | Odin | IO §10 Mimir | default | ODIN-ADR-013 keeps the verdict set and bounded rounds; disagreement after the re-review escalates with both positions |
+| D8.4 | Bounded, actionable findings; five verdicts including `INSUFFICIENT_EVIDENCE`; one review and at most one re-review | Odin | IO §10 Mimir | default | ODIN-ADR-013 keeps the verdict set and bounded rounds; every `FLAG` pair escalates under Saga ADM-7, as do negative results and persistent disagreement. Mixed approving-result serialization awaits I0 |
 | D8.5 | Model per review type; Sonnet default; "cheap" earned by evaluation | Odin | IO §10 Mimir | default | Model choice open (§5.2). **Superseded for Odin by ODIN-ADR-013** (hypothesis): two reviewer positions on different model families; model per position open (§5.2) |
 | D8.6 | Hard daily caps on review spend and interrupt-class turns | Odin | IO §4 caps | default | — |
 | D8.7 | Measured comparison: Odin alone, Odin with equivalent verification budget, Odin plus Mimir | Odin | AS §3 | default | — |
@@ -183,8 +183,8 @@ joint Saga and Odin decision record frozen at
 |---|---|---|---|---|---|
 | D9.1 | Statement: bounded judgments through an optional tool and approved evaluators; outputs cannot satisfy Saga approval requirements or waive required Mimir review | Odin | DECISIONS.md D9 | locked | Saga enforces approvals regardless (D2.1) |
 | D9.2 | `decide(state, questions)`: advisory, provider abstraction, explicit unavailable/invalid status, cannot execute | Odin | IO §6 | locked | — |
-| D9.3 | Evaluators: versioned, fixed configuration, registry of hook locations; unsupported locations; operator-intent hook withdrawn | Odin | IO §6 evaluators | locked | The operator-intent hook (also once in the blueprint) is withdrawn in the source |
-| D9.4 | `propose_decider(config)`: approval binds full configuration; replay and shadow before activation; revalidation; one-command rollback | Odin | IO §6 | locked | Renamed from `install_decider` (§2) |
+| D9.3 | Evaluators: versioned, fixed configuration, registry of hook locations; unsupported locations; operator-intent hook withdrawn | Odin | IO §6 evaluators | locked | The operator-intent hook remains withdrawn. ADR-028 permits next-test and stage planning only for the independent development evaluator; ordinary service-event hooks remain fixed |
+| D9.4 | `propose_decider(config)`: approval binds full configuration; replay and shadow before activation; revalidation; one-command rollback | Odin | IO §6 | locked | Renamed from `install_decider` (§2). ADR-028 permits direct opt-in activation of the operator-requested development loop; ordinary evaluator activation and required reviews remain unchanged |
 | D9.5 | Safety rules: mandatory checks first; bypass for operator and control messages; typed messages never classified; maximum deferral; confidence is not correctness; sensitivity follows content to the local provider | Odin | IO §4, §6; BP §6 | locked | ODIN-ADR-002 specifies typed triage, bounded digest and visible overdue state under caps; bypass rules unchanged |
 | D9.6 | First experiment: journal-attention evaluator in shadow mode against Haiku triage | Odin | IO §6; ROADMAP Phase F | locked | ODIN-ADR-002 clarifies the baseline triage path; shadow output cannot suppress its wakes |
 
@@ -302,7 +302,7 @@ joint Saga and Odin decision record frozen at
 | D19.4 | Adapters publish capability matrices; translate, never reimplement the harness | Odin | IO §11 | locked | — |
 | D19.5 | Claude Code first; second adapter (Codex app-server or Pi RPC) early; no universal framework before two | Odin | IO §11; ROADMAP Phase E | locked | Satisfied early by ODIN-ADR-015's fixture-only control |
 | D19.6 | Restrained initial product | Odin | DECISIONS.md D19; ROADMAP | locked | — |
-| D19.7 | Product is modular and may run without Saga (local backend, D23) for work without external effects; first supported deployment requires Saga Phase B | Odin | DECISIONS.md D19, D23; BP §7 | locked | — |
+| D19.7 | Product is modular and may run without Saga (local backend, D23) for work without external effects; first supported deployment requires Saga Phase B | Odin | DECISIONS.md D19, D23; BP §7 | locked | ADR-026 permits the native development executive without Saga or a managed backend; the supported managed deployment still requires Saga Phase B |
 
 ### SAGA-2026-10-D20 — Topology and operator interfaces (locked; Odin, peer bridges)
 
@@ -312,13 +312,13 @@ joint Saga and Odin decision record frozen at
 | D20.2 | One service; several planning sessions, one owner per project; many worker sessions; Mimir sessions on demand; routine events handled by code | Odin | IO §2, §4; BP §2 | locked | ODIN-ADR-009: sessions may be hosted on the workstation; records and ownership stay in the one service |
 | D20.3 | Another planning owner only for separable responsibility or measured bottleneck; separate service instances later | Odin | BP §2 | locked | — |
 | D20.4 | Ownership rules for multiple planners | Odin | IO §2; AC-04, AC-16 | locked | — |
-| D20.5 | Two operator interfaces, one command path; approvals bound to the proposal whatever the channel; stop works when the model is unresponsive | Odin | IO §10 operator; AC-05, AC-06, AC-10 | locked | **Superseded in part by ODIN-ADR-010**: operator surfaces are adapters on one service API (workspace, Telegram, summoned terminal, bar, notifications, voice later); one command path, binding and stop rules unchanged |
+| D20.5 | Two operator interfaces, one command path; approvals bound to the proposal whatever the channel; stop works when the model is unresponsive | Odin | IO §10 operator; AC-05, AC-06, AC-10 | locked | **Superseded in part by ODIN-ADR-010**: operator surfaces are adapters on one service API (workspace, Telegram, summoned terminal, bar, notifications, voice later); one command path, binding and stop rules unchanged. **Amended by ODIN-ADR-037**: the remaining desk-overview description moves to the web app; worker terminals open only where the adapter supports attachment |
 | D20.6 | Native vs interactive terminal integration; capabilities tested and published; workspace "done"/"wait" do not establish completion | Odin | IO §11; EI §4; AC-13 | locked | Herdr API not reviewed (§5.8) |
 | D20.7 | Adopt into supervision; take control | Odin | IO §10 operator; AC-11 | locked | — |
 | D20.8 | Service path vs model path; handling table | Odin | IO §4 | locked | ODIN-ADR-002 replaces unconditional journal-report wake with typed outcomes and bounded digest. **Amended by ODIN-ADR-010**: workstation observations and capture lifecycle as state-only/log-only sources; attention prompt as a typed outbound effect with caps |
 | D20.9 | Structured requests go directly to the operator queue; planner joins only when the answer changes the plan | Odin | IO §4, §10; AC-07 | locked | — |
 | D20.10 | Ownership bridge with standalone heimdall: projection, edits route to owner, no second editable copy; new work scheduled with the workspace integration | Odin + heimdall | EI §5; EC-05 | locked | Heimdall's side is heimdall's to adopt. **Superseded for Odin by ODIN-ADR-007**: no bridge; heimdall's task layer imported once and retired. Heimdall's side is heimdall's to record (EC-13) |
-| D20.11 | First configuration; then a second project before any further supervisory layer | Odin | ROADMAP; IO §13 | locked | — |
+| D20.11 | First configuration; then a second project before any further supervisory layer | Odin | ROADMAP; IO §13 | locked | **Amended by ODIN-ADR-037**: the web app replaces the terminal workspace as the overview and inspection surface; Herdr becomes an optional inspection and attachment adapter; the rest of the configuration is unchanged |
 
 ### SAGA-2026-10-D21 — Desktop capability and computer-use work (default; Odin coordination, WCU capability)
 
@@ -349,9 +349,9 @@ joint Saga and Odin decision record frozen at
 
 | Clause | Content | Owner | Odin location | Status | Supersession / notes |
 |---|---|---|---|---|---|
-| D23.1 | Execution through an explicit backend with a published capability matrix | Odin | IO §2 assignment `backend` | locked | — |
-| D23.2 | Saga is the default and the only backend for external effects or needing isolation, limits, durable run records and recovery | Odin (routing rule) | DECISIONS.md D23; BP §7 | locked | Saga's guarantees are Saga's |
-| D23.3 | Local session backend for work without external effects, with stated missing guarantees | Odin | DECISIONS.md D23; ROADMAP Phase F | locked | — |
+| D23.1 | Execution through an explicit backend with a published capability matrix | Odin | IO §2 assignment `backend` | locked | ADR-026 exempts ordinary native executive development from managed backend routing; this supplies no Saga guarantees |
+| D23.2 | Saga is the default and the only backend for external effects or needing isolation, limits, durable run records and recovery | Odin (routing rule) | DECISIONS.md D23; BP §7 | locked | ADR-026 exempts operator-directed native development from this Odin routing rule; Saga guarantees and API admission remain Saga-owned |
+| D23.3 | Local session backend for work without external effects, with stated missing guarantees | Odin | DECISIONS.md D23; ROADMAP Phase F | locked | ADR-026 permits direct native development beyond research/drafting in version 3; no managed isolation, limits or recovery are claimed |
 | D23.4 | The workspace never substitutes for Saga's guarantees; desktop input is a third backend (D21) | Odin | EI §3, §4 | locked | — |
 
 ### SAGA-2026-10-D24 — Authentication and billing as adapter configuration (locked; split)
@@ -361,11 +361,11 @@ joint Saga and Odin decision record frozen at
 | D24.1 | Statement: runtime choice, authentication and billing are explicit configuration, independent of supervisory features | Shared rule | DECISIONS.md D24 | locked | — |
 | D24.2a | Launch configuration elements for Odin's session classes (planner, reviewer, subagent, compactor, triage, decision models) | Odin | IO §11; Appendix A `PlanningSession.auth` | locked | ODIN-ADR-013 adds a per-position entry |
 | D24.2b | Launch configuration elements per worker image | Saga | — | locked | — |
-| D24.3 | Credential reference to a protected source; secrets never in prompts, history, briefing or exports | Odin (its sessions); Saga (secret store, workers) | IO §7, §11; AGENTS.md | locked | **Amended for Odin's classes by ODIN-ADR-009**: a workstation session host holds a local credential in a protected store the service references; never the development login (X-12) |
+| D24.3 | Credential reference to a protected source; secrets never in prompts, history, briefing or exports | Odin (its sessions); Saga (secret store, workers) | IO §7, §11; AGENTS.md | locked | ADR-009 supplies managed workstation credential placement. ADR-026 retains the dedicated login but waives Odin environment/process isolation for version 3; secrets remain excluded from committed source, prompts and reports |
 | D24.4a | Refresh ownership for Odin's planner credentials | Odin | IO §11 | locked | — |
 | D24.4b | Refresh ownership for worker lineages (Claude `setup-token` or per-lineage login; Codex `auth.json` per worker) | Saga | — | locked | — |
 | D24.4c | Codex app-server externally managed token mode stays experimental, not foundational | Odin (a Codex adapter) | IO §11 | locked | — |
-| D24.5 | Quota behaviour: queue or pause at the limit; paid fallback only when configured; shown in `now` and the overview | Odin (its sessions and display); Saga (worker launches) | IO §5 `now`, §11; AC-23 | locked | — |
+| D24.5 | Quota behaviour: queue or pause at the limit; paid fallback only when configured; shown in `now` and the web app overview (ODIN-ADR-037) | Odin (its sessions and display); Saga (worker launches) | IO §5 `now`, §11; AC-23 | locked | — |
 | D24.6 | Account separation: development login vs managed agents; planning and workers may use different modes | Shared rule | AGENTS.md; IO §11 | locked | — |
 | D24.7 | Credential lineages: establish, persist in Saga's secret store, single refresher, retire; launcher injects; no shared writable credential directory after the shadow period | Saga | — | locked | — |
 | D24.8a | Default: planning sessions on `api` (included credits) | Odin | DECISIONS.md D24; IO §11, §15 | default, pending operator confirmation | Source heading says locked; source §5 q12 asks for confirmation and the source contract said "proposed" (review N8). Saga's map records the same status as `D24.d`. Billing re-test open |
@@ -432,28 +432,121 @@ formal handoff. See [DECISIONS.md §4](../DECISIONS.md#4-odin-decisions-odin-adr
 | ODIN-ADR-004 | default design; activation still gated | Refines D9.3–D9.6, D20.8–D20.9 and ADR-002; retains four hooks/operator exclusion; code selects stable session classes under D7/D24 | IO §5–§6, BP §6, ROADMAP I6, AC-33/AC-36 |
 | ODIN-ADR-005 | default experiment configuration | Adds trial settings and failure/request-budget checks for D7.9–D7.10 and D18; cache-fix source inspected at `3c190e0`, runtime regressions pending; compactor context scope open (X-10); no transferred cache claims or proven effort optimum | IO §8/§12, BP §6, ROADMAP I2/I3, AC-34–AC-35, AS §3; OPTCHAT-CACHE-REVIEW.md |
 | ODIN-ADR-006 | default design | Amends D10.1 and D10.2 delivery modes; preserves D4, D6.5, D7.11–D7.12, D22.2, X-4 reading; execution ledger mirrored read-only, never written by Odin | IO §1, §3, §9, Appendix A; EI preamble; X-11; proposed AC-41 |
-| ODIN-ADR-007 | locked direction; migration not designed | Supersedes D20.10 for Odin; amends D10.5; consistent with §1.b, D7.11; EC-05 and AC-20 withdrawn (ids kept) | IO §2, §14, Appendix A; BP §3; EI §5; EC-13; proposed AC-38 |
+| ODIN-ADR-007 | locked direction; migration not designed | Supersedes D20.10 for Odin; amends D10.5; consistent with §1.b, D7.11; EC-05 and AC-20 withdrawn (ids kept); source-side edit refusal required for retirement under EC-13/G-10 | IO §2, §14, Appendix A; BP §3; EI §5; EC-13; proposed AC-38 |
 | ODIN-ADR-008 | locked sequencing | Within D14.4 and D15; restates X-9; no phase or gate change | BP §7; IO §13; ROADMAP I0/I1; README; AGENTS.md §1 |
 | ODIN-ADR-009 | default design | Clarifies D7.2, D20.1–D20.2; amends D24.3 for Odin's classes; preserves D24.4a, D24.6, D23.3 | IO §2, §5, §7, §11, Appendix A; BP §2; X-12; proposed AC-37 |
 | ODIN-ADR-010 | default design; voice backlog | Supersedes D20.5 "two interfaces" in part; amends D20.8; redefines L-PU-1; preserves D9.3, D9.5, D20.9, D20.11, ADR-002/004 | IO §3, §4, §6, Appendix C; BP §5; LEGACY-REQUIREMENTS L-PU-1, L-VT; X-13; proposed AC-39 |
 | ODIN-ADR-011 | default; disabled until §5.9 | Amends D10.4 placement; implements D21.4; preserves D0.5, D2.3, D21.5–D21.7, D23.4 | EI §8; EC-10, EC-16; ROADMAP I7; DC-01–DC-08 |
 | ODIN-ADR-012 | locked direction; carrier undecided | Supersedes D22.3 and D22.5 for Odin; preserves D22.1, D22.2 (ownership moves with capture), D22.4; EC-08/EC-09 withdrawn (ids kept) | EI §9; ROADMAP Phase F; AC-24/AC-25 retargeted |
-| ODIN-ADR-013 | hypothesis | Supersedes D8.5 and the single-reviewer reading of D8.3–D8.4; keeps D8.1–D8.2, D8.6–D8.7; D2.5 unchanged (its "Mimir" reads as the reviewer positions; separate-process option taken); D19.3 kept | IO §10 review; BP §6; AS §3; D24.2a; X-13; AC-22 re-scoped; proposed AC-40 |
-| ODIN-ADR-014 | default; evidence only | Amends ODIN-ADR-004; keeps four hooks, no silent downshift, no learned router | IO §5, Appendix A; AS §3 |
+| ODIN-ADR-013 | hypothesis | Supersedes D8.5 and the single-reviewer reading of D8.3–D8.4; keeps D8.1–D8.2, D8.6–D8.7; D2.5 unchanged (its "Mimir" reads as the reviewer positions; separate-process option taken); D19.3 kept; FLAG pairs escalate under Saga ADM-7 | IO §10 review; BP §6; AS §3; D24.2a; X-13; AC-22 re-scoped; proposed AC-40 |
+| ODIN-ADR-014 | default; evidence only | Amends ODIN-ADR-004; keeps four hooks, no silent downshift, no learned router; I0 defines the workload-class configuration schema | IO §5, Appendix A; AS §3 |
 | ODIN-ADR-015 | locked experiment placement; fixture-only | Amends D15.Eb timing for a control only; honours D7.6; satisfies D19.5; replaces the roadmap's Codex proposal | ROADMAP Phase C; IO §11, §13; BP §7 |
+| ODIN-ADR-020 | default evaluation specification; local metadata/accounting tests implemented; comparative trials unimplemented | Operationalizes D18.1/D18.2/D18.4 and D19.4; details ADR-013/014/015 evaluations; supersedes no inherited clause, selects no model/framework, preserves ADR-004 routing | IO §6/§11/§12; AS §3, AC-36, proposed AC-42–AC-44; ROADMAP I1/I2/Phase G; BP §7; MODEL-ORCHESTRATION-REVIEW.md; open X-15 |
+| ODIN-ADR-021 | default local implementation choice | Implements X-11's local layout and I0 contract conventions; closes no producer or production gate, supersedes no inherited clause | IMPLEMENTATION-STATUS.md; schemas/README.md; local Python service and Go/Python tests; X-11 production checks and X-12 remain open |
+| ODIN-ADR-024 | operator-authorized bounded pilot; launch restrictions superseded by ADR-026 for version 3 | Amends D7.2 invocation and D7.7 transport only for native Fable executive conversation; retains service record authority, credential separation and worker/producer gates | [Executive pilot](../EXECUTIVE-PILOT.md), AGENTS.md §1/§4 |
+| ODIN-ADR-025 | operator-authorized pilot extension; native restriction superseded by ADR-026 for version 3 | Refines ADR-024's tool boundary and ADR-023's synthetic-memory scope for read-only checkout access and operator-selected committed repository evidence | [Executive pilot](../EXECUTIVE-PILOT.md), AGENTS.md §1 |
+| ODIN-ADR-026 | operator-authorized native development profile | Supersedes ADR-024/025 launch and proposal-only restrictions and ADR-022/023 native-child restrictions for version 3; amends Odin-owned D7.2/D7.7, D19.7/D23.1–D23.3 routing and D24.3 process isolation; preserves Saga producer authority and MCP record semantics | [Executive pilot](../EXECUTIVE-PILOT.md), IO §7/§11, AGENTS.md §1/§4/§5/§6 |
+| ODIN-ADR-027 | operator-authorized local delegation path | Amends ADR-024's no-delegated-execution bridge rule for the version 3 executive's local-backend sessions; applies D23.3, D7.11 and D19.4; does not deliver ADR-009's managed session host, X-15 child dispatch, ADR-015 or I5 | [Executive pilot](../EXECUTIVE-PILOT.md), IO §2/§11, AGENTS.md §1 |
+| ODIN-ADR-028 | operator-authorized development evaluator and loop | Extends ADR-026 and D7.7 transport; amends D9.3 planning/decomposition exclusion and D9.4 activation only for the configured development loop; preserves required Mimir review, Saga authority and direct operator control | [Development loop](../DEVELOPMENT-LOOP.md), AGENTS.md §1/§4 |
+| ODIN-ADR-031 | operator-authorized local experiment | Refines ADR-027/028 routing and ADR-005 context work; adds observed accounting and future-admission controls, preserves D7 authority and all producer/review boundaries | [Usage and routing](../USAGE-AND-ROUTING.md) |
+| ODIN-ADR-032 | operator-authorized local experiment | Extends Odin-owned D7.7 and ADR-026/027/028 native development transport with opt-in peer messaging; preserves D6 recovery, D7 commitment authority, D24 and producer boundaries | [Native peer messaging](../NATIVE-PEER-MESSAGING.md) |
+| ODIN-ADR-033 | operator-authorized executive delegation | Amends ADR-026 direct implementation for the selected executive role and ADR-031 existing-loop routing; preserves D7 authority, bounds, identity and all producer/review guarantees | [Usage and routing](../USAGE-AND-ROUTING.md) |
+| ODIN-ADR-030 | operator-authorized visibility and attention | Adds durable notices, model-attributed acknowledgement and deadline attention to ADR-028's loop; preserves D9.5 operator routing, controller/native-process distinction and every review boundary | [Development loop](../DEVELOPMENT-LOOP.md#notices-and-attention), `schemas/development-loop-notice.schema.json` |
+| ODIN-ADR-029 | operator-authorized evidence format | Adds structured execution receipts and their validation to ADR-028's evidence workflow; preserves D7.11 commitment truth, D19.4 capability statements and every Saga/review boundary | [Development loop](../DEVELOPMENT-LOOP.md#execution-receipts), `schemas/execution-receipt.schema.json` |
+| ODIN-ADR-037 | operator direction accepted; layout and rollout defaults are default design; synthetic prototype only | Amends D20.11 first configuration, the remaining D20.5 desk-overview description, ADR-010's surface list and D20.11 preservation, ADR-007's human-view consequence and D15's "(D20's first configuration)" parenthetical; preserves D20.5 command path/binding/stop, D20.6, D20.7, D20.9, ADR-007 task authority, ADR-009 | IO §10, §13; BP §5, §7; ROADMAP human-view track; proposed AC-51–AC-57; [web app work plan](../design/WEB-APP-WORKPLAN.md) |
+| ODIN-ADR-039 | operator-directed local pilot change; live acceptance pending | Extends ADR-024/026 executive launch with an operator-run supervisor, ADR-030 notices with restart and deploy outcomes, and ADR-027/028 scheduling with a deploy drain; adds pinned deploy copies; preserves D7 authority, ADR-010's no-keystroke rule, ADR-034 unknown-outcome tracking and every producer boundary | [Executive pilot](../EXECUTIVE-PILOT.md#executive-restarts-and-the-supervisor) |
 
 ODIN-ADR-015 replaces the earlier Codex adapter proposal in ROADMAP Phase C
 with a fixture-only Pi RPC control; full second-adapter delivery remains I5.
 
-## Clauses superseded or amended by Odin ADRs (2026-10-16)
+## Local product implementation
+
+ODIN-ADR-023 records the operator-requested local continuity and memory slice.
+It operationalizes D6/D7/D18 and ADR-009/010/020/022, with a local view during
+I1/I2 preparation. It does not supersede the full I4 view/import, I5 memory
+comparison, I6 retrieval, producer contracts or live launch gates. See
+[execution status](../PRODUCT-IMPLEMENTATION-STATUS.md) and
+[ADR-023](../DECISIONS.md#odin-adr-023--local-continuity-and-attributed-memory).
+
+ODIN-ADR-024 adds a bounded live conversation path beyond ADR-023's synthetic
+scope: native Claude Code with Remote Control and a project-bound MCP bridge.
+Native messages are conversation, not authenticated Odin operator commands.
+The service's reports stay unverified and unapplied. The full SDK, daemon,
+worker execution, peer feeds and production acceptance remain open; see the
+[pilot runbook](../EXECUTIVE-PILOT.md) and
+[ADR-024](../DECISIONS.md#odin-adr-024--native-fable-executive-conversation-pilot).
+
+ODIN-ADR-025 adds two evidence paths to that pilot: explicitly enabled native
+read tools for current checkout files, and operator-imported, revision-pinned
+repository sources in the persistent local store. It does not enable edits,
+worker execution or autonomous application of improvements. See
+[ADR-025](../DECISIONS.md#odin-adr-025--executive-repository-evidence-access).
+
+ODIN-ADR-026 makes version 3 the operator-authorized development extension:
+normal native tools and agents, permission bypass, real checkout/HOME and
+inherited environment. The earlier pilot restrictions remain only for
+versions 1 and 2. Native development work does not depend on fake Saga or a
+service-managed worker, while MCP reports, exact evidence and Saga's own
+interfaces retain their semantics. See
+[ADR-026](../DECISIONS.md#odin-adr-026--native-executive-development-access).
+
+ODIN-ADR-027 adds the executive's delegation path on the D23.3 local backend:
+one accountable planning session per project, commitments and local
+assignments owned by it, detached non-interactive Claude Code or Codex turns,
+explicit executive acceptance and recovery after restart. It states its
+missing guarantees and leaves the managed session host, child dispatch and
+second-adapter gates open. See
+[ADR-027](../DECISIONS.md#odin-adr-027--executive-delegation-sessions-on-the-local-backend).
+
+ODIN-ADR-028 adds an independent development evaluator and a deterministic
+development loop controller. It returns tests through an opt-in channel to
+the existing native executive and captures final responses through a native
+hook, with durable round identity and operator pause/stop. Evaluator judgment
+is separate from executive work and from Mimir's required-review role.
+Configuration and local tests do not prove channel availability or a live
+autonomous loop; see [the runbook](../DEVELOPMENT-LOOP.md) and
+[ADR-028](../DECISIONS.md#odin-adr-028--independent-development-evaluator-and-feedback-loop).
+
+ODIN-ADR-029 makes command execution evidence a versioned, schema-validated
+receipt collected from repository and process observations, validated
+deterministically by the loop controller and inspected independently by the
+evaluator. A receipt is attributed local evidence with documented coverage,
+privacy and concurrency limits; see
+[ADR-029](../DECISIONS.md#odin-adr-029--structured-execution-receipts-as-attributed-local-evidence).
+
+ODIN-ADR-030 adds durable completion, failure, intervention, stop and stall
+notices to the development loop, delivered at least once through the existing
+channel until the executive acknowledges them, plus optional per-loop
+deadlines whose attention observations never redispatch or terminate work; see
+[ADR-030](../DECISIONS.md#odin-adr-030--durable-loop-notices-and-conservative-attention).
+
+ODIN-ADR-037 records the operator's direction that a web app with an agent
+tree is Odin's primary human view, presented in a Chromium app window on
+Omarchy, with Herdr reduced to an optional inspection and attachment adapter.
+It renumbers no inherited decision; see
+[ADR-037](../DECISIONS.md#odin-adr-037--web-app-as-the-primary-human-view-with-an-agent-tree).
+
+ODIN-ADR-034 amends ADR-033's blanket native-tool removal only for the
+operator-enabled delegated development executive, adding bounded per-call
+intervention permits and concise bridge views. It changes no Saga-owned
+contract or existing stage bound. See
+[ADR-034](../DECISIONS.md#odin-adr-034--bounded-executive-intervention-and-concise-working-context).
+
+## Clauses superseded or amended by Odin ADRs
 
 The extraction superseded no clause on its merits. The operator's
-consolidation direction of 2026-10-16 did, for clauses Odin owns. The carried
+consolidation direction of 2026-10-16 and bounded pilot of 2026-10-19 did,
+for clauses Odin owns. The carried
 text in `DECISIONS.md` stays verbatim with an ownership note; the rows above
 carry the same supersession in their last column.
 
 | Clause | Effect | By |
 |---|---|---|
+| D7.2 invocation; D7.7 interactive-only exclusion | amended for native conversation and development executive profiles | ODIN-ADR-024/026 |
+| D19.7; D23.1–D23.3 Odin routing; D24.3 Odin process isolation | amended for version 3 native development only; Saga guarantees unchanged | ODIN-ADR-026 |
+| ADR-024/025 restricted launch and proposal-only rules; ADR-022/023 native-child restriction | superseded for version 3 native development only | ODIN-ADR-026 |
+| ADR-024 bridge rule excluding delegated execution | amended for the version 3 executive's local-backend delegation sessions only | ODIN-ADR-027 |
+| D9.3 planning/decomposition exclusion; D9.4 replay/shadow activation | amended only for the operator-configured development evaluator and loop | ODIN-ADR-028 |
 | D8.5; single-reviewer reading of D8.3–D8.4 | superseded (hypothesis) | ODIN-ADR-013 |
 | D10.1, D10.2 delivery modes | amended | ODIN-ADR-006 |
 | D10.4 placement | amended | ODIN-ADR-011 |
@@ -461,6 +554,8 @@ carry the same supersession in their last column.
 | D20.5 "two operator interfaces" | superseded in part | ODIN-ADR-010 |
 | D20.8 handling table | amended | ODIN-ADR-010 |
 | D20.10 | superseded for Odin | ODIN-ADR-007 |
+| D20.11 first configuration; D20.5 remaining desk-overview description | amended | ODIN-ADR-037 |
+| ODIN-ADR-010 surface list and D20.11 preservation; ODIN-ADR-007 human-view consequence; ODIN-ADR-023's "I4's human view/import" reading; D15 "(D20's first configuration)" parenthetical | amended | ODIN-ADR-037 |
 | D22.3, D22.5 | superseded for Odin | ODIN-ADR-012 |
 | D24.3 (Odin's classes) | amended | ODIN-ADR-009 |
 | D15.Eb timing | amended (control only; D7.6 honoured) | ODIN-ADR-015 |

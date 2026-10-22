@@ -1,0 +1,573 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "loop_start": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32000
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "evidence_packet": {
+          "type": "object"
+        },
+        "max_rounds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "no_progress_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "deadlines": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "offer_seconds": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 604800
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "claim_seconds": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 604800
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ready_seconds": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 604800
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "evaluator_seconds": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 604800
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "delegation_profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "harness",
+            "model"
+          ],
+          "properties": {
+            "harness": {
+              "enum": [
+                "claude-code",
+                "codex"
+              ]
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "subagent_model": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "subagent_model_force": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "required": [
+        "project",
+        "goal",
+        "session_id"
+      ]
+    },
+    "loop_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "project"
+      ]
+    },
+    "loop_inbox": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "accept": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 2,
+          "items": {
+            "enum": [
+              "assignment",
+              "notice"
+            ]
+          }
+        }
+      },
+      "required": [
+        "project",
+        "session_id"
+      ]
+    },
+    "loop_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "action": {
+          "enum": [
+            "pause",
+            "resume",
+            "stop",
+            "deadlines",
+            "configure_delegation"
+          ]
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "stage_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "delegation_profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["harness", "model"],
+          "properties": {
+            "harness": {"enum": ["claude-code", "codex"]},
+            "model": {"type": "string", "minLength": 1, "maxLength": 128},
+            "subagent_model": {"type": "string", "minLength": 1, "maxLength": 128},
+            "subagent_model_force": {"type": "boolean"}
+          }
+        },
+        "deadlines": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "offer_seconds": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 604800
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "claim_seconds": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 604800
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ready_seconds": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 604800
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "evaluator_seconds": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 604800
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "required": [
+        "project",
+        "loop_id",
+        "action"
+      ],
+      "allOf": [
+        {
+          "if": {"properties": {"action": {"const": "configure_delegation"}}},
+          "then": {"required": ["stage_id", "session_id", "expected_revision", "delegation_profile"]},
+          "else": {"not": {"anyOf": [
+            {"required": ["stage_id"]},
+            {"required": ["session_id"]},
+            {"required": ["delegation_profile"]}
+          ]}}
+        }
+      ]
+    },
+    "loop_ack": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "notice_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        }
+      },
+      "required": [
+        "project",
+        "session_id",
+        "notice_id"
+      ]
+    },
+    "loop_continue": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "response": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 12000
+        },
+        "evidence_packet": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "project",
+        "loop_id",
+        "expected_revision",
+        "response"
+      ]
+    },
+    "loop_reconcile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "target": {
+          "enum": [
+            "evaluator",
+            "executive"
+          ]
+        },
+        "job_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "stage_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "observed": {
+          "enum": [
+            "running",
+            "not_started",
+            "lost"
+          ]
+        }
+      },
+      "required": [
+        "project",
+        "loop_id",
+        "target",
+        "observed"
+      ]
+    },
+    "loop_hold": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "stage_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "project",
+        "loop_id",
+        "stage_id",
+        "reason"
+      ]
+    },
+    "loop_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "stage_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "project",
+        "loop_id",
+        "stage_id",
+        "session_id"
+      ]
+    },
+    "loop_ready": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "stage_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "evidence_packet": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "project",
+        "loop_id",
+        "stage_id",
+        "session_id",
+        "evidence_packet"
+      ]
+    },
+    "loop_handover": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "from_session": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "to_session": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "loop_id",
+        "from_session",
+        "to_session",
+        "expected_revision",
+        "reason"
+      ]
+    },
+    "loop_delegate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "stage_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "orchestrator_session_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "iterations"
+          ],
+          "properties": {
+            "iterations": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "budget_usd": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 200
+            }
+          }
+        },
+        "allow_unenforced_limits": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "project",
+        "loop_id",
+        "stage_id",
+        "session_id",
+        "orchestrator_session_id",
+        "limits"
+      ]
+    }
+  }
+}

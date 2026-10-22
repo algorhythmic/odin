@@ -1,0 +1,1680 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "valid_Project",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Project",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "name": "synthetic",
+        "sources": [],
+        "delegations": [],
+        "interface_decision_owner": null
+      }
+    },
+    {
+      "name": "valid_Commitment",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Commitment",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "project": "01K7M000000000000000000001",
+        "objective": "synthetic",
+        "criteria": [
+          {
+            "id": "synthetic",
+            "text": "synthetic",
+            "evidence": [],
+            "met": false
+          }
+        ],
+        "state": "open",
+        "owner": null,
+        "ownership_generation": 1,
+        "dependencies": [],
+        "open_decisions": [],
+        "next_trigger": null,
+        "delegation": null,
+        "evidence": [],
+        "checkpoints": [],
+        "decisions": [],
+        "provenance": null
+      }
+    },
+    {
+      "name": "valid_Assignment",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Assignment",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "commitment": "01K7M000000000000000000001",
+        "commitment_rev": 1,
+        "inputs": [],
+        "scope": "synthetic",
+        "output_contract": "synthetic",
+        "owner": null,
+        "backend": "saga",
+        "limits": {
+          "iterations": 1,
+          "budget_usd": 0
+        },
+        "state": "drafted",
+        "run": null,
+        "request_id": "01K7M000000000000000000001"
+      }
+    },
+    {
+      "name": "valid_PlanningSession",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "PlanningSession",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "project": "01K7M000000000000000000001",
+        "harness": "synthetic",
+        "adapter": "synthetic",
+        "native_session_id": null,
+        "incarnation": 1,
+        "state": "starting",
+        "briefing": "synthetic",
+        "budget_usd": 0,
+        "ownership_generation": 1,
+        "profile": "planner",
+        "auth": {
+          "mode": "api",
+          "credential_ref": "secret:synthetic",
+          "refresh_owner": "synthetic"
+        }
+      }
+    },
+    {
+      "name": "valid_Assignment_without_requested_budget",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Assignment",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "commitment": "01K7M000000000000000000001",
+        "commitment_rev": 1,
+        "inputs": [],
+        "scope": "synthetic",
+        "output_contract": "synthetic",
+        "owner": null,
+        "backend": "saga",
+        "limits": {
+          "iterations": 1,
+          "budget_usd": null
+        },
+        "state": "drafted",
+        "run": null,
+        "request_id": "01K7M000000000000000000001"
+      }
+    },
+    {
+      "name": "valid_Assignment_with_omitted_budget",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Assignment",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "commitment": "01K7M000000000000000000001",
+        "commitment_rev": 1,
+        "inputs": [],
+        "scope": "synthetic",
+        "output_contract": "synthetic",
+        "owner": null,
+        "backend": "saga",
+        "limits": {
+          "iterations": 1
+        },
+        "state": "drafted",
+        "run": null,
+        "request_id": "01K7M000000000000000000001"
+      }
+    },
+    {
+      "name": "reject_Assignment_without_iterations",
+      "schema": "records",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Assignment",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "commitment": "01K7M000000000000000000001",
+        "commitment_rev": 1,
+        "inputs": [],
+        "scope": "synthetic",
+        "output_contract": "synthetic",
+        "owner": null,
+        "backend": "saga",
+        "limits": {
+          "budget_usd": 0
+        },
+        "state": "drafted",
+        "run": null,
+        "request_id": "01K7M000000000000000000001"
+      }
+    },
+    {
+      "name": "valid_PlanningSession_without_requested_budget",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "PlanningSession",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "project": "01K7M000000000000000000001",
+        "harness": "synthetic",
+        "adapter": "synthetic",
+        "native_session_id": null,
+        "incarnation": 1,
+        "state": "starting",
+        "briefing": "synthetic",
+        "budget_usd": null,
+        "ownership_generation": 1,
+        "profile": "planner",
+        "auth": {
+          "mode": "api",
+          "credential_ref": "secret:synthetic",
+          "refresh_owner": "synthetic"
+        }
+      }
+    },
+    {
+      "name": "valid_SessionBinding",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "SessionBinding",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "subject": {
+          "kind": "assignment",
+          "id": "01K7M000000000000000000001"
+        },
+        "harness": "synthetic",
+        "provider": "synthetic",
+        "native_session_id": "synthetic",
+        "host": "synthetic",
+        "incarnation": 1,
+        "state": "active",
+        "environment": {
+          "id": "01K7M000000000000000000001",
+          "rev": 1
+        },
+        "capabilities": [],
+        "workspace": null,
+        "predecessor": null
+      }
+    },
+    {
+      "name": "valid_Environment",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Environment",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "host": "synthetic",
+        "host_incarnation": 1,
+        "probed_at": "2026-10-16T00:00:00Z",
+        "probe_version": "synthetic",
+        "harnesses": [],
+        "herdr": null,
+        "isolation": {
+          "sandbox": null,
+          "planner_workspace": false
+        },
+        "surfaces": [],
+        "sensors": [],
+        "credential_lineages": []
+      }
+    },
+    {
+      "name": "valid_HumanRequest",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "HumanRequest",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "assignment": null,
+        "run": null,
+        "kind": "clarification",
+        "question": "synthetic",
+        "options": [],
+        "proposal_digest": null,
+        "recipient": "synthetic",
+        "expires_at": "2026-10-16T00:00:00Z",
+        "state": "open",
+        "response": null,
+        "channel": null
+      }
+    },
+    {
+      "name": "valid_Approval",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Approval",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "request_id": "01K7M000000000000000000001",
+        "request_rev": 1,
+        "principal": "synthetic",
+        "proposal_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source_event": "synthetic",
+        "channel": "synthetic",
+        "received_at": "2026-10-16T00:00:00Z",
+        "expires_at": "2026-10-16T00:00:00Z",
+        "state": "granted"
+      }
+    },
+    {
+      "name": "reject_gated_Review",
+      "schema": "records",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Review",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "request_id": "01K7M000000000000000000001",
+        "type": "decomposition",
+        "artifact_lineage": [
+          "synthetic"
+        ],
+        "evidence_pack_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "reviewer": "synthetic",
+        "round": 1,
+        "positions": [
+          {
+            "position": "a",
+            "harness": "synthetic",
+            "model": "synthetic",
+            "family": "synthetic",
+            "verdict": null,
+            "usage": {
+              "input_tokens": null,
+              "output_tokens": null,
+              "cache_read_tokens": null,
+              "cache_write_tokens": null,
+              "cost_microusd": null
+            }
+          },
+          {
+            "position": "b",
+            "harness": "synthetic",
+            "model": "synthetic",
+            "family": "synthetic",
+            "verdict": null,
+            "usage": {
+              "input_tokens": null,
+              "output_tokens": null,
+              "cache_read_tokens": null,
+              "cache_write_tokens": null,
+              "cost_microusd": null
+            }
+          }
+        ],
+        "combination": null,
+        "verdict": null,
+        "usage": {
+          "input_tokens": null,
+          "output_tokens": null,
+          "cache_read_tokens": null,
+          "cache_write_tokens": null,
+          "cost_microusd": null
+        }
+      }
+    },
+    {
+      "name": "valid_EvaluatorResult",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "EvaluatorResult",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "evaluator": "synthetic",
+        "config_rev": "synthetic",
+        "model": "synthetic",
+        "input_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "evidence": [],
+        "result": null,
+        "p": null,
+        "status": "ok",
+        "consequence": "shadow",
+        "outcome": null
+      }
+    },
+    {
+      "name": "valid_SessionClassDecision",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "SessionClassDecision",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "project": "01K7M000000000000000000001",
+        "subject": {
+          "kind": "event",
+          "id": "01K7M000000000000000000001"
+        },
+        "chosen": "synthetic",
+        "rejected": [],
+        "inputs": {
+          "event_kind": "synthetic",
+          "assignment_requirements": [],
+          "environment": {
+            "id": "01K7M000000000000000000001",
+            "rev": 1
+          },
+          "budget_state": "synthetic"
+        },
+        "config_rev": "synthetic",
+        "decided_at": "2026-10-16T00:00:00Z",
+        "outcome": null
+      }
+    },
+    {
+      "name": "valid_AttentionPrompt",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "AttentionPrompt",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "effect": "01K7M000000000000000000001",
+        "project": "01K7M000000000000000000001",
+        "subject": {
+          "kind": "commitment",
+          "id": "01K7M000000000000000000001"
+        },
+        "proposal": "synthetic",
+        "evidence": [],
+        "surface": "synthetic",
+        "rule": "synthetic",
+        "coalescing_key": "synthetic",
+        "mode": "shadow",
+        "cap_state": {
+          "surface_today": 0,
+          "all_today": 0
+        },
+        "expires_at": "2026-10-16T00:00:00Z",
+        "state": "logged",
+        "response": null
+      }
+    },
+    {
+      "name": "valid_Effect",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Effect",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "operation_id": "01K7M000000000000000000001",
+        "destination": "synthetic",
+        "destination_capability": "idempotent_by_key",
+        "payload_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "assignment": null,
+        "owner_generation": null,
+        "delegation_version": null,
+        "approval_digest": null,
+        "guidance_rev": null,
+        "state": "queued",
+        "dispatch_blocked_by": null,
+        "attempts": 0,
+        "receipt": null,
+        "reconciliation": null
+      }
+    },
+    {
+      "name": "reject_unknown_field",
+      "schema": "records",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Project",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "name": "synthetic",
+        "sources": [],
+        "delegations": [],
+        "interface_decision_owner": null,
+        "secret": "forbidden"
+      }
+    },
+    {
+      "name": "reject_zero_revision",
+      "schema": "records",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Project",
+        "id": "01K7M000000000000000000001",
+        "rev": 0,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "name": "synthetic",
+        "sources": [],
+        "delegations": [],
+        "interface_decision_owner": null
+      }
+    },
+    {
+      "name": "reject_boolean_revision",
+      "schema": "records",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Project",
+        "id": "01K7M000000000000000000001",
+        "rev": true,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "name": "synthetic",
+        "sources": [],
+        "delegations": [],
+        "interface_decision_owner": null
+      }
+    },
+    {
+      "name": "reject_overflow_ulid",
+      "schema": "records",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Project",
+        "id": "ZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "name": "synthetic",
+        "sources": [],
+        "delegations": [],
+        "interface_decision_owner": null
+      }
+    },
+    {
+      "name": "reject_invalid_date",
+      "schema": "records",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Project",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-02-30T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "name": "synthetic",
+        "sources": [],
+        "delegations": [],
+        "interface_decision_owner": null
+      }
+    },
+    {
+      "name": "reject_unverified_close",
+      "schema": "records",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Commitment",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "project": "01K7M000000000000000000001",
+        "objective": "synthetic",
+        "criteria": [
+          {
+            "id": "synthetic",
+            "text": "synthetic",
+            "evidence": [],
+            "met": false
+          }
+        ],
+        "state": "closed",
+        "owner": null,
+        "ownership_generation": 1,
+        "dependencies": [],
+        "open_decisions": [],
+        "next_trigger": null,
+        "delegation": null,
+        "evidence": [],
+        "checkpoints": [],
+        "decisions": [],
+        "provenance": null
+      }
+    },
+    {
+      "name": "reject_unapproved_consensus",
+      "schema": "records",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Review",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "request_id": "01K7M000000000000000000001",
+        "type": "decomposition",
+        "artifact_lineage": [
+          "synthetic"
+        ],
+        "evidence_pack_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "reviewer": "synthetic",
+        "round": 1,
+        "positions": [
+          {
+            "position": "a",
+            "harness": "synthetic",
+            "model": "synthetic",
+            "family": "synthetic",
+            "verdict": null,
+            "usage": {
+              "input_tokens": null,
+              "output_tokens": null,
+              "cache_read_tokens": null,
+              "cache_write_tokens": null,
+              "cost_microusd": null
+            }
+          },
+          {
+            "position": "b",
+            "harness": "synthetic",
+            "model": "synthetic",
+            "family": "synthetic",
+            "verdict": null,
+            "usage": {
+              "input_tokens": null,
+              "output_tokens": null,
+              "cache_read_tokens": null,
+              "cache_write_tokens": null,
+              "cost_microusd": null
+            }
+          }
+        ],
+        "combination": "approved",
+        "verdict": null,
+        "usage": {
+          "input_tokens": null,
+          "output_tokens": null,
+          "cache_read_tokens": null,
+          "cache_write_tokens": null,
+          "cost_microusd": null
+        }
+      }
+    },
+    {
+      "name": "reject_delivery_without_receipt",
+      "schema": "records",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Effect",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "operation_id": "01K7M000000000000000000001",
+        "destination": "synthetic",
+        "destination_capability": "idempotent_by_key",
+        "payload_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "assignment": null,
+        "owner_generation": null,
+        "delegation_version": null,
+        "approval_digest": null,
+        "guidance_rev": null,
+        "state": "delivered",
+        "dispatch_blocked_by": null,
+        "attempts": 0,
+        "receipt": null,
+        "reconciliation": null
+      }
+    },
+    {
+      "name": "reject_unbound_approval",
+      "schema": "records",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "record_type": "HumanRequest",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "assignment": null,
+        "run": null,
+        "kind": "plan_approval",
+        "question": "synthetic",
+        "options": [],
+        "proposal_digest": null,
+        "recipient": "synthetic",
+        "expires_at": "2026-10-16T00:00:00Z",
+        "state": "open",
+        "response": null,
+        "channel": null
+      }
+    },
+    {
+      "name": "reject_shadow_delivery",
+      "schema": "records",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "record_type": "AttentionPrompt",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "effect": "01K7M000000000000000000001",
+        "project": "01K7M000000000000000000001",
+        "subject": {
+          "kind": "commitment",
+          "id": "01K7M000000000000000000001"
+        },
+        "proposal": "synthetic",
+        "evidence": [],
+        "surface": "synthetic",
+        "rule": "synthetic",
+        "coalescing_key": "synthetic",
+        "mode": "shadow",
+        "cap_state": {
+          "surface_today": 0,
+          "all_today": 0
+        },
+        "expires_at": "2026-10-16T00:00:00Z",
+        "state": "delivered",
+        "response": null
+      }
+    },
+    {
+      "name": "valid_unknown_effect",
+      "schema": "records",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "record_type": "Effect",
+        "id": "01K7M000000000000000000001",
+        "rev": 1,
+        "created_at": "2026-10-16T00:00:00Z",
+        "updated_at": "2026-10-16T00:00:00Z",
+        "operation_id": "01K7M000000000000000000001",
+        "destination": "synthetic",
+        "destination_capability": "idempotent_by_key",
+        "payload_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "assignment": null,
+        "owner_generation": null,
+        "delegation_version": null,
+        "approval_digest": null,
+        "guidance_rev": null,
+        "state": "unknown",
+        "dispatch_blocked_by": null,
+        "attempts": 1,
+        "receipt": null,
+        "reconciliation": "pending"
+      }
+    },
+    {
+      "name": "valid_event",
+      "schema": "event",
+      "valid": true,
+      "value": {
+        "id": "01K7M000000000000000000001",
+        "envelope": 1,
+        "namespace": "odin_history",
+        "producer": "saga",
+        "kind": "run.state.verified",
+        "scope": {},
+        "source_seq": 1,
+        "received_at": "2026-10-16T00:00:00Z",
+        "causation": null,
+        "correlation": "synthetic",
+        "dedupe_key": "synthetic",
+        "payload": {
+          "status": "verified"
+        }
+      }
+    },
+    {
+      "name": "reject_double_payload",
+      "schema": "event",
+      "valid": false,
+      "value": {
+        "id": "01K7M000000000000000000001",
+        "envelope": 1,
+        "namespace": "odin_history",
+        "producer": "saga",
+        "kind": "run.state.verified",
+        "scope": {},
+        "source_seq": 1,
+        "received_at": "2026-10-16T00:00:00Z",
+        "causation": null,
+        "correlation": "synthetic",
+        "dedupe_key": "synthetic",
+        "payload": {
+          "status": "verified"
+        },
+        "payload_ref": "evid:x"
+      }
+    },
+    {
+      "name": "reject_non_saga_mirror",
+      "schema": "event",
+      "valid": false,
+      "value": {
+        "id": "01K7M000000000000000000001",
+        "envelope": 1,
+        "namespace": "execution_ledger",
+        "producer": "planner",
+        "kind": "run.state.verified",
+        "scope": {},
+        "source_seq": 1,
+        "received_at": "2026-10-16T00:00:00Z",
+        "causation": null,
+        "correlation": "synthetic",
+        "dedupe_key": "synthetic",
+        "payload": {
+          "status": "verified"
+        }
+      }
+    },
+    {
+      "name": "reject_missing_payload",
+      "schema": "event",
+      "valid": false,
+      "value": {
+        "id": "01K7M000000000000000000001",
+        "envelope": 1,
+        "namespace": "odin_history",
+        "producer": "saga",
+        "kind": "run.state.verified",
+        "scope": {},
+        "source_seq": 1,
+        "received_at": "2026-10-16T00:00:00Z",
+        "causation": null,
+        "correlation": "synthetic",
+        "dedupe_key": "synthetic"
+      }
+    },
+    {
+      "name": "reject_future_envelope",
+      "schema": "event",
+      "valid": false,
+      "value": {
+        "id": "01K7M000000000000000000001",
+        "envelope": 2,
+        "namespace": "odin_history",
+        "producer": "saga",
+        "kind": "run.state.verified",
+        "scope": {},
+        "source_seq": 1,
+        "received_at": "2026-10-16T00:00:00Z",
+        "causation": null,
+        "correlation": "synthetic",
+        "dedupe_key": "synthetic",
+        "payload": {
+          "status": "verified"
+        }
+      }
+    },
+    {
+      "name": "valid_coordination-grant",
+      "schema": "coordination-grant",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "id": "01K7M00000000000000000005",
+        "issuer": "operator-1",
+        "subject_role": "coordinator",
+        "subject": "Fable",
+        "project": "01K7M00000000000000000001",
+        "actions": [
+          "handoff",
+          "portfolio"
+        ],
+        "resources": [
+          "01K7M00000000000000000001",
+          "shared-budget:synthetic"
+        ],
+        "issued_at": "2026-10-16T00:00:00Z",
+        "expires_at": "2099-01-01T00:00:00Z",
+        "authority_ref": "operator-command:synthetic"
+      }
+    },
+    {
+      "name": "reject_unknown_coordination-grant_field",
+      "schema": "coordination-grant",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "id": "01K7M00000000000000000005",
+        "issuer": "operator-1",
+        "subject_role": "coordinator",
+        "subject": "Fable",
+        "project": "01K7M00000000000000000001",
+        "actions": [
+          "handoff",
+          "portfolio"
+        ],
+        "resources": [
+          "01K7M00000000000000000001",
+          "shared-budget:synthetic"
+        ],
+        "issued_at": "2026-10-16T00:00:00Z",
+        "expires_at": "2099-01-01T00:00:00Z",
+        "authority_ref": "operator-command:synthetic",
+        "unexpected_authority": "not authorized"
+      }
+    },
+    {
+      "name": "valid_coordination-handoff",
+      "schema": "coordination-handoff",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "operation_id": "01K7M00000000000000000006",
+        "project": "01K7M00000000000000000001",
+        "project_rev": 1,
+        "commitment": "01K7M00000000000000000003",
+        "commitment_rev": 1,
+        "assignment": "01K7M00000000000000000004",
+        "assignment_rev": 1,
+        "ownership_generation": 1,
+        "from_subject": "Fable",
+        "to_subject": "Astra",
+        "to_session": "01K7M00000000000000000002",
+        "to_incarnation": 1,
+        "requirements": {
+          "objective": "synthetic",
+          "criteria": [
+            {
+              "id": "synthetic",
+              "text": "synthetic"
+            }
+          ]
+        },
+        "evidence_refs": [],
+        "artifact_refs": [],
+        "repository_revision": "repo:abc123",
+        "grant_id": "01K7M00000000000000000005",
+        "budget_ref": "shared-budget:synthetic",
+        "deadline": "2099-01-01T00:00:00Z",
+        "model_config_rev": "models:1",
+        "issued_at": "2026-10-16T00:00:00Z"
+      }
+    },
+    {
+      "name": "reject_unknown_coordination-handoff_field",
+      "schema": "coordination-handoff",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "operation_id": "01K7M00000000000000000006",
+        "project": "01K7M00000000000000000001",
+        "project_rev": 1,
+        "commitment": "01K7M00000000000000000003",
+        "commitment_rev": 1,
+        "assignment": "01K7M00000000000000000004",
+        "assignment_rev": 1,
+        "ownership_generation": 1,
+        "from_subject": "Fable",
+        "to_subject": "Astra",
+        "to_session": "01K7M00000000000000000002",
+        "to_incarnation": 1,
+        "requirements": {
+          "objective": "synthetic",
+          "criteria": [
+            {
+              "id": "synthetic",
+              "text": "synthetic"
+            }
+          ]
+        },
+        "evidence_refs": [],
+        "artifact_refs": [],
+        "repository_revision": "repo:abc123",
+        "grant_id": "01K7M00000000000000000005",
+        "budget_ref": "shared-budget:synthetic",
+        "deadline": "2099-01-01T00:00:00Z",
+        "model_config_rev": "models:1",
+        "issued_at": "2026-10-16T00:00:00Z",
+        "unexpected_authority": "not authorized"
+      }
+    },
+    {
+      "name": "valid_coordination-result",
+      "schema": "coordination-result",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "operation_id": "01K7M00000000000000000006",
+        "project": "01K7M00000000000000000001",
+        "commitment": "01K7M00000000000000000003",
+        "assignment": "01K7M00000000000000000004",
+        "session": "01K7M00000000000000000002",
+        "incarnation": 1,
+        "status": "complete",
+        "evidence": [
+          {
+            "criterion": "synthetic",
+            "refs": [
+              {
+                "ref": "artifact:proof",
+                "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          }
+        ],
+        "artifact_refs": [],
+        "repository_revision": "repo:def456",
+        "reported_at": "2026-10-16T00:00:00Z",
+        "report_id": "01K7M000000000000000000007"
+      }
+    },
+    {
+      "name": "reject_unknown_coordination-result_field",
+      "schema": "coordination-result",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "operation_id": "01K7M00000000000000000006",
+        "project": "01K7M00000000000000000001",
+        "commitment": "01K7M00000000000000000003",
+        "assignment": "01K7M00000000000000000004",
+        "session": "01K7M00000000000000000002",
+        "incarnation": 1,
+        "status": "complete",
+        "evidence": [
+          {
+            "criterion": "synthetic",
+            "refs": [
+              {
+                "ref": "artifact:proof",
+                "digest": "0000000000000000000000000000000000000000000000000000000000000000"
+              }
+            ]
+          }
+        ],
+        "artifact_refs": [],
+        "repository_revision": "repo:def456",
+        "reported_at": "2026-10-16T00:00:00Z",
+        "report_id": "01K7M000000000000000000007",
+        "unexpected_authority": "not authorized"
+      }
+    },
+    {
+      "name": "valid_orchestration-config",
+      "schema": "orchestration-config",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "config_rev": "fixture-model-roles-v1",
+        "experimental": true,
+        "live_enabled": false,
+        "roles": {
+          "fable": {
+            "model": "claude-fable-5-1",
+            "provider": "Anthropic",
+            "harness": "Claude Agent SDK",
+            "harness_version": null,
+            "cli_observed_version": "2.1.296",
+            "effort": null,
+            "execution_path": "service_session",
+            "required_capabilities": [
+              "start",
+              "resume",
+              "interrupt",
+              "transcript",
+              "profile_enforcement"
+            ],
+            "credential_ref": null,
+            "billing_ref": null
+          },
+          "astra": {
+            "model": "gpt-6-astra",
+            "provider": "OpenAI",
+            "harness": "Codex app-server",
+            "harness_version": "0.162.1",
+            "cli_observed_version": null,
+            "effort": "high",
+            "execution_path": "service_session",
+            "required_capabilities": [
+              "start",
+              "resume",
+              "interrupt",
+              "transcript",
+              "profile_enforcement"
+            ],
+            "credential_ref": null,
+            "billing_ref": null
+          },
+          "opus": {
+            "model": "claude-opus-5-5",
+            "provider": "Anthropic",
+            "harness": "Saga API",
+            "harness_version": null,
+            "cli_observed_version": null,
+            "effort": null,
+            "execution_path": "saga_api",
+            "required_capabilities": [
+              "idempotent_request",
+              "run_record",
+              "bounded_execution"
+            ],
+            "credential_ref": null,
+            "billing_ref": null
+          },
+          "sol": {
+            "model": "gpt-6-sol",
+            "provider": "OpenAI",
+            "harness": "Saga API",
+            "harness_version": null,
+            "cli_observed_version": null,
+            "effort": "high",
+            "execution_path": "saga_api",
+            "required_capabilities": [
+              "idempotent_request",
+              "run_record",
+              "bounded_execution"
+            ],
+            "credential_ref": null,
+            "billing_ref": null
+          }
+        }
+      }
+    },
+    {
+      "name": "reject_unknown_orchestration-config_field",
+      "schema": "orchestration-config",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "config_rev": "fixture-model-roles-v1",
+        "experimental": true,
+        "live_enabled": false,
+        "roles": {
+          "fable": {
+            "model": "claude-fable-5-1",
+            "provider": "Anthropic",
+            "harness": "Claude Agent SDK",
+            "harness_version": null,
+            "cli_observed_version": "2.1.296",
+            "effort": null,
+            "execution_path": "service_session",
+            "required_capabilities": [
+              "start",
+              "resume",
+              "interrupt",
+              "transcript",
+              "profile_enforcement"
+            ],
+            "credential_ref": null,
+            "billing_ref": null
+          },
+          "astra": {
+            "model": "gpt-6-astra",
+            "provider": "OpenAI",
+            "harness": "Codex app-server",
+            "harness_version": "0.162.1",
+            "cli_observed_version": null,
+            "effort": "high",
+            "execution_path": "service_session",
+            "required_capabilities": [
+              "start",
+              "resume",
+              "interrupt",
+              "transcript",
+              "profile_enforcement"
+            ],
+            "credential_ref": null,
+            "billing_ref": null
+          },
+          "opus": {
+            "model": "claude-opus-5-5",
+            "provider": "Anthropic",
+            "harness": "Saga API",
+            "harness_version": null,
+            "cli_observed_version": null,
+            "effort": null,
+            "execution_path": "saga_api",
+            "required_capabilities": [
+              "idempotent_request",
+              "run_record",
+              "bounded_execution"
+            ],
+            "credential_ref": null,
+            "billing_ref": null
+          },
+          "sol": {
+            "model": "gpt-6-sol",
+            "provider": "OpenAI",
+            "harness": "Saga API",
+            "harness_version": null,
+            "cli_observed_version": null,
+            "effort": "high",
+            "execution_path": "saga_api",
+            "required_capabilities": [
+              "idempotent_request",
+              "run_record",
+              "bounded_execution"
+            ],
+            "credential_ref": null,
+            "billing_ref": null
+          }
+        },
+        "unexpected_authority": "not authorized"
+      }
+    },
+    {
+      "name": "valid_chirality-config",
+      "schema": "chirality-config",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "mode": "fixture",
+        "enabled": true,
+        "branches": [
+          {
+            "role": "fable",
+            "provider": "fixture-provider",
+            "harness": "fixture-harness",
+            "harness_version": "1",
+            "requested_model": "fable-fixture",
+            "effort": null,
+            "config_revision": "fixture-model-roles-v1",
+            "max_microusd": 20
+          },
+          {
+            "role": "astra",
+            "provider": "fixture-provider",
+            "harness": "fixture-harness",
+            "harness_version": "1",
+            "requested_model": "astra-fixture",
+            "effort": "bounded",
+            "config_revision": "fixture-model-roles-v1",
+            "max_microusd": 30
+          }
+        ],
+        "synthesis_max_microusd": 10,
+        "max_rounds": 2,
+        "depth": 0,
+        "deadline_at": "2099-01-01T00:00:00Z",
+        "limits": {
+          "recommendation": 300,
+          "evidence": 200,
+          "assumptions": 200,
+          "objections": 200,
+          "items": 4
+        }
+      }
+    },
+    {
+      "name": "reject_unknown_chirality-config_field",
+      "schema": "chirality-config",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "mode": "fixture",
+        "enabled": true,
+        "branches": [
+          {
+            "role": "fable",
+            "provider": "fixture-provider",
+            "harness": "fixture-harness",
+            "harness_version": "1",
+            "requested_model": "fable-fixture",
+            "effort": null,
+            "config_revision": "fixture-model-roles-v1",
+            "max_microusd": 20
+          },
+          {
+            "role": "astra",
+            "provider": "fixture-provider",
+            "harness": "fixture-harness",
+            "harness_version": "1",
+            "requested_model": "astra-fixture",
+            "effort": "bounded",
+            "config_revision": "fixture-model-roles-v1",
+            "max_microusd": 30
+          }
+        ],
+        "synthesis_max_microusd": 10,
+        "max_rounds": 2,
+        "depth": 0,
+        "deadline_at": "2099-01-01T00:00:00Z",
+        "limits": {
+          "recommendation": 300,
+          "evidence": 200,
+          "assumptions": 200,
+          "objections": 200,
+          "items": 4
+        },
+        "unexpected_authority": "not authorized"
+      }
+    },
+    {
+      "name": "valid_chirality-packet",
+      "schema": "chirality-packet",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "revision": 1,
+        "question": "Should the synthetic three-document fixture proceed to review?",
+        "evidence": [
+          "fixture:requirements",
+          "fixture:interface",
+          "fixture:acceptance"
+        ],
+        "target": null,
+        "source": {
+          "handoff_operation": "fixture-handoff",
+          "handoff_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "project": "fixture-project",
+          "assignment": "fixture-assignment",
+          "assignment_revision": 1,
+          "ownership_generation": 1,
+          "source_revision": 1
+        }
+      }
+    },
+    {
+      "name": "reject_unknown_chirality-packet_field",
+      "schema": "chirality-packet",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "revision": 1,
+        "question": "Should the synthetic three-document fixture proceed to review?",
+        "evidence": [
+          "fixture:requirements",
+          "fixture:interface",
+          "fixture:acceptance"
+        ],
+        "target": null,
+        "source": {
+          "handoff_operation": "fixture-handoff",
+          "handoff_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "project": "fixture-project",
+          "assignment": "fixture-assignment",
+          "assignment_revision": 1,
+          "ownership_generation": 1,
+          "source_revision": 1
+        },
+        "unexpected_authority": "not authorized"
+      }
+    },
+    {
+      "name": "valid_chirality-response",
+      "schema": "chirality-response",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "round": 1,
+        "role": "fable",
+        "requested_model": "fable-fixture",
+        "resolved_model": "fable-fixture",
+        "packet_revision": 1,
+        "packet_digest": "b291bb148cbc907d032ff7cf79a7301190d9156c238977af6069d379bef17079",
+        "status": "complete",
+        "recommendation": "Proceed with the synthetic fixture",
+        "evidence": [
+          "fixture:requirements"
+        ],
+        "assumptions": [
+          "The fixture is synthetic"
+        ],
+        "objections": [
+          "No live Saga claim"
+        ],
+        "actual_microusd": 5,
+        "consultation_id": "consultation",
+        "invocation_id": "chirality:consultation:1:fable",
+        "requested_provider": "fixture-provider",
+        "requested_harness": "fixture-harness",
+        "requested_harness_version": "1",
+        "requested_effort": null,
+        "requested_config_revision": "fixture-model-roles-v1",
+        "resolved_provider": "fixture-provider",
+        "resolved_harness": "fixture-harness",
+        "resolved_harness_version": "1",
+        "resolved_effort": null
+      }
+    },
+    {
+      "name": "reject_unknown_chirality-response_field",
+      "schema": "chirality-response",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "round": 1,
+        "role": "fable",
+        "requested_model": "fable-fixture",
+        "resolved_model": "fable-fixture",
+        "packet_revision": 1,
+        "packet_digest": "b291bb148cbc907d032ff7cf79a7301190d9156c238977af6069d379bef17079",
+        "status": "complete",
+        "recommendation": "Proceed with the synthetic fixture",
+        "evidence": [
+          "fixture:requirements"
+        ],
+        "assumptions": [
+          "The fixture is synthetic"
+        ],
+        "objections": [
+          "No live Saga claim"
+        ],
+        "actual_microusd": 5,
+        "consultation_id": "consultation",
+        "invocation_id": "chirality:consultation:1:fable",
+        "requested_provider": "fixture-provider",
+        "requested_harness": "fixture-harness",
+        "requested_harness_version": "1",
+        "requested_effort": null,
+        "requested_config_revision": "fixture-model-roles-v1",
+        "resolved_provider": "fixture-provider",
+        "resolved_harness": "fixture-harness",
+        "resolved_harness_version": "1",
+        "resolved_effort": null,
+        "unexpected_authority": "not authorized"
+      }
+    },
+    {
+      "name": "valid_gateway-command",
+      "schema": "gateway-command",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "operation_id": "01K7M000000000000000000001",
+        "action": "status",
+        "payload": {}
+      }
+    },
+    {
+      "name": "reject_unknown_gateway-command_field",
+      "schema": "gateway-command",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "operation_id": "01K7M000000000000000000001",
+        "action": "status",
+        "payload": {},
+        "unexpected_authority": "not authorized"
+      }
+    },
+    {
+      "name": "valid_surface-message",
+      "schema": "surface-message",
+      "valid": true,
+      "value": {
+        "project": null,
+        "text": "Synthetic operator question"
+      }
+    },
+    {
+      "name": "reject_unknown_surface-message_field",
+      "schema": "surface-message",
+      "valid": false,
+      "value": {
+        "project": null,
+        "text": "Synthetic operator question",
+        "unexpected_authority": "not authorized"
+      }
+    },
+    {
+      "name": "valid_layout-binding",
+      "schema": "layout-binding",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "project": "01K7M000000000000000000001",
+        "session": "01K7M000000000000000000001",
+        "incarnation": 1,
+        "host": "fixture-host",
+        "server_incarnation": "fixture-1",
+        "workspace": "project",
+        "tab": "feature",
+        "pane": "fixture-pane",
+        "evidence_mode": "fixture"
+      }
+    },
+    {
+      "name": "reject_unknown_layout-binding_field",
+      "schema": "layout-binding",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "project": "01K7M000000000000000000001",
+        "session": "01K7M000000000000000000001",
+        "incarnation": 1,
+        "host": "fixture-host",
+        "server_incarnation": "fixture-1",
+        "workspace": "project",
+        "tab": "feature",
+        "pane": "fixture-pane",
+        "evidence_mode": "fixture",
+        "unexpected_authority": "not authorized"
+      }
+    },
+    {
+      "name": "valid_layout-observation",
+      "schema": "layout-observation",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "session": "01K7M000000000000000000001",
+        "incarnation": 1,
+        "host": "fixture-host",
+        "server_incarnation": "fixture-1",
+        "pane": "fixture-pane",
+        "evidence_mode": "fixture",
+        "state": "done"
+      }
+    },
+    {
+      "name": "reject_unknown_layout-observation_field",
+      "schema": "layout-observation",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "session": "01K7M000000000000000000001",
+        "incarnation": 1,
+        "host": "fixture-host",
+        "server_incarnation": "fixture-1",
+        "pane": "fixture-pane",
+        "evidence_mode": "fixture",
+        "state": "done",
+        "unexpected_authority": "not authorized"
+      }
+    },
+    {
+      "name": "reject_live_orchestration_config",
+      "schema": "orchestration-config",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "config_rev": "fixture-model-roles-v1",
+        "experimental": true,
+        "live_enabled": true,
+        "roles": {
+          "fable": {
+            "model": "claude-fable-5-1",
+            "provider": "Anthropic",
+            "harness": "Claude Agent SDK",
+            "harness_version": null,
+            "cli_observed_version": "2.1.296",
+            "effort": null,
+            "execution_path": "service_session",
+            "required_capabilities": [
+              "start",
+              "resume",
+              "interrupt",
+              "transcript",
+              "profile_enforcement"
+            ],
+            "credential_ref": null,
+            "billing_ref": null
+          },
+          "astra": {
+            "model": "gpt-6-astra",
+            "provider": "OpenAI",
+            "harness": "Codex app-server",
+            "harness_version": "0.162.1",
+            "cli_observed_version": null,
+            "effort": "high",
+            "execution_path": "service_session",
+            "required_capabilities": [
+              "start",
+              "resume",
+              "interrupt",
+              "transcript",
+              "profile_enforcement"
+            ],
+            "credential_ref": null,
+            "billing_ref": null
+          },
+          "opus": {
+            "model": "claude-opus-5-5",
+            "provider": "Anthropic",
+            "harness": "Saga API",
+            "harness_version": null,
+            "cli_observed_version": null,
+            "effort": null,
+            "execution_path": "saga_api",
+            "required_capabilities": [
+              "idempotent_request",
+              "run_record",
+              "bounded_execution"
+            ],
+            "credential_ref": null,
+            "billing_ref": null
+          },
+          "sol": {
+            "model": "gpt-6-sol",
+            "provider": "OpenAI",
+            "harness": "Saga API",
+            "harness_version": null,
+            "cli_observed_version": null,
+            "effort": "high",
+            "execution_path": "saga_api",
+            "required_capabilities": [
+              "idempotent_request",
+              "run_record",
+              "bounded_execution"
+            ],
+            "credential_ref": null,
+            "billing_ref": null
+          }
+        }
+      }
+    },
+    {
+      "name": "reject_third_chirality_round",
+      "schema": "chirality-config",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "mode": "fixture",
+        "enabled": true,
+        "branches": [
+          {
+            "role": "fable",
+            "provider": "fixture-provider",
+            "harness": "fixture-harness",
+            "harness_version": "1",
+            "requested_model": "fable-fixture",
+            "effort": null,
+            "config_revision": "fixture-model-roles-v1",
+            "max_microusd": 20
+          },
+          {
+            "role": "astra",
+            "provider": "fixture-provider",
+            "harness": "fixture-harness",
+            "harness_version": "1",
+            "requested_model": "astra-fixture",
+            "effort": "bounded",
+            "config_revision": "fixture-model-roles-v1",
+            "max_microusd": 30
+          }
+        ],
+        "synthesis_max_microusd": 10,
+        "max_rounds": 3,
+        "depth": 0,
+        "deadline_at": "2099-01-01T00:00:00Z",
+        "limits": {
+          "recommendation": 300,
+          "evidence": 200,
+          "assumptions": 200,
+          "objections": 200,
+          "items": 4
+        }
+      }
+    }
+  ]
+}

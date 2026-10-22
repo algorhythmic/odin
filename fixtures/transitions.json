@@ -1,0 +1,239 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "fresh record",
+      "kind": "revision",
+      "input": {
+        "current": 0,
+        "expected": 0
+      },
+      "expected": "apply"
+    },
+    {
+      "name": "stale record",
+      "kind": "revision",
+      "input": {
+        "current": 2,
+        "expected": 1
+      },
+      "expected": "stale_revision"
+    },
+    {
+      "name": "matching revision",
+      "kind": "revision",
+      "input": {
+        "current": 2,
+        "expected": 2
+      },
+      "expected": "apply"
+    },
+    {
+      "name": "first intake",
+      "kind": "dedupe",
+      "input": {
+        "seen": false,
+        "same_content": true
+      },
+      "expected": "apply"
+    },
+    {
+      "name": "duplicate intake",
+      "kind": "dedupe",
+      "input": {
+        "seen": true,
+        "same_content": true
+      },
+      "expected": "duplicate"
+    },
+    {
+      "name": "conflicting duplicate",
+      "kind": "dedupe",
+      "input": {
+        "seen": true,
+        "same_content": false
+      },
+      "expected": "identity_conflict"
+    },
+    {
+      "name": "completed idempotent=True authorized=True",
+      "kind": "delivery",
+      "input": {
+        "lookup": "completed",
+        "idempotent": true,
+        "authorized": true
+      },
+      "expected": "delivered"
+    },
+    {
+      "name": "completed idempotent=True authorized=False",
+      "kind": "delivery",
+      "input": {
+        "lookup": "completed",
+        "idempotent": true,
+        "authorized": false
+      },
+      "expected": "delivered"
+    },
+    {
+      "name": "completed idempotent=False authorized=True",
+      "kind": "delivery",
+      "input": {
+        "lookup": "completed",
+        "idempotent": false,
+        "authorized": true
+      },
+      "expected": "delivered"
+    },
+    {
+      "name": "failed idempotent=True authorized=True",
+      "kind": "delivery",
+      "input": {
+        "lookup": "failed",
+        "idempotent": true,
+        "authorized": true
+      },
+      "expected": "failed"
+    },
+    {
+      "name": "failed idempotent=True authorized=False",
+      "kind": "delivery",
+      "input": {
+        "lookup": "failed",
+        "idempotent": true,
+        "authorized": false
+      },
+      "expected": "failed"
+    },
+    {
+      "name": "failed idempotent=False authorized=True",
+      "kind": "delivery",
+      "input": {
+        "lookup": "failed",
+        "idempotent": false,
+        "authorized": true
+      },
+      "expected": "failed"
+    },
+    {
+      "name": "superseded idempotent=True authorized=True",
+      "kind": "delivery",
+      "input": {
+        "lookup": "superseded",
+        "idempotent": true,
+        "authorized": true
+      },
+      "expected": "superseded"
+    },
+    {
+      "name": "superseded idempotent=True authorized=False",
+      "kind": "delivery",
+      "input": {
+        "lookup": "superseded",
+        "idempotent": true,
+        "authorized": false
+      },
+      "expected": "superseded"
+    },
+    {
+      "name": "superseded idempotent=False authorized=True",
+      "kind": "delivery",
+      "input": {
+        "lookup": "superseded",
+        "idempotent": false,
+        "authorized": true
+      },
+      "expected": "superseded"
+    },
+    {
+      "name": "pending idempotent=True authorized=True",
+      "kind": "delivery",
+      "input": {
+        "lookup": "pending",
+        "idempotent": true,
+        "authorized": true
+      },
+      "expected": "unknown"
+    },
+    {
+      "name": "pending idempotent=True authorized=False",
+      "kind": "delivery",
+      "input": {
+        "lookup": "pending",
+        "idempotent": true,
+        "authorized": false
+      },
+      "expected": "unknown"
+    },
+    {
+      "name": "pending idempotent=False authorized=True",
+      "kind": "delivery",
+      "input": {
+        "lookup": "pending",
+        "idempotent": false,
+        "authorized": true
+      },
+      "expected": "unknown"
+    },
+    {
+      "name": "absent idempotent=True authorized=True",
+      "kind": "delivery",
+      "input": {
+        "lookup": "absent",
+        "idempotent": true,
+        "authorized": true
+      },
+      "expected": "queued"
+    },
+    {
+      "name": "absent idempotent=True authorized=False",
+      "kind": "delivery",
+      "input": {
+        "lookup": "absent",
+        "idempotent": true,
+        "authorized": false
+      },
+      "expected": "unknown"
+    },
+    {
+      "name": "absent idempotent=False authorized=True",
+      "kind": "delivery",
+      "input": {
+        "lookup": "absent",
+        "idempotent": false,
+        "authorized": true
+      },
+      "expected": "unknown"
+    },
+    {
+      "name": "unknown_expired idempotent=True authorized=True",
+      "kind": "delivery",
+      "input": {
+        "lookup": "unknown_expired",
+        "idempotent": true,
+        "authorized": true
+      },
+      "expected": "unknown"
+    },
+    {
+      "name": "unknown_expired idempotent=True authorized=False",
+      "kind": "delivery",
+      "input": {
+        "lookup": "unknown_expired",
+        "idempotent": true,
+        "authorized": false
+      },
+      "expected": "unknown"
+    },
+    {
+      "name": "unknown_expired idempotent=False authorized=True",
+      "kind": "delivery",
+      "input": {
+        "lookup": "unknown_expired",
+        "idempotent": false,
+        "authorized": true
+      },
+      "expected": "unknown"
+    }
+  ]
+}

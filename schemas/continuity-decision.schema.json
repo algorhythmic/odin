@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:continuity-decision:1",
+  "type": "object",
+  "required": ["schema_version", "project", "dedupe_key", "recipient", "kind", "question", "options", "recommendation", "evidence", "artifact", "authorization", "blockers", "urgency", "commitments", "record_refs", "memory_revision", "authority_revision", "expires_at"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "project": {"$ref": "#/$defs/id"},
+    "dedupe_key": {"type": "string", "minLength": 1, "maxLength": 160},
+    "recipient": {"type": "string", "minLength": 1, "maxLength": 160},
+    "kind": {"enum": ["clarification", "plan_approval", "delegation_change", "principle_change", "desktop_action"]},
+    "question": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "options": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 160}},
+    "recommendation": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "evidence": {"type": "array", "maxItems": 32, "items": {"type": "object", "required": ["ref", "revision"], "properties": {"ref": {"type": "string", "minLength": 1, "maxLength": 240}, "revision": {"type": "string", "minLength": 1, "maxLength": 120}}, "additionalProperties": false}},
+    "artifact": {"type": "object", "required": ["ref", "digest"], "properties": {"ref": {"type": "string", "minLength": 1, "maxLength": 240}, "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}, "additionalProperties": false},
+    "authorization": {"type": "object", "required": ["action", "scope"], "properties": {"action": {"type": "string", "minLength": 1, "maxLength": 240}, "scope": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"type": "string", "minLength": 1, "maxLength": 160}}}, "additionalProperties": false},
+    "blockers": {"type": "array", "maxItems": 16, "items": {"type": "string", "minLength": 1, "maxLength": 240}},
+    "urgency": {"enum": ["routine", "soon", "urgent"]},
+    "commitments": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/recordRef"}},
+    "record_refs": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/recordRef"}},
+    "memory_revision": {"type": ["string", "integer", "null"]},
+    "authority_revision": {"type": "string", "minLength": 1, "maxLength": 120},
+    "expires_at": {"type": "string", "format": "date-time", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+    "recordRef": {"type": "object", "required": ["id", "rev"], "properties": {"id": {"$ref": "#/$defs/id"}, "rev": {"type": "integer", "minimum": 1}}, "additionalProperties": false}
+  }
+}

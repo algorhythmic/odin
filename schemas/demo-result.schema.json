@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "label": {
+      "const": "fake-backend evidence"
+    },
+    "documents": {
+      "const": 3
+    },
+    "logical_runs": {
+      "const": 3
+    },
+    "lost_receipt_reconciled": {
+      "const": true
+    },
+    "termination_did_not_complete": {
+      "const": true
+    },
+    "integration_gate_held": {
+      "const": true
+    },
+    "replacement_preserved_commitment": {
+      "const": true
+    },
+    "commitment_state": {
+      "const": "closed"
+    }
+  },
+  "required": [
+    "label",
+    "documents",
+    "logical_runs",
+    "lost_receipt_reconciled",
+    "termination_did_not_complete",
+    "integration_gate_held",
+    "replacement_preserved_commitment",
+    "commitment_state"
+  ],
+  "additionalProperties": false
+}

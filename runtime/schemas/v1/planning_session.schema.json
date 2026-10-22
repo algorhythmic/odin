@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/schemas/v1/planning_session.schema.json",
+  "title": "Planning Session",
+  "description": "",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "updated_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "project": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "adapter": {
+      "type": "string",
+      "minLength": 1
+    },
+    "native_session_id": {
+      "$ref": "common.schema.json#/$defs/opaque_id"
+    },
+    "incarnation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "starting",
+        "active",
+        "idle",
+        "retiring",
+        "retired"
+      ]
+    },
+    "briefing": {
+      "type": "string",
+      "minLength": 1
+    },
+    "budget_usd": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "ownership_generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "profile": {
+      "type": "string",
+      "enum": [
+        "planner",
+        "reviewer",
+        "worker",
+        "desktop_worker",
+        "subagent"
+      ]
+    },
+    "auth": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "api",
+            "subscription",
+            "local"
+          ]
+        },
+        "credential_ref": {
+          "$ref": "common.schema.json#/$defs/credential_ref"
+        },
+        "refresh_owner": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "mode",
+        "credential_ref",
+        "refresh_owner"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "project",
+    "adapter",
+    "native_session_id",
+    "incarnation",
+    "state",
+    "briefing",
+    "budget_usd",
+    "ownership_generation",
+    "profile",
+    "auth"
+  ],
+  "additionalProperties": false
+}

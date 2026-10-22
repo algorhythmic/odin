@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:development-loop-notice:1",
+  "title": "Durable development-loop notice to the native executive (ODIN-ADR-030)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "id", "kind", "loop_id", "project", "session_id", "round", "stage_id",
+    "stage_state", "job_id", "transition", "observed", "summary", "assessment", "decision",
+    "attention", "status_reference", "created_at", "state", "first_offered_at",
+    "acknowledged_at", "acknowledged_by", "acknowledgement_operation", "acknowledgement_authority"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+    "kind": {"enum": ["completion", "failure", "intervention", "stopped", "stalled"]},
+    "loop_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "project": {"type": "string", "minLength": 1, "maxLength": 128},
+    "session_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "round": {"type": "integer", "minimum": 0, "maximum": 100},
+    "stage_id": {"type": ["string", "null"], "maxLength": 128},
+    "stage_state": {"anyOf": [{"enum": ["pending", "claimed", "ready", "completed", "cancelled", "unknown"]}, {"type": "null"}]},
+    "job_id": {"type": ["string", "null"], "maxLength": 128},
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "loop_revision"],
+      "properties": {
+        "from": {"type": "string", "minLength": 1, "maxLength": 32},
+        "to": {"type": "string", "minLength": 1, "maxLength": 32},
+        "loop_revision": {"type": "integer", "minimum": 1}
+      }
+    },
+    "observed": {"anyOf": [{"enum": ["offer_unanswered", "claimed_stalled", "ready_uncaptured", "evaluator_stalled"]}, {"type": "null"}]},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "assessment": {"type": ["string", "null"], "maxLength": 2000},
+    "decision": {"anyOf": [{"enum": ["continue", "complete", "needs_operator"]}, {"type": "null"}]},
+    "attention": {"type": "string", "minLength": 1, "maxLength": 600},
+    "status_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "loop_id"],
+      "properties": {
+        "tool": {"const": "odin_loop_status"},
+        "loop_id": {"type": "string", "minLength": 1, "maxLength": 128}
+      }
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "state": {"enum": ["pending", "acknowledged"]},
+    "first_offered_at": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
+    "acknowledged_at": {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
+    "acknowledged_by": {"type": ["string", "null"], "maxLength": 128},
+    "acknowledgement_operation": {"type": ["string", "null"], "maxLength": 128},
+    "acknowledgement_authority": {"anyOf": [{"enum": ["model_attributed_not_operator_approval", "operator_terminal_acknowledgement_not_approval"]}, {"type": "null"}]}
+  }
+}

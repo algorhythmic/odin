@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/schemas/v1/approval.schema.json",
+  "title": "Approval",
+  "description": "Odin record of an approval; Saga is authoritative for run admission.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "updated_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "request_id": {
+      "$ref": "common.schema.json#/$defs/opaque_id"
+    },
+    "request_rev": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "principal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proposal_digest": {
+      "$ref": "common.schema.json#/$defs/digest"
+    },
+    "source_event": {
+      "type": "string",
+      "minLength": 1
+    },
+    "channel": {
+      "type": "string",
+      "minLength": 1
+    },
+    "received_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "expires_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "granted",
+        "denied",
+        "expired",
+        "revoked"
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "request_id",
+    "request_rev",
+    "principal",
+    "proposal_digest",
+    "source_event",
+    "channel",
+    "received_at",
+    "expires_at",
+    "state"
+  ],
+  "additionalProperties": false
+}

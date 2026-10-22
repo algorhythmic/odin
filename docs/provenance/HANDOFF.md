@@ -6,7 +6,7 @@ Source: Saga commit `14fdab3bce1a5a565176cec9db5d7dc8d1c15ada`, captured from a 
 
 The user clarified that the immediate objective was moving the documentation into a new repository to start Odin. Further design-review rounds were stopped. Saga retains its original authoritative decisions and four live Odin design documents. Odin's adapted copies and extracted producer contract are development drafts; their recorded clarifications do not amend Saga's decisions. This bootstrap approves no unresolved policy or new interface.
 
-The Opus source review returned CHANGES_REQUIRED and is retained in `SOURCE-REVIEW.md`. Subsequent author passes addressed many findings, but no final independent PASS is claimed. D14's formal ownership-transfer gate remains pending. The decision maps describe intended ownership after that future handoff. Do not replace Saga's live documents with forwarders until the gate is explicitly closed.
+The Opus source review returned CHANGES_REQUIRED and is retained in `SOURCE-REVIEW.md`. Subsequent author passes addressed many findings; `REVIEW-RESOLUTIONS.md` now points from each finding to current clauses and remaining work. It is a current disposition record, not a retained independent review report. No final independent PASS is claimed. D14's formal ownership-transfer gate remains pending. The decision maps describe intended ownership after that future handoff. Do not replace Saga's live documents with forwarders until the gate is explicitly closed.
 
 Validation covers the frozen-byte hashes, extraction metadata, pinned contract digest, preserved decision/acceptance identifiers, and local documentation links. A standalone copy is checked without a Saga sibling. These are documentation checks, not runtime acceptance tests. Runtime implementation, code extraction and deployment were not performed.
 
@@ -128,8 +128,112 @@ license, `f621831` records ADR-001 to 005) before this pass's edits began, so th
 exists at HEAD before the first supersession recorded under it. This pass
 is the next commit.
 
-Verification: `python3 scripts/validate_docs.py` passes; an independent
-verification read compared the revised documents with the ADRs and the
-frozen copy (its report is in the session scratchpad, not the repository).
-No runtime exists; nothing is implemented or tested. No Saga or peer
-repository file was changed.
+Verification at that pass: `python3 scripts/validate_docs.py` passed. The
+prior receipt mentions an independent verification read, but no report from
+that read is retained in this repository; it cannot serve as evidence for a
+formal re-review. No runtime existed; nothing was implemented or tested.
+No Saga or peer repository file was changed.
+
+## Documentation audit corrections — 2026-10-16
+
+A subsequent local documentation audit identified F1–F9. Its assessment is
+outside this repository and does not record a D14 handoff or runtime
+acceptance. [The current correction disposition](REVIEW-RESOLUTIONS.md#2026-10-16-documentation-audit-corrections)
+names the affected clauses and checks. The source review remains
+CHANGES_REQUIRED; an independent re-review, a final PASS if warranted, and
+handoff records in both repositories are still pending. This correction pass
+is documentation and validator work before I0, not I0 implementation.
+
+Three GPT-6-Sol subagents implemented the contract, provenance and validator
+corrections; the coordinator reviewed the combined changes against the
+recorded decisions and pinned producer clauses. Manifest changes are limited
+to destination digests and transformation notes for eight live outputs;
+all source metadata, frozen history, dated evidence and pinned producer
+files are unchanged.
+
+Integrated validation on 2026-10-16:
+
+- `python3 scripts/validate_docs.py` — PASS: 35 frozen files, source/output
+  digests, D0–D24 mapping presence, AC/DC/EC defining rows, one producer pin,
+  and local links in 24 live documents.
+- `python3 -m unittest discover -s scripts -p 'test_validate_docs.py' -v`
+  — all 11 tests pass, including an isolated standalone copy and mutations
+  that remove or misplace IDs and break an editable research link.
+- `git diff --check` — PASS.
+
+This is documentation integrity and validator regression evidence. No
+runtime acceptance test or final independent handoff approval is claimed.
+
+## Partial I0 implementation — 2026-10-16
+
+The operator requested runtime implementation through GPT-6-Sol subagents.
+Three agents implemented the shared schemas/fixtures, Python validator and
+Go validator; cross-review and coordinator integration checks followed.
+The delivered subset is in [`runtime/`](../../runtime/README.md): 18 schemas
+(15 record/configuration shapes plus common definitions and two fixture
+manifest schemas), strict JSON parsing, and pure duplicate, revision,
+ownership-generation and operation-reconciliation checks. The schemas also
+record the heimdall target mapping without implementing a peer reader.
+
+Validation: `scripts/check_runtime.py` passed both language test suites and
+produced identical verdicts for **73 structural cases and 19 semantic
+cases**. The run used Python 3.14.7 with `jsonschema==4.26.0` and Go 1.27.2
+with `github.com/google/jsonschema-go v0.4.3`. The documentation validator
+passed (35 frozen files, one producer pin, 26 live documents), all 11
+documentation-validator regressions passed, and `git diff --check` passed.
+Frozen and pinned files, dated evidence, and immutable manifest fields
+were checked unchanged. Only live destination digests and transformation
+notes were refreshed for this pass.
+
+This is contract-only synthetic-fixture evidence, with no fake backend,
+Saga call or model session. I0 is incomplete: the operator decision in
+X-7 still gates Review/guidance schemas. X-11 still gates I1 storage; G2
+governs direct-stop responsibilities. No service, workstation daemon,
+harness integration, peer import or deployment was implemented. The
+pending operator questions were not treated as decisions, and no issue
+or D14 handoff was closed.
+
+## Local service integration and orchestration experiment — 2026-10-16
+
+The operator requested GPT-6-Sol subagents to implement the proposed runtime
+coordination changes. The coordinator integrated the local service foundation
+from Odin commit `0b3d19e` into this checkout, preserving the earlier `runtime/`
+fixture implementation and the documentation-audit corrections. The source
+checkout was read only. Three GPT-6-Sol subagents implemented coordination and
+role configuration, bounded consultation, and documentation reconciliation;
+focused cross-review and coordinator gateway/CLI integration followed.
+
+ODIN-ADR-022 records the experimental protocol. Its local implementation has
+operator-issued scoped grants, durable portfolio-to-project handoffs, one
+planning owner, Saga-only worker intents, and optional independent consultation
+with at most two rounds. It preserves dissent, bounds fixture reservations,
+retains unknown usage, and permits late usage reconciliation without reopening
+advice. The recorded gateway commits commands, mutations and receipts together.
+Text and voice-origin text share that path; voice cannot grant authority.
+Herdr fixture bindings and observations confer visibility only. No model,
+audio device, Herdr process, real credentials or live Saga endpoint was used.
+
+Review corrections require accepted, current handoffs before worker intents;
+restrict those intents to Opus/Sol; bind budgets to the operator's grant;
+bound consultation deadlines by the handoff; reject retired layout sessions;
+and isolate each consultation response by invocation and round. The imported
+foundation's premature Review record schema was removed to preserve X-7's
+gate; a shared negative fixture prevents its admission. Fake review predicates
+remain synthetic development behavior, not a Review schema or producer API.
+
+Integrated verification used Python 3.14.7 and Go 1.27.2:
+
+- 79 Python runtime/component tests, including the public CLI orchestration
+  flow, restart, unknown usage, scope checks and a private Unix socket test.
+- Independent Go/Python validation of 53 shared structural cases and 24
+  transition cases; all root fixture files validated.
+- Earlier `runtime/` compatibility: both language suites pass with identical
+  verdicts for 73 structural and 19 semantic cases.
+- Documentation integrity and all 13 documentation-validator regressions;
+  Python formatting/lint and `git diff --check`.
+
+This is fake-backend and local protocol evidence. It does not complete the
+full acceptance scenarios, I0/I1 exits, live I2/I3 integration, Phase G model
+evaluation or the D14 handoff. X-7, X-12, X-13, X-15 and Saga Phase B remain
+gates. Manifest source metadata and frozen/pinned evidence remain unchanged;
+only changed live destination digests and transformation notes are refreshed.

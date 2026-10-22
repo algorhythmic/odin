@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "round", "packet_digest", "positions", "agreement", "dissent", "unresolved", "closure_reasons", "actual_microusd", "authority"],
+  "properties": {
+    "schema_version": {"const": 1}, "round": {"type": "integer", "minimum": 1, "maximum": 2},
+    "packet_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "positions": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "object"}},
+    "agreement": {"type": "boolean"},
+    "dissent": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["role", "status", "recommendation", "objections"], "properties": {"role": {"enum": ["fable", "astra"]}, "status": {"type": "string"}, "recommendation": {"type": "string"}, "objections": {"type": "array", "items": {"type": "string"}}}}},
+    "unresolved": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["role", "objection"], "properties": {"role": {"enum": ["fable", "astra"]}, "objection": {"type": "string"}}}},
+    "closure_reasons": {"type": "array", "items": {"enum": ["parent_stopped", "stale_source_context", "deadline_expired", "missing_or_incomplete", "dissent"]}},
+    "actual_microusd": {"type": "integer", "minimum": 0},
+    "authority": {"const": "advice_only"}
+  }
+}

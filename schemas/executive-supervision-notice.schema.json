@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+    },
+    "kind": {
+      "enum": [
+        "executive_restart",
+        "runtime_deploy"
+      ]
+    },
+    "project": {
+      "type": "string",
+      "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+    },
+    "outcome": {
+      "enum": [
+        "restarted",
+        "failed",
+        "refused",
+        "cancelled",
+        "deployed",
+        "rolled_back"
+      ]
+    },
+    "code": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$"
+        }
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "state": {
+      "enum": [
+        "pending",
+        "acknowledged"
+      ]
+    },
+    "first_offered_at": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "format": "date-time"
+        }
+      ]
+    },
+    "acknowledged_at": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "format": "date-time"
+        }
+      ]
+    },
+    "acknowledged_by": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "kind",
+    "project",
+    "request_id",
+    "outcome",
+    "code",
+    "created_at",
+    "state",
+    "first_offered_at",
+    "acknowledged_at",
+    "acknowledged_by"
+  ],
+  "additionalProperties": false
+}

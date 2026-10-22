@@ -1,0 +1,586 @@
+{
+  "schema": "odin.web.projection.events/v0-draft",
+  "synthetic": true,
+  "dataset": "default",
+  "base_revision": 0,
+  "note": "Synthetic update events applied in order by the prototype's update driver. evt-002 is delivered twice on purpose (idempotency); evt-005 skips revisions on purpose (gap) and is re-delivered at position 19 once the missed revisions have arrived, so it applies late. evt-006 to evt-017 are the autoplay run: sessions appear, run, need the operator, fail, are retried as a new sibling attempt (the failed attempt is stopped) and finish.",
+  "events": [
+    {
+      "event_id": "evt-001",
+      "revision": 1,
+      "cursor": "cur-default-0001",
+      "at": "2026-10-21T10:46:00Z",
+      "type": "session.lifecycle_changed",
+      "summary": "reviewer resumed work after the operator answered",
+      "payload": {
+        "session_id": "ses-review-exec",
+        "lifecycle": "running",
+        "needs_operator_input": false,
+        "observed_at": "2026-10-21T10:46:00Z"
+      }
+    },
+    {
+      "event_id": "evt-002",
+      "revision": 2,
+      "cursor": "cur-default-0002",
+      "at": "2026-10-21T10:47:00Z",
+      "type": "session.started",
+      "summary": "docs helper started by documentation",
+      "payload": {
+        "session": {
+          "id": "ses-docs-helper",
+          "project_id": "proj-odin-webapp",
+          "parent_session_id": "ses-docs-01",
+          "provenance": "recorded",
+          "role": "docs helper",
+          "assignment_id": "asg-docs",
+          "model": "claude-haiku-5-5",
+          "lifecycle": "running",
+          "needs_operator_input": false,
+          "observed_at": "2026-10-21T10:47:00Z",
+          "stale": false,
+          "tokens": {
+            "uncached_input": 350,
+            "cache_read": 1200,
+            "cache_write": 200,
+            "output": 300,
+            "basis": "measured"
+          },
+          "elapsed_s": 60,
+          "budget": null
+        }
+      }
+    },
+    {
+      "event_id": "evt-002",
+      "revision": 2,
+      "cursor": "cur-default-0002",
+      "at": "2026-10-21T10:47:00Z",
+      "type": "session.started",
+      "summary": "docs helper started by documentation",
+      "payload": {
+        "session": {
+          "id": "ses-docs-helper",
+          "project_id": "proj-odin-webapp",
+          "parent_session_id": "ses-docs-01",
+          "provenance": "recorded",
+          "role": "docs helper",
+          "assignment_id": "asg-docs",
+          "model": "claude-haiku-5-5",
+          "lifecycle": "running",
+          "needs_operator_input": false,
+          "observed_at": "2026-10-21T10:47:00Z",
+          "stale": false,
+          "tokens": {
+            "uncached_input": 350,
+            "cache_read": 1200,
+            "cache_write": 200,
+            "output": 300,
+            "basis": "measured"
+          },
+          "elapsed_s": 60,
+          "budget": null
+        }
+      }
+    },
+    {
+      "event_id": "evt-003",
+      "revision": 3,
+      "cursor": "cur-default-0003",
+      "at": "2026-10-21T10:48:00Z",
+      "type": "session.usage_updated",
+      "summary": "worker attempt 2 usage measured",
+      "payload": {
+        "session_id": "ses-worker-a2",
+        "tokens": {
+          "uncached_input": 8400,
+          "cache_read": 66000,
+          "cache_write": 6300,
+          "output": 5100,
+          "basis": "measured"
+        }
+      }
+    },
+    {
+      "event_id": "evt-004",
+      "revision": 4,
+      "cursor": "cur-default-0004",
+      "at": "2026-10-21T10:49:00Z",
+      "type": "session.retired",
+      "summary": "integration reviewer retired",
+      "payload": {
+        "session_id": "ses-review-integ",
+        "observed_at": "2026-10-21T10:49:00Z"
+      }
+    },
+    {
+      "event_id": "evt-bad-1",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:50:00Z",
+      "type": "session.usage_updated",
+      "summary": "names a session the snapshot does not have",
+      "payload": {
+        "session_id": "ses-not-in-snapshot",
+        "tokens": {
+          "uncached_input": 400,
+          "cache_read": 2000,
+          "cache_write": 300,
+          "output": 500,
+          "basis": "measured"
+        }
+      }
+    },
+    {
+      "event_id": "evt-bad-2",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:00Z",
+      "type": "session.renamed",
+      "summary": "event type the prototype does not know",
+      "payload": {
+        "session_id": "ses-docs-01"
+      }
+    },
+    {
+      "event_id": "evt-bad-3",
+      "revision": 5.5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:10Z",
+      "type": "session.lifecycle_changed",
+      "summary": "revision is not an integer",
+      "payload": {
+        "session_id": "ses-docs-01",
+        "lifecycle": "idle",
+        "observed_at": "2026-10-21T10:51:10Z"
+      }
+    },
+    {
+      "event_id": "evt-bad-4",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:20Z",
+      "type": "session.started",
+      "summary": "started without a session record",
+      "payload": {}
+    },
+    {
+      "event_id": "evt-bad-5",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:30Z",
+      "type": "session.started",
+      "summary": "starts a session that already exists",
+      "payload": {
+        "session": {
+          "id": "ses-docs-01",
+          "project_id": "proj-odin-webapp",
+          "parent_session_id": "ses-docs-01",
+          "provenance": "recorded",
+          "role": "docs helper",
+          "assignment_id": "asg-docs",
+          "model": "claude-haiku-5-5",
+          "lifecycle": "running",
+          "needs_operator_input": false,
+          "observed_at": "2026-10-21T10:47:00Z",
+          "stale": false,
+          "tokens": {
+            "uncached_input": 350,
+            "cache_read": 1200,
+            "cache_write": 200,
+            "output": 300,
+            "basis": "measured"
+          },
+          "elapsed_s": 60,
+          "budget": null
+        }
+      }
+    },
+    {
+      "event_id": "evt-bad-6",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:40Z",
+      "type": "session.lifecycle_changed",
+      "summary": "names a lifecycle outside the documented set",
+      "payload": {
+        "session_id": "ses-pin-worker",
+        "lifecycle": "paused",
+        "observed_at": "2026-10-21T10:51:40Z"
+      }
+    },
+    {
+      "event_id": "evt-bad-7",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:50Z",
+      "type": "session.usage_updated",
+      "summary": "has no session_id",
+      "payload": {
+        "tokens": {
+          "uncached_input": 400,
+          "cache_read": 2000,
+          "cache_write": 300,
+          "output": 500,
+          "basis": "measured"
+        }
+      }
+    },
+    {
+      "event_id": "evt-bad-8",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:52:00Z",
+      "type": "session.started",
+      "summary": "session id is a number",
+      "payload": {
+        "session": {
+          "id": 42,
+          "project_id": "proj-odin-webapp",
+          "parent_session_id": "ses-docs-01",
+          "provenance": "recorded",
+          "role": "docs helper",
+          "assignment_id": "asg-docs",
+          "model": "claude-haiku-5-5",
+          "lifecycle": "running",
+          "needs_operator_input": false,
+          "observed_at": "2026-10-21T10:47:00Z",
+          "stale": false,
+          "tokens": {
+            "uncached_input": 350,
+            "cache_read": 1200,
+            "cache_write": 200,
+            "output": 300,
+            "basis": "measured"
+          },
+          "elapsed_s": 60,
+          "budget": null
+        }
+      }
+    },
+    {
+      "event_id": "evt-bad-9",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:52:10Z",
+      "type": "session.started",
+      "summary": "session in a project the snapshot does not hold",
+      "payload": {
+        "session": {
+          "id": "ses-elsewhere",
+          "project_id": "proj-not-loaded",
+          "parent_session_id": null,
+          "provenance": "recorded",
+          "role": "docs helper",
+          "assignment_id": "asg-docs",
+          "model": "claude-haiku-5-5",
+          "lifecycle": "running",
+          "needs_operator_input": false,
+          "observed_at": "2026-10-21T10:47:00Z",
+          "stale": false,
+          "tokens": {
+            "uncached_input": 350,
+            "cache_read": 1200,
+            "cache_write": 200,
+            "output": 300,
+            "basis": "measured"
+          },
+          "elapsed_s": 60,
+          "budget": null
+        }
+      }
+    },
+    {
+      "event_id": "evt-bad-6",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:40Z",
+      "type": "session.lifecycle_changed",
+      "summary": "contract pins worker running again (corrected re-delivery)",
+      "payload": {
+        "session_id": "ses-pin-worker",
+        "lifecycle": "running",
+        "needs_operator_input": false,
+        "observed_at": "2026-10-21T10:51:40Z"
+      }
+    },
+    {
+      "event_id": "evt-005",
+      "revision": 9,
+      "cursor": "cur-default-0009",
+      "at": "2026-10-21T10:55:00Z",
+      "type": "session.lifecycle_changed",
+      "summary": "arrives after missed revisions",
+      "payload": {
+        "session_id": "ses-docs-01",
+        "lifecycle": "idle",
+        "observed_at": "2026-10-21T10:55:00Z"
+      }
+    },
+    {
+      "event_id": "evt-006",
+      "revision": 6,
+      "cursor": "cur-default-0006",
+      "at": "2026-10-21T10:56:00Z",
+      "type": "session.started",
+      "summary": "scout started by executive",
+      "payload": {
+        "session": {
+          "id": "ses-live-scout",
+          "project_id": "proj-odin-webapp",
+          "parent_session_id": "ses-exec-01",
+          "provenance": "recorded",
+          "role": "scout",
+          "assignment_id": "asg-portfolio",
+          "model": "claude-haiku-5-5",
+          "lifecycle": "running",
+          "needs_operator_input": false,
+          "observed_at": "2026-10-21T10:56:00Z",
+          "stale": false,
+          "tokens": {
+            "uncached_input": 400,
+            "cache_read": 1600,
+            "cache_write": 250,
+            "output": 320,
+            "basis": "measured"
+          },
+          "elapsed_s": 45,
+          "budget": null
+        }
+      }
+    },
+    {
+      "event_id": "evt-007",
+      "revision": 7,
+      "cursor": "cur-default-0007",
+      "at": "2026-10-21T10:57:00Z",
+      "type": "session.started",
+      "summary": "ops worker attempt 1 started by integration owner",
+      "payload": {
+        "session": {
+          "id": "ses-live-a1",
+          "project_id": "proj-odin-webapp",
+          "parent_session_id": "ses-integ-01",
+          "provenance": "recorded",
+          "role": "ops worker",
+          "assignment_id": "asg-ops-probe",
+          "model": "claude-opus-5-5",
+          "lifecycle": "running",
+          "needs_operator_input": false,
+          "observed_at": "2026-10-21T10:57:00Z",
+          "stale": false,
+          "tokens": {
+            "uncached_input": 700,
+            "cache_read": 3200,
+            "cache_write": 450,
+            "output": 380,
+            "basis": "measured"
+          },
+          "elapsed_s": 20,
+          "budget": null,
+          "attempt_of": "asg-ops-probe",
+          "attempt": 1,
+          "previous_attempt": null
+        }
+      }
+    },
+    {
+      "event_id": "evt-008",
+      "revision": 8,
+      "cursor": "cur-default-0008",
+      "at": "2026-10-21T10:58:00Z",
+      "type": "session.lifecycle_changed",
+      "summary": "ops worker needs the operator",
+      "payload": {
+        "session_id": "ses-live-a1",
+        "lifecycle": "waiting_for_input",
+        "needs_operator_input": true,
+        "observed_at": "2026-10-21T10:58:00Z"
+      }
+    },
+    {
+      "event_id": "evt-005",
+      "revision": 9,
+      "cursor": "cur-default-0009",
+      "at": "2026-10-21T10:55:00Z",
+      "type": "session.lifecycle_changed",
+      "summary": "documentation went idle (delivered again after the missed revisions arrived)",
+      "payload": {
+        "session_id": "ses-docs-01",
+        "lifecycle": "idle",
+        "observed_at": "2026-10-21T10:55:00Z"
+      }
+    },
+    {
+      "event_id": "evt-009",
+      "revision": 10,
+      "cursor": "cur-default-0010",
+      "at": "2026-10-21T10:59:00Z",
+      "type": "session.lifecycle_changed",
+      "summary": "operator answered; ops worker running again",
+      "payload": {
+        "session_id": "ses-live-a1",
+        "lifecycle": "running",
+        "needs_operator_input": false,
+        "observed_at": "2026-10-21T10:59:00Z"
+      }
+    },
+    {
+      "event_id": "evt-010",
+      "revision": 11,
+      "cursor": "cur-default-0011",
+      "at": "2026-10-21T11:00:00Z",
+      "type": "session.usage_updated",
+      "summary": "scout usage measured",
+      "payload": {
+        "session_id": "ses-live-scout",
+        "tokens": {
+          "uncached_input": 2100,
+          "cache_read": 9800,
+          "cache_write": 1400,
+          "output": 1250,
+          "basis": "measured"
+        }
+      }
+    },
+    {
+      "event_id": "evt-011",
+      "revision": 12,
+      "cursor": "cur-default-0012",
+      "at": "2026-10-21T11:01:00Z",
+      "type": "session.usage_updated",
+      "summary": "ops worker attempt 1 usage measured",
+      "payload": {
+        "session_id": "ses-live-a1",
+        "tokens": {
+          "uncached_input": 3400,
+          "cache_read": 21000,
+          "cache_write": 2600,
+          "output": 1900,
+          "basis": "measured"
+        }
+      }
+    },
+    {
+      "event_id": "evt-012",
+      "revision": 13,
+      "cursor": "cur-default-0013",
+      "at": "2026-10-21T11:02:00Z",
+      "type": "session.lifecycle_changed",
+      "summary": "ops worker attempt 1 ended; its run was recorded failed",
+      "payload": {
+        "session_id": "ses-live-a1",
+        "lifecycle": "ended",
+        "observed_at": "2026-10-21T11:02:00Z",
+        "run": {
+          "id": "run-live-a1",
+          "project_id": "proj-odin-webapp",
+          "assignment_id": "asg-ops-probe",
+          "session_id": "ses-live-a1",
+          "outcome": "failed",
+          "summary": "Probe exited non-zero: host unreachable"
+        }
+      }
+    },
+    {
+      "event_id": "evt-013",
+      "revision": 14,
+      "cursor": "cur-default-0014",
+      "at": "2026-10-21T11:03:00Z",
+      "type": "session.retired",
+      "summary": "failed ops worker attempt 1 stopped",
+      "payload": {
+        "session_id": "ses-live-a1",
+        "observed_at": "2026-10-21T11:03:00Z"
+      }
+    },
+    {
+      "event_id": "evt-014",
+      "revision": 15,
+      "cursor": "cur-default-0015",
+      "at": "2026-10-21T11:04:00Z",
+      "type": "session.started",
+      "summary": "retry: ops worker attempt 2 started by integration owner",
+      "payload": {
+        "session": {
+          "id": "ses-live-a2",
+          "project_id": "proj-odin-webapp",
+          "parent_session_id": "ses-integ-01",
+          "provenance": "recorded",
+          "role": "ops worker",
+          "assignment_id": "asg-ops-probe",
+          "model": "claude-opus-5-5",
+          "lifecycle": "running",
+          "needs_operator_input": false,
+          "observed_at": "2026-10-21T11:04:00Z",
+          "stale": false,
+          "tokens": {
+            "uncached_input": 250,
+            "cache_read": 900,
+            "cache_write": 150,
+            "output": 200,
+            "basis": "measured"
+          },
+          "elapsed_s": 10,
+          "budget": null,
+          "attempt_of": "asg-ops-probe",
+          "attempt": 2,
+          "previous_attempt": "ses-live-a1"
+        }
+      }
+    },
+    {
+      "event_id": "evt-015",
+      "revision": 16,
+      "cursor": "cur-default-0016",
+      "at": "2026-10-21T11:05:00Z",
+      "type": "session.usage_updated",
+      "summary": "ops worker attempt 2 usage measured",
+      "payload": {
+        "session_id": "ses-live-a2",
+        "tokens": {
+          "uncached_input": 1200,
+          "cache_read": 8600,
+          "cache_write": 900,
+          "output": 1100,
+          "basis": "measured"
+        }
+      }
+    },
+    {
+      "event_id": "evt-016",
+      "revision": 17,
+      "cursor": "cur-default-0017",
+      "at": "2026-10-21T11:06:00Z",
+      "type": "session.lifecycle_changed",
+      "summary": "scout needs the operator",
+      "payload": {
+        "session_id": "ses-live-scout",
+        "lifecycle": "waiting_for_input",
+        "needs_operator_input": true,
+        "observed_at": "2026-10-21T11:06:00Z"
+      }
+    },
+    {
+      "event_id": "evt-017",
+      "revision": 18,
+      "cursor": "cur-default-0018",
+      "at": "2026-10-21T11:07:00Z",
+      "type": "session.lifecycle_changed",
+      "summary": "ops worker attempt 2 finished",
+      "payload": {
+        "session_id": "ses-live-a2",
+        "lifecycle": "ended",
+        "observed_at": "2026-10-21T11:07:00Z",
+        "run": {
+          "id": "run-live-a2",
+          "project_id": "proj-odin-webapp",
+          "assignment_id": "asg-ops-probe",
+          "session_id": "ses-live-a2",
+          "outcome": "unverified",
+          "summary": "Probe returned; operator review pending"
+        }
+      }
+    }
+  ]
+}

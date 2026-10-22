@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "project": {
+      "type": "string",
+      "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+    },
+    "session": {
+      "type": "string",
+      "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+    },
+    "incarnation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "host": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "server_incarnation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "workspace": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "tab": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "pane": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "evidence_mode": {
+      "const": "fixture"
+    }
+  },
+  "required": [
+    "schema_version",
+    "project",
+    "session",
+    "incarnation",
+    "host",
+    "server_incarnation",
+    "workspace",
+    "tab",
+    "pane",
+    "evidence_mode"
+  ],
+  "additionalProperties": false
+}

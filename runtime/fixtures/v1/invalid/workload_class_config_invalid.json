@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "config_rev": "fixture-1",
+  "classes": [
+    {
+      "name": "routine_fleet",
+      "model": "fixture-model",
+      "effort": "fixture-effort",
+      "budget_usd": -1,
+      "required_capabilities": [
+        "resume"
+      ],
+      "profile": "planner"
+    }
+  ],
+  "selection_rules": [
+    {
+      "event_kind": "run.state",
+      "assignment_requirements": [],
+      "class": "routine_fleet"
+    }
+  ]
+}

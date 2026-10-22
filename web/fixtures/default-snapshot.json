@@ -1,0 +1,807 @@
+{
+  "schema": "odin.web.projection.snapshot/v0-draft",
+  "synthetic": true,
+  "dataset": "default",
+  "revision": 0,
+  "cursor": "cur-default-0000",
+  "generated_at": "2026-10-21T10:45:00Z",
+  "projects": [
+    {
+      "id": "proj-odin-webapp",
+      "name": "Odin web app (synthetic)",
+      "summary": "Synthetic project used to exercise the agent tree.",
+      "host": "workstation-a (synthetic)"
+    },
+    {
+      "id": "proj-contract-pins",
+      "name": "Contract pins (synthetic)",
+      "summary": "Small second synthetic project.",
+      "host": "workstation-a (synthetic)"
+    },
+    {
+      "id": "proj-malformed",
+      "name": "Malformed records (synthetic)",
+      "summary": "Synthetic records with ancestry errors the view must survive.",
+      "host": "workstation-a (synthetic)"
+    },
+    {
+      "id": "proj-empty",
+      "name": "Empty project (synthetic)",
+      "summary": "A project with no sessions yet.",
+      "host": "workstation-a (synthetic)"
+    }
+  ],
+  "commitments": [
+    {
+      "id": "cmt-webapp-v0",
+      "project_id": "proj-odin-webapp",
+      "title": "Deliver the agent tree prototype",
+      "status": "at_risk",
+      "owner": "ses-exec-01"
+    },
+    {
+      "id": "cmt-ops-probe",
+      "project_id": "proj-odin-webapp",
+      "title": "Probe the offline host",
+      "status": "blocked",
+      "owner": "ses-exec-01"
+    },
+    {
+      "id": "cmt-pin-refresh",
+      "project_id": "proj-contract-pins",
+      "title": "Refresh the pinned contract",
+      "status": "in_progress",
+      "owner": "ses-pin-exec"
+    }
+  ],
+  "assignments": [
+    {
+      "id": "asg-portfolio",
+      "project_id": "proj-odin-webapp",
+      "commitment_id": "cmt-webapp-v0",
+      "owner_session_id": "ses-exec-01",
+      "summary": "Coordinate the web app commitment",
+      "progress": "in_progress"
+    },
+    {
+      "id": "asg-integration",
+      "project_id": "proj-odin-webapp",
+      "commitment_id": "cmt-webapp-v0",
+      "owner_session_id": "ses-integ-01",
+      "summary": "Integrate workstream returns",
+      "progress": "in_progress"
+    },
+    {
+      "id": "asg-tree-proto",
+      "project_id": "proj-odin-webapp",
+      "commitment_id": "cmt-webapp-v0",
+      "owner_session_id": "ses-integ-01",
+      "summary": "Build the tree prototype",
+      "progress": "awaiting_review"
+    },
+    {
+      "id": "asg-layout-spike",
+      "project_id": "proj-odin-webapp",
+      "commitment_id": "cmt-webapp-v0",
+      "owner_session_id": "ses-worker-a2",
+      "summary": "Measure layout on 500 nodes",
+      "progress": "done_unverified"
+    },
+    {
+      "id": "asg-review-exec",
+      "project_id": "proj-odin-webapp",
+      "commitment_id": "cmt-webapp-v0",
+      "owner_session_id": "ses-exec-01",
+      "summary": "Independent review of the tree prototype",
+      "progress": "in_progress"
+    },
+    {
+      "id": "asg-review-integ",
+      "project_id": "proj-odin-webapp",
+      "commitment_id": "cmt-webapp-v0",
+      "owner_session_id": "ses-integ-01",
+      "summary": "Integration review of the tree prototype",
+      "progress": "in_progress"
+    },
+    {
+      "id": "asg-docs",
+      "project_id": "proj-odin-webapp",
+      "commitment_id": "cmt-webapp-v0",
+      "owner_session_id": "ses-exec-01",
+      "summary": "Align the decision record",
+      "progress": "in_progress"
+    },
+    {
+      "id": "asg-ops-probe",
+      "project_id": "proj-odin-webapp",
+      "commitment_id": "cmt-ops-probe",
+      "owner_session_id": "ses-exec-01",
+      "summary": "Check the remote host",
+      "progress": "blocked",
+      "blocked_reason": "Host offline since the last observation"
+    },
+    {
+      "id": "asg-legacy",
+      "project_id": "proj-odin-webapp",
+      "commitment_id": null,
+      "owner_session_id": null,
+      "summary": "Imported terminal session (owner unknown)",
+      "progress": "unknown"
+    },
+    {
+      "id": "asg-pin-coord",
+      "project_id": "proj-contract-pins",
+      "commitment_id": "cmt-pin-refresh",
+      "owner_session_id": "ses-pin-exec",
+      "summary": "Coordinate the pin refresh",
+      "progress": "in_progress"
+    },
+    {
+      "id": "asg-pin-update",
+      "project_id": "proj-contract-pins",
+      "commitment_id": "cmt-pin-refresh",
+      "owner_session_id": "ses-pin-exec",
+      "summary": "Update the producer pin",
+      "progress": "in_progress"
+    }
+  ],
+  "runs": [
+    {
+      "id": "run-tree-1",
+      "project_id": "proj-odin-webapp",
+      "assignment_id": "asg-tree-proto",
+      "session_id": "ses-worker-a1",
+      "outcome": "failed",
+      "summary": "Attempt 1 checks failed"
+    },
+    {
+      "id": "run-tree-2",
+      "project_id": "proj-odin-webapp",
+      "assignment_id": "asg-tree-proto",
+      "session_id": "ses-worker-a2",
+      "outcome": "unverified",
+      "summary": "Attempt 2 returned; review pending"
+    },
+    {
+      "id": "run-layout",
+      "project_id": "proj-odin-webapp",
+      "assignment_id": "asg-layout-spike",
+      "session_id": "ses-helper-01",
+      "outcome": "unknown",
+      "summary": "Outcome not recorded before retirement"
+    },
+    {
+      "id": "run-pin",
+      "project_id": "proj-contract-pins",
+      "assignment_id": "asg-pin-update",
+      "session_id": "ses-pin-worker",
+      "outcome": "verified",
+      "summary": "Digest check passed"
+    },
+    {
+      "id": "run-pin-audit",
+      "project_id": "proj-contract-pins",
+      "assignment_id": null,
+      "session_id": "ses-pin-audit",
+      "outcome": "verified",
+      "summary": "Audit checks recorded as verified"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "ses-exec-01",
+      "project_id": "proj-odin-webapp",
+      "parent_session_id": null,
+      "provenance": "recorded",
+      "role": "executive",
+      "assignment_id": "asg-portfolio",
+      "model": "claude-fable-5-1",
+      "lifecycle": "running",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T10:42:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": 9000,
+        "cache_read": 120000,
+        "cache_write": 21000,
+        "output": 12200,
+        "basis": "measured"
+      },
+      "elapsed_s": 9240,
+      "budget": {
+        "limit_tokens": 2000000,
+        "basis": "requested"
+      }
+    },
+    {
+      "id": "ses-integ-01",
+      "project_id": "proj-odin-webapp",
+      "parent_session_id": "ses-exec-01",
+      "provenance": "recorded",
+      "role": "integration owner",
+      "assignment_id": "asg-integration",
+      "model": "claude-opus-5-5",
+      "lifecycle": "running",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T10:41:30Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": 14000,
+        "cache_read": 98000,
+        "cache_write": 17000,
+        "output": 9400,
+        "basis": "measured"
+      },
+      "elapsed_s": 7300,
+      "budget": {
+        "limit_tokens": 1500000,
+        "basis": "requested"
+      }
+    },
+    {
+      "id": "ses-worker-a1",
+      "project_id": "proj-odin-webapp",
+      "parent_session_id": "ses-integ-01",
+      "provenance": "recorded",
+      "role": "worker",
+      "assignment_id": "asg-tree-proto",
+      "model": "claude-opus-5-5",
+      "lifecycle": "ended",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T08:15:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": 6200,
+        "cache_read": 30000,
+        "cache_write": 4800,
+        "output": 3300,
+        "basis": "measured"
+      },
+      "elapsed_s": 2100,
+      "budget": null,
+      "attempt_of": "asg-tree-proto",
+      "attempt": 1,
+      "previous_attempt": null
+    },
+    {
+      "id": "ses-worker-a2",
+      "project_id": "proj-odin-webapp",
+      "parent_session_id": "ses-integ-01",
+      "provenance": "recorded",
+      "role": "worker",
+      "assignment_id": "asg-tree-proto",
+      "model": "claude-opus-5-5",
+      "lifecycle": "ended",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T09:58:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": 8100,
+        "cache_read": 64000,
+        "cache_write": 5900,
+        "output": 4700,
+        "basis": "estimate"
+      },
+      "elapsed_s": 3300,
+      "budget": {
+        "limit_tokens": 500000,
+        "basis": "requested"
+      },
+      "attempt_of": "asg-tree-proto",
+      "attempt": 2,
+      "previous_attempt": "ses-worker-a1"
+    },
+    {
+      "id": "ses-helper-01",
+      "project_id": "proj-odin-webapp",
+      "parent_session_id": "ses-worker-a2",
+      "provenance": "recorded",
+      "role": "subagent",
+      "assignment_id": "asg-layout-spike",
+      "model": null,
+      "lifecycle": "retired",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T09:40:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
+        "basis": "unknown"
+      },
+      "elapsed_s": 600,
+      "budget": null
+    },
+    {
+      "id": "ses-review-exec",
+      "project_id": "proj-odin-webapp",
+      "parent_session_id": "ses-exec-01",
+      "provenance": "recorded",
+      "role": "reviewer",
+      "assignment_id": "asg-review-exec",
+      "model": "claude-haiku-5-5",
+      "lifecycle": "waiting_for_input",
+      "needs_operator_input": true,
+      "observed_at": "2026-10-21T10:40:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": 1500,
+        "cache_read": 9000,
+        "cache_write": 800,
+        "output": 1100,
+        "basis": "measured"
+      },
+      "elapsed_s": 900,
+      "budget": {
+        "limit_tokens": 200000,
+        "basis": "requested"
+      }
+    },
+    {
+      "id": "ses-review-integ",
+      "project_id": "proj-odin-webapp",
+      "parent_session_id": "ses-integ-01",
+      "provenance": "recorded",
+      "role": "reviewer",
+      "assignment_id": "asg-review-integ",
+      "model": "claude-haiku-5-5",
+      "lifecycle": "idle",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T10:30:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": 900,
+        "cache_read": 5200,
+        "cache_write": 400,
+        "output": 700,
+        "basis": "measured"
+      },
+      "elapsed_s": 720,
+      "budget": null
+    },
+    {
+      "id": "ses-docs-01",
+      "project_id": "proj-odin-webapp",
+      "parent_session_id": "ses-exec-01",
+      "provenance": "recorded",
+      "role": "documentation",
+      "assignment_id": "asg-docs",
+      "model": "claude-opus-5-5",
+      "lifecycle": "running",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T10:41:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": 4200,
+        "cache_read": 41000,
+        "cache_write": 3600,
+        "output": 2800,
+        "basis": "measured"
+      },
+      "elapsed_s": 4100,
+      "budget": null,
+      "resumption": {
+        "count": 1,
+        "resumed_from_host_session": "host-sess-7f1 (synthetic)",
+        "resumed_at": "2026-10-21T09:00:00Z"
+      }
+    },
+    {
+      "id": "ses-ops-01",
+      "project_id": "proj-odin-webapp",
+      "parent_session_id": "ses-exec-01",
+      "provenance": "recorded",
+      "role": "operations",
+      "assignment_id": "asg-ops-probe",
+      "model": "gpt-codex (synthetic)",
+      "lifecycle": "host_offline",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T06:05:00Z",
+      "stale": true,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
+        "basis": "unknown"
+      },
+      "elapsed_s": 1500,
+      "budget": null
+    },
+    {
+      "id": "ses-imported-01",
+      "project_id": "proj-odin-webapp",
+      "parent_session_id": null,
+      "provenance": "imported",
+      "role": "imported terminal session",
+      "assignment_id": "asg-legacy",
+      "model": null,
+      "lifecycle": "retired",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T02:00:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
+        "basis": "unknown"
+      },
+      "elapsed_s": null,
+      "budget": null
+    },
+    {
+      "id": "ses-pin-exec",
+      "project_id": "proj-contract-pins",
+      "parent_session_id": null,
+      "provenance": "recorded",
+      "role": "executive",
+      "assignment_id": "asg-pin-coord",
+      "model": "claude-fable-5-1",
+      "lifecycle": "running",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T10:20:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": 2600,
+        "cache_read": 18000,
+        "cache_write": 1500,
+        "output": 1900,
+        "basis": "measured"
+      },
+      "elapsed_s": 1800,
+      "budget": null
+    },
+    {
+      "id": "ses-pin-worker",
+      "project_id": "proj-contract-pins",
+      "parent_session_id": "ses-pin-exec",
+      "provenance": "recorded",
+      "role": "worker",
+      "assignment_id": "asg-pin-update",
+      "model": "claude-sonnet-5-5",
+      "lifecycle": "waiting_for_input",
+      "needs_operator_input": true,
+      "observed_at": "2026-10-21T10:19:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": 1100,
+        "cache_read": 8400,
+        "cache_write": 900,
+        "output": 800,
+        "basis": "estimate"
+      },
+      "elapsed_s": 1200,
+      "budget": null
+    },
+    {
+      "id": "ses-pin-audit",
+      "project_id": "proj-contract-pins",
+      "parent_session_id": "ses-pin-archived",
+      "provenance": "recorded",
+      "role": "audit worker",
+      "assignment_id": null,
+      "model": null,
+      "lifecycle": "ended",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T08:40:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
+        "basis": "unknown"
+      },
+      "elapsed_s": 900,
+      "budget": null
+    },
+    {
+      "id": "ses-pin-audit-helper",
+      "project_id": "proj-contract-pins",
+      "parent_session_id": "ses-pin-audit",
+      "provenance": "recorded",
+      "role": "audit helper",
+      "assignment_id": null,
+      "model": null,
+      "lifecycle": "ended",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T08:35:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
+        "basis": "unknown"
+      },
+      "elapsed_s": 300,
+      "budget": null
+    },
+    {
+      "id": "ses-mal-root",
+      "project_id": "proj-malformed",
+      "parent_session_id": null,
+      "provenance": "recorded",
+      "role": "executive",
+      "assignment_id": null,
+      "model": null,
+      "lifecycle": "running",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T07:00:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": 500,
+        "cache_read": 2100,
+        "cache_write": 300,
+        "output": 400,
+        "basis": "measured"
+      },
+      "elapsed_s": null,
+      "budget": null
+    },
+    {
+      "id": "ses-mal-cycle-a",
+      "project_id": "proj-malformed",
+      "parent_session_id": "ses-mal-cycle-b",
+      "provenance": "recorded",
+      "role": "cycle member A",
+      "assignment_id": null,
+      "model": null,
+      "lifecycle": "ended",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T07:00:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
+        "basis": "unknown"
+      },
+      "elapsed_s": null,
+      "budget": null
+    },
+    {
+      "id": "ses-mal-cycle-b",
+      "project_id": "proj-malformed",
+      "parent_session_id": "ses-mal-cycle-a",
+      "provenance": "recorded",
+      "role": "cycle member B",
+      "assignment_id": null,
+      "model": null,
+      "lifecycle": "ended",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T07:00:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
+        "basis": "unknown"
+      },
+      "elapsed_s": null,
+      "budget": null
+    },
+    {
+      "id": "ses-mal-cycle-child",
+      "project_id": "proj-malformed",
+      "parent_session_id": "ses-mal-cycle-a",
+      "provenance": "recorded",
+      "role": "child of a cycle member",
+      "assignment_id": null,
+      "model": null,
+      "lifecycle": "ended",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T07:00:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
+        "basis": "unknown"
+      },
+      "elapsed_s": null,
+      "budget": null
+    },
+    {
+      "id": "ses-mal-self",
+      "project_id": "proj-malformed",
+      "parent_session_id": "ses-mal-self",
+      "provenance": "recorded",
+      "role": "self-parented session",
+      "assignment_id": null,
+      "model": null,
+      "lifecycle": "ended",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T07:00:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
+        "basis": "unknown"
+      },
+      "elapsed_s": null,
+      "budget": null
+    },
+    {
+      "id": "ses-mal-attempt",
+      "project_id": "proj-malformed",
+      "parent_session_id": "ses-mal-root",
+      "provenance": "recorded",
+      "role": "worker",
+      "assignment_id": null,
+      "model": null,
+      "lifecycle": "ended",
+      "needs_operator_input": false,
+      "observed_at": "2026-10-21T07:00:00Z",
+      "stale": false,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
+        "basis": "unknown"
+      },
+      "elapsed_s": null,
+      "budget": null,
+      "attempt_of": null,
+      "attempt": 2,
+      "previous_attempt": "ses-mal-gone"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel-1",
+      "type": "review",
+      "from": "ses-review-exec",
+      "to": "ses-worker-a2"
+    },
+    {
+      "id": "rel-2",
+      "type": "review",
+      "from": "ses-review-integ",
+      "to": "ses-worker-a2"
+    },
+    {
+      "id": "rel-3",
+      "type": "delegation",
+      "from": "ses-integ-01",
+      "to": "ses-worker-a2"
+    },
+    {
+      "id": "rel-4",
+      "type": "run_association",
+      "from": "ses-worker-a2",
+      "to": "run-tree-2"
+    },
+    {
+      "id": "rel-5",
+      "type": "run_association",
+      "from": "ses-worker-a1",
+      "to": "run-tree-1"
+    },
+    {
+      "id": "rel-6",
+      "type": "assignment_owner",
+      "from": "ses-integ-01",
+      "to": "asg-tree-proto"
+    },
+    {
+      "id": "rel-7",
+      "type": "run_association",
+      "from": "ses-pin-worker",
+      "to": "run-pin"
+    },
+    {
+      "id": "rel-8",
+      "type": "run_association",
+      "from": "ses-pin-audit",
+      "to": "run-pin-audit"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "dec-001",
+      "project_id": "proj-odin-webapp",
+      "kind": "approval",
+      "status": "pending",
+      "requested_by": "ses-review-exec",
+      "title": "Approve merging the tree prototype",
+      "proposal": {
+        "id": "prop-tree-merge",
+        "revision": 3,
+        "digest": "sha256:5f2c\u2026synthetic"
+      }
+    },
+    {
+      "id": "dec-002",
+      "project_id": "proj-contract-pins",
+      "kind": "decision",
+      "status": "pending",
+      "requested_by": "ses-pin-worker",
+      "title": "Choose the pin refresh window",
+      "proposal": {
+        "id": "prop-pin-window",
+        "revision": 1,
+        "digest": "sha256:a91e\u2026synthetic"
+      }
+    }
+  ],
+  "conversations": {
+    "proj-odin-webapp": [
+      {
+        "at": "2026-10-21T08:00:00Z",
+        "speaker": "operator",
+        "text": "Start the agent tree prototype with synthetic data."
+      },
+      {
+        "at": "2026-10-21T08:01:00Z",
+        "speaker": "ses-exec-01",
+        "text": "Opened an integration owner and a docs session."
+      },
+      {
+        "at": "2026-10-21T10:40:00Z",
+        "speaker": "ses-review-exec",
+        "text": "Review needs an operator decision on dec-001."
+      }
+    ],
+    "proj-contract-pins": [
+      {
+        "at": "2026-10-21T10:00:00Z",
+        "speaker": "operator",
+        "text": "Refresh the producer pin this week."
+      }
+    ],
+    "proj-malformed": [],
+    "proj-empty": []
+  },
+  "activity": {
+    "proj-odin-webapp": [
+      {
+        "id": "act-1",
+        "at": "2026-10-21T08:01:00Z",
+        "kind": "session.started",
+        "session_id": "ses-integ-01",
+        "text": "integration owner started by executive"
+      },
+      {
+        "id": "act-2",
+        "at": "2026-10-21T09:00:00Z",
+        "kind": "session.resumed",
+        "session_id": "ses-docs-01",
+        "text": "documentation resumed (same session)"
+      },
+      {
+        "id": "act-3",
+        "at": "2026-10-21T09:02:00Z",
+        "kind": "session.started",
+        "session_id": "ses-worker-a2",
+        "text": "worker attempt 2 started after attempt 1 failed checks"
+      },
+      {
+        "id": "act-4",
+        "at": "2026-10-21T06:05:00Z",
+        "kind": "host.offline",
+        "session_id": "ses-ops-01",
+        "text": "operations host stopped reporting"
+      }
+    ],
+    "proj-contract-pins": [
+      {
+        "id": "act-5",
+        "at": "2026-10-21T10:19:00Z",
+        "kind": "decision.requested",
+        "session_id": "ses-pin-worker",
+        "text": "worker requested decision dec-002"
+      }
+    ],
+    "proj-malformed": [],
+    "proj-empty": []
+  }
+}

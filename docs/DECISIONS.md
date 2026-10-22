@@ -2,7 +2,7 @@
 
 > **Status:** candidate live record for the documentation handoff of
 > extraction snapshot `2026-10-14-14fdab3`. The handoff is **not yet
-> recorded**; the D14 gate is under independent review. The source
+> recorded**; the independent D14 re-review remains pending. The source
 > contract review returned CHANGES_REQUIRED; its corrections are applied
 > and resolved against existing decisions, and its re-review is pending
 > (§6, [`provenance/REVIEW-RESOLUTIONS.md`](provenance/REVIEW-RESOLUTIONS.md)).
@@ -294,6 +294,12 @@ production retention defaults remain open.
 
 Ownership notes (2026-10-16): ODIN-ADR-009 clarifies D7.2 (the service may start a session through a workstation session host it commands; the SDK call still originates from Odin-controlled code); ODIN-ADR-015 honours D7.6 by starting its fixture-only Pi RPC control only after the Claude Code adapter is validated at I2. D7.1, D7.4 to D7.5 and D7.7 to D7.12 are unchanged.
 
+Ownership note (2026-10-19): ODIN-ADR-024 amends D7.2 and D7.7 for a
+bounded executive conversation pilot using native interactive Claude Code
+and Remote Control. D7.4's two loops and D7.11's commitment authority
+remain unchanged. The pilot's conversation is not an authenticated Odin
+operator-command adapter or the full SDK/session-host implementation.
+
 ### SAGA-2026-10-D8 — Mimir: selective, evidence-based, measured (default)
 
 - **When.** Review where mistakes multiply: a decomposition before
@@ -386,6 +392,13 @@ Ownership notes (2026-10-16): ODIN-ADR-013 supersedes D8.5 and the single-review
 
 Ownership notes: Saga enforces approval requirements independently of
 anything an evaluator returns (D2.1).
+
+Ownership note (2026-10-20): ODIN-ADR-028 adds the operator-authorized
+development evaluator and development loop controller. It amends D9.3's
+exclusion of planning/decomposition and D9.4's replay/shadow activation
+sequence only for this bounded development loop. Required Mimir review,
+Saga approval and direct operator stop remain independent. The evaluator
+does not classify operator messages into new authority.
 
 ### SAGA-2026-10-D10 — The standalone tools stay separate (locked)
 
@@ -521,8 +534,9 @@ approved in Saga. D14.4 has code
 extraction enter in the blueprint's increments; the source blueprint
 (§7) lets I0 to I2 use a fake Saga backend; the source extraction plan
 (§1) says a fake backend establishes no production readiness. Read with
-D15.8: I0 to I2 are non-production development against fixtures and a
-fake backend and may proceed while Phase B is in progress. I3, every
+D15.8: I0 uses fixtures, while I1 to I2 use fixtures and a fake
+backend; all are non-production and may proceed while Phase B is in
+progress. I3, every
 live delegated run, every live Saga submission, deployment cutover
 (D14.5) and the Phase C exit require Phase B's exit criterion and
 minimum enforcement. Peer integrations follow D15's phases: read-only
@@ -537,6 +551,8 @@ Saga's phases A, B and its parts of D, E and F (D15.A, D15.B, D15.Da,
 D15.Ea, D15.Fb) are Saga's and appear in Odin's roadmap as dependencies.
 
 Ownership notes (2026-10-16): ODIN-ADR-008 reorders work within I0 and I1 under D14.4 without changing a phase or gate; ODIN-ADR-015 places a fixture-only Pi RPC control after I2 without moving D15.Eb's full second adapter from Phase E. The phases, gates and D15.8 are unchanged; X-1 stays open.
+
+Ownership note (2026-10-21): ODIN-ADR-037 amends only the parenthetical "(D20's first configuration)" in the sequencing interpretation above; read-only Herdr inspection stays an I3 peer integration, and human-view work proceeds as packages within the existing increments. Phases, gates and X-1 are unchanged.
 
 ### SAGA-2026-10-D16 — Documentation (locked; mostly historical)
 
@@ -779,6 +795,8 @@ Ownership notes: heimdall owns its side of the ownership bridge
 
 Ownership notes (2026-10-16): ODIN-ADR-007 supersedes D20.10 (the heimdall ownership bridge) for Odin; ODIN-ADR-010 supersedes the "two operator interfaces" clause of D20.5 while keeping its one-command-path, binding and stop rules, and amends D20.8's handling table with new inbound sources and the attention-prompt effect; ODIN-ADR-009 clarifies D20.1 and D20.2 with the workstation daemon and session host. D20.3, D20.4, D20.6, D20.7, D20.9 and D20.11 are unchanged.
 
+Ownership notes (2026-10-21): ODIN-ADR-037 amends D20.11's first configuration (the web app replaces the terminal workspace as the overview and inspection surface; the rest of the configuration is unchanged) and the remaining desk-overview description of D20.5, which ODIN-ADR-010 had already superseded in part. D20.5's one command path, binding and stop rules, D20.6, D20.7 and D20.9 are unchanged.
+
 ### SAGA-2026-10-D21 — Desktop capability and computer-use work (default)
 
 > wayland-computer-use remains a harness-independent desktop capability.
@@ -875,7 +893,9 @@ input is a third backend under D21.
 
 Ownership notes: Saga's guarantees are provided and defined by Saga;
 Odin owns the backend choice and must not advertise Saga guarantees for
-another backend.
+another backend. ODIN-ADR-026 amends D23.1–D23.3 for the operator's native
+executive development profile: direct development work does not require
+Saga or an Odin-managed backend and does not receive Saga guarantees.
 
 ### SAGA-2026-10-D24 — Authentication and billing as adapter configuration (locked; split)
 
@@ -901,8 +921,8 @@ subagents, compactor, triage, decision models):
   foundational, for any Codex adapter (D24.4c).
 - Quota behaviour: queue or pause when the selected account reaches its
   limit; switching to paid API usage only through an explicitly
-  configured fallback; the `now` block and the overview show the state
-  (D24.5).
+  configured fallback; the `now` block and the web app overview
+  (ODIN-ADR-037) show the state (D24.5).
 - The operator's development login and the managed agents' login stay
   separate; Odin's planning sessions and the workers may use different
   modes (D24.6).
@@ -1082,6 +1102,9 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   proposal supported by measured routing ambiguity. Jev cannot compact,
   draft guidance or decompose work; worker-model selection stays with
   Odin's planning and launch policy, with Mimir where D8 requires it.
+  The workload-class configuration is specified in I/O contract §5; I0
+  defines its validated schema and fixture representation. These classes
+  are distinct from capability profiles and process roles.
 - **Inherited relationship:** operationalizes D9.3–D9.6, D20.8–D20.9 and
   ADR-002; preserves D7's harness boundary and D24's launch configuration.
   No enforcement or approval requirement is delegated to a classifier.
@@ -1190,6 +1213,9 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   external views". One human view shows commitments, runs and transcripts
   with their owners attributed. Peer-side retirement is heimdall's to
   record (EC-13).
+  An ignored edit is not evidence that the source task layer was retired;
+  migration acceptance requires enforceable refusal on the heimdall side
+  under EC-13 and G-10.
 - **Inherited relationship:** supersedes D20.10 for Odin. Amends D10.5's
   "optionally connected later as a human-facing continuity surface" and
   its release and CI condition. Consistent with D10.5's "one authoritative
@@ -1198,6 +1224,8 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   amendment has changed (that needs a decision recorded in those
   repositories); authority over delegations or approvals (D17, D2.1);
   that imported checkpoints corroborate anything independently (D22.4).
+- **Cross-reference:** amended by ODIN-ADR-037: the one human view is the web
+  app and is delivered independently of the I4 heimdall import.
 
 ### ODIN-ADR-008 — I0 narrowed to the event log and record schemas
 
@@ -1216,6 +1244,9 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   three-document fixture and the ownership mapping move to I1. The
   planner tool-isolation check moves with the profile schemas and must
   still pass before I2 claims the planner profile.
+- **Clarification:** envelope and unaffected record-schema work can begin
+  in I0. Resolve X-7 before writing the Review/guidance schemas;
+  fail-closed handling does not answer the open semantic choice.
 - **Consequences:** blueprint §7, I/O contract §13 row B, the roadmap's I0
   and I1 entries, README and AGENTS.md §1 change together. I0's exit keeps
   "no peer API is invented as implemented". Every displaced item is named
@@ -1324,6 +1355,10 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
 - **Must not claim:** voice approvals; a fifth evaluator hook; that
   observations change commitments; that the extra surfaces are part of
   the restrained initial product (D19.6).
+- **Cross-reference:** amended by ODIN-ADR-037: the web app is an adapter on
+  the one service API and the primary desk surface, and replaces Herdr in
+  D20.11's first configuration; Herdr remains an optional inspection and
+  attachment adapter.
 
 ### ODIN-ADR-011 — Desktop input as a gated capability of the workstation daemon
 
@@ -1413,19 +1448,23 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   frontier models of different families where the adapters allow it.
   Each position receives the same deterministic evidence pack and sees
   neither Odin's conversational reasoning nor the other position's
-  findings. Service code combines the verdicts: approval requires both
-  positions to approve; any `REJECT` or `INSUFFICIENT_EVIDENCE`, or
-  disagreement that survives the single permitted corrective re-review,
-  goes to the operator with both positions and their evidence (proposed
-  scenario AC-40). "No change needed" (`APPROVE_UNCHANGED`) is a
+  findings. Service code combines the verdicts by the action-level
+  pair rule in I/O contract §10: both positions must approve for an
+  approving outcome; any `FLAG` goes to the operator under Saga ADM-7,
+  as does any `REJECT` or `INSUFFICIENT_EVIDENCE`. A disagreement that
+  survives the single permitted corrective re-review goes to the
+  operator with both positions and their evidence (proposed AC-40).
+  Mixed `APPROVE`/`APPROVE_UNCHANGED` serialization remains for the I0
+  review schema; no combined verdict is submitted until it is defined.
+  "No change needed" (`APPROVE_UNCHANGED`) is a
   first-class outcome. The combined verdict is recorded under the
   reviewer identity key, which the service holds in a signer component
   that no session or planner tool can reach (D2.4b), in the verdict
   format Saga verifies; running that signer as a separate process is the
   option D2.5 already offers and is the default deployment here. Roles are assigned per project: one planning owner and one
   standing reviewer position, and they may swap between projects.
-  Disagreement is the protocol's most valuable output; agreement passes
-  into the log without an operator message.
+  Disagreement is the protocol's most valuable output; matching approving
+  results pass into the log without an operator message.
 - **Consequences:** D24.2a launch configuration gains a per-position
   entry. Sending evidence packs to a second provider needs a data-policy
   decision (X-13). Caps are per position and total (D8.6). AC-22 is
@@ -1464,8 +1503,10 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
 - **Consequences:** the records live in the Odin-history namespace
   (ODIN-ADR-006), subject to D9.5's sensitivity rule and D7.12's
   redaction. New classes (reviewer positions; Bragi and Eir only if a
-  Saga-side decision transfers them) are added to ODIN-ADR-004's class
-  table. The D18 evaluation of class defaults uses the same harness,
+  Saga-side decision transfers them) belong in the workload-class
+  configuration specified in I/O contract §5. Its validated schema and
+  fixtures are I0 work; this does not add a class or set a model default.
+  The D18 evaluation of class defaults uses the same harness,
   fixed prompts, tools and graders, the best and cheapest single-class
   baselines, and the task-level oracle as a reference.
 - **Inherited relationship:** amends ODIN-ADR-004; keeps its four hooks,
@@ -1499,10 +1540,1606 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
 - **Must not claim:** Phase E's exit; any live run before Phase B; X-1
   resolution; proven portability.
 
+### ODIN-ADR-020 — Model and delegation evaluation protocol
+
+- **Date and status:** 2026-10-16; default evaluation specification.
+  Local metadata/accounting checks are implemented; comparative trials and
+  actual harness checks remain unimplemented. Records the application of the operator-supplied
+  orchestration research; it is not a measured result or a model choice.
+- **Context:** Configured mixed-model routes and author observations do
+  not establish comparative quality. Consultation, executable work,
+  harness changes, extra inference and selective reporting can each
+  explain apparent gains. The [review](provenance/MODEL-ORCHESTRATION-REVIEW.md)
+  records source checks and what is not adopted.
+- **Decision:** Evaluate a configuration as its task, ownership pattern,
+  exact requested and resolved model identities, harness/adapter/provider
+  path, context/tools, permissions and resource policy. Separate bounded
+  advice, read-only `work` subagents, reviewer positions and Saga execution.
+  Freeze delegation packets for worker comparisons before measuring
+  adaptive whole episodes. Compare solo operation, additional solo effort,
+  same-model delegation, repeated same-model samples and a fixed workflow
+  before crediting model diversity. Hold the harness fixed for model
+  comparisons and models fixed for harness comparisons where supported;
+  disclose unmatched capabilities as confounds.
+- **Measurement:** Verified end-to-end success is primary. Count all
+  attempts, including failures, retries, repair, review, compaction,
+  evaluators and tools. Report cost per accepted task, total/unconditional
+  cost, elapsed-time distributions, deadline success, operator time and
+  failure attribution. Pin prices and billing modes; unknown usage stays
+  unknown, and repricing is not a rerun. Use paired repeated trials,
+  held-out task lineages and independently assessed outcomes. Operational
+  defaults, dollar caps and deadlines are separate conditions. A small
+  pilot diagnoses failures and variance, not a universal ranking.
+- **Checks and placement:** Acceptance §3 specifies the protocol. I1
+  defines validated evaluation metadata and extends the adapter capability
+  matrix; I2 checks read-only child confinement and partial/stale returns
+  (proposed AC-42–AC-43), AC-36's observational class records, and child
+  cap/stop behavior after X-15 is resolved (proposed AC-44). The Pi control
+  uses the same protocol after I2. Live repeats require I3/Saga Phase B;
+  the D18 comparative report remains Phase G. Missing telemetry or an
+  unsupported condition is reported, never filled with an assumed zero.
+- **Inherited relationship:** operationalizes D18.1, D18.2, D18.4 and
+  D19.4; adds detail to the evaluations in ADR-013/014/015 without
+  superseding them or any inherited clause. I0 remains ADR-008's narrow
+  schema increment. The current session-class policy and two-loop
+  architecture stand; learned model-tier routing remains off.
+- **Must not claim:** a best model pair, independent reviewer errors,
+  framework adoption, production advisor/peer-handoff support, Saga
+  guarantees from local children, new producer capabilities, a resolved
+  data/billing policy, or a completed runtime evaluation. Proposed
+  comparisons never remove required review from live work.
+
+### ODIN-ADR-021 — Local implementation storage and contract conventions
+
+- **Date/status:** 2026-10-16; default implementation choice under the
+  operator's instruction to complete local development while leaving live
+  credentials undecided. No live deployment or producer change is authorized.
+- **Decision:** Use one SQLite WAL file per namespace. A nonblocking OS
+  file lock admits one writing process per namespace; each component opens
+  only its own namespace. Odin records, inbox, cursor, outbox and history
+  commit together inside the Odin-history database. There is no atomic
+  transaction across namespaces: capture uses its durable spool, and mirror
+  updates commit with their producer cursor. A gap or conflicting mirror
+  sequence stops ingestion for reconciliation, never authors a correction.
+  Separate files isolate storage transactions, not processes or Unix users.
+  Production file ownership and sandbox enforcement remain I2 deployment
+  checks. Local code runs no untrusted session or external effect.
+- **Contract conventions:** Runtime JSON Schemas use Draft 2020-12, closed
+  record objects, `schema_version: 1`, `record_type`, and Appendix A's `rev`
+  spelling for revision. UTC timestamps use `Z`; IDs are canonical ULIDs.
+  Producer-native identities remain opaque references. The 12 unaffected Odin-owned
+  record shapes and the event envelope are validated independently in Go
+  and Python. Saga delegation/run schemas are not invented here. Local
+  deterministic JSON digests are explicitly not Saga's unresolved canonical
+  wire digest. JSON/YAML runtime data uses schemas; native language build
+  manifests and dependency lockfiles use their standard tool formats.
+- **Checks:** namespace-writer lock, transaction rollback, duplicate intake,
+  stale revisions, unknown effect recovery and mirror cursor tests in the
+  local suite. Cross-language schema fixtures include gated Review rejection,
+  unbound approval, invalid dates/IDs, partial/unknown effect evidence and
+  unknown fields. These establish only their tested local behavior.
+- **Relationship:** implements X-11's local physical layout and D6/D7/D19
+  without superseding a clause. X-11 remains open for production process
+  ownership/failure-domain validation. X-7, X-12, X-13 and X-14 stay open;
+  unresolved guidance publication and live transports are disabled. See
+  [implementation status](IMPLEMENTATION-STATUS.md) for local evidence
+  and the remaining full-I1/I2 work.
+
+### ODIN-ADR-022 — Experimental portfolio coordination and scoped orchestration
+
+- **Date/status:** 2026-10-16; operator-authorized local experimental design. The fake-backend prototype may record and check the protocol. No live model route, second production adapter, delegated run or credential distribution is authorized by this ADR.
+- **Decision:** For a portfolio of software, research or infrastructure projects, a configured Fable coordinator may identify priorities and request work. Each project keeps one Astra planning owner with explicit assignment and commitment records. Opus or Sol workers receive bounded Saga delegations only through the service and Saga adapter. A bounded chirality consultation returns read-only, source-attributed advice with confidence and uncertainty; it cannot approve, route, edit, submit or complete work. The service owns admission, state, budgets, stop, approval and reconciliation. Model names here are configured experimental roles, not claims about a provider, model quality or an available harness.
+- **Handoff:** Every coordinator-to-owner, owner-to-worker and consultation return has a versioned typed packet: source IDs and revisions, project/assignment/commitment identity, objective, scope, accepted decisions, dependencies, checks, evidence references, authority, deadline and budget. Receiving a packet does not transfer authority or establish completion. Stale, missing or ambiguous context is held for reconciliation; source material stays retrievable. The one project planning owner remains accountable for integration.
+- **Incident authority:** The operator may approve a time-bound, project- and action-scoped incident grant through the recorded command path. The service validates principal, exact scope, expiry and revocation at use and logs each exercise. Grants confer no blanket model credentials and no bypass of Saga, required review or direct stop. A model request, voice transcript or Herdr view does not itself grant authority.
+- **Surfaces and adapters:** Herdr's layout may display portfolio, project, handoff and incident state, but it is a view of the service's records. Adapter lifecycle is a structured capability and status contract (start, resume, interrupt, retire, observation, error/unknown), checked before class admission; it does not create a universal framework. Voice becomes a recorded operator input through the same identity and command path, with transcription provenance and confirmation where the command requires it; voice never supplies approval. Explore a second adapter only as a controlled fixture after the first harness path and the ADR-015 Pi control gates, preserving D19's no-framework rule.
+- **Evaluation and limits:** Store exact requested and resolved model/harness/provider versions, profile, tools, packet revision, resource policy and outcomes. Apply ADR-020's paired controls and complete episode accounting; configuration examples are not empirical rankings. Local fake-backend tests establish only protocol behavior. X-7, X-12, X-13, X-15, X-1 and Saga Phase B remain open. No live external effect or cross-provider data transfer follows from this decision.
+- **Inherited relationship:** Amends Odin's D10/D19 single-project planning scope only to allow a portfolio coordinator above independent project owners; it does not amend Saga-owned interfaces. It refines D5–D8 and ADR-009/010/014/020 for packet, authority, surface and evaluation checks. It supersedes any Odin reading of D19 that every project must share one planning session; each project still has one accountable planning owner. This is not a replacement for Odin's service loop or Saga's worker boundary.
+- **Cross-reference:** amended by ODIN-ADR-036 (accepted, phase 1
+  implemented). Workstream sessions allow more than one session per project;
+  the project still has at most one integration owner.
+
+### ODIN-ADR-023 — Local continuity and attributed memory
+
+- **Status:** local implementation defaults under the operator's request to
+  implement the product plan with GPT-6-Sol subagents. These choices authorize
+  synthetic development, not live credentials, provider disclosure or cutover.
+- **Baseline:** integrate the reviewed source prototype as local commit
+  `47e074e`, with the file inventory in
+  [the integration receipt](provenance/PROTOTYPE-INTEGRATION.md).
+  ADR-020/021/022 retain their local experimental scope. No producer contract
+  or frozen extraction source changes.
+- **Continuity:** build a deterministic resume and prepared-decision view
+  during I1/I2 preparation. Canonical commitments and HumanRequest records
+  remain authoritative; delivery and explicit acknowledgement are separate.
+  Project scope, evidence revisions, current service policy and view
+  dependencies are checked in code. An answer records a response and does
+  not itself grant authority or close its commitment. Numeric page offsets
+  require a matching revision token so a changing project cannot skip work.
+  Canonical request history uses generic prompts and stable choice handles;
+  prepared wording is a removable projection, revalidated before display.
+- **Memory:** add attributed source revisions, statements, relationships,
+  reader restrictions, processing coverage and freshness policy in the
+  service's namespace. Service-stamped learning time is distinct from source
+  observation/effective time. Reported success and proposals retain their
+  status; accepted decision statements must reference the matching canonical
+  decision. Unresolved competing claims remain visible. A correction,
+  permission change or tombstone invalidates dependent views before rebuild.
+  A local redaction receipt stays pending until SQLite cleanup confirms it;
+  external destination confirmations remain independent. No model extractor,
+  summary tree or external deletion executor is established by this work.
+  Prepared questions depend conservatively on the project's memory revision;
+  redaction invalidates them while retaining their commitments. Legacy history
+  with full question text requires separate migration and stays pending.
+- **Session boundary:** a local workstation journal reserves operation and
+  session identity before dispatch, rechecks current service authority,
+  preserves unknown starts/stops, and requires observation after reconnect.
+  The Claude Agent SDK options/lifecycle binding is tested with protocol mocks
+  only. The actual SDK, dedicated credential store, authenticated daemon,
+  tool isolation and limits remain launch prerequisites. Native children and
+  live transports stay disabled. Earlier production Codex integration is
+  still a proposal; ADR-015 and I5 sequencing stand.
+- **Evidence and improvement:** offline experiments keep semantic-memory,
+  compactor and orchestration comparisons separate; inferred preferences or
+  proposed procedure text never install authority. Local update proposals
+  require scoped evidence, reviewed disposition and regression receipts.
+- **Checks:** the product plan's PLAN-C01–PLAN-C12 map to local regression
+  suites in the [execution status](PRODUCT-IMPLEMENTATION-STATUS.md).
+  Existing full AC scenarios are not marked complete by component tests.
+- **Inherited relationship:** operationalizes Odin's D6/D7/D18 and
+  ADR-009/010/020/022. Adds an early local view alongside I1/I2 without
+  superseding I4's human view/import or I5/I6's memory comparisons and real
+  retrieval. The detailed compactor context, reuse, retention and live-data
+  choices under X-10 remain open. X-1, X-7, X-11 production isolation,
+  X-12/X-13/X-15, Saga Phase B and the handoff are not closed.
+- **Cross-reference:** ODIN-ADR-037 moves the human view out of I4 into the
+  human-view track; "I4's human view/import" above now reads as the
+  human-view track plus the I4 import.
+
+### ODIN-ADR-024 — Native Fable executive conversation pilot
+
+Current scope note: ADR-026 supersedes this decision's restricted launch and
+proposal-only improvement rules for native development profile version 3.
+The following records the original versions 1 and 2 and the unchanged MCP
+record semantics.
+
+- **Date/status:** 2026-10-19; operator-authorized bounded implementation.
+  The operator requested subagent implementation toward Fable in the Claude
+  Code harness, communicating through existing remote channels such as
+  Remote Control, followed by functionality testing and improvement loops.
+  This authorizes the pilot and its preparation; it does not certify a
+  working login, model entitlement, remote connection or production runtime.
+- **Decision:** allow an Odin-prepared native interactive Claude Code
+  session requesting `claude-fable-5-1`, with `--remote-control`, for
+  executive conversation. The pilot uses the unmodified harness and its
+  native conversation/resume behavior. The full SDK adapter and managed
+  workstation lifecycle remain separate deliverables. The service remains
+  the writer of Odin records; the model receives a scoped MCP bridge.
+- **Operator and model authority:** the bridge binds `fable-executive` as a
+  coordinator to an explicit project scope. It permits continuity and exact
+  evidence reads, plus unverified progress reports and improvement proposals.
+  It exposes no grants, approvals, verified completion, delegated execution,
+  review/apply operations or native child dispatch. Remote Control carries
+  human conversation within Claude Code; it is not an authenticated Odin
+  operator command path. A model's paraphrase of an operator message remains
+  model-reported content. Privileged commands keep the service's existing
+  recorded operator path and required checks.
+- **Launch boundary:** use a dedicated protected Odin Claude configuration
+  and subscription login lineage, with one launch owner. Never copy or fall
+  back to the development login. Restrict the launch to the explicit bridge
+  and tools; isolate runtime state from the repository and sanitize inherited
+  configuration. Show requested model and process state separately from
+  observed model and Remote Control readiness. A CLI process starting does
+  not prove that the requested model or remote connection is working. Login,
+  workspace trust, pairing and any provider billing consent stay native
+  operator interactions; the launcher must not synthesize acceptance.
+- **Improvement:** initially collect attributed, unapplied reports/proposals
+  and use them to choose bounded experiments. Such text is not installed as
+  instructions or policy. Applying a correction requires the existing
+  evidence/review/regression path; authority changes are excluded from that
+  path. Automatic repository mutation or self-deployment is not part of
+  this pilot.
+- **Evidence and checks:** the [pilot runbook](EXECUTIVE-PILOT.md) separates
+  synthetic launch/MCP checks from live acceptance. The local service still
+  uses the fake Saga backend and labels its results accordingly. A live
+  Fable conversation establishes only the observed conversation behavior,
+  not Saga guarantees or full I2/I3 acceptance. Record remote message/reply,
+  scope refusal, durable report readback, stop and resume independently.
+- **Inherited relationship:** narrowly amends Odin-owned D7.2's SDK-only
+  invocation and D7.7's interactive-only exclusion for this pilot. It
+  refines ADR-009's eventual placement and ADR-022/023's previous synthetic
+  scope by permitting this bounded live conversation. D7.1, D7.4–D7.6,
+  D7.11–D7.12, D20.5's authoritative command rules, D24.6's credential
+  separation, Saga's D1/D4/D23 boundaries and the ADR-015 second-adapter
+  sequence stand. Remote Control selects D7.3's supported subscription
+  alternative for this pilot; it does not change the general planning
+  credential default. X-1, X-7, X-11 production isolation, X-12, X-13,
+  X-15, Saga Phase B and the cross-repository handoff remain open.
+
+### ODIN-ADR-025 — Executive repository evidence access
+
+Current scope note: ADR-026 supersedes the native read-only boundary for
+profile version 3. Committed snapshot evidence and its provenance semantics
+remain available in every profile.
+
+- **Date/status:** 2026-10-19; operator-authorized pilot extension. The
+  operator supplied the active executive's diagnosis that its MCP-only
+  manifest and empty memory prevented document/implementation reconciliation,
+  and requested native read tools and/or repository ingestion. This decision
+  authorizes those evidence paths, not automatic policy or code changes.
+- **Native reads:** an explicit profile upgrade may expose Claude Code's
+  `Read`, `Glob` and `Grep` for the Odin checkout. Preserve the native session
+  identity, dedicated login and project binding; change the prepared profile
+  only while its session and credential ownership locks are free. Use
+  restricted mode, an explicit repository directory, no shell or edit tools,
+  and read exclusions for credentials, runtime state and private paths.
+  Claude's permission controls are not an OS sandbox. In particular, search
+  exclusions are best effort and require live boundary checks; construction
+  tests do not prove filesystem isolation. Current-file reads identify their
+  path and are distinct from revision-pinned Odin evidence.
+- **Committed evidence:** the operator may import a bounded selection of
+  first-party repository documentation, code, schemas and tests from one
+  explicit Git root's `HEAD`. Read Git objects, not untracked files or working
+  tree edits. Exclude hidden/private paths, symlinks, submodules, frozen
+  history, pinned peer contracts and dated research. Keep the exact commit,
+  path, chunk boundaries and content digest with the source. The local service
+  remains the sole writer, validates scoped operator commands and exposes
+  these sources only to the bound executive and local operator.
+- **Discovery and freshness:** publish a bounded catalog with exact source
+  IDs and revisions, visible through the existing memory tools. Preserve
+  partial import status until all ordered batches finish. Replaying the same
+  snapshot is idempotent. A completed snapshot describes selected committed
+  files at capture time; it neither monitors later changes nor proves that
+  code behavior matches the documents. No statements, approvals or verified
+  results are inferred from repository text.
+- **Persistence and improvement:** clarify that the compatibility label
+  `fake-backend evidence` refers to the fake Saga execution backend. Local
+  memory and reports are persisted in SQLite; reports stay unverified and
+  proposals unapplied. Repository access does not turn model-relayed text into
+  an operator command, authorize delegation or install a proposed procedure.
+- **Checks:** profile/lock/session identity regressions, import selection and
+  scope checks, exact revision reads, replay and restart persistence checks
+  accompany this extension. The [pilot runbook](EXECUTIVE-PILOT.md) keeps
+  synthetic evidence separate from native tool visibility and actual read
+  observations. This adds no completed full acceptance scenario.
+- **Inherited relationship:** refines ADR-024's explicit-tool launch boundary
+  and ADR-023's synthetic-memory scope for this operator-selected repository
+  evidence. It does not supersede D7's service authority, D24's credential
+  separation, I4's task migration, I5/I6's memory/retrieval work or Saga's
+  D1/D4/D23 boundaries. Production isolation, X-12/X-13/X-15, live Saga and
+  the cross-repository handoff remain open.
+
+### ODIN-ADR-026 — Native executive development access
+
+- **Date/status:** 2026-10-19; operator-authorized implementation. After the
+  initial executive could not investigate its filesystem, the operator
+  explicitly requested removal of the current runtime's imposed restrictions
+  and limitations so that it can self-improve. That instruction authorizes
+  this development profile; no additional approval or proposal-only stage is
+  introduced by this decision.
+- **Decision:** add native profile version 3, selected with
+  `executive-enable-development`. Launch the unmodified Claude Code harness
+  with its normal native tool set and system prompt, `bypassPermissions`, the
+  actual Odin checkout as cwd, the real HOME and inherited operator
+  environment. Append brief Odin context instead of replacing the harness
+  prompt. Do not apply Odin tool/path allowlists, restricted-directory mode,
+  MCP-only configuration, environment sanitization or disabling of hooks,
+  plugins, skills, native memory, discovery, browser tools or native agents.
+  Do not load the former generated restriction settings or require an Odin
+  service socket before launching native development. An unavailable service
+  makes its MCP operations unavailable without blocking the native tools.
+  Available integrations still depend on what the harness and operator
+  environment provide; configuring access does not install missing tools.
+- **Development authority:** the executive may inspect files, edit code and
+  configuration, run commands and tests, and use native agents to perform
+  operator-directed development and self-improvement. These actions are
+  ordinary native development work and do not wait for fake Saga, a proposal
+  disposition or the unfinished managed worker path. Instructions and
+  approval choices supplied by the operator still apply. The profile removes
+  Odin's runtime restrictions; it is not OS isolation or a claim of authority
+  over unrelated producer infrastructure.
+- **Continuity and activation:** retain the dedicated `CLAUDE_CONFIG_DIR`,
+  credential lineage, project binding, native session UUID and local records.
+  Selection writes a validated pending profile without interrupting a
+  running session or launching a second owner of its credentials. An
+  explicit exit and `executive-start --resume-session` normally activates it
+  as the next owned runtime operation under the existing ownership locks.
+  Status distinguishes current configuration
+  from pending development access; tests cover that staged transition. A retained dedicated login is continuity configuration, not an
+  assertion that the unrestricted process cannot reach other local files.
+- **Odin records and Saga:** preserve the additional scoped Odin MCP bridge.
+  Its model reports remain unverified and its proposals remain unapplied
+  records; native edits do not retroactively change their meaning or become
+  Saga-verified results. The local SQLite store persists independently of
+  the fake Saga execution backend. Native development work bypasses that
+  backend, not Saga's own API admission or ledger. Saga-owned interfaces,
+  identities, approvals, hosts, stores and guarantees are unchanged. The
+  full managed SDK/daemon/worker path and peer integration are not delivered
+  by this exception.
+- **Inherited relationship:** supersedes ADR-024's restricted launch and
+  proposal-only improvement rules, ADR-025's native read-only boundary, and
+  ADR-022/023's prohibition on native children for this development profile.
+  Amends Odin-owned D7.2/D7.7 invocation/interactive restrictions and
+  D19.7/D23.1–D23.3 routing rules so native development execution does not
+  require an Odin-managed backend. The I/O contract §6–§7 planner-only tool,
+  filesystem and environment isolation rules and §11 managed-child gates do
+  not apply to this profile. D24.3's Odin process-isolation requirement is
+  likewise waived here; keeping secrets out of committed source, prompts
+  and reports remains required. Dedicated login identity and single refresh
+  ownership under D24.4a/D24.6 are retained. None of these changes amends
+  Saga-owned interfaces or grants their guarantees to native development.
+- **Checks and evidence:** launch/schema regressions check normal native
+  tools, permission mode, real cwd/HOME, inherited environment, absence of
+  the former disable flags, identity preservation and deferred activation.
+  The [pilot guide](EXECUTIVE-PILOT.md) requires observed native tool use
+  after resume before reporting it as live. OS permissions, harness/provider
+  policy, account limits and installed capabilities remain actual properties
+  of the environment, not restrictions Odin can remove. Production gates
+  and the cross-repository handoff remain open.
+
+### ODIN-ADR-027 — Executive delegation sessions on the local backend
+
+- **Date/status:** 2026-10-20; operator-authorized implementation. The
+  operator asked the version 3 executive to prioritize the missing
+  executive-to-project delegation path: an Odin tool that creates or resumes
+  an accountable project orchestration session, assigns work, inspects
+  progress, sends follow-ups and collects results, demonstrated with actual
+  sessions, persistence and recovery, with Claude Code and Codex support
+  reported separately.
+- **Decision:** add six scoped bridge tools (`odin_delegation_session`,
+  `odin_delegation_assign`, `odin_delegation_followup`,
+  `odin_delegation_status`, `odin_delegation_result`,
+  `odin_delegation_close`) and the matching recorded gateway actions. A
+  session is a canonical `PlanningSession` on the D23.3 local backend with a
+  `SessionBinding` and host `Environment` record; at most one is active per
+  project and it becomes the project's planning owner. Assigning work creates
+  an open `Commitment` with acceptance criteria owned by that session and a
+  `backend: local` `Assignment`. Each assignment or follow-up is one
+  non-interactive harness turn (`claude -p --session-id/--resume` or
+  `codex exec`/`codex exec resume`) run by a detached runner that writes a
+  spool the service ingests; the service stays the only writer of Odin
+  records. Enablement requires an explicit operator configuration file
+  (`delegation-configure`) naming the harness binaries, the worker credential
+  configuration and allowed workspace roots; without it every delegation tool
+  refuses.
+- **Semantics:** a returned turn is an unverified worker report. Only
+  `odin_delegation_close` with evidence for every criterion completes the
+  assignment and closes the commitment, recorded as executive-attributed
+  acceptance, never as Saga verification. Cancellation abandons the
+  commitment. Budget and iteration limits are passed as harness options where
+  the harness offers them (Claude Code) and must be explicitly allowed as
+  unenforced otherwise (Codex); Odin records requested limits and reported
+  usage but enforces no ceiling. Stop signals the running turn and retires the
+  session with the remote outcome marked unconfirmed until the runner reports.
+  A service restart retires an active session; an explicit resume starts a
+  new incarnation and binding, and a runner that exits without a result is
+  recorded as `lost`, never retried. A replacement session adopts open
+  commitments left by a retired one with a new ownership generation.
+- **Amendment (2026-10-21, operator decision):** the budget limit is
+  optional. `limits.budget_usd` may be absent or null in
+  `odin_delegation_assign` and `odin_loop_delegate`; `iterations` stays
+  required. Without a requested budget the runner passes no
+  `--max-budget-usd` (Claude Code's treatment of 0 is not relied on), the
+  assignment, its `delegation.assigned` history and
+  `odin_delegation_status` record `budget_usd: null` with
+  `limit_enforcement.budget: not_requested`, and a new session stores
+  `budget_usd: null` instead of 0. A requested budget behaves as before.
+  The session-level `budget_usd` given to `odin_delegation_session` is
+  informational: it is never passed to a harness or enforced, and sessions
+  opened before this change may show `0`.
+  Admission is governed by the ADR-031 usage policy when the operator
+  configures one (the default `observe` mode holds nothing). Usage
+  accounting is unchanged: the harness-reported `cost_usd`, which the
+  operator treats as an API-list-rate estimate rather than a subscription
+  charge, and token and model usage are recorded as reported, unreported
+  cost stays unknown, and none of them is an enforced ceiling. The
+  partial I0 runtime contract (`runtime/schemas/v1`) still requires a
+  numeric `budget_usd`; the service does not use it, and reconciling it is
+  left to I0. Reason: a resumed session near a harness USD cap could be
+  stopped mid-turn.
+- **Amendment (2026-10-21, operator decision, failure surfacing):** when a
+  delegation turn ends failed (including a wall-clock timeout), interrupted
+  or lost, or leaves its assignment's commitment open with no turn queued or
+  running, the service records one durable notice in the same transaction as
+  the turn result. Its ID derives from the turn and its terminal state, so
+  reconciling or restarting cannot duplicate or drop it.
+  `odin_delegation_status` reports live attention reasons and pending notice
+  IDs in both compact and detail views. In development-loop bridge mode the
+  notice is redelivered through the loop inbox as a non-claimable `notice`
+  until acknowledged with `odin_loop_ack`; acknowledgement records
+  attribution only and is never approval, acceptance or verified evidence.
+  An open-commitment-only notice resolves when the executive queues a
+  follow-up or closes the assignment; a failure notice stays pending until
+  acknowledged. Outside development-loop mode only the status flags apply,
+  notices are addressed to the project rather than a specific executive
+  session (so acknowledgement is project-scoped), and a queued turn
+  cancelled by `odin_delegation_close` produces no notice, while one
+  stranded by session retirement notifies as `interrupted`. Every returned
+  turn, including a development-loop stage return, carries an
+  open-commitment notice until a decision; failure notices are offered
+  first and only fill inbox slots left within the bridge's bound.
+  Reason: a timed-out delegation was found only when the operator asked for
+  a status report.
+- **Guidance to the executive:** use native subagents for quick bounded work
+  whose result is integrated in the same conversation; use delegation
+  sessions for work that must persist as a project commitment, run detached
+  in a resumable harness session, survive the conversation or a service
+  restart, or be collected and accepted later.
+- **Inherited relationship:** extends ADR-026's development exemption to the
+  bridge: it amends ADR-024's rule that the scoped bridge exposes no
+  delegated execution, for this local-backend path only. It applies D23.3
+  (local backend with stated missing guarantees), D7.11 (commitments carry
+  owner and assignments) and D19.4's capability statement per adapter. It does
+  not deliver the managed SDK/daemon session host (ADR-009, I2), service-
+  managed child dispatch (X-15), the ADR-015 Pi control or the I5 second
+  production adapter; the Codex path here is a local non-interactive worker
+  adapter, not that second adapter. Worker credentials follow the configured
+  Claude configuration directory and Codex home. Refresh ownership is
+  enforced with the executive runtime's own `.odin-lineage.lock` lease
+  (D24.4a, one refresher per lineage): the runner must hold it for the
+  worker's lineage while a harness runs, a busy lease refuses the turn
+  under the default `exclusive` policy, and a session on the executive's
+  own login or the operator's `~/.codex` login is refused unless the
+  operator configures `lineage_policy: shared_accepted`; every turn result
+  records the lease outcome and a content-free credential-file fingerprint
+  before and after the run (2026-10-20 amendment). Sharing the executive's
+  dedicated login lineage with worker processes under `shared_accepted` is
+  an interim operator choice under open X-12, not a resolution of it.
+  Saga-owned interfaces, approvals and guarantees are unchanged.
+- **Checks and evidence:** `tests/test_delegation.py` exercises the cycle
+  with synthetic harness binaries and real detached runners: open, assign,
+  launch, return, follow-up resume, restart, incarnation, stop/interrupt,
+  lost runner, failure visibility, unenforced-limit refusal, scope and
+  replay. Live receipts for actual Claude Code and Codex sessions belong in
+  the operator's private evidence directory, labelled as local-backend
+  evidence.
+- **Cross-reference:** amended by ODIN-ADR-036 (accepted, phase 1
+  implemented) for the one-session-per-project rule above. Workstream sessions,
+  each with its own label and workspace, may now run beside the single
+  integration owner or legacy session; see ODIN-ADR-036.
+
+### ODIN-ADR-028 — Independent development evaluator and feedback loop
+
+- **Date/status:** 2026-10-20; operator-authorized implementation. The
+  operator requested an independent evaluator that designs the next tests,
+  assigns them to the existing interactive Fable executive, receives its
+  final response and evidence automatically, then chooses the next stage.
+  The executive may use its authorized native tools, subagents and code
+  changes under ADR-026. The objective is an autonomous development loop
+  without manual copying between conversations, not only a code review.
+- **Roles:** call the judgment role the **development evaluator** and the
+  deterministic module the **development loop controller**. The evaluator
+  assesses functionality, operator experience, evidence quality, reliability
+  and development progress, then chooses a bounded next test, completion or
+  a reason to pause. It receives the configured evidence pack separately
+  from the executive's working conversation. Independence means a distinct
+  evaluation invocation with its own inputs and recorded identity; it does
+  not imply independent credential or OS isolation. It is not Mimir and
+  cannot replace required reviewer positions or provide Saga approval.
+- **Transport:** add an explicitly enabled custom MCP channel to the
+  executive bridge and a native Stop completion hook. Send each round to
+  the existing native session, retaining its session ID, Remote Control and
+  dedicated Claude login. Activate the added channel/hook on one explicit
+  native restart/resume. Do not launch another Claude process on that
+  credential lineage to drive the loop. Channel connection, permitted
+  notification delivery, executive acknowledgement and completion capture
+  are separate observations. Tool visibility alone proves none of the latter.
+  Unchanged channel-inbox polling is an authenticated, project/session-scoped
+  transport read and creates no durable command or receipt per poll.
+  Stage creation, claims, completion and every controller transition remain
+  recorded; this exception does not turn a notification into authority.
+- **Control and persistence:** the controller validates the fixed loop
+  configuration and records scope, session, round, delivery and evaluation
+  identities. It owns durable state transitions, duplicate detection,
+  stale-result refusal, pause/stop and finite round bounds. A
+  model chooses the next test within those bounds; it does not alter them.
+  A lost delivery, interrupted turn, service restart or incomplete completion
+  capture must retain an explicit pending/unknown outcome until reconciled.
+  Never interpret process exit, a Stop event, or the word "done" as proof
+  that a test passed. Automatic retries retain the same operation identity;
+  uncertain work is not silently replaced with a fresh round.
+  A completed evaluator `needs_operator` decision accepts an operator-only,
+  revision-checked response once executive work is inactive and round budget
+  remains. The controller retains that response with the original evidence
+  in a fresh evaluator job at the same round; completed records, configured
+  bounds and progress counters remain unchanged. This continuation is not a
+  reset, a delivery reconciliation or authority to expand the objective.
+  Core, gateway and CLI restart/retry tests enforce these conditions.
+- **Evidence return:** the completion path returns the main executive's
+  final response and bounded, attributed evidence references for the active
+  round. It must distinguish an evaluator's task from unrelated operator
+  conversation, reject another session or stale round, and preserve missing
+  or unavailable evidence. Native subagent/background work is not complete
+  merely because the main agent stopped responding. The evaluator receives
+  the actual supported evidence pack, not an unlabelled claim that all
+  transcripts, artifacts or tests were independently verified. Runtime
+  conversations and artifacts remain outside committed source.
+- **Authority and development:** the operator's configured objective grants
+  the existing native development scope; the evaluator can select actions
+  inside it without a new manual approval on every round. Its output cannot
+  enlarge that scope, grant credentials, change Saga admission, suppress
+  operator controls, or satisfy a required review. Native edits and test
+  execution retain ADR-026's authority and missing isolation guarantees.
+  Ordinary reports, canonical commitments and Saga ledger results retain
+  their existing meanings. The controller's round bound limits automated
+  continuation, not the cost or native tool usage of a single turn.
+  The initial controller also stops continuation after the configured
+  number of consecutive repeated evidence-reference sets; this is a
+  stall signal, not a semantic proof of progress or a wall-clock deadline.
+- **Activation and checks:** opt in with schema-validated local configuration
+  and explicit transport activation. Invalid output, unavailable transport,
+  absent evidence or an exhausted bound must be visible without inventing
+  success. The [development-loop runbook](DEVELOPMENT-LOOP.md) states the
+  local tests and live acceptance separately. A passing synthetic channel,
+  hook or evaluator binary is not proof of a live unattended loop. Actual
+  acceptance requires at least two automatically connected rounds in the
+  intended session, real evidence return, and tested pause/stop/recovery.
+- **Inherited relationship:** extends ADR-026's native development scope and
+  D7.7's interactive transport exception. Amends Odin-owned D9.3 and D9.4
+  only to permit this explicitly requested development evaluator and its
+  direct opt-in activation; ordinary service-event evaluators retain their
+  registered hooks and evaluation/activation rules. D9.1's non-authority,
+  D9.5's direct operator/control routing, D6's at-least-once reconciliation,
+  D7.11's commitment truth and D24's retained refresh ownership stand. No
+  producer contract, Saga guarantee, Mimir review requirement, managed
+  session-host gate, X-12/X-15 disposition or handoff is closed.
+- **Cross-reference:** ODIN-ADR-038 (accepted and implemented) lets the
+  operator hand a non-terminal loop and its pending stage to a successor
+  native session, for example after `executive-new-session`, instead of
+  binding the loop to its starting session for life.
+
+### ODIN-ADR-029 — Structured execution receipts as attributed local evidence
+
+- **Date/status:** 2026-10-20; operator-authorized implementation under the
+  ADR-028 development loop's first implementation objective. The evaluator
+  observed that executive evidence was prose plus an unrestricted JSON
+  object, and that a merge-commit subject naming the wrong branch had been
+  reported as branch identity.
+- **Decision:** Odin records command execution evidence as a versioned,
+  schema-validated **execution receipt** (`execution-receipt` schema,
+  `odin.execution_receipt`, `receipt-run`/`receipt-validate` commands).
+  The collector executes the supplied command itself and derives every
+  field from repository and process observations: repository root and cwd,
+  actual branch or explicit detached HEAD, commit, staged/unstaged/untracked
+  identity digests observed before and after the run, argv, resolved
+  executable and interpreter, timestamps, exit status or explicit
+  uncertainty, retained output artifacts with byte digests, and the
+  collector's own source digest and Odin revision. Commit subjects are
+  recorded as text and explicitly marked as not branch evidence.
+- **Evidence workflow:** development-loop evidence may reference receipts
+  with compact typed references and structured claims. The controller
+  validates them deterministically at ready and at completion capture and
+  records `validated`, `validated_unobserved`, `uncertain`, `mismatched`,
+  `missing`, `invalid` or `legacy_no_receipt` with the stage and in the
+  evaluator packet. Only `validated` is a passing check (and
+  `commands_succeeded` is reported separately from validity); failures and
+  uncertainty are recorded, never raised as success, and receipt-less
+  evidence is labelled legacy rather than rejected. The evaluator is instructed to read retained receipts itself,
+  compare executive prose with observed fields and recompute artifact
+  digests; a JSON success flag is not evidence.
+- **Trust limits:** a receipt is attributed local execution evidence. The
+  collector and the command run as the same user; observations are
+  point-in-time; untracked coverage is bounded and ignored files are
+  excluded; environment and credentials are never recorded, while argv and
+  output are retained verbatim in private storage outside the checkout.
+  A receipt is self-attested: the executive principal could write one by
+  hand, and validation establishes consistency, binding and timing, not
+  authorship (a controller-side registry is the recorded follow-up). A valid
+  receipt of a failing command is evidence of failure; `commands_succeeded`
+  is reported separately from validity. Receipts confer no Saga
+  verification, canonical acceptance, isolation or required-review outcome
+  (D7.11, D19.4, ADR-026/028 unchanged).
+- **Checks:** `tests/test_execution_receipt.py` covers success, failure,
+  timeout, the wrong-branch merge subject, detached HEAD, dirty-tree
+  identity and privacy, modification during the run, tampered/missing
+  artifacts and edited receipts, wrong revision/worktree/stage attribution,
+  unobserved repositories, environment exclusion, reference validation
+  outcomes and the ready/capture path into the evaluator packet; the
+  service/bridge integration test carries a receipted round, run inside a
+  synthetic git repository, through the real channel. An independent review
+  of the first revision (2026-10-20) found twelve issues, including an
+  unbounded problem string that could raise out of `ready`, timeout leaving
+  grandchildren writing after hashing, rename and non-ASCII path parsing,
+  and the self-attestation gap; all but the registry were resolved in the
+  follow-up commit with tests. The evaluator's second-round assessment
+  found three further material gaps (contradictory fields accepted, a failed
+  post-run observation summarised as clean, blocking and unbounded file
+  inspection); the corrective commit adds recomputed consistency checks, the
+  `uncertain` outcome for a single available observation, and bounded
+  non-blocking inspection bound to the parsed bytes. A second independent
+  review of that correction found that list-derived digests and coverage
+  were still not recomputed and that a timed-out run could carry an exit
+  status; the follow-up recomputes every derived field, treats those as
+  contradictions, reports no observed field for an invalid receipt and
+  bounds the validation summaries in the schemas. Live receipts for
+  actual stages are retained privately and are themselves subject to the
+  evaluator's independent inspection.
+  A clock-reversal regression preserves completed command evidence with
+  original timestamps, a null duration and explicit uncertainty. Reversed
+  chronology remains invalid and observed summary fields remain redacted;
+  the collector's CLI status still reports command success or failure.
+  Regression tests cover successful and failing commands across a backward
+  clock step and refusal of contradictory null-duration claims.
+
+### ODIN-ADR-030 — Durable loop notices and conservative attention
+
+- **Date/status:** 2026-10-21 UTC (committed 2026-10-20 local time);
+  operator-authorized implementation under the ADR-028 development loop's
+  second objective (operator visibility and stalled-work handling). An
+  independent review of the first revision found that a completion footer
+  quoted in an evaluator assessment could block the inbox and that deadline
+  edits were routed through a transition; the follow-up redacts quoted
+  footers at write and delivery time and makes deadline edits
+  configuration-only. A further correction bounds rendered notices in
+  UTF-8 bytes rather than characters, gives each persisted attention
+  observation its own notice identity, lets a new bridge fall back to the
+  legacy poll against a pre-notice service, and reports a quiescence block
+  in status; recovery is forward only and a downgrade after new writes is
+  unsupported (runbook, "Activation and recovery of the notice release").
+- **Decision:** the development loop controller writes a durable **notice**
+  in the same transaction as every completion, intervention, failure or stop
+  transition, and one `stalled` notice per attention observation. Notices
+  are scoped to project and native session, correlated to loop, stage, job
+  and transition, carry a bounded summary, the evaluator's assessment and
+  what needs attention, and are offered through the existing executive
+  channel as events distinct from assignments (`meta.kind`). They remain
+  deliverable after the loop ends. Delivery is at least once; the executive
+  acknowledges a notice with `odin_loop_ack`, which is recorded as
+  model-attributed and grants no authority. Notices never carry a completion
+  footer and never ask for a stage to be claimed or executed.
+- **Attention:** per-loop deadlines (offer, claim, ready, evaluator), disabled
+  unless configured by the operator, bound each waiting state. Exceeding one
+  records an attention observation and a `stalled` notice without changing
+  the loop's status or revision: no redispatch, new round, process
+  termination or session replacement follows from elapsed time, pending work
+  stays claimable, and any real transition clears the observation. Paused,
+  unknown, intervention-bound and terminal loops are not timed; a backward
+  clock raises no attention; repeated checks write nothing new.
+- **Boundaries:** controller pause and stop remain controller transitions and
+  make no claim about running native tools or delegated jobs; operator
+  controls stay on the operator command path (D9.5); model text or
+  acknowledgement never becomes operator approval; authenticated routing of
+  operator decisions from a chat surface remains future work. Existing loop
+  records without deadline fields stay valid and untimed.
+- **Checks:** `tests/test_development_notices.py` (controller and gateway,
+  controlled clock), transport tests for notice events, replay and
+  acknowledgement, and the service/bridge integration scenario (stalled
+  notice from the live tick, completion and stop notices, reconnect replay,
+  wrong-session refusal, unrelated replies not captured, operator deadline
+  control). These are synthetic; live acceptance requires an observed
+  activation of the service and bridge.
+- **Cross-reference:** ODIN-ADR-038 (accepted and implemented) re-addresses a
+  handed-over loop's unacknowledged notices to the successor native session.
+
+### ODIN-ADR-031 — Measured usage and accountable development orchestration
+
+- **Date:** 2026-10-20.
+- **Status:** operator-authorized local experiment; live activation and model
+  comparisons remain separate from synthetic implementation evidence.
+- **Authority:** the operator asked for implementation using Sol subagents after
+  refining the executive → separate project orchestrator → native subagent
+  hierarchy and the usage/context experiment. This refines ADR-027/028's local
+  workflow and ADR-005's bounded-context experiment; it does not change Saga
+  contracts, close X-12, remove required review, or replace D7 commitments.
+- **Decision:** new loops may pin a requested delegation profile. The service
+  creates one stage-bound assignment via `odin_loop_delegate` and refuses ready
+  without its successful separate-session return and executive-attributed
+  acceptance. Existing loops are unchanged. Requested Opus/Haiku profiles are
+  explicit experiments; native model observations remain separate from requests.
+- **Accounting:** a service-owned metadata ledger deduplicates request identities,
+  preserves nullable counters, excludes inclusive aggregates from additive totals
+  and records coverage. Explicit collectors and operator imports do not establish
+  complete automatic source discovery. Provider quota samples remain account-
+  scoped observations with timestamps; token totals imply neither subscription
+  quota nor charges. Imports are not cryptographic metering evidence.
+- **Controls:** optional policies observe or hold future stage/worker/evaluator
+  admission. Known cumulative project lower bounds count even with incomplete
+  telemetry. Missing/stale required samples stay explicit. No running native
+  process is interrupted; these are neither hard spending caps nor quota
+  reservations. Holds preserve work identities, objectives and round bounds.
+- **Continuity:** bounded attributed checkpoints retain obligations, review and
+  evidence references across native compaction without replacing canonical
+  records. Native compaction window configuration preserves the executive UUID
+  and activates on a subsequent start; actual compaction remains harness-owned.
+- **Checks and rollout:** usage/policy, profile, context, Gateway/MCP and staged
+  delegation synthetic tests cover the rules. The runnable experiment and its
+  remaining live acceptance work are in [USAGE-AND-ROUTING.md](USAGE-AND-ROUTING.md).
+  This is not proof of nested native delegation, automatic collection coverage,
+  cheaper accepted changes, or Saga isolation and limit guarantees.
+- **Amendment (2026-10-21, operator direction):** account limit telemetry
+  "should trigger events when certain thresholds are reached". A newly
+  imported sample that moves a label to another admission band records
+  `usage.limit_band_changed` and a durable `limit_band` notice, delivered to the
+  executive through its existing channel and acknowledged with `odin_loop_ack`.
+  Status-line quota samples count as `claude.five_hour` and `claude.weekly`. For
+  `claude.weekly.fable` at `ordinary_stop` or above, the notice suggests the
+  operator stage `executive-configure-model --model claude-opus-5-5`, a new
+  command that stages the executive's model for its next resume while keeping
+  its session and login. Bands still hold nothing, and no code switches a model:
+  the model remains the operator's decision. The status-line helper and watcher
+  may follow the executive's manifest (`--executive-state`, `executive_state`)
+  instead of a fixed native UUID, so telemetry survives `executive-new-session`.
+  Tests are in `tests/test_limit_notices.py`, `tests/test_executive_model.py`,
+  `tests/test_usage_watch.py` and `tests/test_usage_statusline.py`. This record
+  does not state their results. Live delivery requires an observed activation.
+- **Amendment (2026-10-22):** with `subagent_model_force`, delegated Claude
+  launches also set `CLAUDE_CODE_FORK_SUBAGENT=0`, because the built-in fork
+  agent's model is `inherit` and force keeps it, and set
+  `CLAUDE_CODE_WORKFLOW_SUBAGENT_MODEL` to the forced model for workflow
+  agents. Both names and the falsy parsing of `0` were read from the Claude
+  Code 2.1.308 binary. Live behaviour is unverified, so session views report
+  `fork_subagent: "disabled_requested_not_verified"`. Inherited skill models
+  and provider fallbacks remain exceptions.
+- **Cross-reference:** ODIN-ADR-038 (accepted and implemented) lets the
+  successor of a handed-over loop checkpoint against it and, on request, read
+  its predecessor's latest checkpoint.
+
+### ODIN-ADR-032 — Native peer messaging for live coordination
+
+- **Date:** 2026-10-21.
+- **Authority and status:** operator-authorized local experiment: use Claude
+  Code cross-session messaging as a primitive where its tradeoffs improve on
+  the current solution. Extends ADR-026/027/028's native development exception
+  and Odin-owned D7.7; no Saga or producer interface is changed.
+- **Decision:** opt-in executive and delegated Claude sessions request
+  `crossSessionInbound: "accept"` through per-launch `--settings` and receive
+  distinct UUID-derived native names. Use native `ListAgents` and `SendMessage`
+  for clarifications, progress facts and result-available hints during live
+  work. Reuse the native implementation; do not author a parallel socket
+  protocol, inbox or automatic relay.
+- **Tradeoff:** peer messaging can reach a running worker between tool calls
+  and wake an idle native executive. A print-mode worker exits after its turn,
+  so subsequent work still needs Odin's durable resume/follow-up. Native peer
+  delivery is plain text, can be refused or held, and does not establish durable
+  replay, recipient action, cross-provider support or completion. Each delivered
+  message may consume model usage. Requested acceptance is not a per-peer
+  allowlist; native settings precedence and platform/provider behavior apply.
+- **Authority:** Odin's service retains commitments, assignments, results,
+  acceptance, loop state and at-least-once reconciliation. Native peer messages
+  confer no operator approval and do not enter a privileged service command
+  path. The existing MCP loop channel and completion hook remain in use.
+- **Checks:** schemas constrain the opt-in and generated settings; native
+  version checks and deterministic names support discovery; executive tests
+  cover staged activation, identity/context/hook preservation and removal of
+  the override; delegation tests cover opt-in, resume and Codex refusal. Native
+  guidance requests exact-peer resolution, correlation IDs, batched useful
+  messages and no acknowledgement loops; these are prompt guidance, not
+  service-enforced message budgets or sender authentication. Live acceptance
+  requires observed native delivery and a correlated reply. Configuration and
+  status continue to label delivery unverified.
+- **Scope:** disabled by default. The operator can activate only the relevant
+  Odin sessions without changing global Claude settings. Disabling removes
+  Odin's `accept` override; it does not impose native `refuse`. X-12, X-15,
+  required review and Saga guarantees remain unchanged. See
+  [the transport comparison and activation procedure](NATIVE-PEER-MESSAGING.md).
+
+### ODIN-ADR-033 — Executive ownership and delegated implementation
+
+- **Date:** 2026-10-21.
+- **Authority:** the operator observed Fable doing implementation instead of
+  preserving executive context, approved changing the operating pattern now,
+  and requested activation and a continuation prompt. This amends ADR-026's
+  direct-development role when explicitly configured and ADR-031's restriction
+  that a delegation profile can only be selected at loop creation. It changes
+  no producer interface, Saga guarantee or required review.
+- **Decision:** the version 3 executive can stage `implementation_mode: delegated`
+  for its next owned resume. Fable retains objectives, workstreams, decisions,
+  evidence inspection and acceptance. A separate resumable Opus project
+  orchestrator owns implementation, integration, tests and detailed progress,
+  with Haiku children for suitable bounded tasks. Reuse the orchestrator and
+  send compact changes and artifact references rather than full executive
+  histories. Native child use and model identity need observations, not just a
+  matching requested configuration. Do not create useless child work to meet
+  a count or weaken independent review to fit the worker model.
+- **Executive controls:** the native launch removes ordinary shell/REPL,
+  editing, worktree mutation and native child-spawn tools through
+  `--disallowedTools`. Native reads, discovery, peer tools and Odin MCP remain.
+  This is a native workflow boundary, not OS isolation or a sandbox for plugins
+  and alternate tools. Model instructions forbid routing around it. Existing
+  unrestricted profiles are retained unless the operator selects the role;
+  an explicit `direct` rollback is staged in the same way. The session UUID,
+  login, MCP channel, hooks and context settings are preserved.
+- **Existing-loop transition:** `loop_control/configure_delegation` is operator
+  only. It requires the expected loop revision and exact stage/session plus
+  requested profile. It accepts only a paused pending/claimed executive stage
+  without a profile, binding, ready evidence or capture, and refuses active
+  evaluator/delegation work. It preserves stage/claim identities, objectives,
+  round bounds and prior history. The operator must separately drain native
+  work before activation; service quiescence does not establish that a native
+  tool or subagent has stopped. Retries reuse the same operation identity.
+- **Enforcement and limits:** on resume, existing stage delegation checks require
+  a matching separate orchestrator and accepted successful return before ready.
+  Already completed work is handed over as evidence, never relabelled as
+  delegated execution. Executive-only claim/ready/footer instructions stay with
+  Fable even when the original stage text is supplied as task reference. The
+  launch and service checks do not prove the quality of a return, child-agent
+  execution or savings. Native observations, independent review and measured
+  context/usage are still required. Tests cover staging, controls, refusals,
+  identity preservation and recovery; live activation is separate evidence.
+
+### ODIN-ADR-034 — Bounded executive intervention and concise working context
+
+**Date:** 2026-10-21. **Status:** recorded, operator-authorized local pilot change.
+
+**Context.** The delegated executive repeatedly attempted removed native tools
+for diagnostics and housekeeping, guessed the checkpoint's undisclosed schema,
+and consumed large historical status payloads. The operator requested a bounded
+way to intervene, then directed implementation, live testing and continuation
+of the existing eight-round development loop.
+
+**Decision.** Amend ADR-033's blanket removal of ordinary implementation tools
+for an explicitly reconfigured v3 delegated executive. Keep delegation as the
+normal workflow. `executive-configure-execution-role --implementation-mode
+ delegated` stages intervention support for the next resume; an older manifest
+without `intervention_enabled` retains its prior deny list. After that one
+activation, `odin_intervention_begin/end/status` operates within the same
+native session without another restart or native permission-mode change.
+
+A begin command records a purpose, at most eight exact tool-input digests and a
+lifetime of at most 300 seconds. Bash, Write, Edit and NotebookEdit admissions
+use a synchronous native PreToolUse hook. Each permit is single-use, bound to
+the project, native session, configured cwd and executable input; cosmetic
+Bash descriptions are ignored. Background requests and sandbox overrides are
+refused. Native child/orchestrator creation remains with Odin delegation.
+A native completion/failure hook closes an admitted call; exhausting all
+permits closes the intervention, and unused permits expire. Explicit end is
+also available. Expiry does not kill a process. An admitted call with no
+observed completion remains uncertain and prevents new delegated work.
+A separate operator-only `intervention_reconcile` command records an inspection
+statement, closes the window and marks those calls reconciled, never successful;
+it is unavailable to the executive tools.
+
+The service is the sole permit writer. Begin/admission refuses while any
+project turn is queued, launching, running or interrupting. Queueing another
+delegated turn refuses while a permit window or unresolved admission remains.
+These checks share the service transaction. Hooks fail closed on unavailable,
+invalid or contradictory service evidence; the launch requires native
+`onFailure: block` support (Claude Code 2.1.295 or later). Hook completion is
+native evidence, not independent process attestation. This same-user pilot
+is not an OS sandbox; an exact Bash command can itself access other paths or
+launch processes. No Saga guarantee or new privilege domain is introduced.
+Existing authorization is required; a permit is not permission to expand it.
+Do not place credentials in purposes or commands. Retain digests rather than
+raw tool arguments in intervention records and command audit history.
+
+Checkpoint tool discovery exposes its actual input fields. Invalid checkpoint
+arguments are rejected before dispatch with bounded schema diagnostics; a
+transport failure after dispatch retains explicit unknown-write handling.
+Executive delegation and loop responses default to a bounded compact view
+with exact identity/state, explicit omissions and scoped detail retrieval.
+Canonical records, operator CLI output and receipt operation identity stay
+unchanged. Native auto compaction remains separate from attributed checkpoints
+and from the planned independent memory compactor; retain the configured
+window while evaluating payload reduction first.
+
+**Checks.** Intervention tests cover exact matching, consumption, expiry,
+completion/failure, unknown outcomes, identity and active-work exclusions;
+launch tests cover preserved session identity and fail-closed hook settings.
+Bridge tests cover schema discovery, pre-dispatch rejection, transport
+uncertainty, bounded projections and detail/replay behavior. Live acceptance
+must observe the actual Fable tool manifest and hook decisions after activation,
+then test through the existing orchestrator. Synthetic tests alone are not
+proof of native enforcement. No stage identity or eight-round bound is reset.
+- **Amendment (2026-10-21, operator decision, executive memory notes):**
+  when the operator configures an absolute existing directory with
+  `executive-configure-memory-directory --memory-directory`, the native
+  intervention hook allows `Write` and `Edit` without a permit only when the
+  real target lies strictly inside that directory through existing real
+  directories. Relative paths, `..`, a symlink in any component and targets
+  outside the directory still need a permit; `Bash`, `NotebookEdit` and every
+  other tool are unchanged, and permits keep working as before. The setting
+  lives in a private state file (`executive-pilot/memory-directory.json`),
+  not the launch manifest or hook arguments, so launch schemas stay
+  unchanged; the hook revalidates it on every call, and an unconfigured
+  installation keeps the prior behaviour. The check is a path boundary,
+  not an inode boundary (hard links are not detected), and it runs at
+  `PreToolUse`, so a concurrent change before the write is not prevented.
+  Memory notes are working notes
+  only: they never record, replace or evidence Odin commitments, approvals
+  or acceptance.
+- **Amendment (2026-10-22, operator decision, executive intervention
+  permits):** the delegated-mode friction of small operations (the trial
+  kickoff alone cost a full delegated Opus turn) bought no safety, so the
+  hook gains two local paths and permits are relaxed. The boundary is still a
+  native workflow check, not OS isolation.
+  - *Read-only diagnostics without a permit.* The hook admits locally,
+    without calling the service, a foreground Bash call made entirely of
+    allowlisted segments: git read subcommands (including `git -C <path>`,
+    listing-only `branch`, `reflog`/`reflog show`, `worktree list`,
+    `stash list`, `remote -v`), `ls`, `cat`, `head`, `tail`, `wc`, `stat`,
+    `du`, `df`, `find` without `-exec`/`-execdir`/`-delete`/`-ok`/`-fprint*`,
+    `grep`/`rg` without `--pre`, `jq`, `sort`, `uniq`, `cut`, `ps`, `pgrep`,
+    `date`, `uptime`, `id`, `whoami`, `which`, `pwd`, `systemctl --user`
+    `status|show|is-active|is-enabled|list-units|cat`, `journalctl --user`
+    without follow, vacuum, rotate or flush options, and the pilot launcher
+    (`run` beside the state directory) with status actions only. `;`, `&`,
+    backticks, `$(`, `<`, `>` and newlines are refused anywhere; `|` joins
+    only allowed segments; unquoted `$`, globs, braces, parentheses, `#`
+    and `!` are refused; `run_in_background` is refused; git is refused when
+    it would start inside the configured memory directory, and memory-directory
+    writes refuse `.git` components, so the executive cannot plant a git
+    configuration for read-only git to run. A down service can
+    therefore still be diagnosed. This exposes nothing beyond native Read,
+    except that git, systemd and the operator's shell environment may run
+    programs they are already configured to run.
+  - *Operator-registered scripts.* `executive-register-script --path <abs>`
+    (and `--remove`) is an operator-only CLI action with no executive tool. It
+    stores the path and SHA-256 in `executive-pilot/registered-scripts.json`,
+    refusing relative, non-normalized and symlinked paths. The hook admits a
+    Bash call whose first word is a registered path, with no symlink in any
+    component and a current hash equal to the registration, followed by plain
+    arguments and optional `>`, `>>`, `1>`, `2>`, `<` redirections to
+    absolute paths or `2>&1`; background is allowed. A redirection target may
+    not be a registered script, lie in the state directory, contain `.git` or
+    pass through a symlink. The hash is checked at
+    `PreToolUse`, so a change between the check and execution is not
+    prevented, and the script itself does whatever its bytes do.
+  - *Permits.* Lifetime up to 3600 s (was 300); up to 32 calls (was 8); an
+    optional `uses` (1–20) expands into that many single-use permits for an
+    identical call; an optional `background: true` per Bash call binds
+    `run_in_background` into the input digest. A background permit closes at
+    launch (`launched`), is never an unknown outcome, and its view states
+    that Odin does not observe the outcome. Sandbox overrides stay refused.
+  - *Kept.* The busy guard for permit begin and admission while delegated
+    turns are queued or running; unknown-outcome tracking and operator-only
+    reconcile; fail-closed refusal of anything matching none of the paths,
+    with a refusal message that names the three paths; delegation as the
+    default for implementation work.
+  - *Audit.* Each admission without a permit (read-only, registered script,
+    memory directory) appends a private JSONL record (time, path kind, tool,
+    input digest; no command text) to `executive-pilot/intervention-audit.jsonl`.
+    The hook refuses the call if it cannot append the record.
+  - *Checks.* `tests/test_executive_admission.py` covers allowlist accept and
+    reject tables (injections, writing options, background), registered
+    scripts (hash mismatch, symlink, relative path, removal, extra shell
+    operators), permit bounds, `uses`, background binding and view, admission
+    with the service unavailable (a real hook process with no socket) and the
+    content-free audit. Live native behavior needs observation after the
+    operator's activation.
+- **Amendment (2026-10-22, operator decision, permit follow-ups):** two of
+  the known limits above are narrowed; redirection writes, read-only `cat` and
+  background invisibility stay documented limits.
+  - *Interpreter refusal.* `executive-register-script` refuses an
+    interpreter or shell with the fixed code `script_is_interpreter`. It
+    matches the basename of the given path and of its real path (shells,
+    language interpreters, package runners such as `uv`/`uvx`/`npx`,
+    command wrappers such as `env`, `xargs` and `sudo`, and tools with a
+    command escape such as `find`, `sed`, `git`, `make`, editors and pagers,
+    with version suffixes; a name list is not complete, and a script named
+    like one of them is refused too) and the file's identity (inode, or size and SHA-256) against the
+    interpreter-named programs on `PATH` and the standard directories. A
+    script whose shebang names an interpreter remains registrable. The hook
+    rechecks at admission, so an earlier registration of an interpreter is
+    refused; an exact permit is still consulted, and its refusal carries
+    `script_is_interpreter`. A copy of an interpreter outside those
+    directories is not detected.
+  - *Keyed audit fingerprints.* New audit records (schema version 2) carry
+    HMAC-SHA256 of the executable input under a per-installation 32-byte key
+    created on first use in `executive-pilot/audit-key` (0600, linked into
+    place atomically, refused if unsafe) and a key id derived from the key.
+    The key is stable across restarts and never logged, shown or exported.
+    Version 1 records stay as written and are reported as unkeyed. The key
+    protects copies of the audit file only. Anyone who can read the state
+    directory can read the key, and that includes the executive itself through
+    a read-only `cat`, so it does not stop a local reader from confirming
+    guesses.
+  - *Refusal codes.* The hook no longer reports a call that matched no path
+    as `intervention_admission_unavailable`. It relays the service's fixed
+    code (`intervention_permit_required`, `delegated_work_active`), or
+    `intervention_not_admitted`. It reserves
+    `intervention_service_unreachable` for a permit path that did not answer
+    and `intervention_service_response_invalid` for a reply that arrived
+    malformed.
+  - *Known gap.* A configured memory directory may contain a registered
+    script. Write/Edit there can replace it; the hash check refuses the
+    changed script, except for a write that lands between the hook's check
+    and execution.
+  - *Checks.* `tests/test_executive_admission.py` covers symlinked
+    interpreters, versioned names, a renamed ELF copy, a shebang script that
+    is allowed, an earlier interpreter registration refused at admission,
+    key creation and permissions, stable fingerprints across a hook process,
+    marking of unkeyed records, no command text or key in records or status,
+    and each refusal code.
+
+### ODIN-ADR-036 — Workstream delegation sessions and a single integration owner
+
+- **Date/status:** 2026-10-21; accepted by operator decision; phase 1
+  implemented. Phase 2's raised per-lineage concurrency is configured by
+  operator decision since 2026-10-22, without the isolated credential test
+  (see the amendment below).
+- **Decision:** a delegation session may declare a `workstream` label
+  (`^[a-z0-9][a-z0-9._-]{0,63}$`) and a `role` of `integration_owner` or
+  `workstream`. Both are stored in the delegation session options, not in the
+  PlanningSession record. If `role` is omitted it is `workstream` when a label
+  is given and `integration_owner` otherwise. `role: workstream` without a
+  label is refused with `workstream_label_required`. A session declaring
+  neither is legacy and behaves as the integration owner; an existing project
+  session keeps working unchanged.
+- **Admission:** over the active session states (`starting`, `active`, `idle`,
+  `retiring`) in a project:
+  - at most one session per workstream label (`workstream_already_has_active_session`);
+  - at most one integration owner, legacy sessions included
+    (`project_already_has_integration_owner`);
+  - `project_already_has_active_session` applies only when a legacy session
+    meets another legacy session;
+  - every active session needs a distinct workspace path
+    (`workspace_in_use_by_active_session`).
+  Resume applies the same checks against the other active sessions.
+- **Integration:** only the integration owner, or a legacy session, sets the
+  project's `interface_decision_owner` on create or resume. A workstream
+  session never sets or releases it. A workstream session commits on its own
+  branch in its own git worktree, never fast-forwards the canonical checkout,
+  and returns a merge-ready head plus receipts. The executive assigns
+  integration to the integration owner as a follow-up turn. Odin cannot
+  police git. The role is shown in views, and the rule is carried by the
+  session's system briefing and these documents.
+- **No new model layer:** the integration owner is an ordinary orchestrator
+  session with a flag. Haiku remains the only subagent tier.
+- **Routing and status:** routing stays by `session_id`. Status gains a
+  `project_aggregate`: each session's workstream, role, state and running
+  turn; the integration owner; queued and running turns per credential
+  lineage, with the limit; and a cost total labelled `attributed_not_verified`.
+  Per-session routing and `odin_loop_delegate` are unchanged.
+- **Retirement and adoption:** commitment adoption at session create from
+  retired sessions is restricted to the same workstream. Legacy and
+  unlabelled sessions adopt only from unlabelled sessions.
+- **Accounting:** claude-code-print results report cost as an inclusive
+  aggregate for the resumed native session, so summing each result's figure
+  double counted. Views now use per-turn deltas:
+  - a turn's delta is its figure minus the previous inclusive figure of the
+    same native session;
+  - the first turn of each native session counts as its own delta;
+  - unknown stays unknown and does not move the baseline, so the next known
+    turn's delta also carries the unknown turn's share;
+  - a drop below the previous figure counts as its own figure.
+  A session's total is the sum of its deltas. The project aggregate is the sum
+  of the sessions and is labelled `attributed_not_verified`. Raw inclusive
+  figures stay in each turn result for audit. Codex per-turn costs are summed
+  as reported.
+- **Concurrency:** a configuration key, `max_concurrent_turns_per_lineage`
+  (integer 1–8, default 1; `delegation-configure --max-concurrent-turns-per-lineage`).
+  `launch_pending` counts running turns per credential lineage lock across
+  sessions and launches up to that number. Each session still runs at most one
+  turn at a time. The default 1 reproduces the previous behaviour exactly. A
+  value above 1 needs `lineage_policy: shared_accepted`: `write_config` refuses
+  it otherwise and `launch_pending` uses 1, because the runner's exclusive
+  lineage lease would refuse the concurrent turn.
+- **Interleaving (not parallel execution):** with the default 1, which is the
+  only value in use, Odin runs one `claude -p` turn at a time on the dedicated
+  login. Several orchestrator sessions interleave their turns; they do not run
+  in parallel. Raising the value is ADR-036 phase 2. It was to wait for an
+  observed concurrent-turn credential test on isolated state, under open X-12
+  and D24.4a; the 2026-10-22 amendment below raised it without that test.
+- **Legacy sessions:** a session declaring neither `workstream` nor `role` is
+  legacy and is treated as the integration owner.
+- **Amends and cross-references:** the one-session-per-project rule of
+  ODIN-ADR-027 and ODIN-ADR-022. Each carries a cross-reference bullet to this
+  record. No Saga-owned interface, approval or guarantee changes.
+- **Implementation notes (phase 1):**
+  - Tests are in `tests/test_delegation_workstreams.py`,
+    `tests/test_delegation_accounting.py` and
+    `tests/test_delegation_workstream_inputs.py`. This record does not state
+    their results.
+  - Limits: Odin does not enforce git rules; cost is attributed, not verified;
+    no isolation is added; default concurrency is 1 per lineage.
+  - One planning owner is kept: the integration owner (or legacy session) is
+    the project's planning owner of ODIN-ADR-022 and ODIN-ADR-027 and alone
+    holds `interface_decision_owner`. A workstream session is a delegation
+    session record without planning ownership.
+- **Amendment (2026-10-22, operator decision, parallel turns):** the operator
+  set the pilot's `max_concurrent_turns_per_lineage` to 8, the maximum,
+  without the isolated concurrent-turn credential test, accepting the refresh
+  race risk of D24.4a and X-12 ("we can make changes if the credential
+  refresh races become an issue"). Delegated `claude -p` turns on the shared
+  login may run in parallel, still one per session. This is configuration
+  only; it takes effect at the next service restart. Watch each turn's
+  `lineage.credential_changed` and any authentication failure across
+  sessions and the executive; on a refresh race, set the value back to 1
+  with `delegation-configure` and record it. Parallel turns use the
+  five-hour window faster; ODIN-ADR-031's limit-band notices remain the
+  warning. X-12 and D24.4a stay open.
+
+### ODIN-ADR-037 — Web app as the primary human view, with an agent tree
+
+- **Date/status:** 2026-10-21; operator direction recorded from the
+  [web app handoff](design/WEB-APP-HANDOFF.md). The direction (web app as
+  the primary human view, the agent tree, Chromium app presentation and the
+  revised role of terminal surfaces) is accepted. The layout, rollout and
+  implementation defaults below are default design. Only a synthetic
+  prototype exists; no service integration, operator command, update
+  stream or desktop packaging is implemented. The
+  [work plan](design/WEB-APP-WORKPLAN.md) tracks each package.
+- **Context:** D20.5 and D20.11 made the terminal workspace (Herdr) the
+  desk overview and part of the first configuration. ODIN-ADR-010 kept that
+  first configuration while turning surfaces into adapters, and
+  ODIN-ADR-007 promised one human view, which the roadmap scheduled with
+  the I4 heimdall import. The operator works across many concurrent sessions and wants one
+  navigable place to see who started whom, what each session is doing and
+  where to intervene, without a terminal workspace.
+- **Decision:**
+  - **Primary human view.** A purpose-built web app is Odin's primary human
+    view. It combines commitments, planning conversations, sessions, runs,
+    review results and evidence. It opens on an overview (projects,
+    commitments needing attention, pending decisions and approvals, active
+    work, blocked distinguished from running) and offers a project workspace
+    with navigation, a planning conversation or activity area, an agent
+    tree and a detail panel. History keeps completed and retired sessions
+    inspectable with their original relationships and evidence.
+  - **Agent tree.** The primary tree edge is session ancestry only: which
+    recorded session started which. Assignment ownership, review,
+    delegation and run association are separate typed relationships and
+    never parent edges; a reviewer is never drawn as started by the worker
+    it reviews. Multiple roots are shown. A session with no recorded parent,
+    including an imported one, stays unparented; ancestry is never inferred
+    from timing, layout or transcript wording. Resumption and new attempts
+    follow the recorded lifecycle identity rules. A compact keyboard-usable
+    list is the equivalent of the tree and replaces it on narrow screens.
+  - **States.** The view keeps session activity, assignment progress and run
+    outcome separate. A session ending or saying "done" never marks a run
+    verified (D20.6). `host_offline`, unknown outcomes, transcript gaps,
+    stale observations and unknown cost stay visible; unknown cost is never
+    shown as zero, estimates are labelled, and a parent's aggregate is not
+    counted again when descendants are summed.
+  - **Browser and service.** The browser is a client of Odin's service. The
+    service supplies projections of its records as a snapshot plus a
+    resumable update stream with an explicit cursor or revision, and
+    accepts commands only through the recorded command path shared by all
+    operator surfaces. The browser may hold layout preferences and current
+    selection; it never holds an editable task store or lifecycle authority
+    (ODIN-ADR-007). The app is served by the service deployment or alongside
+    it under the same authenticated origin. Model credentials and service
+    secrets never reach browser code or frontend storage. Authentication,
+    authorization, request validation and protection of state-changing
+    requests are defined before any real command is enabled; project and
+    record access checks run in the service. Transcript content is rendered
+    as untrusted data.
+  - **Desktop presentation.** On Omarchy the same app runs in a dedicated
+    Chromium app window with a launcher entry and its own window identity;
+    an ordinary browser tab reaches the same service and records. No
+    Electron or native wrapper is needed for v0. Closing the window never
+    stops sessions or loses work.
+  - **Terminal surfaces.** Herdr and other terminal workspaces become
+    optional inspection and attachment adapters where a harness adapter
+    supports them; embedding a terminal in the web app is optional for v0.
+    The operator does not need a terminal workspace to understand overall
+    progress. Telegram stays the remote surface. The workstation daemon
+    still hosts sessions and local integrations (ODIN-ADR-009); the web app
+    is not a session host.
+  - **Rollout.** Human-view work proceeds as packages inside the existing
+    increments, not as new increments: documentation alignment; synthetic UI
+    prototype (no gate); record and projection foundation (I0 schema work);
+    service read integration (I1/I2, fake backend, labelled); operator
+    command integration (after the security definitions above, and for
+    Saga-touching commands after the existing live gates); desktop delivery.
+    Human-view delivery does not wait for the I4 heimdall import, whose
+    G-10 prerequisites stay attached to the import. Runtime features appear
+    only when their records and service operations exist; a visual
+    prototype never stands in for them.
+- **Consequences:** I/O contract §10 gains the web operator surface with
+  relationship semantics, query/update behaviour, freshness, reconnect,
+  command acknowledgements and approval content binding. Blueprint §5 and §7
+  describe the browser/service boundary and drop the Herdr-first overview.
+  The roadmap adds a human-view track and separates it from the I4 import.
+  Acceptance scenarios AC-51 to AC-57 are proposed. The repository gains a
+  top-level `web/` directory for the frontend.
+- **Inherited relationship:** amends D20.11's first configuration: the web
+  app replaces "the terminal workspace for inspection" as the overview and
+  inspection surface; one Odin service, one project-scoped planning
+  session, a small worker pool, Telegram and the second-project step are
+  unchanged. Amends the remaining desk-overview description in D20.5 ("the
+  terminal workspace (Herdr) shows an overview … and each worker's
+  terminal"), already superseded in part by ODIN-ADR-010: the overview and
+  per-project view move to the web app, and a worker's terminal is opened
+  only where its adapter supports attachment. Amends ODIN-ADR-010's
+  surface list (the web app is an adapter on the one service API and the
+  primary desk surface) and its "Preserves … D20.11 (Herdr and Telegram
+  remain the first configuration)" clause. Amends ODIN-ADR-007's
+  consequence "One human view shows commitments, runs and transcripts with
+  their owners attributed": that view is this web app and is delivered
+  independently of the I4 import. Amends D15's parenthetical reading of
+  read-only Herdr inspection in I3 as "D20's first configuration"; that
+  inspection stays an I3 peer integration. Preserves D20.5's one command
+  path, approval binding and direct stop; D20.6 (workspace "done" and
+  "wait" do not establish completion); D20.7; D20.9; ODIN-ADR-007's single
+  task authority; ODIN-ADR-009's daemon; ODIN-ADR-010's remaining rules;
+  every Saga-owned clause.
+- **Must not claim:** that a service-backed web app, operator commands, an
+  update stream, authentication or desktop packaging exists; that synthetic
+  prototype evidence is fake-backend, service or desktop evidence; that
+  Herdr's automation API has been reviewed (§5.8); any change to Saga's
+  records, approvals or guarantees.
+
+### ODIN-ADR-038 — Operator handover of a development loop to a successor native session
+
+- **Date/status:** 2026-10-21; proposed by operator direction ("we need a way
+  to hand a loop from one session to another") and accepted by the operator
+  the same day, resolving the four open questions Q1–Q4 (see *Resolved
+  questions*). Implemented 2026-10-22, limited to what the synthetic tests
+  prove: `odin development-handover` (gateway action `loop_handover`), the
+  loop field `previous_session_ids`, the `development_loop.handed_over`
+  history event (which also records the loop's project; the predecessor
+  checkpoint read follows only handovers in the caller's project),
+  `odin_context_status` with `predecessor: true` and the
+  `development_loop_handover` rotation output. Live acceptance — an observed
+  rotation and handover on the pilot — remains open. The fixed refusal codes
+  under *Diagnosis* are implemented separately and transfer nothing.
+- **Problem:** a development loop, its stages and its notices carry the native
+  session UUID that started the loop (ODIN-ADR-028, ODIN-ADR-030). A context
+  checkpoint that names a loop must come from that session (ODIN-ADR-031).
+  `executive-new-session` (ODIN-ADR-024, ODIN-ADR-026) rotates the executive's
+  UUID and keeps native history, but the store has no transfer. The successor
+  cannot read, claim, ready or checkpoint against its predecessor's loop. A
+  project allows one active loop (`development_loop_active_project`), so the
+  stranded loop also blocks the successor from starting a new one. Today the
+  only remedy is an operator stop, which ends the loop's run of rounds,
+  evidence and notices.
+- **Observed case:** on 2026-10-22 (UTC) the pilot executive was rotated during
+  recovery at `36c0f5d`, from `12c959f5-…` to `c51e6ace-…`. Loop
+  `01M5DS0FY4C7KTWY3D3J3TF1XH` (`needs_operator`, round 8 of 8, revision 58)
+  stayed with the old UUID. `odin_loop_status` was denied, and two checkpoints
+  naming the loop returned the generic unknown-write error, which invited
+  identical retries that could never succeed.
+- **Decision:** add an operator-only transition, gateway action
+  `loop_handover`, on the terminal surface:
+  `odin development-handover --loop ID --from-session UUID --to-session UUID --expected-revision N --reason TEXT [--operation-id ID]`.
+  It moves ownership of one loop from one native session to another in one
+  transaction. The executive bridge gets no handover tool, and the voice
+  surface is refused. A successor asks for a handover only by reporting to the
+  operator; model-relayed text never authorizes it (ODIN-ADR-010).
+- **Preconditions,** each refused with a fixed code:
+  - the operation ID was not used with other arguments
+    (`operation_id_reused`); an identical replay returns the first receipt;
+  - the loop is not terminal (`loop_terminal`);
+  - `expected_revision` equals the loop's revision (`stale_loop_revision`);
+  - `from_session` is the loop's current owner (`handover_source_mismatch`),
+    so two handovers cannot race;
+  - `to_session` is a canonical UUID other than `from_session`
+    (`handover_same_session`);
+  - `to_session` owns no other active loop (`target_session_has_active_loop`);
+  - no executive stage is in progress: neither the status nor, when paused,
+    `paused_from` is `executive_claimed`, `executive_ready` or `unknown`
+    (`executive_stage_in_progress`). A claimed or ready stage may still be
+    running in the old native process, and its completion capture would be
+    refused after the move. The operator resolves it first with `loop_hold`
+    and `loop_reconcile`, or stops the loop. Reconciling as `not_started`
+    re-offers the stage, and the successor redoes it; partial edits left in the
+    worktree are not described by any record. Reconciling as `lost` leaves the
+    loop in `needs_operator` with no continuation, because continuing requires
+    a completed evaluator decision, so the loop can only be stopped.
+- **Effect,** in one transaction with its history event:
+  - the loop's `session_id` becomes `to_session` and its revision advances.
+    The loop record gains `previous_session_ids`, the earlier owners oldest
+    first, at most 16;
+  - a `pending` current stage is re-addressed to the successor. Its delivery
+    ID depends on the loop revision, so the predecessor's offer becomes stale
+    and the successor receives a fresh offer;
+  - the loop's unacknowledged notices are re-addressed to the successor and
+    offered again. Acknowledged notices stay with the session that
+    acknowledged them;
+  - rounds, `max_rounds`, no-progress counters, deadlines, the delegation
+    profile, evaluator jobs and delegation turns are unchanged; jobs and turns
+    are not bound to the executive session. A handover grants no rounds,
+    resumes no paused loop and answers no `needs_operator`;
+  - history records `development_loop.handed_over` with the loop, both
+    sessions, the new revision, the operator actor and the reason. The
+    history event, not the loop field, is the authority.
+- **After the handover:**
+  - the predecessor's loop calls are refused with
+    `loop_owned_by_other_session`. Its late completion capture finds no
+    active loop and creates no work, as for an ordinary native Stop;
+  - the successor may read the loop, claim the re-offered stage and
+    checkpoint with the loop's `loop_id`;
+  - checkpoints stay attributed to the session that wrote them and are never
+    rewritten. On request (`odin_context_status` with `predecessor: true`),
+    the successor reads the latest checkpoint of the session that handed the
+    loop to it, whether or not that checkpoint names the loop. It is
+    read-only and labelled `predecessor_checkpoint`, an attributed claim to
+    reconcile with loop status, commitments and git. Only sessions linked by a
+    recorded handover qualify; with none, the request is refused with
+    `no_recorded_predecessor`. Nothing is returned unasked.
+- **Runtime:** `executive-new-session` never moves a loop. After rotating, it
+  reads the service, read-only, for an active loop owned by the previous
+  session. If one exists, its output adds `development_loop_handover`: the
+  loop ID, its revision and the exact `development-handover` command for the
+  operator to run. If the service is unreachable, the output says the check
+  was not made and names the manual step; rotation still succeeds. The
+  runbook carries the same step.
+- **Not changed:** delegation sessions and turns, which are project-scoped;
+  the workstream rules of ODIN-ADR-036; native peer names, which follow the
+  new UUID; commitments; and every Saga-owned interface, approval or
+  guarantee. A handover is a local record change. It proves nothing about the
+  old native process.
+- **Diagnosis (implemented 2026-10-21, separately):** deterministic refusals
+  now reach the executive as fixed codes instead of the unknown-write error:
+  `operation_id_reused`, `loop_owned_by_other_session`,
+  `notice_owned_by_other_session` and the `checkpoint_*` codes listed in
+  [usage and routing](USAGE-AND-ROUTING.md#compact-executive-responses-and-checkpoint-diagnostics).
+  A loop in another project still returns the generic access-denied read
+  error, and an unknown loop and another project's loop share one checkpoint
+  code. Tests are in `tests/test_usage_gateway.py`. This record does not
+  state their results.
+- **Checks:** `tests/test_development_handover.py`: each refusal;
+  identical and conflicting replay; the predecessor refused afterwards; the
+  successor's status, claim, ready and checkpoint; a pending stage re-offered
+  under a new delivery ID; unacknowledged notices re-addressed and
+  acknowledged ones kept; the history event; persistence across a service
+  restart; no handover tool on the executive bridge; the voice surface
+  refused; the predecessor checkpoint returned only on request, only across a
+  recorded handover, and `no_recorded_predecessor` otherwise.
+  `tests/test_executive_runtime.py`: the rotation output names the handover
+  command when the previous session owns an active loop, and reports an
+  unmade check when the service is down. This record does not state their
+  results. Live acceptance needs an observed rotation and handover on the
+  pilot.
+- **Resolved questions (operator, 2026-10-21):**
+  - Q1, a claimed or ready stage: always refused, resolved first through
+    reconciliation or a stop. Moving it on an operator assertion that the old
+    process exited was rejected, because Odin cannot confirm the assertion and
+    a wrong one puts two processes on one stage. Revisit if rotations during
+    a stage become common.
+  - Q2, the predecessor's checkpoint: readable on request across a recorded
+    handover, as above. Automatic return was rejected so that a stale
+    model-written note is never read as current state unasked.
+  - Q3, rotation and handover: separate commands, with rotation printing the
+    exact handover command. A combined opt-in flag was rejected because the
+    two writes cannot be atomic; automatic handover was rejected because it
+    moves authority without an operator act.
+  - Q4, loop `01M5DS0FY4C7KTWY3D3J3TF1XH`: the operator chose to stop it
+    without a handover and start a new loop for its unfinished Objective 2,
+    with the round 8 evidence referenced in the new goal. The stop notice is addressed to the
+    retired session, so the operator informs the executive directly. Raising
+    `max_rounds` on a live loop was not adopted.
+- **Amends and cross-references:** the lifetime session binding of
+  ODIN-ADR-028, notice addressing in ODIN-ADR-030 and the checkpoint loop
+  binding in ODIN-ADR-031. ODIN-ADR-024 and ODIN-ADR-026's
+  `executive-new-session` is referenced, not changed. Each amended record
+  carries a cross-reference bullet.
+
+
+### ODIN-ADR-039 — Executive self-restart through an operator-run supervisor
+
+**Date:** 2026-10-22. **Status:** recorded, operator-directed local pilot
+change (correlation `odin-exec-supervisor-1`). Not active until the operator
+restarts the service on a head with it and starts `executive-supervise` in the
+executive's terminal.
+
+**Context.** Nothing let the executive restart itself. `odin_resume` is
+read-only context and `executive-activate-service` restarts only the service,
+so every staged model, mode or permit change, and every start after a reboot,
+needed someone to type `/exit` and the launcher into the executive's Herdr
+tab.
+
+**Decision.**
+- *Request tool.* `odin_executive_restart(reason, operation_id)` records a
+  request (id, native session, reason, times, state) through the executive
+  socket. The service refuses with fixed codes when a restart would be
+  unsafe: `intervention_outcome_unknown` (an admitted permit with no observed
+  completion), `loop_stage_active` (a loop of the project in
+  `executive_claimed` or `executive_ready`), `restart_request_pending` (one
+  open request per project) and `restart_session_not_current` (a session other
+  than the manifest's). Delegated turns do not block: they belong to the
+  service. A replayed operation_id with identical arguments returns the same
+  receipt. The request is a record, not authority.
+- *Supervisor.* `executive-supervise` is an operator CLI action run in the
+  foreground of the executive's terminal. It takes one lease per state
+  directory (`executive-pilot/supervisor.lock`) and launches Claude Code
+  through the ordinary start path (`executive_runtime.start`, with `--resume`
+  once a launch is recorded) as a child that keeps the terminal. The only
+  launch difference is that the inline `--settings` value gains turn-marker
+  hooks. It polls the service over the operator socket. When a request is
+  pending and the executive is idle it asks the service to move the request
+  to `stopping`, which rechecks safety and refuses the request (with a notice)
+  rather than waiting silently if it is unsafe; then it sends SIGTERM to the
+  Claude Code process and relaunches through the same start path, so staged
+  pending-development changes (model, mode, permits, prompt) apply and the
+  same native session resumes. It reports `relaunching`, then `restarted` or
+  `failed` with timings, exit status and whether a SessionEnd marker was
+  seen; the service records history and a durable executive notice delivered
+  over the development channel and acknowledged with `odin_loop_ack`.
+- *Idle signal.* A command hook (`odin.executive_turn_hook`) on
+  SessionStart, UserPromptSubmit, Stop, StopFailure and SessionEnd replaces a
+  private marker (`executive-pilot/turn-marker.json`, 0600: event, session,
+  time, sequence, background-task count; no prompt or response text). The
+  executive is idle when the latest marker is a Stop or StopFailure of the
+  current session, written after this launch, with no background task
+  reported (a Stop event without the field counts as none reported),
+  unchanged for 15 s, and the session transcript has not changed for 15 s.
+  The supervisor checks this again after the service accepts `stopping`,
+  just before the signal. A turn started by a channel message or Remote
+  Control changes the transcript, so it is not idle. A subagent's stop is
+  ignored. The hook skips the schema load (about 0.09 s per event, measured
+  locally) and the supervisor validates the marker when it reads it.
+- *Clean exit.* Claude Code 2.1.308 handles SIGTERM by calling its graceful
+  shutdown routine (`shutdown(143)`), which runs SessionEnd hooks and prints the
+  resume hint, with its own failsafe; this was read from the installed
+  binary, not observed in a live session. The supervisor signals the Claude
+  process only, waits up to 60 s and never escalates: a session that does not
+  exit is left running and the request fails with `stop_timeout`. No
+  keystrokes are sent.
+- *Exits.* An exit status 0 with no pending request (an operator `/exit`)
+  ends supervision without a respawn; with a pending request it is taken as
+  the stop. An unexpected non-zero exit relaunches after 10, 30 and 90 s, at
+  most three times in ten minutes; the next crash stops supervision and
+  records `crash_limit`. A request pending when the supervisor starts is
+  carried out by the first launch, and so is one left `stopping` or
+  `relaunching` by a supervisor that ended mid-restart, so it cannot block
+  later requests. A child that exits after a `stop_timeout` is taken as that
+  SIGTERM taking effect: it relaunches and is not counted as a crash. An
+  unanswered or malformed service reply never ends supervision; reports are
+  retried, and a refused report is journalled and dropped. Supervisor observations (`started`,
+  `supervision_started`, `supervision_ended`, `crash`, `crash_limit`,
+  `launch_failed`, `awaiting_operator_confirmation`) are history events, and a private
+  content-free journal (`executive-pilot/supervisor-journal.jsonl`) keeps them
+  when the service is unreachable; reports are retried on each poll.
+- *Development-channel confirmation.* In 2.1.308 the
+  `--dangerously-load-development-channels` warning is a setup screen whose
+  acceptance is not stored. It is skipped only when channels are off for the
+  session (the `tengu_harbor` gate or the `allow_channels` entitlement), for a
+  non-first-party provider, or under a policy block. Every other interactive
+  launch shows it. No user setting suppresses it. The supported alternative,
+  a plugin channel on the managed `allowedChannelPlugins` allowlist started
+  with `--channels`, needs plugin packaging and root-owned managed settings
+  and is not adopted here. A resume that showed no warning most likely had
+  channels off, and the development channel probably did not deliver in that
+  session. The supervisor never answers the warning; if the relaunched session
+  has not started within 120 s it records `awaiting_operator_confirmation` and
+  writes one line to the terminal asking the operator to answer it.
+- *After a reboot* the operator starts only `run executive-supervise` in the
+  Herdr tab; Herdr restores the shell, not the command. Systemd cannot host
+  the supervisor, because the session needs a terminal.
+- *Code root and repository root.* `ROOT` is only where Odin's code runs
+  from. The executive's checkout is `REPOSITORY_ROOT`: the repository named by
+  a deployed copy's marker (`.odin-deployment.json`: schema version, exported
+  revision, repository, export time), or `ROOT` when there is no marker, so
+  nothing changes when the two are the same. The manifest keeps the canonical
+  checkout as `repository_root`; `_load` and the pending-development
+  comparisons check it against `REPOSITORY_ROOT`, so a copy exported from
+  another repository is refused and staging from a copy never moves the
+  executive's working directory into the copy. The prepared bridge and
+  completion-hook files are compared with their code path removed and are
+  rewritten for the launching code under the runtime leases at each launch.
+  A deployed copy reports its marker's revision; its cleanliness is unknown
+  (`null`), not asserted.
+- *Pinned hooks.* `ROOT` is a resolved path, so when the launcher imports
+  Odin through a `current` symlink, a launched session's hook, status and
+  bridge commands name the revision directory it resolved to, not `current`.
+  The session keeps that revision until it is relaunched, even after
+  `current` moves. That is acceptable because every deploy ends with an
+  executive restart through the supervisor (item 8), so a session never
+  outlives the deploy that superseded it by more than that restart, and
+  within a session the hooks, bridge and prompt come from one revision. The
+  pinned copy is never pruned while it is `current` or the rollback target.
+
+- *Deploy path (items 5–9, 2026-10-22, second pass).* Restarts exist to
+  deploy self-improvement, and most improvements live in the service, so the
+  same supervisor deploys.
+  - *Request.* `odin_runtime_deploy(head, operation_id)` records a deploy
+    (requested head, previous revision, state, timings, a typed code, a drain
+    deadline). The service accepts only the current head of the configured
+    integration branch from a clean checkout on that branch, and refuses with
+    `deploy_not_configured`, `deploy_request_pending`,
+    `deploy_head_not_integration_head`, `deploy_tree_dirty`,
+    `deploy_checkout_not_on_integration_branch`, `deploy_checkout_unreadable`,
+    `deploy_head_already_current`, `deploy_not_migrated` (no `current` yet, so
+    no rollback target), `deploy_current_unreadable`,
+    `restart_request_pending` or a restart safety code. Restart and deploy
+    requests exclude each other. The
+    operator-only `executive-configure-deploy` records the repository, the
+    branch, the deploy root, the number of copies to keep and the drain
+    timeout.
+  - *Drain.* While a deploy is pending, draining or deploying,
+    `launch_pending` launches no delegated turn and the evaluator starts no
+    job; queued work stays queued and running work finishes. Status shows the
+    drain and what it waits for (running turns, running evaluator jobs, live
+    interventions, claimed stages) and how many queued turns it holds;
+    evaluator jobs in `unknown` need operator reconciliation, so they are
+    listed without holding the drain. The drain ends at the deploy's deadline
+    even without a supervisor; the supervisor, or the next deploy action,
+    records `drain_timeout`. A `deploying` step that has not reported for 900 s
+    stops draining too and is failed with `supervisor_lost`. Nothing is
+    killed.
+  - *Pinned copies.* The deploy root (default
+    `~/.local/state/odin-executive-pilot/deploy`, 0700) holds read-only
+    `git archive` exports at `<revision>` with their marker, and `current`, a
+    symlink switched by one atomic rename. The configured number of previous
+    copies is kept in addition to `current`; `current` and the rollback target
+    are never removed.
+    `executive-deploy-prepare --head` exports and switches without restarting
+    anything, for the one-time migration; it accepts only the clean
+    integration head, as a deploy does. The marker is created exclusively
+    without following links, so a committed file or link of its name is
+    refused. `odin/__init__.py` resolves the package path at import, so a
+    long-running process imported through `current` keeps loading modules
+    from the revision it started with after `current` moves. After the documented migration the
+    service and telemetry units, the launcher and the status line run from
+    `current`; the executive's hooks and bridge follow the launcher, pinned as
+    stated above.
+  - *Carrying it out.* The supervisor moves the deploy to `draining`; once
+    nothing runs and the executive is idle it stops the executive by the
+    self-restart path (the service rechecks the head as `deploying` begins),
+    so no turn sees the service restart. With no child running it exports the
+    commit, switches `current`, restarts the service unit through
+    `service_activation` (revision check and activation record; queued turns
+    held by the drain do not count against quiescence). If the activation is
+    refused before any restart, `current` is switched back and the deploy
+    fails with the refusal's code; the executive is relaunched without a
+    re-exec. If the executive starts a turn after `deploying` is recorded and
+    is not idle again within 300 s, the deploy fails with
+    `executive_not_idle` and nothing is stopped. Otherwise it checks health:
+    the socket answers, the reported revision matches and a read-only status
+    call works. On failure it switches `current` back, restarts the service on
+    the previous revision (an activation without the checkout check, since the
+    checkout is ahead, which also starts a unit the failed restart left down)
+    and records `rolled_back`, or `rollback_failed` when that fails too, after
+    pointing `current` at whatever revision the service reports; with no
+    previous copy it removes `current` (`rollback_unavailable`). Any
+    unexpected error after the export does the same alignment, records
+    `deploy_error` and still relaunches the executive. It restarts the telemetry unit after the service
+    in every case, records `restarting_executive`, and re-execs itself, so the
+    newly deployed code supervises and launches the executive. The locked
+    lease descriptor is handed to the new process (`ODIN_SUPERVISOR_LEASE_FD`,
+    checked against the lease file), so no other supervisor can take the lease
+    in between; if the re-exec fails, the current process relaunches the
+    executive and still records the outcome. The new
+    supervisor records `deployed`, `rolled_back` or `failed` once the session
+    starts, prunes copies, and the executive gets a notice with the outcome.
+    A deploy left between the switch and its report is carried at the next
+    supervisor start when `current` and the service report the requested
+    head, and otherwise failed with `supervisor_lost` after aligning `current`
+    with the service. A deploy found in `restarting_executive` later (for
+    example when the service did not answer at start) is finished once the
+    running session has started. An operator `/exit` while a deploy waits
+    for idle is taken as the stop, as for a restart.
+  - *Executive flow.* Accepted change, then the integration owner merges,
+    then the executive calls `odin_runtime_deploy(head)`, then the supervisor
+    drains, deploys and verifies, then the executive resumes with the notice.
+    The code accepts only the integration head; that the head was accepted is
+    the integration owner's merge discipline, not something the service can
+    check. Never deploy an unaccepted head. The executive's prompt states this
+    flow when the development loop is enabled.
+  - *Activation.* Live acceptance is the operator's: the first real deploy,
+    by hand with the operator present after the migration, and a forced
+    rollback. The supervisor never edits unit files, the launcher or settings.
+
+**Limits.** A turn that starts between the final idle check and the signal
+can be stopped near its start; the window is one poll at most. A deployed
+copy's cleanliness is not verified after export (it is made read-only). The
+health check is the service's own revision report and one status call, not a
+functional test. The telemetry unit restart is attempted and recorded, but it
+never decides the outcome. While the supervised services run as the transient
+`systemd-run` units that exist today, a service restart keeps their worktree
+environment; the migration replaces them. Scheduled session wakeups and background work that Claude Code does not
+report in the Stop event do not survive a restart. Without a running supervisor
+a request stays pending and nothing happens. The supervisor runs with the
+operator's authority; it is not isolation.
+
+**Checks (deploy).** `tests/test_code_root.py` runs a deployed copy as a
+separate process against state prepared by the checkout.
+`tests/test_deploy_copies.py` covers export, the atomic switch, rollback of
+the link, pruning, configuration and the operator actions.
+`tests/test_executive_deploy.py` covers request refusals, the drain view and
+deadline, drain admission (a real queued delegated turn and a real evaluator
+job stay queued, running work is not touched), activation quiescence with
+held queued turns, and end to end with a fake service unit driving the real
+`service_activation` and the fake Claude binary: deploy and resume, rollback
+on a failing service with both activation records, a failed rollback, waiting
+for a running turn, the drain timeout without a stop, and a deploy carried
+after a lost supervisor.
+
+**Checks.** `tests/test_executive_supervisor.py` runs the supervisor on the
+real start path against a synthetic Claude binary (`tests/fake_claude.py`):
+request, idle, SIGTERM and resume with a staged model change applied; no stop
+mid-turn; refusals at request and stop time; the lease; no respawn after an
+operator exit; crash backoff, its cap and its window; a request pending at
+supervisor start; a relaunch that never starts; a stop that times out without a
+kill; the content-free marker; and that a supervised launch differs from an
+ordinary one only in its settings hooks. Native clean exit, the idle marker
+and the confirmation screen are live acceptance for the operator, not claims
+made from these tests.
+
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that
-resolved it. X-1, X-2, X-5, X-6, X-8, X-10, X-11, X-12, X-13 and X-14 are open. X-3, X-4 and X-9 are
+resolved it. X-1, X-2, X-5, X-6, X-8, X-10, X-11, X-12, X-13, X-14 and X-15 are open. X-3, X-4 and X-9 are
 resolved as recorded readings of existing decisions; X-7 is resolved
 only as far as fail-closed handling. Every resolution is subject to the
 re-review and to the operator.
@@ -1513,7 +3150,8 @@ re-review and to the operator.
   against a fake Saga backend, and the I/O contract (§13) places I0–I1
   beside Phase B and I2–I3 in Phase C. **Open: producer reconciliation
   pending.** Odin's interpretation under D15 (review finding B2): I0, I1 and I2 are
-  non-production work against fixtures and a fake backend; I3, any live
+  non-production work against fixtures in I0 and a fake backend in
+  I1–I2; I3, any live
   delegated run, any live Saga submission, deployment cutover and the
   Phase C exit wait for Phase B's exit. Evidence: D14.4, source
   blueprint §7, source extraction plan §1, D15.8. Saga's live record
@@ -1533,7 +3171,10 @@ re-review and to the operator.
   B of the I/O contract now records, per capability, what Saga's
   canonical `0.1.1-draft` provides and what is a gap (no delegation read
   operation; no published admission schema; wire details Saga still has
-  open). The check compares documents only and must be repeated when
+  open). B-12 also identifies a worker-event delivery gap against EV-4:
+  status and evidence reads do not promise cursor notifications for
+  journals, per-iteration status, plateau signals or alerts. The check
+  compares documents only and must be repeated when
   the producer bytes are repinned. Gaps are resolved at the producer,
   never by editing the pinned copy.
 - **X-4 — Archived-conversation retrieval.** D10.1 and the I/O contract
@@ -1632,6 +3273,22 @@ re-review and to the operator.
   then are ODIN-ADR-016 to 019 recorded. Until then the plan's
   description of a shared repository is a proposal and D10.6, D14.1 and
   D14.7 stand as carried.
+
+- **X-15 — Shared limits and lifecycle of harness subagents.** D8's
+  review caps, I/O contract §5's session caps and AC-23 require enforcement, but the
+  adapter contract does not yet define how concurrent native children
+  share a cap. Before I2 enables child dispatch, specify Odin-side
+  admission/reservations, attribution without double counting parent
+  totals, in-flight usage, missing telemetry, release/reconciliation after
+  crash, child count/depth limits and stop propagation. A next-request
+  spend check or a per-child turn limit is not proof of an aggregate hard
+  dollar ceiling. For each advertised limit, identify its enforcing
+  component and adapter evidence; refuse a session class whose required
+  limit cannot be enforced. Define how an unconfirmed child stop remains
+  visible and prevents unsafe redispatch (AC-10/AC-37). Proposed AC-44
+  supplies adversarial cases. This is Odin's local harness boundary;
+  Saga-owned worker limits and its pinned API are unchanged. No mechanism
+  or numerical limit is settled by this issue.
 
 ## 6. Outstanding review findings
 

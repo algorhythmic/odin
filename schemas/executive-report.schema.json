@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "project": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+    "kind": {"enum": ["reported_progress", "proposal"]},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 8000}
+  },
+  "required": ["project", "kind", "summary"],
+  "additionalProperties": false
+}

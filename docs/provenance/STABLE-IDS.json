@@ -1,0 +1,344 @@
+{
+  "schema_version": 1,
+  "groups": {
+    "AC": {
+      "document": "docs/design/ODIN-ACCEPTANCE-SCENARIOS.md",
+      "ids": [
+        {
+          "id": "AC-01",
+          "status": "active"
+        },
+        {
+          "id": "AC-02",
+          "status": "active"
+        },
+        {
+          "id": "AC-03",
+          "status": "active"
+        },
+        {
+          "id": "AC-04",
+          "status": "active"
+        },
+        {
+          "id": "AC-05",
+          "status": "active"
+        },
+        {
+          "id": "AC-06",
+          "status": "active"
+        },
+        {
+          "id": "AC-07",
+          "status": "active"
+        },
+        {
+          "id": "AC-08",
+          "status": "active"
+        },
+        {
+          "id": "AC-09",
+          "status": "active"
+        },
+        {
+          "id": "AC-10",
+          "status": "active"
+        },
+        {
+          "id": "AC-11",
+          "status": "active"
+        },
+        {
+          "id": "AC-12",
+          "status": "active"
+        },
+        {
+          "id": "AC-13",
+          "status": "active"
+        },
+        {
+          "id": "AC-14",
+          "status": "active"
+        },
+        {
+          "id": "AC-15",
+          "status": "active"
+        },
+        {
+          "id": "AC-16",
+          "status": "active"
+        },
+        {
+          "id": "AC-17",
+          "status": "active"
+        },
+        {
+          "id": "AC-18",
+          "status": "active"
+        },
+        {
+          "id": "AC-19",
+          "status": "active"
+        },
+        {
+          "id": "AC-20",
+          "status": "withdrawn"
+        },
+        {
+          "id": "AC-21",
+          "status": "active"
+        },
+        {
+          "id": "AC-22",
+          "status": "active"
+        },
+        {
+          "id": "AC-23",
+          "status": "active"
+        },
+        {
+          "id": "AC-24",
+          "status": "active"
+        },
+        {
+          "id": "AC-25",
+          "status": "active"
+        },
+        {
+          "id": "AC-26",
+          "status": "active"
+        },
+        {
+          "id": "AC-27",
+          "status": "active"
+        },
+        {
+          "id": "AC-28",
+          "status": "active"
+        },
+        {
+          "id": "AC-29",
+          "status": "active"
+        },
+        {
+          "id": "AC-30",
+          "status": "active"
+        },
+        {
+          "id": "AC-31",
+          "status": "active"
+        },
+        {
+          "id": "AC-32",
+          "status": "active"
+        },
+        {
+          "id": "AC-33",
+          "status": "active"
+        },
+        {
+          "id": "AC-34",
+          "status": "active"
+        },
+        {
+          "id": "AC-35",
+          "status": "active"
+        },
+        {
+          "id": "AC-36",
+          "status": "active"
+        },
+        {
+          "id": "AC-37",
+          "status": "active"
+        },
+        {
+          "id": "AC-38",
+          "status": "active"
+        },
+        {
+          "id": "AC-39",
+          "status": "active"
+        },
+        {
+          "id": "AC-40",
+          "status": "active"
+        },
+        {
+          "id": "AC-41",
+          "status": "active"
+        },
+        {
+          "id": "AC-42",
+          "status": "active"
+        },
+        {
+          "id": "AC-43",
+          "status": "active"
+        },
+        {
+          "id": "AC-44",
+          "status": "active"
+        },
+        {
+          "id": "AC-45",
+          "status": "active"
+        },
+        {
+          "id": "AC-46",
+          "status": "active"
+        },
+        {
+          "id": "AC-47",
+          "status": "active"
+        },
+        {
+          "id": "AC-48",
+          "status": "active"
+        },
+        {
+          "id": "AC-49",
+          "status": "active"
+        },
+        {
+          "id": "AC-50",
+          "status": "active"
+        },
+        {
+          "id": "AC-51",
+          "status": "active"
+        },
+        {
+          "id": "AC-52",
+          "status": "active"
+        },
+        {
+          "id": "AC-53",
+          "status": "active"
+        },
+        {
+          "id": "AC-54",
+          "status": "active"
+        },
+        {
+          "id": "AC-55",
+          "status": "active"
+        },
+        {
+          "id": "AC-56",
+          "status": "active"
+        },
+        {
+          "id": "AC-57",
+          "status": "active"
+        }
+      ]
+    },
+    "DC": {
+      "document": "docs/design/ODIN-ACCEPTANCE-SCENARIOS.md",
+      "ids": [
+        {
+          "id": "DC-01",
+          "status": "active"
+        },
+        {
+          "id": "DC-02",
+          "status": "active"
+        },
+        {
+          "id": "DC-03",
+          "status": "active"
+        },
+        {
+          "id": "DC-04",
+          "status": "active"
+        },
+        {
+          "id": "DC-05",
+          "status": "active"
+        },
+        {
+          "id": "DC-06",
+          "status": "active"
+        },
+        {
+          "id": "DC-07",
+          "status": "active"
+        },
+        {
+          "id": "DC-08",
+          "status": "active"
+        }
+      ]
+    },
+    "EC": {
+      "document": "docs/design/ODIN-ECOSYSTEM-INTEGRATION.md",
+      "ids": [
+        {
+          "id": "EC-01",
+          "status": "active"
+        },
+        {
+          "id": "EC-02",
+          "status": "active"
+        },
+        {
+          "id": "EC-03",
+          "status": "active"
+        },
+        {
+          "id": "EC-04",
+          "status": "active"
+        },
+        {
+          "id": "EC-05",
+          "status": "withdrawn"
+        },
+        {
+          "id": "EC-06",
+          "status": "active"
+        },
+        {
+          "id": "EC-07",
+          "status": "active"
+        },
+        {
+          "id": "EC-08",
+          "status": "withdrawn"
+        },
+        {
+          "id": "EC-09",
+          "status": "withdrawn"
+        },
+        {
+          "id": "EC-10",
+          "status": "active"
+        },
+        {
+          "id": "EC-11",
+          "status": "active"
+        },
+        {
+          "id": "EC-12",
+          "status": "active"
+        },
+        {
+          "id": "EC-13",
+          "status": "active"
+        },
+        {
+          "id": "EC-14",
+          "status": "active"
+        },
+        {
+          "id": "EC-15",
+          "status": "active"
+        },
+        {
+          "id": "EC-16",
+          "status": "active"
+        }
+      ]
+    }
+  }
+}

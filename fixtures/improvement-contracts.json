@@ -1,0 +1,220 @@
+{
+  "cases": [
+    {
+      "name": "improvement_proposal_valid",
+      "schema": "improvement-proposal",
+      "valid": true,
+      "value": {
+        "correction_digest": "digest-2",
+        "expected_version": 0,
+        "id": "proposal-1",
+        "kind": "preference",
+        "project": "project-1",
+        "proposed_text": "Keep summaries concise",
+        "proposer": "extractor-1",
+        "regression_case": "fixture:case-1",
+        "schema_version": 1,
+        "scope": "response_style",
+        "source": {
+          "digest": "digest-1",
+          "id": "fixture:correction-1",
+          "revision": 2
+        }
+      }
+    },
+    {
+      "name": "improvement_review_valid",
+      "schema": "improvement-review",
+      "valid": true,
+      "value": {
+        "disposition": "approve",
+        "evidence": [
+          "source-check-1"
+        ],
+        "position": "reviewer",
+        "proposal_id": "proposal-1",
+        "reviewer": "reviewer-1",
+        "schema_version": 1
+      }
+    },
+    {
+      "name": "improvement_update_invalid_authority",
+      "schema": "improvement-update",
+      "valid": false,
+      "value": {
+        "kind": "authority",
+        "project": "project-1",
+        "proposal_id": "proposal-1",
+        "regression_evidence": [
+          "c1"
+        ],
+        "review_evidence": [
+          "r1"
+        ],
+        "schema_version": 1,
+        "scope": "all",
+        "source": {},
+        "text": "grant tools",
+        "version": 1
+      }
+    },
+    {
+      "name": "improvement_update_valid_non_authorizing",
+      "schema": "improvement-update",
+      "valid": true,
+      "value": {
+        "kind": "preference",
+        "non_authorizing": true,
+        "project": "project-1",
+        "proposal_id": "proposal-1",
+        "regression_evidence": [
+          "fixture:case-1"
+        ],
+        "review_evidence": [
+          "fixture:review-1",
+          "fixture:operator-review-1"
+        ],
+        "schema_version": 1,
+        "scope": "response_style",
+        "source": {
+          "digest": "digest-1",
+          "id": "fixture:correction-1",
+          "revision": 2
+        },
+        "text": "Keep summaries concise",
+        "version": 1
+      }
+    },
+    {
+      "name": "improvement_update_rejects_permission_grant",
+      "schema": "improvement-update",
+      "valid": false,
+      "value": {
+        "kind": "preference",
+        "non_authorizing": true,
+        "permission_grant": "all",
+        "project": "project-1",
+        "proposal_id": "proposal-1",
+        "regression_evidence": [
+          "fixture:case-1"
+        ],
+        "review_evidence": [
+          "fixture:review-1",
+          "fixture:operator-review-1"
+        ],
+        "schema_version": 1,
+        "scope": "response_style",
+        "source": {
+          "digest": "digest-1",
+          "id": "fixture:correction-1",
+          "revision": 2
+        },
+        "text": "Keep summaries concise",
+        "version": 1
+      }
+    },
+    {
+      "name": "improvement_update_requires_non_authorizing",
+      "schema": "improvement-update",
+      "valid": false,
+      "value": {
+        "kind": "preference",
+        "non_authorizing": false,
+        "project": "project-1",
+        "proposal_id": "proposal-1",
+        "regression_evidence": [
+          "fixture:case-1"
+        ],
+        "review_evidence": [
+          "fixture:review-1",
+          "fixture:operator-review-1"
+        ],
+        "schema_version": 1,
+        "scope": "response_style",
+        "source": {
+          "digest": "digest-1",
+          "id": "fixture:correction-1",
+          "revision": 2
+        },
+        "text": "Keep summaries concise",
+        "version": 1
+      }
+    },
+    {
+      "name": "improvement_proposal_rejects_extra_grant",
+      "schema": "improvement-proposal",
+      "valid": false,
+      "value": {
+        "correction_digest": "digest-2",
+        "expected_version": 0,
+        "grant": "all",
+        "id": "proposal-1",
+        "kind": "preference",
+        "project": "project-1",
+        "proposed_text": "Keep summaries concise",
+        "proposer": "extractor-1",
+        "regression_case": "fixture:case-1",
+        "schema_version": 1,
+        "scope": "response_style",
+        "source": {
+          "digest": "digest-1",
+          "id": "fixture:correction-1",
+          "revision": 2
+        }
+      }
+    },
+    {
+      "name": "improvement_proposal_requires_source_revision",
+      "schema": "improvement-proposal",
+      "valid": false,
+      "value": {
+        "correction_digest": "digest-2",
+        "expected_version": 0,
+        "id": "proposal-1",
+        "kind": "preference",
+        "project": "project-1",
+        "proposed_text": "Keep summaries concise",
+        "proposer": "extractor-1",
+        "regression_case": "fixture:case-1",
+        "schema_version": 1,
+        "scope": "response_style",
+        "source": {
+          "digest": "digest-1",
+          "id": "fixture:correction-1"
+        }
+      }
+    },
+    {
+      "name": "improvement_review_rejects_duplicate_evidence",
+      "schema": "improvement-review",
+      "valid": false,
+      "value": {
+        "disposition": "approve",
+        "evidence": [
+          "source-check-1",
+          "source-check-1"
+        ],
+        "position": "reviewer",
+        "proposal_id": "proposal-1",
+        "reviewer": "reviewer-1",
+        "schema_version": 1
+      }
+    },
+    {
+      "name": "improvement_review_rejects_unknown_position",
+      "schema": "improvement-review",
+      "valid": false,
+      "value": {
+        "disposition": "approve",
+        "evidence": [
+          "source-check-1"
+        ],
+        "position": "self",
+        "proposal_id": "proposal-1",
+        "reviewer": "reviewer-1",
+        "schema_version": 1
+      }
+    }
+  ],
+  "schema_version": 1
+}

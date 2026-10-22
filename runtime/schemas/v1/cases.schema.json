@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/schemas/v1/cases.schema.json",
+  "title": "Shared schema fixture manifest",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+\\.schema\\.json$"
+          },
+          "file": {
+            "type": "string",
+            "pattern": "^(?:valid|invalid)/[a-z0-9_]+\\.json$"
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "schema",
+          "file",
+          "valid"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "schema_version",
+    "cases"
+  ],
+  "additionalProperties": false
+}

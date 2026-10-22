@@ -1,0 +1,1109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:executive-tool-input:1",
+  "type": "object",
+  "required": [
+    "name",
+    "arguments"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "arguments": {
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "name": {
+          "const": "odin_resume"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_resume"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_memory_snapshot"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_memory_snapshot"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_read_evidence"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_read_evidence"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_report"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_report"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_reports"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_reports"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_delegation_session"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_delegation_session"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_delegation_assign"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_delegation_assign"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_delegation_followup"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_delegation_followup"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_delegation_status"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_delegation_status"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_delegation_result"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_delegation_result"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_delegation_close"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_delegation_close"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_loop_claim"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_loop_claim"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_loop_ready"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_loop_ready"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_loop_status"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_loop_status"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_loop_ack"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_loop_ack"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_loop_delegate"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_loop_delegate"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_usage_status"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_usage_status"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_context_status"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_context_status"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_context_checkpoint"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_context_checkpoint"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_intervention_begin"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_intervention_begin"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_intervention_end"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_intervention_end"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_intervention_status"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_intervention_status"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_executive_restart"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_executive_restart"
+        }
+      }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_runtime_deploy"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_runtime_deploy"
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "odin_runtime_deploy": {
+      "type": "object",
+      "properties": {
+        "head": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "operation_id": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"}
+      },
+      "required": ["head", "operation_id"],
+      "additionalProperties": false
+    },
+    "odin_executive_restart": {
+      "type": "object",
+      "properties": {
+        "reason": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "operation_id": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"}
+      },
+      "required": ["reason", "operation_id"],
+      "additionalProperties": false
+    },
+    "odin_resume": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "detail_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        },
+        "obligation_offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "obligation_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "obligation_page_token": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "decision_offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000000
+        },
+        "decision_limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "decision_page_token": {
+          "type": "string",
+          "minLength": 64,
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "odin_memory_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 2048,
+          "maximum": 65536
+        }
+      }
+    },
+    "odin_read_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "revision"
+      ],
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 2048,
+          "maximum": 65536
+        }
+      }
+    },
+    "odin_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "kind",
+        "summary"
+      ],
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "kind": {
+          "enum": [
+            "reported_progress",
+            "proposal"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8000
+        }
+      }
+    },
+    "odin_reports": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        }
+      }
+    },
+    "odin_delegation_session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "action"
+      ],
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "action": {
+          "enum": [
+            "create",
+            "resume",
+            "stop"
+          ]
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "harness": {
+          "enum": [
+            "claude-code",
+            "codex"
+          ]
+        },
+        "workspace": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "^/"
+        },
+        "briefing": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8000
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "effort": {
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        },
+        "permission_mode": {
+          "enum": [
+            "default",
+            "acceptEdits",
+            "plan",
+            "dontAsk",
+            "bypassPermissions"
+          ]
+        },
+        "sandbox": {
+          "enum": [
+            "read-only",
+            "workspace-write",
+            "danger-full-access"
+          ]
+        },
+        "budget_usd": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "subagent_model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "subagent_model_force": {
+          "type": "boolean"
+        },
+        "auto_compact_window_tokens": {
+          "type": "integer",
+          "minimum": 100000,
+          "maximum": 1000000
+        },
+        "native_peer_messaging": {
+          "type": "boolean"
+        },
+        "workstream": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "integration_owner",
+            "workstream"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "create"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "harness",
+              "workspace",
+              "briefing"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "enum": [
+                  "resume",
+                  "stop"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "session_id"
+            ]
+          }
+        }
+      ]
+    },
+    "odin_delegation_assign": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "session_id",
+        "objective",
+        "criteria",
+        "scope",
+        "output_contract",
+        "instructions",
+        "limits"
+      ],
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "objective": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "criteria": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "text"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[A-Za-z0-9_.-]+$"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              }
+            }
+          }
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "output_contract": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "instructions": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16000
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "iterations"
+          ],
+          "properties": {
+            "iterations": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "budget_usd": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 200
+            }
+          }
+        },
+        "inputs": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ref",
+              "digest"
+            ],
+            "properties": {
+              "ref": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "digest": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        },
+        "allow_unenforced_limits": {
+          "type": "boolean"
+        }
+      }
+    },
+    "odin_delegation_followup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "session_id",
+        "assignment_id",
+        "message"
+      ],
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "assignment_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16000
+        }
+      }
+    },
+    "odin_delegation_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "view": {"type": "string", "enum": ["compact", "detail"]},
+        "session_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "assignment_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "detail_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16384
+        }
+      }
+    },
+    "odin_delegation_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "turn_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "assignment_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 2048,
+          "maximum": 65536
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "turn_id"
+          ]
+        },
+        {
+          "required": [
+            "assignment_id"
+          ]
+        }
+      ]
+    },
+    "odin_delegation_close": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "assignment_id",
+        "disposition"
+      ],
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "assignment_id": {
+          "type": "string",
+          "minLength": 26,
+          "maxLength": 26,
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "disposition": {
+          "enum": [
+            "accepted",
+            "cancelled"
+          ]
+        },
+        "evidence": {
+          "type": "object",
+          "maxProperties": 16,
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9_.-]+$"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          }
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "disposition": {
+                "const": "accepted"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "evidence"
+            ]
+          }
+        }
+      ]
+    },
+    "odin_loop_claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "view": {"type": "string", "enum": ["compact", "detail"]},
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "stage_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        }
+      },
+      "required": [
+        "operation_id",
+        "loop_id",
+        "stage_id"
+      ]
+    },
+    "odin_loop_ready": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "view": {"type": "string", "enum": ["compact", "detail"]},
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "stage_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "evidence_packet": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "operation_id",
+        "loop_id",
+        "stage_id",
+        "evidence_packet"
+      ]
+    },
+    "odin_loop_ack": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "notice_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        }
+      },
+      "required": [
+        "operation_id",
+        "notice_id"
+      ]
+    },
+    "odin_loop_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "view": {"type": "string", "enum": ["compact", "detail"]},
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        }
+      },
+      "required": [
+        "loop_id"
+      ]
+    },
+    "odin_loop_delegate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "stage_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "orchestrator_session_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "iterations"
+          ],
+          "properties": {
+            "iterations": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "budget_usd": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 200
+            }
+          }
+        },
+        "allow_unenforced_limits": {
+          "type": "boolean"
+        },
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        }
+      },
+      "required": [
+        "loop_id",
+        "stage_id",
+        "orchestrator_session_id",
+        "limits",
+        "operation_id"
+      ]
+    },
+    "odin_usage_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "stage_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": []
+    },
+    "odin_context_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "predecessor": {
+          "type": "boolean"
+        }
+      },
+      "required": []
+    },
+    "odin_context_checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "checkpoint": {
+          "type": "object"
+        },
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        }
+      },
+      "required": [
+        "checkpoint",
+        "operation_id"
+      ]
+    },
+    "odin_intervention_begin": {
+      "type": "object",
+      "properties": {
+        "purpose": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "ttl_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3600
+        },
+        "calls": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "properties": {
+              "tool": {
+                "enum": [
+                  "Bash",
+                  "Write",
+                  "Edit",
+                  "NotebookEdit"
+                ]
+              },
+              "input": {
+                "type": "object"
+              },
+              "uses": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 20
+              },
+              "background": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "tool",
+              "input"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        }
+      },
+      "required": [
+        "purpose",
+        "ttl_seconds",
+        "calls",
+        "operation_id"
+      ],
+      "additionalProperties": false
+    },
+    "odin_intervention_end": {
+      "type": "object",
+      "properties": {
+        "intervention_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "operation_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        }
+      },
+      "required": [
+        "intervention_id",
+        "operation_id"
+      ],
+      "additionalProperties": false
+    },
+    "odin_intervention_status": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    }
+  }
+}

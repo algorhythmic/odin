@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/schemas/v1/effect.schema.json",
+  "title": "Effect",
+  "description": "Operation ID is stable across at-least-once retries. Runtime reconciliation is not established by schema validity.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "updated_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "operation_id": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "destination": {
+      "type": "string",
+      "minLength": 1
+    },
+    "destination_capability": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payload_digest": {
+      "$ref": "common.schema.json#/$defs/digest"
+    },
+    "assignment": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "owner_generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "delegation_version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "approval_digest": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "guidance_rev": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "held",
+        "in_flight",
+        "delivered",
+        "failed",
+        "unknown",
+        "cancelled_stale",
+        "superseded"
+      ]
+    },
+    "dispatch_blocked_by": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "receipt": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "reconciliation": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "operation_id",
+    "destination",
+    "destination_capability",
+    "payload_digest",
+    "state",
+    "attempts",
+    "receipt",
+    "reconciliation"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "held"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "required": [
+          "dispatch_blocked_by"
+        ],
+        "properties": {
+          "dispatch_blocked_by": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "delivered"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "required": [
+          "receipt"
+        ],
+        "properties": {
+          "receipt": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ]
+}

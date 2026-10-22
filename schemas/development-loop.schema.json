@@ -1,0 +1,292 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:development-loop:1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "previous_session_ids": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      }
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32000
+    },
+    "status": {
+      "enum": [
+        "evaluator_pending",
+        "evaluator_running",
+        "executive_pending",
+        "executive_claimed",
+        "executive_ready",
+        "paused",
+        "unknown",
+        "needs_operator",
+        "complete",
+        "stopped"
+      ]
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "round": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "max_rounds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "no_progress_limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "no_progress_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "last_evidence_digest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "current_job": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "current_stage": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "paused_from": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 4096
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "deadlines": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offer_seconds",
+        "claim_seconds",
+        "ready_seconds",
+        "evaluator_seconds"
+      ],
+      "properties": {
+        "offer_seconds": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 604800
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "claim_seconds": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 604800
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ready_seconds": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 604800
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evaluator_seconds": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 604800
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "attention": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state",
+            "observed",
+            "status",
+            "since",
+            "loop_revision",
+            "elapsed_seconds",
+            "deadline_seconds",
+            "notice_id"
+          ],
+          "properties": {
+            "state": {
+              "const": "attention"
+            },
+            "observed": {
+              "enum": [
+                "offer_unanswered",
+                "claimed_stalled",
+                "ready_uncaptured",
+                "evaluator_stalled"
+              ]
+            },
+            "status": {
+              "type": "string",
+              "maxLength": 32
+            },
+            "since": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "loop_revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "elapsed_seconds": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "deadline_seconds": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "notice_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 128
+            }
+          }
+        }
+      ]
+    },
+    "delegation_profile": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "harness",
+            "model"
+          ],
+          "properties": {
+            "harness": {
+              "enum": [
+                "claude-code",
+                "codex"
+              ]
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "subagent_model": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "subagent_model_force": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "id",
+    "project",
+    "session_id",
+    "goal",
+    "status",
+    "revision",
+    "round",
+    "max_rounds",
+    "no_progress_limit",
+    "no_progress_count",
+    "last_evidence_digest",
+    "current_job",
+    "current_stage",
+    "paused_from",
+    "reason",
+    "created_at",
+    "updated_at"
+  ],
+  "additionalProperties": false
+}

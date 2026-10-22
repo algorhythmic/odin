@@ -1,0 +1,319 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "continuity_valid_prepared_decision",
+      "schema": "continuity-decision",
+      "valid": true,
+      "value": {
+        "schema_version": 1,
+        "project": "01K7M000000000000000000001",
+        "dedupe_key": "decision:1",
+        "recipient": "operator-1",
+        "kind": "clarification",
+        "question": "Accept changed interface?",
+        "options": [
+          "yes",
+          "no"
+        ],
+        "recommendation": "yes",
+        "evidence": [
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          }
+        ],
+        "artifact": {
+          "ref": "fixture:diff",
+          "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "authorization": {
+          "action": "accept requirement",
+          "scope": [
+            "01K7M000000000000000000001"
+          ]
+        },
+        "blockers": [
+          "operator decision"
+        ],
+        "urgency": "soon",
+        "commitments": [
+          {
+            "id": "01K7M000000000000000000002",
+            "rev": 2
+          }
+        ],
+        "record_refs": [],
+        "memory_revision": null,
+        "authority_revision": "policy:1",
+        "expires_at": "2026-10-19T00:00:00Z"
+      }
+    },
+    {
+      "name": "continuity_invalid_missing_authorization",
+      "schema": "continuity-decision",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "project": "01K7M000000000000000000001",
+        "dedupe_key": "decision:1",
+        "recipient": "operator-1",
+        "kind": "clarification",
+        "question": "Accept changed interface?",
+        "options": [
+          "yes",
+          "no"
+        ],
+        "recommendation": "yes",
+        "evidence": [
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          }
+        ],
+        "artifact": {
+          "ref": "fixture:diff",
+          "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "blockers": [
+          "operator decision"
+        ],
+        "urgency": "soon",
+        "commitments": [
+          {
+            "id": "01K7M000000000000000000002",
+            "rev": 2
+          }
+        ],
+        "record_refs": [],
+        "memory_revision": null,
+        "authority_revision": "policy:1",
+        "expires_at": "2026-10-19T00:00:00Z"
+      }
+    },
+    {
+      "name": "continuity_invalid_duplicate_option",
+      "schema": "continuity-decision",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "project": "01K7M000000000000000000001",
+        "dedupe_key": "decision:1",
+        "recipient": "operator-1",
+        "kind": "clarification",
+        "question": "Accept changed interface?",
+        "options": [
+          "yes",
+          "yes"
+        ],
+        "recommendation": "yes",
+        "evidence": [
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          }
+        ],
+        "artifact": {
+          "ref": "fixture:diff",
+          "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "authorization": {
+          "action": "accept requirement",
+          "scope": [
+            "01K7M000000000000000000001"
+          ]
+        },
+        "blockers": [
+          "operator decision"
+        ],
+        "urgency": "soon",
+        "commitments": [
+          {
+            "id": "01K7M000000000000000000002",
+            "rev": 2
+          }
+        ],
+        "record_refs": [],
+        "memory_revision": null,
+        "authority_revision": "policy:1",
+        "expires_at": "2026-10-19T00:00:00Z"
+      }
+    },
+    {
+      "name": "continuity_invalid_unbounded_evidence",
+      "schema": "continuity-decision",
+      "valid": false,
+      "value": {
+        "schema_version": 1,
+        "project": "01K7M000000000000000000001",
+        "dedupe_key": "decision:1",
+        "recipient": "operator-1",
+        "kind": "clarification",
+        "question": "Accept changed interface?",
+        "options": [
+          "yes",
+          "no"
+        ],
+        "recommendation": "yes",
+        "evidence": [
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          },
+          {
+            "ref": "fixture:requirements",
+            "revision": "2"
+          }
+        ],
+        "artifact": {
+          "ref": "fixture:diff",
+          "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "authorization": {
+          "action": "accept requirement",
+          "scope": [
+            "01K7M000000000000000000001"
+          ]
+        },
+        "blockers": [
+          "operator decision"
+        ],
+        "urgency": "soon",
+        "commitments": [
+          {
+            "id": "01K7M000000000000000000002",
+            "rev": 2
+          }
+        ],
+        "record_refs": [],
+        "memory_revision": null,
+        "authority_revision": "policy:1",
+        "expires_at": "2026-10-19T00:00:00Z"
+      }
+    }
+  ]
+}

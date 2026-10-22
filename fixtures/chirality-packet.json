@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "revision": 1,
+  "question": "Should the synthetic three-document fixture proceed to review?",
+  "evidence": ["fixture:requirements", "fixture:interface", "fixture:acceptance"],
+  "target": null,
+  "source": {"handoff_operation": "fixture-handoff", "handoff_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "project": "fixture-project", "assignment": "fixture-assignment", "assignment_revision": 1, "ownership_generation": 1, "source_revision": 1}
+}

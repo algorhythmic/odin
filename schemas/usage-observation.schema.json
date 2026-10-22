@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "kind", "provider", "project_id", "source", "session_id", "agent_id", "observed_at"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"enum": ["request", "quota", "limit"]},
+    "provider": {"enum": ["claude", "codex"]},
+    "project_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "source": {"type": "string", "minLength": 1, "maxLength": 256},
+    "session_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "agent_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "request_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "model": {"type": ["string", "null"], "maxLength": 128},
+    "revision": {"type": "integer", "minimum": 0},
+    "scope": {"enum": ["atomic", "aggregate", "cumulative"]},
+    "loop_id": {"type": ["string", "null"], "maxLength": 256},
+    "stage_id": {"type": ["string", "null"], "maxLength": 256},
+    "attribution": {"enum": ["exact", "reported", "inferred"]},
+    "tokens": {
+      "type": "object", "additionalProperties": false,
+      "required": ["uncached_input", "cache_read", "cache_write", "output"],
+      "properties": {
+        "uncached_input": {"type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991},
+        "cache_read": {"type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991},
+        "cache_write": {"type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991},
+        "output": {"type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991}
+      }
+    },
+    "context_input_tokens": {"type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991},
+    "account_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "context_window_tokens": {"type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991},
+    "rate_limits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["five_hour", "seven_day"],
+      "properties": {
+        "five_hour": {"$ref": "#/$defs/limit"},
+        "seven_day": {"$ref": "#/$defs/limit"}
+      }
+    },
+    "label": {"type": "string", "pattern": "^(claude|codex)\\.[a-z0-9_.]{1,64}$"},
+    "status": {"enum": ["available", "unavailable"]},
+    "utilization_percent": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+    "resets_at": {"type": ["string", "null"], "format": "date-time"},
+    "reason": {"type": ["string", "null"], "minLength": 1, "maxLength": 200}
+  },
+  "allOf": [
+    {"if": {"properties": {"kind": {"const": "request"}}}, "then": {"required": ["request_id", "model", "revision", "scope", "loop_id", "stage_id", "attribution", "tokens", "context_input_tokens"]}},
+    {"if": {"properties": {"kind": {"const": "quota"}}}, "then": {"required": ["account_id", "context_window_tokens", "context_input_tokens", "rate_limits"]}},
+    {"if": {"properties": {"kind": {"const": "limit"}}}, "then": {"required": ["label", "status", "utilization_percent", "resets_at", "reason"]}},
+    {"if": {"properties": {"kind": {"const": "limit"}, "status": {"const": "available"}}, "required": ["kind", "status"]},
+     "then": {"required": ["utilization_percent"], "properties": {"utilization_percent": {"type": "number"}, "reason": {"const": null}}}},
+    {"if": {"properties": {"kind": {"enum": ["request", "quota"]}}, "required": ["kind"]},
+     "then": {"not": {"anyOf": [{"required": ["label"]}, {"required": ["status"]}, {"required": ["utilization_percent"]}, {"required": ["resets_at"]}, {"required": ["reason"]}]}}}
+  ],
+  "$defs": {
+    "limit": {
+      "type": "object", "additionalProperties": false,
+      "required": ["used_percentage", "resets_at"],
+      "properties": {
+        "used_percentage": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+        "resets_at": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

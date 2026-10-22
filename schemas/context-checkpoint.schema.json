@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "project_id", "session_id", "revision", "branch", "worktree", "artifact_refs", "open_obligations", "pending_reviews", "operation_ids", "next_action", "summary"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "project_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "session_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "loop_id": {"type": ["string", "null"], "maxLength": 256},
+    "stage_id": {"type": ["string", "null"], "maxLength": 256},
+    "revision": {"type": "integer", "minimum": 1},
+    "branch": {"type": ["string", "null"], "maxLength": 256},
+    "worktree": {"type": ["string", "null"], "maxLength": 1024},
+    "artifact_refs": {"type": "array", "maxItems": 32, "items": {"type": "object", "additionalProperties": false, "required": ["ref", "sha256"], "properties": {"ref": {"type": "string", "minLength": 1, "maxLength": 1024}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}},
+    "open_obligations": {"type": "array", "maxItems": 32, "items": {"type": "string", "minLength": 1, "maxLength": 512}},
+    "pending_reviews": {"type": "array", "maxItems": 32, "items": {"type": "string", "minLength": 1, "maxLength": 512}},
+    "operation_ids": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+    "next_action": {"type": "string", "minLength": 1, "maxLength": 2048},
+    "summary": {"type": "string", "maxLength": 4096}
+  }
+}

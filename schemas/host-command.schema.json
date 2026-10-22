@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "operation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "action": {
+      "enum": [
+        "start",
+        "resume",
+        "interrupt",
+        "retire"
+      ]
+    },
+    "session": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "profile": {
+      "enum": [
+        "planner",
+        "reviewer",
+        "subagent"
+      ]
+    },
+    "fixture_result": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "enum": [
+                "complete",
+                "partial",
+                "failed"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status",
+            "evidence",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "assignment": {
+      "type": "string",
+      "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+    },
+    "assignment_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    }
+  },
+  "required": [
+    "schema_version",
+    "operation_id",
+    "action",
+    "session",
+    "generation",
+    "profile",
+    "fixture_result",
+    "assignment",
+    "assignment_revision"
+  ],
+  "additionalProperties": false
+}

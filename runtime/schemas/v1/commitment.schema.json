@@ -1,0 +1,418 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/schemas/v1/commitment.schema.json",
+  "title": "Commitment",
+  "description": "The only editable task record. Heimdall task, checkpoint and decision types map to objective/criteria, checkpoints and decisions respectively; provenance preserves native id/revision and import receipt. Source-side refusal is a runtime/peer gate, not a JSON Schema check. A satisfied/closed record structurally cites evidence for each met criterion; evidence authenticity and authorization are runtime checks.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "updated_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "project": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "common.schema.json#/$defs/evidence_ref"
+            },
+            "minItems": 0
+          },
+          "met": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "evidence",
+          "met"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "open",
+        "blocked",
+        "satisfied",
+        "closed",
+        "abandoned"
+      ]
+    },
+    "owner": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "ownership_generation": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/ulid"
+      },
+      "minItems": 0
+    },
+    "open_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "raised_by": {
+            "type": "string",
+            "minLength": 1
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "const": "heimdall"
+                  },
+                  "native_id": {
+                    "$ref": "common.schema.json#/$defs/opaque_id"
+                  },
+                  "native_rev": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "import_receipt": {
+                    "$ref": "common.schema.json#/$defs/opaque_id"
+                  }
+                },
+                "required": [
+                  "source",
+                  "native_id",
+                  "native_rev",
+                  "import_receipt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "raised_by"
+        ],
+        "additionalProperties": false,
+        "description": "Unresolved imported native decisions keep source identity and revision; Odin-native entries may omit provenance."
+      },
+      "minItems": 0
+    },
+    "next_trigger": {
+      "type": "string",
+      "minLength": 1
+    },
+    "delegation": {
+      "$ref": "common.schema.json#/$defs/opaque_id"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/evidence_ref"
+      },
+      "minItems": 0
+    },
+    "checkpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "at": {
+            "$ref": "common.schema.json#/$defs/utc_timestamp"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "common.schema.json#/$defs/evidence_ref"
+            },
+            "minItems": 0
+          },
+          "recorded_by": {
+            "$ref": "common.schema.json#/$defs/ulid"
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "const": "heimdall"
+                  },
+                  "native_id": {
+                    "$ref": "common.schema.json#/$defs/opaque_id"
+                  },
+                  "native_rev": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "import_receipt": {
+                    "$ref": "common.schema.json#/$defs/opaque_id"
+                  }
+                },
+                "required": [
+                  "source",
+                  "native_id",
+                  "native_rev",
+                  "import_receipt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "summary",
+          "evidence",
+          "recorded_by"
+        ],
+        "additionalProperties": false,
+        "description": "For an imported native checkpoint, provenance retains its own source id/revision and the import receipt; later Odin-authored entries may use null/omit provenance."
+      },
+      "minItems": 0
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1
+          },
+          "choice": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1
+          },
+          "decided_by": {
+            "type": "string",
+            "minLength": 1
+          },
+          "at": {
+            "$ref": "common.schema.json#/$defs/utc_timestamp"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "common.schema.json#/$defs/evidence_ref"
+            },
+            "minItems": 0
+          },
+          "provenance": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "const": "heimdall"
+                  },
+                  "native_id": {
+                    "$ref": "common.schema.json#/$defs/opaque_id"
+                  },
+                  "native_rev": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "import_receipt": {
+                    "$ref": "common.schema.json#/$defs/opaque_id"
+                  }
+                },
+                "required": [
+                  "source",
+                  "native_id",
+                  "native_rev",
+                  "import_receipt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "question",
+          "choice",
+          "rationale",
+          "decided_by",
+          "at",
+          "evidence"
+        ],
+        "additionalProperties": false,
+        "description": "For an imported native decision, provenance retains its own source id/revision and the import receipt; later Odin-authored entries may use null/omit provenance."
+      },
+      "minItems": 0
+    },
+    "provenance": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "source": {
+              "const": "heimdall"
+            },
+            "native_id": {
+              "$ref": "common.schema.json#/$defs/opaque_id"
+            },
+            "native_rev": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "import_receipt": {
+              "$ref": "common.schema.json#/$defs/opaque_id"
+            }
+          },
+          "required": [
+            "source",
+            "native_id",
+            "native_rev",
+            "import_receipt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "project",
+    "objective",
+    "criteria",
+    "state",
+    "owner",
+    "ownership_generation",
+    "dependencies",
+    "open_decisions",
+    "next_trigger",
+    "delegation",
+    "evidence",
+    "checkpoints",
+    "decisions",
+    "provenance"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "satisfied",
+              "closed"
+            ]
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "then": {
+        "properties": {
+          "criteria": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "met": {
+                  "const": true
+                },
+                "evidence": {
+                  "type": "array",
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "met",
+                "evidence"
+              ]
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}

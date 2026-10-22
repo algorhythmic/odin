@@ -1,0 +1,351 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:odin:development-loop-packet:1",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "loop_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "round": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "loop_revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32000
+    },
+    "executive_final_text": {
+      "type": "string",
+      "maxLength": 262144
+    },
+    "evidence": {
+      "type": "object"
+    },
+    "operator_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "source_job": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"},
+        "source_packet_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "response": {"type": "string", "minLength": 1, "maxLength": 12000},
+        "evidence": {"type": "object"}
+      },
+      "required": ["operation_id", "source_job", "source_packet_digest", "response", "evidence"]
+    },
+    "previous_assessment": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+,
+    "receipt_validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "receipts", "problems", "commands_succeeded"],
+      "properties": {
+        "status": {"enum": ["validated", "validated_unobserved", "uncertain", "invalid", "missing", "mismatched", "legacy_no_receipt"]},
+        "commands_succeeded": {"type": ["boolean", "null"]},
+        "receipts": {"type": "array", "maxItems": 16, "items":
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "outcome",
+            "path",
+            "problems"
+          ],
+          "properties": {
+            "outcome": {
+              "enum": [
+                "valid",
+                "uncertain",
+                "invalid",
+                "missing",
+                "mismatched"
+              ]
+            },
+            "path": {
+              "type": "string",
+              "maxLength": 1024
+            },
+            "sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "receipt_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 26
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "binding": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "maxProperties": 4
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "collector_revision": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "collector_matches_validator": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "observed": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "observed_before": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "observed_after": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "before_reason": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "after_reason": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "root": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 1024
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "cwd": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 1024
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "head": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "branch": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "detached": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "clean_before": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "clean": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "worktree_identity": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "argv_head": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 160
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "argv_digest": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "started_at": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "exit_status": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "succeeded": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "uncertainty": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 300
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "changed_during_run": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "problems": {
+              "type": "array",
+              "maxItems": 256,
+              "items": {
+                "type": "string",
+                "maxLength": 1400
+              }
+            }
+          }
+        }
+        },
+        "problems": {"type": "array", "maxItems": 256, "items": {"type": "string", "maxLength": 1400}}
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "loop_id",
+    "project",
+    "session_id",
+    "round",
+    "loop_revision",
+    "goal",
+    "executive_final_text",
+    "evidence",
+    "previous_assessment"
+  ],
+  "additionalProperties": false
+}

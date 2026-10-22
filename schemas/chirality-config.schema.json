@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mode", "enabled", "branches", "synthesis_max_microusd", "max_rounds", "depth", "deadline_at", "limits"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "mode": {"const": "fixture"},
+    "enabled": {"type": "boolean"},
+    "branches": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["role", "provider", "harness", "harness_version", "requested_model", "effort", "config_revision", "max_microusd"], "properties": {"role": {"enum": ["fable", "astra"]}, "provider": {"type": "string", "minLength": 1}, "harness": {"type": "string", "minLength": 1}, "harness_version": {"type": ["string", "null"], "minLength": 1}, "requested_model": {"type": "string", "minLength": 1}, "effort": {"type": ["string", "null"], "minLength": 1}, "config_revision": {"type": "string", "minLength": 1}, "max_microusd": {"type": "integer", "minimum": 0}}}},
+    "synthesis_max_microusd": {"type": "integer", "minimum": 0},
+    "max_rounds": {"type": "integer", "minimum": 1, "maximum": 2},
+    "depth": {"type": "integer", "minimum": 0},
+    "deadline_at": {"type": "string", "format": "date-time"},
+    "limits": {"type": "object", "additionalProperties": false, "required": ["recommendation", "evidence", "assumptions", "objections", "items"], "properties": {"recommendation": {"type": "integer", "minimum": 1, "maximum": 4096}, "evidence": {"type": "integer", "minimum": 1, "maximum": 4096}, "assumptions": {"type": "integer", "minimum": 1, "maximum": 4096}, "objections": {"type": "integer", "minimum": 1, "maximum": 4096}, "items": {"type": "integer", "minimum": 1, "maximum": 32}}}
+  }
+}

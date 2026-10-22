@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://odin.invalid/schemas/v1/session_class_decision.schema.json",
+  "title": "Session Class Decision",
+  "description": "",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "rev": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "updated_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "project": {
+      "$ref": "common.schema.json#/$defs/ulid"
+    },
+    "subject": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "event",
+            "assignment",
+            "session"
+          ]
+        },
+        "id": {
+          "$ref": "common.schema.json#/$defs/ulid"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "chosen": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rejected": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "class": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "class",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "event_kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assignment_requirements": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "environment": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "$ref": "common.schema.json#/$defs/ulid"
+            },
+            "rev": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "id",
+            "rev"
+          ],
+          "additionalProperties": false
+        },
+        "budget_state": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "event_kind",
+        "assignment_requirements",
+        "environment",
+        "budget_state"
+      ],
+      "additionalProperties": false
+    },
+    "config_rev": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decided_at": {
+      "$ref": "common.schema.json#/$defs/utc_timestamp"
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "rev",
+    "created_at",
+    "updated_at",
+    "project",
+    "subject",
+    "chosen",
+    "rejected",
+    "inputs",
+    "config_rev",
+    "decided_at",
+    "outcome"
+  ],
+  "additionalProperties": false
+}

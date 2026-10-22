@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "baseline_commit": "a9f22a1",
+  "label": "Local capability inventory; fixture evidence is not live acceptance",
+  "capabilities": [
+    {
+      "id": "contracts",
+      "state": "fixture-tested",
+      "evidence": [
+        "tests/test_runtime.py",
+        "internal/contracts/contracts_test.go"
+      ],
+      "blockers": [],
+      "next_action": "Run shared fixtures in both languages"
+    },
+    {
+      "id": "transactional_core",
+      "state": "fixture-tested",
+      "evidence": [
+        "python/odin/store.py",
+        "tests/test_runtime.py"
+      ],
+      "blockers": [
+        "Full Appendix B and X-11 production isolation"
+      ],
+      "next_action": "Complete producer-defined compatibility gaps"
+    },
+    {
+      "id": "semantic_memory",
+      "state": "fixture-tested",
+      "evidence": [
+        "python/odin/memory.py",
+        "tests/test_memory.py"
+      ],
+      "blockers": [
+        "Model extraction and external redaction delivery"
+      ],
+      "next_action": "Use attributed synthetic sources; complete real provider and destination adapters"
+    },
+    {
+      "id": "resume_and_decisions",
+      "state": "fixture-tested",
+      "evidence": [
+        "python/odin/continuity.py",
+        "tests/test_continuity.py"
+      ],
+      "blockers": [
+        "Real-history migration and authenticated remote access"
+      ],
+      "next_action": "Run integration-demo; connect real feeds only after producer and live gates"
+    },
+    {
+      "id": "coordination",
+      "state": "fixture-tested",
+      "evidence": [
+        "python/odin/coordination.py",
+        "tests/test_coordination.py"
+      ],
+      "blockers": [
+        "Live harness and Saga dispatch"
+      ],
+      "next_action": "Run orchestration-demo"
+    },
+    {
+      "id": "session_lifecycle",
+      "state": "fixture-tested",
+      "evidence": [
+        "python/odin/session_host.py",
+        "tests/test_harness.py"
+      ],
+      "blockers": [
+        "Real SDK verification and authenticated daemon"
+      ],
+      "next_action": "Probe dedicated host transport after credential/data decisions"
+    },
+    {
+      "id": "live_sessions",
+      "state": "blocked",
+      "evidence": [
+        "python/odin/harness.py"
+      ],
+      "blockers": [
+        "X-12",
+        "X-13",
+        "Missing verified SDK/profile/limit evidence"
+      ],
+      "next_action": "Configure dedicated credentials and establish actual adapter enforcement"
+    },
+    {
+      "id": "native_children",
+      "state": "blocked",
+      "evidence": [
+        "python/odin/profiles.py"
+      ],
+      "blockers": [
+        "X-15"
+      ],
+      "next_action": "Demonstrate shared cap and stop enforcement"
+    },
+    {
+      "id": "live_saga",
+      "state": "blocked",
+      "evidence": [
+        "python/odin/store.py"
+      ],
+      "blockers": [
+        "Saga Phase B",
+        "Producer identity and wire contracts",
+        "I3 gates"
+      ],
+      "next_action": "Pin producer contract and validate real refusal/recovery behavior"
+    },
+    {
+      "id": "evaluation_accounting",
+      "state": "usable now",
+      "evidence": [
+        "python/odin/evaluation.py",
+        "tests/test_evaluation.py"
+      ],
+      "blockers": [
+        "No empirical model comparisons completed"
+      ],
+      "next_action": "Evaluate supplied observations; run live trials only after their gates"
+    },
+    {
+      "id": "correction_proposals",
+      "state": "fixture-tested",
+      "evidence": [
+        "python/odin/improvements.py",
+        "tests/test_improvements.py"
+      ],
+      "blockers": [
+        "No automatic authority changes"
+      ],
+      "next_action": "Review scoped proposals with regression evidence"
+    },
+    {
+      "id": "herdr",
+      "state": "blocked",
+      "evidence": [
+        "docs/ROADMAP.md"
+      ],
+      "blockers": [
+        "Pinned peer interface",
+        "I3 inspection / I4 management"
+      ],
+      "next_action": "Confirm producer capability before integration"
+    },
+    {
+      "id": "voice",
+      "state": "blocked",
+      "evidence": [
+        "docs/DECISIONS.md"
+      ],
+      "blockers": [
+        "X-13 audio policy",
+        "Transport implementation"
+      ],
+      "next_action": "Keep voice-origin text distinct from audio and approvals"
+    },
+    {
+      "id": "summary_tree",
+      "state": "planned",
+      "evidence": [
+        "docs/design/ODIN-IO-CONTRACT.md"
+      ],
+      "blockers": [
+        "X-10",
+        "Reuse terms",
+        "I2 fidelity checks"
+      ],
+      "next_action": "Evaluate against rolling notes with equal retrieval"
+    },
+    {
+      "id": "exact_local_evidence",
+      "state": "fixture-tested",
+      "evidence": [
+        "python/odin/memory.py",
+        "schemas/memory-source-read.schema.json",
+        "tests/test_memory_evidence.py",
+        "tests/test_evidence_gateway.py"
+      ],
+      "blockers": [
+        "Published producer contracts and authenticated remote access"
+      ],
+      "next_action": "Read exact local source revisions; retain scope, current permissions and redaction checks"
+    },
+    {
+      "id": "synthetic_continuity_integration",
+      "state": "fixture-tested",
+      "evidence": [
+        "python/odin/integration_demo.py",
+        "tests/test_continuity_integration.py",
+        "docs/CONSOLIDATED-IMPLEMENTATION-STATUS.md"
+      ],
+      "blockers": [
+        "Real source enrollment, peer pins and live integration gates"
+      ],
+      "next_action": "Run integration-demo; use the shared human/machine projection and explicit coverage states"
+    },
+    {
+      "id": "executive_delegation",
+      "state": "usable now",
+      "evidence": [
+        "python/odin/delegation.py",
+        "python/odin/delegation_runner.py",
+        "tests/test_delegation.py",
+        "docs/EXECUTIVE-PILOT.md"
+      ],
+      "blockers": [
+        "X-12 worker credential lineage",
+        "X-15 managed child dispatch",
+        "No isolation or enforced ceilings beyond harness options"
+      ],
+      "next_action": "Configure delegation-configure, open one session per project, accept returns explicitly"
+    }
+  ]
+}

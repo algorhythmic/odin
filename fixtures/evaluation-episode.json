@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "episode_id": "synthetic-episode-1",
+  "condition": "single-parent",
+  "fixture_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "accepted": true,
+  "failure": null,
+  "cost_microusd": 0,
+  "cost_components": [
+    {
+      "operation": "fixture-call-1",
+      "role": "parent",
+      "identity": {
+        "provider": "fixture/no-provider",
+        "model_alias": "fixture/no-model",
+        "resolved_model": null,
+        "harness": "fixture-host",
+        "harness_version": "1",
+        "adapter_version": "1",
+        "effort": null
+      },
+      "context_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "tools": [
+        "records.read"
+      ],
+      "cost_microusd": 0,
+      "input_tokens": null,
+      "output_tokens": null,
+      "cache_read_tokens": null,
+      "cache_write_tokens": null,
+      "includes_operations": [],
+      "missing_reason": null
+    }
+  ],
+  "elapsed_seconds": 0,
+  "limits": {
+    "turns": 1,
+    "depth": 0,
+    "concurrency": 1,
+    "budget_microusd": 0,
+    "enforcement": "fixture only; no model call"
+  },
+  "context": {
+    "briefing_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+    "retrieval_digest": null,
+    "tools": [
+      "records.read"
+    ]
+  },
+  "attempt": 1,
+  "result_status": "complete",
+  "acceptance_evidence": [
+    "synthetic:integration-passed"
+  ],
+  "task_lineage": "synthetic-three-document",
+  "split": "development",
+  "operator_seconds": 0,
+  "deadline_seconds": null,
+  "billing": {
+    "mode": "fixture",
+    "price_snapshot": null,
+    "repriced": false
+  }
+}
