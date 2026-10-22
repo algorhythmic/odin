@@ -10,7 +10,9 @@
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 5318 --strictPort",
     "browsers:install": "PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers playwright install chromium",
-    "test": "PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers playwright test"
+    "test": "PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers playwright test",
+    "test:perf": "PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers playwright test -c playwright.perf.config.js",
+    "describe:large": "node scripts/describe-large.mjs"
   },
   "dependencies": {
     "d3-hierarchy": "3.1.2",
