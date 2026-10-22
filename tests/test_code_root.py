@@ -96,6 +96,31 @@ class CodeRootTests(unittest.TestCase):
         self.assertEqual(observed["hook"], f"PYTHONPATH={code / 'python'}")
         self.assertEqual((observed["revision"], observed["clean"]), (REVISION, None))
 
+    def test_launch_cwd_and_transcript_follow_the_repository_from_a_copy(self):
+        # Telemetry derives the transcript directory from the launch cwd; from a
+        # deployed copy both must still be the checkout named by the manifest.
+        runtime.enable_development(self.state)
+        with runtime._owned_runtime(self.state):
+            pass
+        code = self.temp / "deploy" / REVISION
+        copy_code(code, ROOT)
+        probe = self.run_from(code, script=(
+            "import json\n"
+            "from odin import executive_runtime as r\n"
+            "from odin.usage_watch import claude_project_dir\n"
+            f"m, base = r._load({str(self.state)!r})\n"
+            f"session, transcript = r.current_transcript({str(self.state)!r})\n"
+            "spec = r.launch_spec(" + repr(str(self.state)) + ", resume=True)\n"
+            "print(json.dumps({'cwd': r._launch_cwd(m, base), 'spec_cwd': spec['cwd'],\n"
+            "                  'transcript': str(transcript),\n"
+            "                  'expected': str(claude_project_dir(m['config_dir'], m['repository_root']))}))\n"))
+        self.assertEqual(probe.returncode, 0, probe.stderr)
+        observed = json.loads(probe.stdout)
+        self.assertEqual(observed["cwd"], str(ROOT))
+        self.assertEqual(observed["spec_cwd"], str(ROOT))
+        self.assertTrue(observed["transcript"].startswith(observed["expected"]))
+        self.assertNotIn(str(code), observed["transcript"])
+
     def test_copy_of_another_repository_is_refused(self):
         runtime.enable_development(self.state)
         with runtime._owned_runtime(self.state):
