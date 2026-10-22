@@ -16,11 +16,11 @@ test('hostile transcript markup renders as literal text', async ({ page }) => {
   await shot(page, 'untrusted-transcript');
   // The browser stores layout preferences only, and does store them.
   await page.getByRole('button', { name: 'List', exact: true }).click();
-  const keys = await page.evaluate(() => Object.keys(localStorage));
-  expect(keys).toEqual(['odin-web-prefs:v1']);
-  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('odin-web-prefs:v1')));
-  expect(Object.keys(stored).sort()).toEqual(['collapsed', 'mode', 'showRelations']);
-  expect(stored.mode).toBe('list');
+  // Preferences are written by an effect after the render, so wait for it.
+  const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('odin-web-prefs:v1') || 'null'));
+  await expect.poll(async () => (await stored())?.mode).toBe('list');
+  expect(Object.keys(await stored()).sort()).toEqual(['collapsed', 'mode', 'showRelations']);
+  expect(await page.evaluate(() => Object.keys(localStorage))).toEqual(['odin-web-prefs:v1']);
 });
 
 test('tampered layout preferences are ignored rather than breaking the app', async ({ page }) => {
