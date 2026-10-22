@@ -89,6 +89,11 @@ function LineageRow({ provider, lineage }) {
             onInput={(e) => setupStore.setLineageLabel(provider.id, lineage.id, e.currentTarget.value)} />
         </label>
         <span class={`setup-pill lineage-${lineage.status}`}>{STATUS[lineage.status]}</span>
+        {lineage.status === 'connected' && (
+          <button type="button" onClick={() => setupStore.disconnect(provider.id, lineage.id)}>
+            Disconnect <span class="sr-only">{lineage.label}</span>
+          </button>
+        )}
         {canConnect && (
           <button type="button" onClick={() => setupStore.connect(provider.id, lineage.id)}>
             Connect <span class="sr-only">{lineage.label}</span>

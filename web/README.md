@@ -41,7 +41,15 @@ Routes are hash based so a static build deep-links without server rewrites:
 
 The sidebar connects projects beneath the executive. Hover or keyboard
 focus highlights a project's branch on portfolio routes; clicking scopes
-the tree. Below 900 px the sidebar is a modal drawer. Below 760 px the
+the tree. The sidebar also lists portfolio attention, activity and usage
+for connected provider sign-ins. Usage stays pinned above setup and settings,
+with one compact row per sign-in. Each row shows its most constrained available
+window; its disclosure unfolds per-window details in a bounded scrolling list.
+Disclosure state lasts only in memory, including through sidebar collapse. It resizes from 220 to 440 px by dragging
+its right edge or using the separator's arrow keys (16 px), Home and End.
+A button collapses it to a 56 px rail; width and collapse are validated
+layout preferences. Container queries reveal more detail from 300 px.
+Below 900 px the sidebar is always an expanded modal drawer. Below 760 px the
 list replaces the canvas. Tree/List is a layout preference; selection
 stays in the URL. Deferred Queue, Lanes, Graph, Decisions and Board routes
 render not found. Setup and settings share working synthetic panels.
@@ -58,7 +66,19 @@ Add `?setup=fresh` before the hash to start with no connected sign-ins,
 enabled harnesses or completed steps; it can be combined with
 `?dataset=large&setup=fresh`. Sign-in completion is an explicitly labelled
 simulation. No field accepts a credential, and no sign-in request leaves
-the browser. The model speed/depth bars are synthetic descriptors.
+the browser. Disconnect removes a sign-in from the draft; Discard restores
+the applied snapshot. The model speed/depth bars are synthetic descriptors.
+
+Usage meters follow the connected sign-ins in that draft. Their synthetic
+limit samples mirror W3a labels and admission thresholds; unlisted labels
+have no band. Probe-unavailable windows show a reason without a bar.
+Tokens are separate from probes and unknown usage stays explicit. Friendly
+window names retain their raw labels in tooltips and meter descriptions. Reset
+intervals use the sample's observation time so the fixture stays repeatable;
+durations of a day or more use days and hours.
+Admission text uses warning and failed status colours; meter fills stay
+monochrome. These are descriptions of Odin admission, not provider-enforced
+limits, and no live probe runs in the browser.
 
 Providers, harnesses, default models and role routing share one in-memory
 draft across the wizard and settings. Apply records an in-memory snapshot;
@@ -138,8 +158,9 @@ not service or desktop measurements.
 | `src/events.js` | Update-event rules (pure; unit-tested in `tests-unit/`) |
 | `src/live.js` | Autoplay scheduling and header summary counts (pure; unit-tested) |
 | `src/driver.jsx`, `src/history.jsx` | Synthetic update driver bar; project history |
-| `src/route.js`, `src/prefs.js` | Hash routes; layout preferences (`odin-web-prefs:v1` in localStorage): view mode, collapsed branches, relationship overlay, colour theme |
+| `src/route.js`, `src/prefs.js` | Hash routes; layout preferences (`odin-web-prefs:v1` in localStorage): view mode, collapsed branches, relationship overlay, colour theme, sidebar width/collapse |
 | `src/models.js`, `src/status.jsx` | Friendly model names and providers; the status chip, provider monogram and tool icons |
+| `src/shell.jsx`, `src/usage.jsx`, `src/usage.js` | Sidebar dashboard, rail, resize controls and pure admission-band helpers |
 | `src/workspace.jsx` | Portfolio and scoped project workspace |
 | `src/tree.jsx`, `src/card.jsx`, `src/project-node.jsx` | Square connector layout, SVG edges, session cards and project groupings |
 | `src/tokencount.jsx`, `src/attention.jsx` | Animated token figures; the header attention chips and popovers |
@@ -177,7 +198,8 @@ not service or desktop measurements.
 - A session ending does not mark its run verified.
 - The setup draft and applied configuration are synthetic in-memory values
   that reset on reload. The browser persists only layout preferences (view
-  mode, collapsed branches, relationship overlay, colour theme). Selection lives in the
+  mode, collapsed branches, relationship overlay, colour theme, sidebar width
+  and collapse). Selection lives in the
   URL.
 
 ## Presentation
@@ -189,8 +211,9 @@ not service or desktop measurements.
   ancestry connectors and selection are monochrome. Colour is reserved
   for the status set, the quiet `--warn` synthetic-data badge (a muted
   amber, calmer than `--status-needs`) and `--accent`, a calm blue used
-  only on links, buttons, focus rings and the typed-relationship
-  overlay.
+  only on links, buttons, focus rings, active resize feedback and the
+  typed-relationship overlay. Usage admission text uses `--warn` from wind down and
+  `--status-failed` at handoff only; fills and threshold ticks are monochrome.
 - The status set is Running (blue, spinner), Needs you (amber, clock),
   Done (green, check), Failed (red, triangle) and Stopped (grey,
   square). "Needs you" replaces the old "Waiting for input" label

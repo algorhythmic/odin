@@ -125,6 +125,12 @@ export function createSetupStore(fixture, { fresh = false } = {}) {
         if (p?.supported && l) l.status = 'waiting';
       });
     },
+    disconnect(pid, lid) {
+      edit(() => {
+        const l = provider(pid)?.lineages.find((l) => l.id === lid);
+        if (l) l.status = 'not_connected';
+      });
+    },
     completeSignIn(pid, lid) {
       edit(() => {
         const l = provider(pid)?.lineages.find((l) => l.id === lid);

@@ -1,7 +1,7 @@
 // Pass 4 operator colour decisions (synthetic): the synthetic-data badge
 // is a quiet --warn badge, visibly calmer than and distinct from the
 // needs-you status, and --accent is confined to links, buttons, focus
-// rings and the typed-relationship overlay. Checked in both themes.
+// rings, active resize feedback and the typed-relationship overlay. Checked in both themes.
 import { test, expect } from '@playwright/test';
 import { sessionUrl, shot } from './helpers.js';
 

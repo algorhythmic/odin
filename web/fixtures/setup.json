@@ -445,5 +445,109 @@
         "effort": "high"
       }
     }
+  },
+  "usage": {
+    "band_ceilings": {
+      "claude.five_hour": 95,
+      "claude.weekly": 90,
+      "claude.weekly.fable": 95,
+      "codex.five_hour": 95,
+      "codex.weekly": 90
+    },
+    "lineages": {
+      "executive-login": {
+        "samples": [
+          {
+            "kind": "limit",
+            "label": "claude.five_hour",
+            "utilization_percent": 42,
+            "resets_at": "2026-10-22T20:10:00Z",
+            "observed_at": "2026-10-22T18:00:00Z",
+            "source": "probe",
+            "status": "available",
+            "reason": null
+          },
+          {
+            "kind": "limit",
+            "label": "claude.weekly",
+            "utilization_percent": 81,
+            "resets_at": "2026-10-25T18:00:00Z",
+            "observed_at": "2026-10-22T18:00:00Z",
+            "source": "probe",
+            "status": "available",
+            "reason": null
+          },
+          {
+            "kind": "limit",
+            "label": "claude.weekly.fable",
+            "utilization_percent": 64,
+            "resets_at": "2026-10-25T18:00:00Z",
+            "observed_at": "2026-10-22T18:00:00Z",
+            "source": "probe",
+            "status": "available",
+            "reason": null
+          }
+        ],
+        "tokens": {
+          "value": 184200,
+          "window": "five hour",
+          "basis": "measured"
+        }
+      },
+      "delegation-login": {
+        "samples": [
+          {
+            "kind": "limit",
+            "label": "claude.five_hour",
+            "utilization_percent": 12,
+            "resets_at": "2026-10-22T21:20:00Z",
+            "observed_at": "2026-10-22T18:00:00Z",
+            "source": "probe",
+            "status": "available",
+            "reason": null
+          },
+          {
+            "kind": "limit",
+            "label": "claude.weekly",
+            "utilization_percent": null,
+            "resets_at": null,
+            "observed_at": "2026-10-22T18:00:00Z",
+            "source": "probe",
+            "status": "unavailable",
+            "reason": "credential not readable"
+          }
+        ],
+        "tokens": null
+      },
+      "evaluator-codex-login": {
+        "samples": [
+          {
+            "kind": "limit",
+            "label": "codex.five_hour",
+            "utilization_percent": 91,
+            "resets_at": "2026-10-22T19:45:00Z",
+            "observed_at": "2026-10-22T18:00:00Z",
+            "source": "probe",
+            "status": "available",
+            "reason": null
+          },
+          {
+            "kind": "limit",
+            "label": "codex.weekly",
+            "utilization_percent": 38,
+            "resets_at": "2026-10-27T18:00:00Z",
+            "observed_at": "2026-10-22T18:00:00Z",
+            "source": "probe",
+            "status": "available",
+            "reason": null
+          }
+        ],
+        "tokens": {
+          "value": 68200,
+          "window": "five hour",
+          "basis": "estimate"
+        }
+      }
+    }
   }
 }

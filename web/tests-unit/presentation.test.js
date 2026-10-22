@@ -33,11 +33,14 @@ test('providers come from the model id and are never guessed', () => {
 });
 
 test('preference validation keeps documented fields and defaults the rest', () => {
-  assert.deepEqual(cleanPrefs(null), { mode: 'tree', collapsed: {}, showRelations: true, theme: 'dark' });
-  assert.deepEqual(cleanPrefs('list'), { mode: 'tree', collapsed: {}, showRelations: true, theme: 'dark' });
+  const defaults = {
+    mode: 'tree', collapsed: {}, showRelations: true, theme: 'dark', sidebarCollapsed: false, sidebarWidth: 320,
+  };
+  assert.deepEqual(cleanPrefs(null), defaults);
+  assert.deepEqual(cleanPrefs('list'), defaults);
   assert.deepEqual(
     cleanPrefs({ mode: 'list', showRelations: false, theme: 'light', collapsed: { p1: ['s1', 's2'] } }),
-    { mode: 'list', collapsed: { p1: ['s1', 's2'] }, showRelations: false, theme: 'light' },
+    { ...defaults, mode: 'list', collapsed: { p1: ['s1', 's2'] }, showRelations: false, theme: 'light' },
   );
 });
 
@@ -54,4 +57,15 @@ test('collapsed and showRelations validation is unchanged by the theme field', (
   assert.deepEqual(cleanPrefs({ collapsed: 'x' }).collapsed, {});
   assert.equal(cleanPrefs({ showRelations: false }).showRelations, false);
   assert.equal(cleanPrefs({ showRelations: 'no' }).showRelations, true);
+});
+
+test('sidebar preferences validate types and range without coercion', () => {
+  for (const sidebarWidth of [220, 320, 440]) assert.equal(cleanPrefs({ sidebarWidth }).sidebarWidth, sidebarWidth);
+  for (const sidebarWidth of [219, 441, 320.5, '320', null, NaN, Infinity, true, {}, []]) {
+    assert.equal(cleanPrefs({ sidebarWidth }).sidebarWidth, 320);
+  }
+  assert.equal(cleanPrefs({ sidebarCollapsed: true }).sidebarCollapsed, true);
+  for (const sidebarCollapsed of ['true', 1, null, false, {}, []]) {
+    assert.equal(cleanPrefs({ sidebarCollapsed }).sidebarCollapsed, false);
+  }
 });

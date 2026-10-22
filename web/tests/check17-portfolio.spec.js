@@ -159,10 +159,13 @@ test('800px drawer opens by keyboard, traps focus, closes and scopes on navigati
   await page.keyboard.press('Enter');
   await expect(drawer).toBeVisible();
   await drawer.getByTestId('theme-toggle').focus();
-  await page.keyboard.press('Tab');
-  await expect(menu).not.toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(drawer.getByRole('link', { name: 'Odin', exact: true })).toBeFocused();
+  const brand = drawer.getByRole('link', { name: 'Odin', exact: true });
+  for (let i = 0; i < 3; i++) {
+    await page.keyboard.press('Tab');
+    await expect(menu).not.toBeFocused();
+    if (await brand.evaluate((el) => el === document.activeElement)) break;
+  }
+  await expect(brand).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(drawer).not.toBeVisible();
   await expect(menu).toBeFocused();

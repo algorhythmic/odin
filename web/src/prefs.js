@@ -1,9 +1,13 @@
 // Browser state is limited to layout preferences: view mode, collapsed
-// branches, the relationship overlay and the colour theme. Records are
+// branches, the relationship overlay, theme and sidebar size. Records are
 // never stored here.
 import { useEffect, useState } from 'preact/hooks';
 
 const KEY = 'odin-web-prefs:v1';
+export const SIDEBAR_MIN = 220;
+export const SIDEBAR_MAX = 440;
+export const SIDEBAR_DEFAULT = 320;
+export const clampSidebarWidth = (value) => Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, Math.round(value)));
 const THEMES = new Set(['dark', 'light']);
 
 // Keeps only { projectId: [sessionId, ...] } entries; anything else is dropped.
@@ -26,6 +30,9 @@ export function cleanPrefs(value) {
     collapsed: cleanCollapsed(v.collapsed),
     showRelations: v.showRelations !== false,
     theme: THEMES.has(v.theme) ? v.theme : 'dark',
+    sidebarCollapsed: v.sidebarCollapsed === true,
+    sidebarWidth: Number.isInteger(v.sidebarWidth) && v.sidebarWidth >= SIDEBAR_MIN && v.sidebarWidth <= SIDEBAR_MAX
+      ? v.sidebarWidth : SIDEBAR_DEFAULT,
   };
 }
 
