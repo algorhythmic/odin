@@ -341,10 +341,106 @@ evidence outside the repository; they are local-backend evidence without
 isolation or Saga guarantees. Tools added after a conversation started are
 visible only after that conversation exits and resumes.
 
+### Executive admission paths
+
+In delegated implementation mode the native intervention hook admits a
+`Bash`, `Write`, `Edit` or `NotebookEdit` call on one of three paths
+([ODIN-ADR-034](DECISIONS.md#odin-adr-034--bounded-executive-intervention-and-concise-working-context),
+2026-10-22 amendment). Anything else is refused, and the refusal message
+names the three paths. The paths inspect the literal tool input before the
+shell runs it; they are a workflow boundary, not OS isolation.
+
+1. **Read-only diagnostics, no permit.** One foreground `Bash` command, or a
+   `|` pipe of commands, each from the allowlist: git read subcommands
+   (`status`, `log`, `diff`, `show`, `rev-parse`, `rev-list`, `merge-base`,
+   `ls-files`, `cat-file`, `blame`, `describe`, `cherry`, `shortlog`, `grep`,
+   `for-each-ref`, `worktree list`, `stash list`, listing-only `branch`,
+   `reflog` or `reflog show`, `remote -v`), optionally after `git -C <path>`
+   or `--no-pager`; `ls`, `cat`, `head`, `tail` (not following), `wc`, `stat`,
+   `du`, `df`, `find` without `-exec`, `-execdir`, `-delete`, `-ok`, `-okdir`,
+   `-fprint*` or `-fls`, `grep` and `rg` without `--pre` (nor rg's
+   `--hostname-bin` or `-z`), `jq`, `sort` without `-o` or
+   `--compress-program`, `uniq` with at most one operand, `cut`, `ps`,
+   `pgrep`, `date` without `-s`, `uptime`, `id`, `whoami`, `which`, `pwd`;
+   `systemctl --user` `status`, `show`, `is-active`, `is-enabled`,
+   `list-units` or `cat`; `journalctl --user` without follow, vacuum, rotate,
+   flush, sync or cursor-file options; and the pilot launcher, the
+   operator-owned `run` file beside the state directory, by absolute path,
+   with `status`, `executive-status`, `development-status`, `usage-status` or
+   `context-status` and only `--project`, `--loop`, `--stage` or
+   `--native-session` values. `;`, `&`, backticks, `$(`, `<`, `>` and
+   newlines are refused anywhere, even inside quotes. Unquoted `$`, globs,
+   braces, parentheses, `#` and `!` are refused, as are
+   `run_in_background`, a sandbox override and abbreviated long options that
+   could select a refused one. When a memory directory is configured, git is
+   refused if it would start inside it (through `-C` or the current
+   directory), because the executive writes there without a permit and a
+   planted git configuration could name a program for git to run. The hook
+   decides this locally and never calls the service, so it still works when
+   the service is down.
+2. **Operator-registered scripts, no permit.** The operator registers a
+   script by absolute path:
+
+   ```bash
+   ~/.local/state/odin-executive-pilot/run executive-register-script \
+     --path /absolute/path/to/script.sh
+   ~/.local/state/odin-executive-pilot/run executive-register-script \
+     --path /absolute/path/to/script.sh --remove
+   ```
+
+   Registration refuses relative or non-normalized paths, symlinks in any
+   component and non-regular files, and stores the path and SHA-256 in
+   `executive-pilot/registered-scripts.json` (mode 0600). Editing the script
+   requires registering it again. The hook admits a `Bash` call whose first
+   word is a registered path whose current hash matches, followed by plain
+   arguments and optional `>`, `>>`, `1>`, `2>` or `<` redirections to
+   absolute paths, or `2>&1`. A redirection target may not be a registered
+   script (bash reads a script as it runs, so appending to it would add
+   commands), lie inside the state directory, contain a `.git` component or
+   pass through a symlink. Other absolute targets the operator's user can
+   write are allowed. Background execution is allowed. Register scripts, not
+   interpreters: a registered `python` or `sh` would admit any program in its
+   arguments. There is no
+   executive tool for registration, and the executive is instructed not to
+   change registrations; a permit-admitted command runs with the same user
+   authority and could, so this rests on the workflow, not on isolation.
+   The hash is checked at `PreToolUse`; a change between that check and
+   execution is not prevented.
+3. **Exact permits.** `odin_intervention_begin` records a purpose and up to 32
+   exact calls for up to 3600 seconds, only while no delegated turn is queued
+   or running. A call's optional `uses` (1–20) creates that many single-use
+   permits for the identical input. An optional `background: true` on a Bash
+   call binds `run_in_background` into the input digest, so the same command
+   in the foreground does not match it, and the reverse. A background permit
+   closes at launch (state `launched`); it never becomes an unknown outcome,
+   and the intervention view carries `background_outcome:
+   not_observed_by_odin` with a note that Odin does not observe the outcome.
+   Foreground permits keep the existing completion tracking, unknown-outcome
+   blocking of new delegation and operator-only `intervention_reconcile`.
+   A launched background command, like a background registered script, is
+   invisible to the busy guard, so delegated turns may run while it does.
+
+`Write` and `Edit` inside a configured memory directory (below) are also
+admitted without a permit. Each admission without a permit appends one
+record to `executive-pilot/intervention-audit.jsonl` (mode 0600): schema
+version, time, path kind (`read_only`, `registered_script` or
+`memory_directory`), tool and input digest. It holds no command text, file
+content or tool-use identity. The digest is an unkeyed SHA-256, so a short,
+guessable command can be confirmed by hashing candidates. If the record cannot be appended, the call is
+refused. The file is not rotated. Allowed programs still run as the operator:
+git may run a configured pager, textconv or fsmonitor, the Claude Code shell
+may apply the operator's own aliases or functions, and `git -C` into a
+workspace reads that workspace's git configuration. The code is in
+`python/odin/executive_admission.py` and the tests in
+`tests/test_executive_admission.py`. Nothing changes until the operator
+restarts the service on a head with this change and resumes the executive in
+delegated mode.
+
 ### Optional executive memory directory
 
 In delegated implementation mode the native intervention hook permits
-`Write` and `Edit` only through a single-use permit. An operator may name one
+`Write` and `Edit` outside the read-only and registered-script paths only
+through a single-use permit. An operator may name one
 directory where the executive writes its own memory notes without a permit:
 
 ```bash
@@ -360,8 +456,9 @@ the hook re-checks it on every call, so it applies without a relaunch. A
 `Write` or `Edit` whose real target lies strictly inside that directory, through
 existing real directories, is allowed without a permit. Target paths that are
 symlinks, relative, contain `..`, or resolve outside the directory fall through
-to the normal permit path. `Bash`, `NotebookEdit` and all other tools are
-unchanged. The check is a path boundary, not an inode boundary: a hard link
+to the normal permit path, and so does any target with a `.git` component.
+`NotebookEdit` and all other tools are
+unchanged, and `Bash` follows the admission paths above. The check is a path boundary, not an inode boundary: a hard link
 inside the directory is not detected (creating one needs `Bash`, which stays
 permit-gated). It runs at `PreToolUse`, so a concurrent change between the
 check and the write is not prevented. Memory notes never replace Odin records

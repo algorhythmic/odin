@@ -183,11 +183,15 @@ compaction settings. `executive-status` reports configured and pending modes
 and intervention configuration. `--implementation-mode direct` stages rollback
 to the prior development role; worker permissions are independent.
 
-For a bounded authorized diagnostic or repair, call `odin_intervention_begin`
-with a purpose, `ttl_seconds` (1–300), and 1–8 `calls`, each containing `tool`
-and exact `input`. Keep Bash `command` and `timeout` identical when invoking
-the native tool; its description is ignored. Do not include secrets or request
-background execution or a sandbox override. The returned intervention ID is
+Read-only allowlisted Bash and operator-registered scripts need no permit;
+see [executive admission paths](EXECUTIVE-PILOT.md#executive-admission-paths).
+For any other bounded authorized diagnostic or repair, call `odin_intervention_begin`
+with a purpose, `ttl_seconds` (1–3600), and 1–32 `calls`, each containing `tool`
+and exact `input`, optionally `uses` (1–20) to repeat an identical call and,
+for Bash, `background: true` to bind background execution. Keep Bash `command`
+and `timeout` identical when invoking the native tool; its description is
+ignored. A background permit closes at launch and Odin does not observe its
+outcome. Do not include secrets or request a sandbox override. The returned intervention ID is
 the begin operation ID. No orchestrator turn may be queued or running. The
 hook consumes each exact-input permit once; unmatched calls are denied with
 instructions to delegate or request a scoped permit. Close unused permits

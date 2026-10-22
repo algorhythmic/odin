@@ -2,6 +2,8 @@
 
 A permit controls a future hook admission, not an OS process or a filesystem
 sandbox. Tool inputs are hashed; neither commands nor edit contents are retained.
+A Bash permit may be bound to background execution; it closes at launch because
+Odin does not observe a background command's outcome.
 """
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -13,6 +15,8 @@ ACTIONS = {"intervention_begin", "intervention_end", "intervention_status",
            "intervention_authorize", "intervention_finish", "intervention_reconcile"}
 EXECUTIVE_ACTIONS = ACTIONS - {"intervention_reconcile"}
 TOOLS = ("Bash", "Write", "Edit", "NotebookEdit")
+BACKGROUND_NOTE = ("Background permits close at launch. Odin does not observe the outcome "
+                   "of a background command; inspect its effects directly.")
 
 
 def initialize(store):
@@ -29,10 +33,14 @@ def normalized(tool, inputs):
     if tool == "Bash":
         if not isinstance(inputs.get("command"), str) or not inputs["command"].strip():
             raise ValueError("intervention_command_required")
-        if inputs.get("run_in_background") or inputs.get("dangerouslyDisableSandbox"):
-            raise ValueError("intervention_background_or_sandbox_override_denied")
-        inputs.pop("run_in_background", None)
-        inputs.pop("dangerouslyDisableSandbox", None)
+        if inputs.pop("dangerouslyDisableSandbox", None) not in (None, False):
+            raise ValueError("intervention_sandbox_override_denied")
+        # Background execution stays in the digest, so a permit is bound to it.
+        background = inputs.pop("run_in_background", None)
+        if background is True:
+            inputs["run_in_background"] = True
+        elif background not in (None, False):
+            raise ValueError("intervention_background_invalid")
     else:
         path = inputs.get("notebook_path" if tool == "NotebookEdit" else "file_path")
         if not isinstance(path, str) or not Path(path).is_absolute():
@@ -40,6 +48,18 @@ def normalized(tool, inputs):
     if len(canonical(inputs).encode()) > 16384:
         raise ValueError("intervention_input_too_large")
     return {"tool": tool, "input": inputs}
+
+
+def _call_input(call):
+    """Executable input a begin call permits, with background bound explicitly."""
+    inputs = call["input"]
+    if call.get("background"):
+        if call["tool"] != "Bash":
+            raise ValueError("intervention_background_bash_only")
+        inputs = inputs | {"run_in_background": True}
+    elif inputs.get("run_in_background") not in (None, False):
+        raise ValueError("intervention_background_requires_flag")
+    return normalized(call["tool"], inputs)
 
 
 def _live(item):
@@ -74,9 +94,13 @@ def _view(item):
         return {"mode": "executive", "intervention": None}
     copy = dict(item)
     effective_state = "expired" if copy["state"] == "active" and not _live(item) else copy["state"]
-    return {"mode": "intervention" if _live(item) else "executive", "intervention": copy, "effective_state": effective_state,
+    view = {"mode": "intervention" if _live(item) else "executive", "intervention": copy, "effective_state": effective_state,
             "in_flight_unknown": any(p["state"] == "admitted" for p in item["permits"]),
             "boundary": "native_hook_admission_not_os_isolation"}
+    if any(p.get("background") for p in item["permits"]):
+        view["background_outcome"] = "not_observed_by_odin"
+        view["background_note"] = BACKGROUND_NOTE
+    return view
 
 
 def dispatch(gateway, action, payload, context, operation):
@@ -100,8 +124,10 @@ def dispatch(gateway, action, payload, context, operation):
         delegation_guard(store, project)
         if _busy(store, project):
             raise Conflict("delegated_work_active")
-        permits = [{"tool": p["tool"], "input_digest": digest(normalized(p["tool"], p["input"])),
-                    "state": "available", "tool_use_id": None} for p in payload["calls"]]
+        # `uses` repeats an identical call; each use is its own one-use permit.
+        permits = [{"tool": p["tool"], "input_digest": digest(_call_input(p)),
+                    "state": "available", "tool_use_id": None} | ({"background": True} if p.get("background") else {})
+                   for p in payload["calls"] for _ in range(p.get("uses", 1))]
         item = {"schema_version": 1, "id": operation, "project": project, "session_id": session,
                 "purpose": payload["purpose"], "created_at": now(),
                 "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=payload["ttl_seconds"])).isoformat().replace("+00:00", "Z"),
@@ -139,7 +165,8 @@ def dispatch(gateway, action, payload, context, operation):
             if action == "intervention_authorize":
                 # A lost admission response must not authorize a second execution.
                 raise Conflict("intervention_admission_already_consumed")
-            permit["state"] = "finished"
+            if permit["state"] != "launched":
+                permit["state"] = "finished"
         elif action == "intervention_finish":
             return {"recorded": False, "reason": "no_matching_admission"}
         else:
@@ -151,8 +178,9 @@ def dispatch(gateway, action, payload, context, operation):
             if not matches:
                 raise PermissionError("intervention_permit_required")
             item, permit = matches[0]
-            permit.update(state="admitted", tool_use_id=tool_use)
-        if all(p["state"] == "finished" for p in item["permits"]):
+            # A background permit closes at launch: no completion is awaited.
+            permit.update(state="launched" if permit.get("background") else "admitted", tool_use_id=tool_use)
+        if all(p["state"] in ("finished", "launched") for p in item["permits"]):
             item["state"] = "closed"
     _save(store, item)
     store._history("executive.intervention", {"action": action, "id": item["id"],
