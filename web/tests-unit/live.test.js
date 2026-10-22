@@ -4,7 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  BASE_INTERVAL_MS, SPEEDS, attentionCounts, cleanSpeed, failedSessionIds, intervalFor,
+  BASE_INTERVAL_MS, SPEEDS, attentionCounts, cleanSpeed, displayedElapsed, failedSessionIds,
+  intervalFor, observeElapsed,
 } from '../src/live.js';
 
 test('autoplay speed validation keeps documented speeds and defaults the rest', () => {
@@ -63,4 +64,61 @@ test('a failed run on a non-ended session does not count as failed', () => {
 
 test('an empty project reports zeros, never undefined', () => {
   assert.deepEqual(attentionCounts([], new Set()), { agents: 0, running: 0, needsYou: 0, failed: 0 });
+});
+
+test('a session already running at play accumulates ticks from the start', () => {
+  const baselines = new Map();
+  const s = { id: 's-exec', lifecycle: 'running', elapsed_s: 9240 };
+  observeElapsed([s], baselines, 0);
+  assert.equal(displayedElapsed(s, baselines, 0), 9240);
+  assert.equal(displayedElapsed(s, baselines, 3), 9243);
+  assert.equal(displayedElapsed(s, baselines, 60), 9300);
+});
+
+test('a session that starts running mid-play ticks only since it appeared', () => {
+  const baselines = new Map();
+  const first = { id: 's-exec', lifecycle: 'running', elapsed_s: 100 };
+  observeElapsed([first], baselines, 0);
+  // The newcomer is observed running at tick 16 with recorded elapsed_s 10.
+  const late = { id: 's-late', lifecycle: 'running', elapsed_s: 10 };
+  observeElapsed([first, late], baselines, 16);
+  assert.equal(displayedElapsed(late, baselines, 16), 10);
+  assert.equal(displayedElapsed(late, baselines, 20), 14);
+  // The earlier session keeps its own baseline, not the newcomer's.
+  assert.equal(displayedElapsed(first, baselines, 20), 120);
+});
+
+test('a lifecycle or elapsed_s change resets the baseline', () => {
+  const baselines = new Map();
+  let s = { id: 's', lifecycle: 'running', elapsed_s: 50 };
+  observeElapsed([s], baselines, 3);
+  assert.equal(displayedElapsed(s, baselines, 8), 55);
+  // Ending at tick 10 stops the ticking; the recorded value is kept.
+  s = { ...s, lifecycle: 'ended' };
+  observeElapsed([s], baselines, 10);
+  assert.equal(displayedElapsed(s, baselines, 15), 50);
+  // Running again at tick 14 starts a fresh count from the record.
+  s = { ...s, lifecycle: 'running' };
+  observeElapsed([s], baselines, 14);
+  assert.equal(displayedElapsed(s, baselines, 14), 50);
+  assert.equal(displayedElapsed(s, baselines, 18), 54);
+  // An elapsed_s change re-bases the display on the new record.
+  s = { ...s, elapsed_s: 200 };
+  observeElapsed([s], baselines, 20);
+  assert.equal(displayedElapsed(s, baselines, 25), 205);
+});
+
+test('non-running and unknown elapsed are untouched by ticks', () => {
+  const baselines = new Map();
+  const sessions = [
+    { id: 'n1', lifecycle: 'idle', elapsed_s: 30 },
+    { id: 'n2', lifecycle: 'running', elapsed_s: null },
+    { id: 'n3', lifecycle: 'ended', elapsed_s: null },
+  ];
+  observeElapsed(sessions, baselines, 7);
+  assert.equal(displayedElapsed(sessions[0], baselines, 99), 30);
+  assert.equal(displayedElapsed(sessions[1], baselines, 99), null);
+  assert.equal(displayedElapsed(sessions[2], baselines, 99), null);
+  // A session with no recorded baseline shows only its record.
+  assert.equal(displayedElapsed({ id: 'new', lifecycle: 'running', elapsed_s: 5 }, baselines, 99), 5);
 });

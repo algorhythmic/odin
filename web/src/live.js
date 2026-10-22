@@ -34,6 +34,30 @@ export function attentionCounts(sessions, failedIds) {
   return { agents: sessions.length, running, needsYou, failed };
 }
 
+// Records the player tick at which each session's (lifecycle, elapsed_s)
+// pair was first seen this playback. `baselines` is a Map the caller
+// owns, keyed by session id. A pair that appears or changes starts a new
+// baseline at the current tick, so a session that starts running
+// mid-play does not inherit the seconds ticked before it appeared, and a
+// lifecycle or elapsed_s change restarts its count.
+export function observeElapsed(sessions, baselines, tick) {
+  for (const s of sessions) {
+    const prev = baselines.get(s.id);
+    if (!prev || prev.lifecycle !== s.lifecycle || prev.elapsed !== s.elapsed_s) {
+      baselines.set(s.id, { lifecycle: s.lifecycle, elapsed: s.elapsed_s, since: tick });
+    }
+  }
+}
+
+// The displayed elapsed: a running session with a known elapsed_s adds
+// only the ticks since its baseline; anything else keeps the recorded
+// value (null stays null). The recorded elapsed_s is never rewritten.
+export function displayedElapsed(session, baselines, tick) {
+  if (session.lifecycle !== 'running' || session.elapsed_s == null) return session.elapsed_s;
+  const base = baselines.get(session.id);
+  return base ? session.elapsed_s + Math.max(0, tick - base.since) : session.elapsed_s;
+}
+
 // Animations must be instant when the operator prefers reduced motion.
 // Guarded so the pure module still loads under Node.
 export const prefersReducedMotion = () =>

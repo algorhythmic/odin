@@ -80,6 +80,19 @@ test('running sessions tick elapsed each second and the Running chip spins', asy
   expect(await animationName(spin)).toBe('odin-spin');
 });
 
+test('a session that starts running mid-play ticks only since it appeared', async ({ page }) => {
+  await page.goto(`/#/projects/${PID}`);
+  await speed(page).selectOption('4');
+  await toggle(page).click();
+  // evt-014 delivers ses-live-a2 (recorded elapsed_s 10) on the 26th
+  // delivery, 7800 ms in — seven ticks after play began.
+  await page.clock.runFor(7900);
+  const elapsed = card(page, 'ses-live-a2').getByTestId('elapsed');
+  await expect(elapsed).toHaveText('10s');
+  await page.clock.runFor(150); // one more tick, still before evt-017 ends it
+  await expect(elapsed).toHaveText('11s');
+});
+
 test('the header summary counts update live with the run', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
   await expect(summary(page)).toContainText('10 agents · 3 running · 1 needs you · 1 failed ·');

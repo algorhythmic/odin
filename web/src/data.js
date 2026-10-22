@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import * as fx from './fixtures/synthetic.js';
 import { reduceEvent } from './events.js';
-import { attentionCounts, cleanSpeed, failedSessionIds, intervalFor } from './live.js';
+import { attentionCounts, cleanSpeed, displayedElapsed, failedSessionIds, intervalFor, observeElapsed } from './live.js';
 
 export const isSynthetic = fx.synthetic === true;
 export const datasetName = new URLSearchParams(location.search).get('dataset') === 'large' ? 'large' : 'default';
@@ -273,12 +273,16 @@ export function formatElapsed(seconds) {
   return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
 }
 
-// Seconds added to running sessions' displayed elapsed while the
+// Seconds added to a running session's displayed elapsed while the
 // synthetic player runs. Display only; the recorded elapsed_s is never
-// rewritten.
+// rewritten. Each session's baseline is the player tick at which its
+// (lifecycle, elapsed_s) pair was first seen this playback (live.js
+// holds the rule), so a session that starts running mid-play counts only
+// the ticks since it appeared, not every tick since play began.
 let elapsedTick = 0;
-export const liveElapsed = (s) =>
-  (s.lifecycle === 'running' && s.elapsed_s != null ? s.elapsed_s + elapsedTick : s.elapsed_s);
+const elapsedBaselines = new Map();
+observeElapsed(snap.sessions, elapsedBaselines, elapsedTick);
+export const liveElapsed = (s) => displayedElapsed(s, elapsedBaselines, elapsedTick);
 
 // Card footer elapsed: a running session ticks each second while the
 // player runs, so it shows seconds; anything else keeps the recorded
@@ -350,6 +354,7 @@ export function applyEvent(evt) {
   if (result.status === 'applied') {
     snap = snapshot;
     seenEvents.add(evt.event_id);
+    observeElapsed(snap.sessions, elapsedBaselines, elapsedTick);
     index = null;
     bump();
   }
