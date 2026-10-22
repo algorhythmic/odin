@@ -30,11 +30,12 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
   const assignment = getAssignment(s.assignment_id);
   const parent = s.parent_session_id ? getSession(s.parent_session_id) : null;
   const lineage = lineageLabel(s);
-  // A target in another project opens in that project's workspace.
-  const goTo = (target) => {
-    if (!target) return;
-    if (target.project_id === s.project_id) onSelect(target.id);
-    else location.hash = sessionHref(target.project_id, target.id);
+  // A target in another project opens in that project's workspace; an
+  // unknown id opens the not-found response rather than doing nothing.
+  const goTo = (id) => {
+    const target = getSession(id);
+    if (!target || target.project_id === s.project_id) onSelect(id);
+    else location.hash = sessionHref(target.project_id, id);
   };
   const runs = runsForSession(s.id);
   const relations = relationshipsOf(s.id);
@@ -61,8 +62,8 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
         </dd></>}
       </dl>
       <div class="actions-row">
-        <button type="button" disabled={!parent} onClick={() => parent && goTo(parent)}>Go to parent</button>
-        {s.previous_attempt && <button type="button" onClick={() => goTo(getSession(s.previous_attempt))}>Previous attempt</button>}
+        <button type="button" disabled={!parent} onClick={() => parent && goTo(parent.id)}>Go to parent</button>
+        {s.previous_attempt && <button type="button" onClick={() => goTo(s.previous_attempt)}>Previous attempt</button>}
       </div>
 
       <section aria-labelledby="asg-h">

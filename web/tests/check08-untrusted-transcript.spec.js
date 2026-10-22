@@ -24,8 +24,8 @@ test('hostile transcript markup renders as literal text', async ({ page }) => {
 });
 
 test('tampered layout preferences are ignored rather than breaking the app', async ({ page }) => {
-  await page.goto('/#/');
-  await page.evaluate(() => localStorage.setItem('odin-web-prefs:v1',
+  // Planted before any app script runs, as a stale or edited store would be.
+  await page.addInitScript(() => localStorage.setItem('odin-web-prefs:v1',
     JSON.stringify({ mode: 'tree', collapsed: { 'proj-odin-webapp': 42, other: { x: 1 } }, showRelations: 'yes' })));
   await page.goto(sessionUrl('ses-helper-01'));
   await expect(page.getByTestId('workspace')).toBeVisible();
