@@ -65,6 +65,7 @@ def main():
             "executive-configure-execution-role",
             "executive-configure-model",
             "executive-configure-memory-directory",
+            "executive-register-script",
             "executive-activate-service",
             "executive-login",
             "executive-start",
@@ -150,6 +151,8 @@ def main():
     parser.add_argument("--implementation-mode", choices=["direct", "delegated"], help="stage the executive's native implementation role for its next resume")
     parser.add_argument("--model", help="stage the executive's claude-* model for its next resume")
     parser.add_argument("--memory-directory", help="absolute executive memory directory for Write/Edit; empty string clears it")
+    parser.add_argument("--path", help="absolute script path for executive-register-script")
+    parser.add_argument("--remove", action="store_true", help="remove the registration for --path")
     parser.add_argument("--usage-semantics", choices=["per_turn", "session_cumulative"], default="per_turn", help="explicit Codex source counter semantics")
     parser.add_argument("--once", action="store_true", help="poll configured usage-watch sources once and exit")
     parser.add_argument("--usage-provider", choices=["claude", "codex", "claude-status"])
@@ -244,6 +247,13 @@ def main():
             if args.memory_directory is None:
                 parser.error("executive-configure-memory-directory requires --memory-directory")
             print(canonical(executive_runtime.configure_memory_directory(state, directory=args.memory_directory or None)))
+        elif args.action == "executive-register-script":
+            if not args.path:
+                parser.error("executive-register-script requires --path")
+            try:
+                print(canonical(executive_runtime.register_script(state, path=args.path, remove=args.remove)))
+            except (ValueError, PermissionError) as error:
+                parser.exit(2, f"odin: {error}\n")
         elif args.action == "executive-status":
             print(canonical(executive_runtime.status(state)))
         elif args.action == "executive-activate-service":

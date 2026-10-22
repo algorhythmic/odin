@@ -21,6 +21,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from .contracts import ROOT, Contracts, canonical, strict_loads
+from .executive_admission import SCRIPTS_FILE, registered_scripts, script_digest, script_path
 from .executive_intervention_hook import MEMORY_FILE, memory_directory
 from .executive_mcp import ExecutiveBridge, SocketGateway
 from .native_peer import guidance as peer_guidance, peer_name
@@ -661,15 +662,29 @@ def _delegated_prompt(manifest):
     )
     if manifest.get("intervention_enabled"):
         prompt += (
-            " For authorized diagnostics or bounded repairs, native Bash/Write/Edit/NotebookEdit "
-            "remain available behind a per-call hook. Use odin_intervention_begin with a concise "
-            "purpose and exact inputs, at most eight calls and 300 seconds, after delegated work "
-            "is idle. Do not request a blanket mode change or repeatedly try a denied tool. "
-            "The hook consumes each permit once; completion, explicit end or expiry returns "
-            "to executive mode. Close unused permits before delegating again. Expiry does not "
-            "terminate a running command; unresolved admitted calls require reconciliation. "
-            "This is an exception for repair, not a replacement implementation workflow. "
-            "Do not put secrets in purpose or tool arguments. Keep calls foreground and bounded."
+            " Native Bash/Write/Edit/NotebookEdit remain available behind a per-call hook with "
+            "three admission paths. (1) Read-only diagnostics need no permit and work even when "
+            "the Odin service is down: one foreground Bash command, or a | pipe of them, from the "
+            "read-only allowlist (git status/log/diff/show and other read subcommands, ls, cat, "
+            "head, tail, wc, stat, du, df, find without -exec or -delete, grep/rg without --pre, "
+            "jq, sort, uniq, cut, ps, pgrep, date, id, which, pwd, systemctl --user status, "
+            "journalctl --user without -f, and the pilot launcher's status actions), with no ; & "
+            "` $( < > or newline anywhere and no unquoted glob, brace or $. (2) A script the "
+            "operator registered, called by its absolute path with plain arguments and optional "
+            "redirections to absolute paths or 2>&1; it may run in the background. Only the "
+            "operator registers scripts; do not register, edit or replace one yourself. (3) For "
+            "anything else that is an authorized diagnostic or bounded repair, use "
+            "odin_intervention_begin with a concise purpose and exact inputs, up to 32 calls and "
+            "3600 seconds, after delegated work is idle; `uses` (1-20) repeats an identical call "
+            "and `background: true` binds a Bash call to background execution. A background "
+            "permit closes at launch and Odin does not observe its outcome, so inspect its "
+            "effects yourself. Do not request a blanket mode change or repeatedly try a denied "
+            "tool. Each foreground permit use is consumed once; completion, explicit end or "
+            "expiry returns to executive mode. Close unused permits before delegating again. "
+            "Expiry does not terminate a running command; unresolved admitted calls require "
+            "operator reconciliation. Calls without a permit are audited by digest. These paths "
+            "are for diagnostics and repair, not a replacement implementation workflow: "
+            "delegate implementation. Do not put secrets in purpose or tool arguments."
         )
     if manifest.get("native_peer_messaging"):
         prompt += peer_guidance(manifest["native_session_id"], "executive")
@@ -918,6 +933,46 @@ def configure_memory_directory(state, *, directory=None):
         finally:
             temporary.unlink(missing_ok=True)
         return {"configured_memory_directory": value, "effective_on_next_tool_call": True}
+
+
+def register_script(state, *, path, remove=False):
+    """Operator-only: register or remove a script the intervention hook may admit.
+
+    The path must be absolute and normalized, a regular file with no symlink in
+    any component. Its SHA-256 is recorded now and rechecked at each admission,
+    so editing the script requires registering it again.
+    """
+    state = _private_directory(state)
+    base = _private_directory(state / "executive-pilot")
+    with _lease(base / "prepare.lock"):
+        _load(state)
+        scripts = [s for s in registered_scripts(state) or [] if s["path"] != path]
+        if remove:
+            if not isinstance(path, str) or not os.path.isabs(path):
+                raise ValueError("registered_script_invalid")
+        else:
+            value = script_path(path)
+            sha256 = script_digest(value)
+            if sha256 is None:
+                raise ValueError("registered_script_invalid")
+            scripts.append({"path": value, "sha256": sha256})
+        if len(scripts) > 64:
+            raise ValueError("registered_scripts_limit")
+        record = {"schema_version": 1, "scripts": sorted(scripts, key=lambda s: s["path"])}
+        Contracts().validate("executive-registered-scripts", record)
+        target = base / SCRIPTS_FILE
+        temporary = target.with_name(target.name + ".new")
+        temporary.unlink(missing_ok=True)
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        try:
+            with os.fdopen(fd, "w") as handle:
+                handle.write(canonical(record) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, target)
+        finally:
+            temporary.unlink(missing_ok=True)
+        return {"registered_scripts": record["scripts"], "effective_on_next_tool_call": True}
 
 
 def login_spec(state):

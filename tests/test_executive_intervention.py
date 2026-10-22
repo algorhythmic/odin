@@ -38,7 +38,8 @@ class InterventionTests(unittest.TestCase):
         self.gateway = Gateway(self.service)
         self.native = self.manifest['native_session_id']
         self.bridge = ExecutiveBridge(self.project, self.send, development_loop=True, session_id=self.native)
-        self.call = {'tool':'Bash', 'input':{'command':'pwd','timeout':1000}}
+        # `pwd` alone is read-only and needs no permit, so the fixture uses a build command.
+        self.call = {'tool':'Bash', 'input':{'command':'make check','timeout':1000}}
 
     def send(self, command):
         return submit_executive(self.gateway, {'command':command}, self.project)
@@ -60,7 +61,7 @@ class InterventionTests(unittest.TestCase):
         with self.assertRaises(PermissionError): self.hook(self.event())
         item=self.begin()
         with self.assertRaises(Conflict): delegation_guard(self.service.store,self.project)
-        with self.assertRaises(PermissionError): self.hook(self.event(tool_input={'command':'pwd; touch bad','timeout':1000}))
+        with self.assertRaises(PermissionError): self.hook(self.event(tool_input={'command':'make check; touch bad','timeout':1000}))
         allowed=self.hook(self.event(tool_input=self.call['input']|{'description':'label only'}))
         self.assertEqual(allowed['hookSpecificOutput']['permissionDecision'],'allow')
         with self.assertRaises(Conflict): self.hook(self.event())
@@ -73,7 +74,7 @@ class InterventionTests(unittest.TestCase):
         delegation_guard(self.service.store,self.project)
         # No command or edit contents enter the intervention record or gateway audit.
         body=self.service.store.db.execute('select body from executive_interventions').fetchone()[0]
-        self.assertNotIn('pwd',body)
+        self.assertNotIn('make check',body)
 
     def test_expired_admission_stays_unknown_and_blocks_delegation(self):
         self.begin();self.hook(self.event())
@@ -106,7 +107,9 @@ class InterventionTests(unittest.TestCase):
         with self.assertRaises(PermissionError):self.hook(self.event(cwd='/tmp/other'))
         with self.assertRaises(ValueError):
             handle(self.event(),state=self.state,project=self.project,session=self.native,gateway=lambda c:{'error':'failure'})
-        with self.assertRaises(ValueError):self.hook(self.event(tool_input={'command':'pwd','run_in_background':True}))
+        # Background needs a permit bound to it; a sandbox override is never admitted.
+        with self.assertRaises(PermissionError):self.hook(self.event(tool_input={'command':'make check','timeout':1000,'run_in_background':True}))
+        with self.assertRaises(ValueError):self.hook(self.event(tool_input={'command':'make check','dangerouslyDisableSandbox':True}))
 
     def test_actual_queue_turn_guard_refuses_active_intervention(self):
         self.begin()
@@ -142,7 +145,7 @@ class InterventionTests(unittest.TestCase):
                 self.service.store.db.execute('delete from delegation_turns where id=?', (turn,))
 
     def test_expired_multi_permit_post_records_finish_without_false_closure(self):
-        second = {'tool': 'Bash', 'input': {'command': 'pwd -P', 'timeout': 1000}}
+        second = {'tool': 'Bash', 'input': {'command': 'make docs', 'timeout': 1000}}
         item = self.begin(calls=[self.call, second])
         self.hook(self.event())
         item = strict_loads(self.service.store.db.execute(

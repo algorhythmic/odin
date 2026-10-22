@@ -1,15 +1,42 @@
-"""Fail-closed native hook; no tool input, command text or result is logged."""
+"""Fail-closed native hook; no tool input, command text or result is logged.
+
+A call is admitted on one of three paths: a read-only Bash diagnostic or an
+operator-registered script, both decided locally without the service, or an
+exact Odin permit. Write/Edit inside a configured memory directory are also
+admitted locally. Every other call is refused.
+"""
 import argparse
 import os
+import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from .contracts import ROOT, canonical, identifier, strict_loads
 from .executive_mcp import SocketGateway
 from .contracts import Contracts
+from .executive_admission import audit, read_only, registered_script, registered_scripts
 from .executive_intervention import TOOLS, _live, normalized
 from .store import digest
 
 MEMORY_FILE = "memory-directory.json"
+REFUSAL = (
+    "Odin executive mode: this call matched none of the three admission paths. "
+    "(1) Read-only diagnostics, admitted without a permit: one foreground Bash command, "
+    "or a | pipe of them, from the allowlist (git read subcommands such as status/log/diff/show, "
+    "ls, cat, head, tail, wc, stat, du, df, find without -exec/-delete, grep/rg without --pre, "
+    "jq, sort, uniq, cut, ps, pgrep, date, id, which, pwd, systemctl --user status/show/cat, "
+    "journalctl --user without -f, and the pilot launcher's status actions); no ; & ` $( < > "
+    "or newlines anywhere, and no unquoted globs, braces or $. "
+    "(2) An operator-registered script, called by its absolute path, with plain arguments and "
+    "optional redirections to absolute paths or 2>&1; background is allowed. "
+    "(3) An exact permit from odin_intervention_begin (up to 32 calls, 3600 s, optional uses and "
+    "background), only while delegated work is idle. Write/Edit inside the configured memory "
+    "directory need no permit. Otherwise delegate implementation. If an admitted call is "
+    "uncertain, inspect odin_intervention_status; do not retry blindly."
+)
+REASONS = {"read_only": "Read-only diagnostic allowlist.",
+           "registered_script": "Operator-registered script with matching SHA-256.",
+           "memory_directory": "Configured executive memory directory."}
 
 
 def _unsafe(value):
@@ -65,7 +92,20 @@ def _memory_write(tool, inputs, *, memory, state):
             inside != real and inside.is_relative_to(real))
 
 
-def handle(event, *, state, project, session, gateway=None, memory=None):
+def local_path(tool, inputs, *, state, memory=None, scripts=None):
+    """Admission path decided without the service, or None."""
+    if tool == "Bash":
+        if read_only(inputs, state=state):
+            return "read_only"
+        if registered_script(inputs, scripts=scripts):
+            return "registered_script"
+        return None
+    if _memory_write(tool, inputs, memory=memory, state=state):
+        return "memory_directory"
+    return None
+
+
+def handle(event, *, state, project, session, gateway=None, memory=None, scripts=None):
     if (not isinstance(event, dict) or event.get("session_id") != session or
         event.get("tool_name") not in TOOLS or
         event.get("hook_event_name") not in {"PreToolUse", "PostToolUse", "PostToolUseFailure"} or
@@ -74,10 +114,13 @@ def handle(event, *, state, project, session, gateway=None, memory=None):
         not isinstance(event.get("tool_input"), dict)):
         raise ValueError("invalid_intervention_hook")
     pre = event["hook_event_name"] == "PreToolUse"
-    if _memory_write(event["tool_name"], event["tool_input"], memory=memory, state=state):
+    kind = local_path(event["tool_name"], event["tool_input"], state=state, memory=memory, scripts=scripts)
+    if kind is not None:
+        # Local paths never call the service, so a stopped service can be diagnosed.
         if pre:
+            audit(state, kind, event["tool_name"], event["tool_input"])
             return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
-                    "permissionDecision": "allow", "permissionDecisionReason": "Configured executive memory directory."}}
+                    "permissionDecision": "allow", "permissionDecisionReason": REASONS[kind]}}
         return {}
     wanted = digest(normalized(event["tool_name"], event["tool_input"]))
     operation = identifier()
@@ -97,18 +140,32 @@ def handle(event, *, state, project, session, gateway=None, memory=None):
     if not isinstance(item, dict):
         raise ValueError("intervention_permit_not_confirmed")
     Contracts().validate("executive-intervention", item)
+    # A background permit is closed at launch, so both events confirm "launched".
     matches = [permit for permit in item["permits"]
                if permit["tool_use_id"] == event["tool_use_id"] and
                permit["tool"] == event["tool_name"] and
                permit["input_digest"] == wanted and
-               permit["state"] == ("admitted" if pre else "finished")]
-    if (item["project"] != project or item["session_id"] != session or
-            len(matches) != 1 or (pre and (not _live(item) or result.get("mode") != "intervention"))):
+               permit["state"] == ("launched" if permit.get("background") else
+                                   "admitted" if pre else "finished")]
+    if item["project"] != project or item["session_id"] != session or len(matches) != 1:
         raise ValueError("intervention_permit_not_confirmed")
+    if pre:
+        # Launching the last background permit closes the window in the same
+        # admission, so that response confirms an unexpired, closed window.
+        unexpired = datetime.fromisoformat(item["expires_at"]) > datetime.now(timezone.utc)
+        live = _live(item) and result.get("mode") == "intervention"
+        if not unexpired or not (live or (matches[0].get("background") and item["state"] == "closed")):
+            raise ValueError("intervention_permit_not_confirmed")
     if pre:
         return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
                 "permissionDecision": "allow", "permissionDecisionReason": "Recorded single-use Odin intervention permit."}}
     return {}
+
+
+def refusal(error):
+    """The fixed refusal text, plus the error code when it is a bare code."""
+    code = str(error)
+    return REFUSAL + (f" Code: {code}." if re.fullmatch(r"[a-z][a-z0-9_]{0,63}", code) else "")
 
 
 def main():
@@ -122,11 +179,11 @@ def main():
         if len(raw) > 65536:
             raise ValueError("hook_input_limit")
         output = handle(strict_loads(raw), state=args.state, project=args.project, session=args.session_id,
-                        memory=configured_memory(args.state))
+                        memory=configured_memory(args.state), scripts=registered_scripts(args.state))
         print(canonical(output))
         return 0
-    except Exception:
-        print("Odin executive mode: delegate implementation, or use odin_intervention_begin for exact bounded tool calls after delegated work is idle. If an admitted call is uncertain, inspect odin_intervention_status; do not retry blindly.", file=sys.stderr)
+    except Exception as error:
+        print(refusal(error), file=sys.stderr)
         return 2
 
 
