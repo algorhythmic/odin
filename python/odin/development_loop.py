@@ -1045,6 +1045,10 @@ class DevelopmentLoop:
         hook_event_name="Stop",
         stop_hook_active=False,
         background_tasks=None,
+        # Crons never hold a completion. Keep this parameter because the hook
+        # transport and gateway forward it and retained Stop snapshots replay it.
+        # Its only effect is to supersede completed-stage Stops retained under
+        # the earlier cron rule when their final response differs.
         session_crons=None,
     ):
         if stop_hook_active:
@@ -1101,16 +1105,22 @@ class DevelopmentLoop:
                         "superseded": True,
                         "reason": "background observation superseded by completed stage",
                     }
-                if stage["final_digest"] != final_digest:
-                    raise Conflict(
-                        "completion footer reused for different final response"
-                    )
-                return {
-                    "captured": True,
-                    "loop": loop,
-                    "stage": stage,
-                    "duplicate": True,
-                }
+                if stage["final_digest"] == final_digest:
+                    return {
+                        "captured": True,
+                        "loop": loop,
+                        "stage": stage,
+                        "duplicate": True,
+                    }
+                if session_crons:
+                    return {
+                        "captured": False,
+                        "superseded": True,
+                        "reason": "cron-bearing observation superseded by completed stage",
+                    }
+                raise Conflict(
+                    "completion footer reused for different final response"
+                )
             if loop["status"] == "paused" and stage["state"] == "ready":
                 raise Conflict("development loop paused; retain completion for retry")
             # Running background tasks may still change this round's result.

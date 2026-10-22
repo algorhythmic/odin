@@ -323,6 +323,32 @@ class DevelopmentLoopTests(unittest.TestCase):
                 prompt_id="native-prompt",
             )
 
+    def test_completed_stage_cron_observations_duplicate_or_supersede(self):
+        stage = self.evaluate(self.start()["job"])["stage"]
+        captured = self.finish(stage)
+        completed = self.loops.stage(stage["id"])
+        pending = self.loops.pending_evaluators()
+        crons = [{"id": "767c904e", "prompt": "unrelated scheduled check"}]
+
+        repeated = self.loops.capture_stop(
+            SESSION, completed["final_text"], identifier(), session_crons=crons
+        )
+        self.assertTrue(repeated.get("duplicate", False))
+        self.assertTrue(repeated["captured"])
+        self.assertFalse(repeated.get("superseded", False))
+
+        superseded = self.loops.capture_stop(
+            SESSION,
+            "Earlier cron-bearing answer\n" + completed["completion_marker"],
+            identifier(),
+            session_crons=crons,
+        )
+        self.assertFalse(superseded["captured"])
+        self.assertTrue(superseded["superseded"])
+        self.assertEqual(pending, [captured["job"]])
+        self.assertEqual(self.loops.pending_evaluators(), pending)
+        self.assertEqual(self.loops.stage(stage["id"]), completed)
+
     def test_pause_preserves_ready_marker_resume_and_stop_cancels_effects(self):
         stage = self.evaluate(self.start()["job"])["stage"]
         ready = self.ready(stage)

@@ -210,7 +210,13 @@ When work remains in the background or evidence is unavailable, preserve
 that distinction. A Stop that reports running background tasks is retained
 for retry and does not complete the stage. Scheduled session crons do not
 hold a completion: they are future prompts, possibly for another project or
-for work unrelated to committed code. The development evaluator can request a follow-up test;
+for work unrelated to committed code. The `session_crons` parameter remains
+because the hook transport and gateway forward it and retained Stop snapshots
+replay it. Its only effect is on a completed stage without running background
+tasks: an exact repeat remains a duplicate, while a cron-bearing observation
+with a different final response is superseded, allowing Stops retained under
+the earlier cron rule to reconcile.
+The development evaluator can request a follow-up test;
 it must not turn a claimed result into independent verification.
 
 The current exchange captures the objective, round/session identity,
