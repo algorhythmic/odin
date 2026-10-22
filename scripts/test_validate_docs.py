@@ -20,7 +20,9 @@ class DocumentationValidatorTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory(prefix="odin-doc-validator-")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name) / "odin"
-        shutil.copytree(SOURCE, self.root, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
+        shutil.copytree(SOURCE, self.root, ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", "node_modules", ".playwright-browsers",
+            "dist", "test-results", "playwright-report"))
 
     def edit(self, relative: Path, transform) -> None:
         path = self.root / relative
@@ -97,7 +99,7 @@ class DocumentationValidatorTests(unittest.TestCase):
 
     def test_unknown_definition_fails(self) -> None:
         self.edit(SCENARIOS, lambda text: text.replace(
-            "| AC-41 |", "| AC-51 | New trigger | New result |\n| AC-41 |", 1))
+            "| AC-41 |", "| AC-58 | New trigger | New result |\n| AC-41 |", 1))
         self.assert_fails_with(self.validate(), "unknown defining ID")
 
     def test_invalid_registry_structure_fails_cleanly(self) -> None:
