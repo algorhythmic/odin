@@ -6,7 +6,9 @@ W3; until then the shapes below are a working proposal and the fixtures
 under web/fixtures/ are synthetic.
 
 Date: 2026-10-22 (pass 2 draft; pass 3 adds the draft JSON Schemas in
-section 8). Context: [WEB-APP-HANDOFF.md](WEB-APP-HANDOFF.md),
+section 8; pass 4 replaces cost with token usage under
+[WEB-APP-PASS-4-BRIEF.md](WEB-APP-PASS-4-BRIEF.md) item 2).
+Context: [WEB-APP-HANDOFF.md](WEB-APP-HANDOFF.md),
 [WEB-APP-WORKPLAN.md](WEB-APP-WORKPLAN.md) (package W3) and
 [ODIN-ADR-037](../DECISIONS.md#odin-adr-037--web-app-as-the-primary-human-view-with-an-agent-tree).
 
@@ -59,9 +61,9 @@ the record has them.
 | `needs_operator_input` | boolean | Whether the operator must act. |
 | `observed_at` | string | RFC 3339 time of the last observation. |
 | `stale` | boolean | Observation is old or unconfirmed. |
-| `cost` | object | `{amount_usd, basis}`. Section 7. |
+| `tokens` | object | `{uncached_input, cache_read, cache_write, output, basis}`. Section 7. |
 | `elapsed_s` | integer or null | Elapsed seconds, when known. |
-| `budget` | object or null | `{basis, limit_usd}`. Fixture basis: `requested`. |
+| `budget` | object or null | `{basis, limit_tokens}`. Fixture basis: `requested`. |
 | `attempt` | integer | Optional. Attempt number in a series. |
 | `attempt_of` | string or null | Optional. Fixture stores an assignment id (section 9). |
 | `previous_attempt` | string or null | Optional. Earlier attempt's session id. May be unavailable. |
@@ -117,7 +119,7 @@ Event types used by the prototype:
 |---|---|
 | `session.lifecycle_changed` | `{session_id, lifecycle, needs_operator_input?, observed_at, stale?}` |
 | `session.started` | `{session: <full session record>}` |
-| `session.cost_updated` | `{session_id, cost}` |
+| `session.usage_updated` | `{session_id, tokens}` |
 | `session.retired` | `{session_id, observed_at}` |
 
 Client rules, checked in this order:
@@ -137,7 +139,10 @@ Client rules, checked in this order:
    - any other type whose `session_id` is missing or not in the
      snapshot;
    - `session.lifecycle_changed` with a `lifecycle` outside the
-     documented set.
+     documented set;
+   - `session.usage_updated` whose `tokens` record fails the section 7
+     shape: a counter missing, the counters half-null, a counter
+     non-integer or negative, or `basis` disagreeing with the counters.
 6. **applied**: `revision` = current + 1. Apply the payload, set
    current to `revision` and store `cursor`.
 
@@ -194,28 +199,52 @@ reports these records and does not repair them.
 `ses-mal-attempt` names `ses-mal-gone`. The client shows a not-found
 response for that link and does not guess a replacement.
 
-## 7. Cost and outcomes
+## 7. Token usage and outcomes
 
-Cost covers the session's own turns. A parent's aggregate is never
-added to its children's costs.
+Token usage covers the session's own turns, in four counters:
+`uncached_input`, `cache_read`, `cache_write` and `output`, each a
+non-negative integer or `null`. A `basis` of `measured`, `estimate` or
+`unknown` records where the figures came from. The four counters are all
+integers or all `null`, and `basis` is `unknown` exactly when they are
+null. A half-known record is malformed: `session.usage_updated` events
+carrying one are rejected (section 4), and the view reports a half-known
+stored record as unknown, never as a partial sum.
 
-| `cost` | Shown as |
+The **headline figure** is `uncached_input` + `cache_write` + `output`.
+Cache reads are excluded: they dominate long sessions and would swamp the
+figure operators compare at a glance. The detail panel shows the four-way
+split, cache reads included, with the headline labelled "Headline (excl.
+cache reads)".
+
+| `tokens` | Shown as |
 |---|---|
-| `basis` `measured`, number | `$3.10` |
-| `basis` `estimate`, number | `est. $2.20` |
-| `amount_usd` null, or `basis` `unknown` | `unknown`. Never `$0`. |
+| `basis` `measured`, integer counters | `48.2k tok` |
+| `basis` `estimate`, integer counters | `est. 18.7k tok` |
+| counters null, `basis` `unknown` | `unknown`. Never `0 tok`. |
 
-Branch totals (a session and its descendants):
+Compact form: below 1,000 the integer itself (`850 tok`), below a million
+one decimal on thousands (`48.2k tok`), then one decimal on millions
+(`1.2M tok`).
 
-- Each session's own cost is summed once.
-- Append ` + unknown (n)` to the known sum, where n counts unknown
-  sessions in the branch.
-- A branch with no known cost shows `unknown (n)` and no dollar figure.
+Branch totals (a session and its descendants) and the project's header
+total:
+
+- Each session's own headline tokens are summed once. A parent's
+  aggregate is never added to its children's.
+- Append ` + unknown (n)` to the known sum, where n is the number of
+  sessions in the summed set — the branch, or the project's sessions for
+  the header total — whose own tokens are unknown.
+- A set with no known tokens shows `unknown (n)` and no figure.
 - If an estimate is in the sum, the total is marked `est.`.
 
+A budget is `{limit_tokens, basis}`; the fixture basis is `requested` and
+the values are arbitrary synthetic numbers, not real limits. The view
+labels it, for example `2.0M tok (requested)`, and never enforces it.
+
 Fixture examples: the `ses-pin-audit` branch shows `unknown (2)`. The
-`ses-worker-a2` branch shows `est. $2.20 + unknown (1)`, with unknown
-child `ses-helper-01`.
+`ses-worker-a2` branch shows `est. 18.7k tok + unknown (1)`, with unknown
+child `ses-helper-01`. The `proj-odin-webapp` header total shows
+`est. 131.6k tok + unknown (3)`.
 
 Outcomes are separate from activity. Ending or retiring a session does
 not mark its run verified. Only a recorded run outcome of `verified`
@@ -230,9 +259,9 @@ them unchanged.
 
 | File | Content |
 |---|---|
-| `web/fixtures/default-snapshot.json` | Snapshot: 4 projects, 20 sessions, 8 relationships. Roots, nested children, reviewers, a resumption, attempts, an imported root, `host_offline`, unknown cost, malformed ancestry. |
+| `web/fixtures/default-snapshot.json` | Snapshot: 4 projects, 20 sessions, 8 relationships. Roots, nested children, reviewers, a resumption, attempts, an imported root, `host_offline`, unknown token usage, malformed ancestry. Token counters and budgets are arbitrary synthetic values. |
 | `web/fixtures/default-details.json` | Transcript for `ses-worker-a2` only (34 entries, two pages, with a gap and raw markup) and evidence for `ses-worker-a1` and `ses-worker-a2`. Other sessions get a one-line generated placeholder transcript. |
-| `web/fixtures/default-events.json` | Sixteen deliveries: `evt-001` to `evt-004` (state change, new child, cost update, retirement); `evt-002` delivered twice (duplicate); `evt-bad-1` to `evt-bad-9`, each rejected for one reason in rule 5 or rule 2 (unknown session, unknown type, non-integer revision, no session record, existing id, unknown lifecycle, no `session_id`, numeric id, unknown project); `evt-bad-6` re-delivered corrected, which applies at revision 5; and `evt-005` at revision 9 (gap). |
+| `web/fixtures/default-events.json` | Sixteen deliveries: `evt-001` to `evt-004` (state change, new child, usage update, retirement); `evt-002` delivered twice (duplicate); `evt-bad-1` to `evt-bad-9`, each rejected for one reason in rule 5 or rule 2 (unknown session, unknown type, non-integer revision, no session record, existing id, unknown lifecycle, no `session_id`, numeric id, unknown project); `evt-bad-6` re-delivered corrected, which applies at revision 5; and `evt-005` at revision 9 (gap). |
 | `web/src/fixtures/large.js` | Seeded generator (seed 20261022) for the W2c set: 2,000 sessions, 40 roots, depth 8, 20 transcript pages of 50 entries per session. Generated at load time; no large file is committed. |
 
 Draft JSON Schemas (2020-12) describe these shapes as the prototype

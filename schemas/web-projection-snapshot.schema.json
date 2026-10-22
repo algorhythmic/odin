@@ -401,7 +401,7 @@
         "needs_operator_input",
         "observed_at",
         "stale",
-        "cost",
+        "tokens",
         "elapsed_s",
         "budget"
       ],
@@ -465,19 +465,44 @@
         "stale": {
           "type": "boolean"
         },
-        "cost": {
+        "tokens": {
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "amount_usd",
+            "uncached_input",
+            "cache_read",
+            "cache_write",
+            "output",
             "basis"
           ],
           "properties": {
-            "amount_usd": {
+            "uncached_input": {
               "type": [
-                "number",
+                "integer",
                 "null"
-              ]
+              ],
+              "minimum": 0
+            },
+            "cache_read": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "cache_write": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "output": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
             },
             "basis": {
               "enum": [
@@ -487,42 +512,45 @@
               ]
             }
           },
-          "allOf": [
+          "oneOf": [
             {
-              "if": {
-                "required": [
-                  "basis"
-                ],
-                "properties": {
-                  "basis": {
-                    "const": "unknown"
-                  }
-                }
-              },
-              "then": {
-                "properties": {
-                  "amount_usd": {
-                    "type": "null"
-                  }
+              "properties": {
+                "uncached_input": {
+                  "type": "null"
+                },
+                "cache_read": {
+                  "type": "null"
+                },
+                "cache_write": {
+                  "type": "null"
+                },
+                "output": {
+                  "type": "null"
+                },
+                "basis": {
+                  "const": "unknown"
                 }
               }
             },
             {
-              "if": {
-                "required": [
-                  "amount_usd"
-                ],
-                "properties": {
-                  "amount_usd": {
-                    "type": "null"
-                  }
-                }
-              },
-              "then": {
-                "properties": {
-                  "basis": {
-                    "const": "unknown"
-                  }
+              "properties": {
+                "uncached_input": {
+                  "type": "integer"
+                },
+                "cache_read": {
+                  "type": "integer"
+                },
+                "cache_write": {
+                  "type": "integer"
+                },
+                "output": {
+                  "type": "integer"
+                },
+                "basis": {
+                  "enum": [
+                    "measured",
+                    "estimate"
+                  ]
                 }
               }
             }
@@ -542,12 +570,13 @@
           ],
           "additionalProperties": false,
           "required": [
-            "limit_usd",
+            "limit_tokens",
             "basis"
           ],
           "properties": {
-            "limit_usd": {
-              "type": "number"
+            "limit_tokens": {
+              "type": "integer",
+              "minimum": 0
             },
             "basis": {
               "enum": [

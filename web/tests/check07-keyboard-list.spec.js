@@ -106,23 +106,23 @@ test('list view rows expand and collapse with the pointer on the large synthetic
   await expect(tree.locator(`[role="treeitem"][data-parent="${id}"]`)).toHaveCount(0);
 });
 
-// Card footers wrap instead of clipping: the branch cost text stays whole
+// Card footers wrap instead of clipping: the branch token total stays whole
 // and inside its card at a wide and a just-above-narrow viewport.
 for (const width of [1280, 800]) {
-  test(`card footers show the whole branch cost at ${width}px`, async ({ page }) => {
+  test(`card footers show the whole branch total at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`/#/projects/${PID}`);
-    const costs = page.getByTestId('branch-cost');
-    await expect(costs.first()).toBeVisible();
-    expect(await costs.count()).toBeGreaterThan(2);
-    const clipped = await costs.evaluateAll((els) => els.flatMap((el) => {
+    const totals = page.getByTestId('branch-tokens');
+    await expect(totals.first()).toBeVisible();
+    expect(await totals.count()).toBeGreaterThan(2);
+    const clipped = await totals.evaluateAll((els) => els.flatMap((el) => {
       const card = el.closest('[data-testid="session-card"]').getBoundingClientRect();
       const r = el.getBoundingClientRect();
       const ok = el.scrollWidth <= el.clientWidth + 1 && r.right <= card.right + 1 && r.bottom <= card.bottom + 1 && r.left >= card.left - 1;
       return ok ? [] : [`${el.closest('[data-session-id]').dataset.sessionId}: ${el.textContent}`];
     }));
     expect(clipped).toEqual([]);
-    await expect(page.locator('[data-testid="session-card"][data-session-id="ses-integ-01"]').getByTestId('branch-cost'))
+    await expect(page.locator('[data-testid="session-card"][data-session-id="ses-integ-01"]').getByTestId('branch-tokens'))
       .toHaveText(/^branch .*\+ unknown \(\d+\)$/);
     if (width === 800) await shot(page, 'card-footers-800');
   });

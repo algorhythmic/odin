@@ -39,8 +39,11 @@
           "needs_operator_input": false,
           "observed_at": "2026-10-21T10:47:00Z",
           "stale": false,
-          "cost": {
-            "amount_usd": 0.05,
+          "tokens": {
+            "uncached_input": 350,
+            "cache_read": 1200,
+            "cache_write": 200,
+            "output": 300,
             "basis": "measured"
           },
           "elapsed_s": 60,
@@ -68,8 +71,11 @@
           "needs_operator_input": false,
           "observed_at": "2026-10-21T10:47:00Z",
           "stale": false,
-          "cost": {
-            "amount_usd": 0.05,
+          "tokens": {
+            "uncached_input": 350,
+            "cache_read": 1200,
+            "cache_write": 200,
+            "output": 300,
             "basis": "measured"
           },
           "elapsed_s": 60,
@@ -82,12 +88,15 @@
       "revision": 3,
       "cursor": "cur-default-0003",
       "at": "2026-10-21T10:48:00Z",
-      "type": "session.cost_updated",
-      "summary": "worker attempt 2 cost measured",
+      "type": "session.usage_updated",
+      "summary": "worker attempt 2 usage measured",
       "payload": {
         "session_id": "ses-worker-a2",
-        "cost": {
-          "amount_usd": 2.45,
+        "tokens": {
+          "uncached_input": 8400,
+          "cache_read": 66000,
+          "cache_write": 6300,
+          "output": 5100,
           "basis": "measured"
         }
       }
@@ -109,12 +118,15 @@
       "revision": 5,
       "cursor": "cur-default-0005",
       "at": "2026-10-21T10:50:00Z",
-      "type": "session.cost_updated",
+      "type": "session.usage_updated",
       "summary": "names a session the snapshot does not have",
       "payload": {
         "session_id": "ses-not-in-snapshot",
-        "cost": {
-          "amount_usd": 1.0,
+        "tokens": {
+          "uncached_input": 400,
+          "cache_read": 2000,
+          "cache_write": 300,
+          "output": 500,
           "basis": "measured"
         }
       }
@@ -172,8 +184,11 @@
           "needs_operator_input": false,
           "observed_at": "2026-10-21T10:47:00Z",
           "stale": false,
-          "cost": {
-            "amount_usd": 0.05,
+          "tokens": {
+            "uncached_input": 350,
+            "cache_read": 1200,
+            "cache_write": 200,
+            "output": 300,
             "basis": "measured"
           },
           "elapsed_s": 60,
@@ -199,11 +214,14 @@
       "revision": 5,
       "cursor": "cur-default-0005",
       "at": "2026-10-21T10:51:50Z",
-      "type": "session.cost_updated",
+      "type": "session.usage_updated",
       "summary": "has no session_id",
       "payload": {
-        "cost": {
-          "amount_usd": 1.0,
+        "tokens": {
+          "uncached_input": 400,
+          "cache_read": 2000,
+          "cache_write": 300,
+          "output": 500,
           "basis": "measured"
         }
       }
@@ -228,8 +246,11 @@
           "needs_operator_input": false,
           "observed_at": "2026-10-21T10:47:00Z",
           "stale": false,
-          "cost": {
-            "amount_usd": 0.05,
+          "tokens": {
+            "uncached_input": 350,
+            "cache_read": 1200,
+            "cache_write": 200,
+            "output": 300,
             "basis": "measured"
           },
           "elapsed_s": 60,
@@ -257,8 +278,11 @@
           "needs_operator_input": false,
           "observed_at": "2026-10-21T10:47:00Z",
           "stale": false,
-          "cost": {
-            "amount_usd": 0.05,
+          "tokens": {
+            "uncached_input": 350,
+            "cache_read": 1200,
+            "cache_write": 200,
+            "output": 300,
             "basis": "measured"
           },
           "elapsed_s": 60,

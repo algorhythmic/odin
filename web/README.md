@@ -50,7 +50,10 @@ unknown event type; a missing or unknown `session_id`; a
 `session.started` without a record, with a non-string `id` or
 `project_id`, for an unknown project, with an unknown lifecycle or for
 an existing id; a `session.lifecycle_changed` with a lifecycle outside
-the documented set. Reloading the page starts from the snapshot again.
+the documented set; a `session.usage_updated` whose `tokens` record is
+missing, half-null, non-integer or negative, or has a `basis` that
+disagrees with the counters. Reloading the page starts from the snapshot
+again.
 
 The event rules live in `src/events.js`, without browser or fixture
 imports, and have Node unit tests (built-in runner, no extra
@@ -122,9 +125,12 @@ not service or desktop measurements.
   a guessed edge.
 - A resumption keeps the same session; a new attempt is a distinct
   session linked to the previous attempt.
-- Cost covers a session's own turns. Unknown cost reads "cost unknown";
-  estimates read "est."; branch totals sum own costs once and say
-  "+ unknown" when any is missing.
+- Token usage covers a session's own turns. The headline figure
+  (uncached input + cache write + output) excludes cache reads; the
+  detail panel shows the four-way split. Unknown reads "unknown";
+  estimates read "est."; branch totals and the project header total sum
+  own tokens once and say "+ unknown" when any is missing. Token budgets
+  are arbitrary synthetic values, not real limits.
 - A session ending does not mark its run verified.
 - The browser keeps only layout preferences (view mode, collapsed
   branches, relationship overlay). Selection lives in the URL.

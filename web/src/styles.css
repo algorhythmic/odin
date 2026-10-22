@@ -109,9 +109,9 @@ button[aria-pressed="true"] { background: var(--accent); color: #fff; border-col
 .card-title .role { font-weight: 700; text-transform: capitalize; }
 .card-title .assignment-short { font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-row { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* The footer wraps instead of clipping: a long branch cost moves to its own line. */
+/* The footer wraps instead of clipping: a long branch total moves to its own line. */
 .card-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 6px; margin-top: auto; white-space: normal; overflow: visible; }
-.card-foot .branch-cost { min-width: 0; overflow-wrap: anywhere; }
+.card-foot .branch-tokens { min-width: 0; overflow-wrap: anywhere; }
 .toggle { padding: 0 6px; font-size: 0.8rem; }
 
 .list-tree { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); max-height: min(560px, 60vh); overflow: auto; overflow-anchor: none; position: relative; }

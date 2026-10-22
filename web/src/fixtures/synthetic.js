@@ -10,7 +10,9 @@
 //   imported session whose parent is unknown. Never inferred.
 // - Review, delegation, run association and assignment ownership are typed
 //   entries in `relationships`, never parent edges.
-// - cost covers the session's OWN turns; amount_usd null means unknown.
+// - tokens cover the session's OWN turns; all four counters null (basis
+//   "unknown") means unknown. Token budget values are arbitrary synthetic
+//   values, not real limits.
 // - A resumption keeps the same session; a new attempt is a distinct one.
 import snapshot from '../../fixtures/default-snapshot.json';
 import details from '../../fixtures/default-details.json';

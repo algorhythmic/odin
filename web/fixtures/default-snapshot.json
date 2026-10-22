@@ -200,13 +200,16 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T10:42:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": 3.1,
+      "tokens": {
+        "uncached_input": 9000,
+        "cache_read": 120000,
+        "cache_write": 21000,
+        "output": 12200,
         "basis": "measured"
       },
       "elapsed_s": 9240,
       "budget": {
-        "limit_usd": 25,
+        "limit_tokens": 2000000,
         "basis": "requested"
       }
     },
@@ -222,13 +225,16 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T10:41:30Z",
       "stale": false,
-      "cost": {
-        "amount_usd": 4.05,
+      "tokens": {
+        "uncached_input": 14000,
+        "cache_read": 98000,
+        "cache_write": 17000,
+        "output": 9400,
         "basis": "measured"
       },
       "elapsed_s": 7300,
       "budget": {
-        "limit_usd": 20,
+        "limit_tokens": 1500000,
         "basis": "requested"
       }
     },
@@ -244,8 +250,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T08:15:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": 1.4,
+      "tokens": {
+        "uncached_input": 6200,
+        "cache_read": 30000,
+        "cache_write": 4800,
+        "output": 3300,
         "basis": "measured"
       },
       "elapsed_s": 2100,
@@ -266,13 +275,16 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T09:58:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": 2.2,
+      "tokens": {
+        "uncached_input": 8100,
+        "cache_read": 64000,
+        "cache_write": 5900,
+        "output": 4700,
         "basis": "estimate"
       },
       "elapsed_s": 3300,
       "budget": {
-        "limit_usd": 5,
+        "limit_tokens": 500000,
         "basis": "requested"
       },
       "attempt_of": "asg-tree-proto",
@@ -291,8 +303,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T09:40:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": null,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
         "basis": "unknown"
       },
       "elapsed_s": 600,
@@ -310,13 +325,16 @@
       "needs_operator_input": true,
       "observed_at": "2026-10-21T10:40:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": 0.35,
+      "tokens": {
+        "uncached_input": 1500,
+        "cache_read": 9000,
+        "cache_write": 800,
+        "output": 1100,
         "basis": "measured"
       },
       "elapsed_s": 900,
       "budget": {
-        "limit_usd": 2,
+        "limit_tokens": 200000,
         "basis": "requested"
       }
     },
@@ -332,8 +350,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T10:30:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": 0.2,
+      "tokens": {
+        "uncached_input": 900,
+        "cache_read": 5200,
+        "cache_write": 400,
+        "output": 700,
         "basis": "measured"
       },
       "elapsed_s": 720,
@@ -351,8 +372,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T10:41:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": 0.9,
+      "tokens": {
+        "uncached_input": 4200,
+        "cache_read": 41000,
+        "cache_write": 3600,
+        "output": 2800,
         "basis": "measured"
       },
       "elapsed_s": 4100,
@@ -375,8 +399,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T06:05:00Z",
       "stale": true,
-      "cost": {
-        "amount_usd": null,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
         "basis": "unknown"
       },
       "elapsed_s": 1500,
@@ -394,8 +421,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T02:00:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": null,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
         "basis": "unknown"
       },
       "elapsed_s": null,
@@ -413,8 +443,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T10:20:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": 0.6,
+      "tokens": {
+        "uncached_input": 2600,
+        "cache_read": 18000,
+        "cache_write": 1500,
+        "output": 1900,
         "basis": "measured"
       },
       "elapsed_s": 1800,
@@ -432,8 +465,11 @@
       "needs_operator_input": true,
       "observed_at": "2026-10-21T10:19:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": 0.25,
+      "tokens": {
+        "uncached_input": 1100,
+        "cache_read": 8400,
+        "cache_write": 900,
+        "output": 800,
         "basis": "estimate"
       },
       "elapsed_s": 1200,
@@ -451,8 +487,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T08:40:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": null,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
         "basis": "unknown"
       },
       "elapsed_s": 900,
@@ -470,8 +509,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T08:35:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": null,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
         "basis": "unknown"
       },
       "elapsed_s": 300,
@@ -489,8 +531,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T07:00:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": 0.1,
+      "tokens": {
+        "uncached_input": 500,
+        "cache_read": 2100,
+        "cache_write": 300,
+        "output": 400,
         "basis": "measured"
       },
       "elapsed_s": null,
@@ -508,8 +553,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T07:00:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": null,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
         "basis": "unknown"
       },
       "elapsed_s": null,
@@ -527,8 +575,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T07:00:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": null,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
         "basis": "unknown"
       },
       "elapsed_s": null,
@@ -546,8 +597,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T07:00:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": null,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
         "basis": "unknown"
       },
       "elapsed_s": null,
@@ -565,8 +619,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T07:00:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": null,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
         "basis": "unknown"
       },
       "elapsed_s": null,
@@ -584,8 +641,11 @@
       "needs_operator_input": false,
       "observed_at": "2026-10-21T07:00:00Z",
       "stale": false,
-      "cost": {
-        "amount_usd": null,
+      "tokens": {
+        "uncached_input": null,
+        "cache_read": null,
+        "cache_write": null,
+        "output": null,
         "basis": "unknown"
       },
       "elapsed_s": null,
@@ -656,7 +716,7 @@
       "proposal": {
         "id": "prop-tree-merge",
         "revision": 3,
-        "digest": "sha256:5f2c…synthetic"
+        "digest": "sha256:5f2c\u2026synthetic"
       }
     },
     {
@@ -669,7 +729,7 @@
       "proposal": {
         "id": "prop-pin-window",
         "revision": 1,
-        "digest": "sha256:a91e…synthetic"
+        "digest": "sha256:a91e\u2026synthetic"
       }
     }
   ],

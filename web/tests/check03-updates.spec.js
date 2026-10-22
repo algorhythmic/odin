@@ -29,8 +29,8 @@ test('update events apply once, report duplicates and gaps, and change the views
   await expect(page.getByTestId('revision')).toHaveText('2');
   await expect(helper).toHaveCount(1);
 
-  await applyNext(page); // evt-003: cost update
-  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-worker-a2"]')).toContainText('$2.45');
+  await applyNext(page); // evt-003: usage update
+  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-worker-a2"]')).toContainText('19.8k tok');
   await applyNext(page); // evt-004: retired
   await expect(page.locator('[data-testid="session-card"][data-session-id="ses-review-integ"]').getByTestId('state-label')).toHaveText('Retired');
   // Malformed events change nothing and keep the revision.
@@ -74,7 +74,7 @@ test('selection and collapsed branches survive updates', async ({ page }) => {
   await expect(page).toHaveURL(/sessions\/ses-worker-a2$/);
   await expect(page.getByTestId('detail-panel')).toHaveAttribute('data-session-id', 'ses-worker-a2');
   await expect(page.locator('[data-testid="session-card"].selected')).toHaveAttribute('data-session-id', 'ses-worker-a2');
-  await expect(page.getByTestId('own-cost')).toHaveText('$2.45');
+  await expect(page.getByTestId('detail-own-tokens')).toHaveText('19.8k tok');
 
   // A fresh page starts from the snapshot again. Collapse a branch, then
   // apply events inside and outside it: the branch stays collapsed.
@@ -129,8 +129,8 @@ test('the transcript keeps its reading position when the session record changes'
   await applyNext(page); // evt-001
   await applyNext(page); // evt-002
   await applyNext(page); // duplicate
-  await applyNext(page); // evt-003 updates this session's cost
-  await expect(page.getByTestId('own-cost')).toHaveText('$2.45');
+  await applyNext(page); // evt-003 updates this session's tokens
+  await expect(page.getByTestId('detail-own-tokens')).toHaveText('19.8k tok');
   expect(await transcript.evaluate((el) => el.scrollTop)).toBe(marker);
   await expect(page.getByTestId('transcript-pager')).toContainText('Page 1 of 2');
   // Paging loads the next page for this session only.

@@ -175,32 +175,60 @@ export function descendants(id, children) {
   return out;
 }
 
-export function formatCost(cost) {
-  if (!cost || cost.amount_usd == null || cost.basis === 'unknown') return 'cost unknown';
-  const value = `$${cost.amount_usd.toFixed(2)}`;
-  return cost.basis === 'estimate' ? `est. ${value}` : value;
+// Compact token counts: 850 tok, 48.2k tok, 1.2M tok.
+export function compactTokens(n) {
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}k`;
+  return `${n}`;
 }
 
-// Sums each session's OWN cost once. Unknown stays visible; estimates are marked.
-export function branchCost(session, children) {
+// The headline figure: uncached input + cache write + output. Cache reads
+// are EXCLUDED (they dominate long sessions; the detail panel shows the
+// split). Returns null when the session's tokens are unknown: all four
+// counters are integers or the record reports them as unknown — anything
+// half-known is reported as unknown, never as a partial sum or zero.
+export function headlineTokens(tokens) {
+  if (!tokens || tokens.basis === 'unknown') return null;
+  const counts = [tokens.uncached_input, tokens.cache_read, tokens.cache_write, tokens.output];
+  if (!counts.every(Number.isInteger)) return null;
+  return { value: counts[0] + counts[2] + counts[3], estimate: tokens.basis === 'estimate' };
+}
+
+export function formatTokens(tokens) {
+  const h = headlineTokens(tokens);
+  if (!h) return 'unknown';
+  return `${h.estimate ? 'est. ' : ''}${compactTokens(h.value)} tok`;
+}
+
+// Sums each session's OWN headline tokens once. Unknown stays visible;
+// estimates are marked.
+function tokenSum(list) {
   let known = 0;
   let knownCount = 0;
   let unknown = 0;
   let estimate = false;
-  for (const s of [session, ...descendants(session.id, children)]) {
-    if (s.cost?.amount_usd == null || s.cost?.basis === 'unknown') unknown += 1;
+  for (const s of list) {
+    const h = headlineTokens(s.tokens);
+    if (!h) unknown += 1;
     else {
-      known += s.cost.amount_usd;
+      known += h.value;
       knownCount += 1;
-      if (s.cost.basis === 'estimate') estimate = true;
+      estimate = estimate || h.estimate;
     }
   }
-  // With no known cost there is no figure to show; unknown is never zero.
+  // With no known tokens there is no figure to show; unknown is never zero.
   if (!knownCount) return `unknown (${unknown})`;
-  let text = `${estimate ? 'est. ' : ''}$${known.toFixed(2)}`;
+  let text = `${estimate ? 'est. ' : ''}${compactTokens(known)} tok`;
   if (unknown) text += ` + unknown (${unknown})`;
   return text;
 }
+
+export function branchTokens(session, children) {
+  return tokenSum([session, ...descendants(session.id, children)]);
+}
+
+// The project's header total: every session's own tokens summed once.
+export const projectTokens = (pid) => tokenSum(sessionsFor(pid));
 
 export function formatElapsed(seconds) {
   if (seconds == null) return 'elapsed unknown';

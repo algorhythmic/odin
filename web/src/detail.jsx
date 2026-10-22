@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
-  OUTCOME_LABELS, PROGRESS_LABELS, RELATION_LABELS, branchCost, formatCost, formatElapsed, getAssignment,
-  getSession, inParentCycle, lifecycleLabel, lineageLabel, loadSessionDetail, observedLabel, relationshipsOf,
-  runsForSession, treeParent,
+  OUTCOME_LABELS, PROGRESS_LABELS, RELATION_LABELS, branchTokens, compactTokens, formatElapsed, formatTokens,
+  getAssignment, getSession, inParentCycle, lifecycleLabel, lineageLabel, loadSessionDetail, observedLabel,
+  relationshipsOf, runsForSession, treeParent,
 } from './data.js';
 import { sessionHref } from './route.js';
 
@@ -12,6 +12,12 @@ function runText(session, run) {
   const outcome = OUTCOME_LABELS[run.outcome] || `Outcome unknown (${run.outcome})`;
   if (ENDED.has(session.lifecycle) && run.outcome !== 'verified') return `Session ended — run not verified (${outcome})`;
   return outcome;
+}
+
+// One counter of the four-way split; a partial record reports unknown.
+function tokenCounter(tokens, key) {
+  const n = tokens?.[key];
+  return Number.isInteger(n) ? `${compactTokens(n)} tok` : 'unknown';
 }
 
 function recordLabel(id) {
@@ -125,13 +131,18 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
         ) : <p class="muted">No typed relationships beyond ancestry.</p>}
       </section>
 
-      <section aria-labelledby="cost-h">
-        <h3 id="cost-h">Cost and budget</h3>
+      <section aria-labelledby="tokens-h">
+        <h3 id="tokens-h">Tokens and budget</h3>
         <dl class="facts">
-          <dt>Own cost</dt><dd data-testid="own-cost">{formatCost(s.cost)}</dd>
-          {(childMap.get(s.id) || []).length > 0 && <><dt>Branch (own costs summed)</dt><dd>{branchCost(s, childMap)}</dd></>}
+          <dt>Headline (excl. cache reads)</dt><dd data-testid="detail-own-tokens">{formatTokens(s.tokens)}</dd>
+          <dt>Uncached input</dt><dd data-testid="detail-uncached-input">{tokenCounter(s.tokens, 'uncached_input')}</dd>
+          <dt>Cache read</dt><dd data-testid="detail-cache-read">{tokenCounter(s.tokens, 'cache_read')}</dd>
+          <dt>Cache write</dt><dd data-testid="detail-cache-write">{tokenCounter(s.tokens, 'cache_write')}</dd>
+          <dt>Output</dt><dd data-testid="detail-output">{tokenCounter(s.tokens, 'output')}</dd>
+          <dt>Basis</dt><dd>{s.tokens?.basis || 'unknown'}</dd>
+          {(childMap.get(s.id) || []).length > 0 && <><dt>Branch (own tokens summed)</dt><dd data-testid="detail-branch-tokens">{branchTokens(s, childMap)}</dd></>}
           <dt>Elapsed</dt><dd>{formatElapsed(s.elapsed_s)}</dd>
-          <dt>Budget</dt><dd>{s.budget ? `$${s.budget.limit_usd} (${s.budget.basis}, not enforced by this view)` : 'No budget recorded'}</dd>
+          <dt>Budget</dt><dd>{s.budget ? `${compactTokens(s.budget.limit_tokens)} tok (${s.budget.basis}, not enforced by this view)` : 'No budget recorded'}</dd>
         </dl>
       </section>
 

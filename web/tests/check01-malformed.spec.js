@@ -1,6 +1,6 @@
 // Handoff check 1, malformed and edge records (synthetic): cycles and
-// self-parents become labelled roots, empty projects render, unknown cost
-// never becomes zero, and a run is verified only when recorded so.
+// self-parents become labelled roots, empty projects render, unknown token
+// usage never becomes zero, and a run is verified only when recorded so.
 import { test, expect } from '@playwright/test';
 import { sessionUrl, shot, snapshot } from './helpers.js';
 
@@ -60,10 +60,10 @@ test('an empty project renders an empty forest with finite dimensions', async ({
   await shot(page, 'empty-project');
 });
 
-test('a branch with no known cost shows no figure and no Infinity', async ({ page }) => {
+test('a branch with no known tokens shows no figure and no Infinity', async ({ page }) => {
   await page.goto(`/#/projects/${MAL}`);
   const text = await page.getByTestId('tree-view').innerText();
-  expect(text).not.toMatch(/Infinity|NaN|\$0\.00/);
+  expect(text).not.toMatch(/Infinity|NaN|\$|0 tok/);
   await expect(card(page, 'ses-mal-cycle-a')).toContainText('branch unknown (2)');
 });
 

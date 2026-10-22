@@ -57,7 +57,7 @@ test('unknown event type is rejected', () => {
 test('missing or unknown session_id is rejected', () => {
   assert.equal(rejected(byId('evt-bad-7')[0]), 'missing session_id');
   assert.equal(rejected(byId('evt-bad-1')[0]), 'unknown session');
-  assert.equal(rejected({ ...byId('evt-bad-7')[0], payload: { session_id: '', cost: null } }), 'missing session_id');
+  assert.equal(rejected({ ...byId('evt-bad-7')[0], payload: { session_id: '', tokens: null } }), 'missing session_id');
 });
 
 test('session.started without a usable record is rejected', () => {
@@ -72,6 +72,38 @@ test('session.started without a usable record is rejected', () => {
 
 test('session.started for an existing id is rejected', () => {
   assert.equal(rejected(byId('evt-bad-5')[0]), 'session already exists');
+});
+
+test('session.usage_updated applies a well-formed tokens record', () => {
+  const { snap } = replay(events.slice(0, 5));
+  const a2 = snap.sessions.find((s) => s.id === 'ses-worker-a2');
+  assert.deepEqual(a2.tokens, { uncached_input: 8400, cache_read: 66000, cache_write: 6300, output: 5100, basis: 'measured' });
+});
+
+test('session.usage_updated rejects malformed tokens payloads', () => {
+  const snap = atRevision4();
+  const usage = (tokens) => ({ ...byId('evt-003')[0], event_id: 'u-1', revision: 5, payload: { session_id: 'ses-worker-a2', tokens } });
+  const valid = { uncached_input: 1, cache_read: 2, cache_write: 3, output: 4, basis: 'measured' };
+  const unknown = { uncached_input: null, cache_read: null, cache_write: null, output: null, basis: 'unknown' };
+  // All-integers and all-null records are the only usable shapes.
+  assert.equal(reduceEvent(snap, new Set(), usage(valid)).result.status, 'applied');
+  assert.equal(reduceEvent(snap, new Set(), usage(unknown)).result.status, 'applied');
+  // Half-null.
+  assert.equal(rejected(usage({ ...valid, cache_read: null }), snap), 'malformed tokens: token counters are all integers or all null, not mixed');
+  // Negative.
+  assert.equal(rejected(usage({ ...valid, output: -5 }), snap), 'malformed tokens: a token counter is negative');
+  // Non-integer.
+  assert.equal(rejected(usage({ ...valid, output: 1.5 }), snap), 'malformed tokens: a token counter is not an integer');
+  assert.equal(rejected(usage({ ...valid, output: '4' }), snap), 'malformed tokens: a token counter is not an integer');
+  // Missing field.
+  const missing = { ...valid };
+  delete missing.cache_write;
+  assert.equal(rejected(usage(missing), snap), 'malformed tokens: a token counter is missing');
+  // Basis and counters disagree, undocumented basis, or no record at all.
+  assert.equal(rejected(usage({ ...valid, basis: 'unknown' }), snap), 'malformed tokens: basis "unknown" requires null token counters');
+  assert.equal(rejected(usage({ ...unknown, basis: 'measured' }), snap), 'malformed tokens: null token counters require basis "unknown"');
+  assert.equal(rejected(usage({ ...valid, basis: 'billed' }), snap), 'malformed tokens: tokens basis is not documented');
+  assert.equal(rejected(usage(undefined), snap), 'malformed tokens: tokens is not an object');
 });
 
 test('lifecycle_changed outside the documented set is rejected', () => {

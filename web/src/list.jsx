@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { formatCost, getAssignment, lifecycleLabel, lineageLabel, observedLabel } from './data.js';
+import { formatTokens, getAssignment, lifecycleLabel, lineageLabel, observedLabel } from './data.js';
 
 // Visible rows in depth-first order. Collapsed branches are not rendered.
 function flatten(roots, childMap, collapsed) {
@@ -95,7 +95,7 @@ export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onT
               <span class="observed" data-testid="last-observed">Last observed {observedLabel(s.observed_at)}</span>
             )}
             {lineage && <span class="lineage">{lineage}</span>}
-            <span class="muted">{formatCost(s.cost)}</span>
+            <span class="muted">{formatTokens(s.tokens)}</span>
           </li>
         );
       })}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
-  activityFor, ancestors, childrenMap, conversationFor, decisionsFor, getProjects, getSession, observedLabel, rootsFor,
-  sessionsFor,
+  activityFor, ancestors, childrenMap, conversationFor, decisionsFor, getProjects, getSession, observedLabel,
+  projectTokens, rootsFor, sessionsFor,
 } from './data.js';
 import { loadPrefs, savePrefs } from './prefs.js';
 import { historyHref, projectHref, sessionHref } from './route.js';
@@ -79,7 +79,7 @@ export function Workspace({ project, sid }) {
       <section class="tree-area" aria-label="Agent tree">
         <div class="toolbar">
           <h1>{project.name}</h1>
-          <span class="muted">{sessionsFor(pid).length} sessions, {roots.length} roots</span>
+          <span class="muted">{sessionsFor(pid).length} sessions, {roots.length} roots · <span data-testid="project-tokens">total {projectTokens(pid)}</span></span>
           <a href={historyHref(pid)}>History</a>
           {!narrow && (
             <div class="segmented" role="group" aria-label="View">

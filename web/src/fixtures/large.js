@@ -37,6 +37,10 @@ export function generateLargeSnapshot(spec = LARGE_SPEC, seed = LARGE_SEED) {
     throw new RangeError('LARGE_SPEC cannot reach maxDepth with the given roots and sessions');
   }
   const rnd = mulberry32(seed);
+  // Token usage comes from a second seeded stream so every other generated
+  // value (parents, lifecycle, role, model, times, elapsed, relationships)
+  // stays identical to earlier revisions of this generator.
+  const tokRnd = mulberry32(seed ^ 0x5f3759df);
   const pid = spec.projectId;
   const sessions = [];
   const assignments = [];
@@ -57,10 +61,20 @@ export function generateLargeSnapshot(spec = LARGE_SPEC, seed = LARGE_SEED) {
     const asgId = padId('asg-L', i);
     const lifecycle = pick(rnd, LIFECYCLES);
     const progress = pick(rnd, PROGRESS);
+    // Keep the old cost draws on the main stream (one always, a second only
+    // when r >= 0.15) so downstream generated values do not shift.
     const r = rnd();
-    const cost = r < 0.15
-      ? { amount_usd: null, basis: 'unknown' }
-      : { amount_usd: Math.round(rnd() * 10000) / 100, basis: r < 0.4 ? 'estimate' : 'measured' };
+    if (r >= 0.15) rnd();
+    const tr = tokRnd();
+    const tokens = tr < 0.15
+      ? { uncached_input: null, cache_read: null, cache_write: null, output: null, basis: 'unknown' }
+      : {
+        uncached_input: Math.floor(tokRnd() * 60000),
+        cache_read: Math.floor(tokRnd() * 400000),
+        cache_write: Math.floor(tokRnd() * 20000),
+        output: Math.floor(tokRnd() * 15000),
+        basis: tr < 0.4 ? 'estimate' : 'measured',
+      };
 
     sessions.push({
       id: sid,
@@ -74,7 +88,7 @@ export function generateLargeSnapshot(spec = LARGE_SPEC, seed = LARGE_SEED) {
       needs_operator_input: lifecycle === 'waiting_for_input' && rnd() < 0.5,
       observed_at: isoOnDay(rnd),
       stale: lifecycle === 'host_offline',
-      cost,
+      tokens,
       elapsed_s: Math.floor(rnd() * 20000),
       budget: null,
     });
@@ -150,7 +164,7 @@ export function describeLarge(snapshot) {
     roots: snapshot.sessions.filter((s) => s.parent_session_id === null).length,
     maxDepth,
     projects: snapshot.projects.length,
-    unknownCost: snapshot.sessions.filter((s) => s.cost.basis === 'unknown').length,
+    unknownTokens: snapshot.sessions.filter((s) => s.tokens.basis === 'unknown').length,
     reviewRelationships: snapshot.relationships.filter((r) => r.type === 'review').length,
     transcriptPagesPerSession: LARGE_SPEC.transcriptPages,
     pageSize: LARGE_SPEC.pageSize,

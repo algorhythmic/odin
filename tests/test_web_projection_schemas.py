@@ -133,17 +133,31 @@ class ProjectionSchemaTests(unittest.TestCase):
         self.assertFalse(schema.is_valid(snapshot))
         self.assertTrue(schema.is_valid(self.snapshot_with_session(parent_session_id="ses-x")))
 
-    def test_cost_basis_and_amount_are_paired(self):
+    def test_tokens_counters_and_basis_are_paired(self):
         schema = self.validator("web-projection-snapshot")
+
+        def tokens(u=None, cr=None, cw=None, o=None, basis="unknown", drop=None):
+            record = {"uncached_input": u, "cache_read": cr,
+                      "cache_write": cw, "output": o, "basis": basis}
+            for key in drop or ():
+                del record[key]
+            return record
+
         cases = [
-            ({"amount_usd": None, "basis": "unknown"}, True),
-            ({"amount_usd": 0, "basis": "unknown"}, False),    # unknown must not carry an amount
-            ({"amount_usd": None, "basis": "measured"}, False),  # null amount means unknown
-            ({"amount_usd": 1.5, "basis": "estimate"}, True),
+            (tokens(), True),                                        # all null, unknown
+            (tokens(u=9000, cr=120000, cw=21000, o=12200, basis="measured"), True),
+            (tokens(u=8100, cr=64000, cw=5900, o=4700, basis="estimate"), True),
+            (tokens(u=0, cr=0, cw=0, o=0, basis="measured"), True),  # zero is a count, not unknown
+            (tokens(basis="measured"), False),                       # null counters mean unknown
+            (tokens(u=9000, cr=120000, cw=21000, o=12200), False),   # known counters must not say unknown
+            (tokens(u=9000, cr=None, cw=21000, o=12200, basis="measured"), False),  # half-null
+            (tokens(u=-1, cr=120000, cw=21000, o=12200, basis="measured"), False),  # negative
+            (tokens(u=1.5, cr=120000, cw=21000, o=12200, basis="measured"), False),  # non-integer
+            (tokens(u=9000, cr=120000, cw=21000, o=12200, basis="measured", drop=("output",)), False),  # missing field
         ]
-        for cost, expected in cases:
-            with self.subTest(cost=cost):
-                self.assertEqual(schema.is_valid(self.snapshot_with_session(cost=cost)), expected)
+        for tokens_record, expected in cases:
+            with self.subTest(tokens=tokens_record):
+                self.assertEqual(schema.is_valid(self.snapshot_with_session(tokens=tokens_record)), expected)
 
     def test_lifecycle_is_closed(self):
         schema = self.validator("web-projection-snapshot")

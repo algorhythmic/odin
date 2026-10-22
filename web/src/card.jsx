@@ -1,4 +1,4 @@
-import { branchCost, formatCost, formatElapsed, getAssignment, lifecycleLabel, lineageLabel, observedLabel } from './data.js';
+import { branchTokens, compactTokens, formatElapsed, formatTokens, getAssignment, lifecycleLabel, lineageLabel, observedLabel } from './data.js';
 
 export function SessionCard({ session: s, childMap, style, selected, expanded, childCount, onSelect, onToggle }) {
   const assignment = getAssignment(s.assignment_id);
@@ -22,8 +22,8 @@ export function SessionCard({ session: s, childMap, style, selected, expanded, c
       <div class="card-row muted">{s.model || 'model unknown'}</div>
       {lineage && <div class="card-row lineage" data-testid="lineage-label">{lineage}</div>}
       <div class="card-row muted">
-        <span>{formatCost(s.cost)}</span> · <span>{formatElapsed(s.elapsed_s)}</span>
-        {s.budget && <span> · budget ${s.budget.limit_usd}</span>}
+        <span data-testid="own-tokens">{formatTokens(s.tokens)}</span> · <span>{formatElapsed(s.elapsed_s)}</span>
+        {s.budget && <span> · budget {compactTokens(s.budget.limit_tokens)} tok ({s.budget.basis})</span>}
       </div>
       {childCount > 0 && (
         <div class="card-row card-foot">
@@ -32,7 +32,7 @@ export function SessionCard({ session: s, childMap, style, selected, expanded, c
             onClick={(e) => { e.stopPropagation(); onToggle(s.id); }}>
             {expanded ? '▾' : '▸'} {childCount} started
           </button>
-          <span class="muted branch-cost" data-testid="branch-cost" title="Own costs of this session and its descendants">branch {branchCost(s, childMap)}</span>
+          <span class="muted branch-tokens" data-testid="branch-tokens" title="Own tokens of this session and its descendants, cache reads excluded">branch {branchTokens(s, childMap)}</span>
         </div>
       )}
     </div>

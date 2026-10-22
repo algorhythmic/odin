@@ -9,9 +9,28 @@
 // remembered, so a corrected re-delivery under the same id can still apply.
 
 export const LIFECYCLES = new Set(['running', 'idle', 'waiting_for_input', 'ended', 'retired', 'host_offline']);
-export const EVENT_TYPES = new Set(['session.lifecycle_changed', 'session.started', 'session.cost_updated', 'session.retired']);
+export const EVENT_TYPES = new Set(['session.lifecycle_changed', 'session.started', 'session.usage_updated', 'session.retired']);
+export const TOKEN_COUNTERS = ['uncached_input', 'cache_read', 'cache_write', 'output'];
+export const TOKEN_BASES = new Set(['measured', 'estimate', 'unknown']);
 
 const isId = (v) => typeof v === 'string' && v.length > 0;
+
+// The tokens record's documented shape (projection draft section 7): the
+// four counters are all non-negative integers or all null, and `basis` is
+// "unknown" exactly when they are null. Returns a reason, or null when the
+// record is usable.
+function tokensProblem(t) {
+  if (!t || typeof t !== 'object' || Array.isArray(t)) return 'tokens is not an object';
+  if (!TOKEN_BASES.has(t.basis)) return 'tokens basis is not documented';
+  const counts = TOKEN_COUNTERS.map((k) => t[k]);
+  if (counts.some((c) => c === undefined)) return 'a token counter is missing';
+  const nulls = counts.filter((c) => c === null).length;
+  if (nulls === counts.length) return t.basis === 'unknown' ? null : 'null token counters require basis "unknown"';
+  if (nulls > 0) return 'token counters are all integers or all null, not mixed';
+  if (!counts.every((c) => Number.isInteger(c))) return 'a token counter is not an integer';
+  if (counts.some((c) => c < 0)) return 'a token counter is negative';
+  return t.basis === 'unknown' ? 'basis "unknown" requires null token counters' : null;
+}
 
 // Returns { result, snapshot }. `snapshot` is a new object when the event
 // applied and the same object otherwise; `seen` is read, never modified.
@@ -53,7 +72,12 @@ export function reduceEvent(snapshot, seen, evt) {
         sessions = patch(fields);
         break;
       }
-      case 'session.cost_updated': sessions = patch({ cost: p.cost }); break;
+      case 'session.usage_updated': {
+        const problem = tokensProblem(p.tokens);
+        if (problem) return reject(`malformed tokens: ${problem}`);
+        sessions = patch({ tokens: p.tokens });
+        break;
+      }
       default: sessions = patch({ lifecycle: 'retired', needs_operator_input: false, observed_at: p.observed_at }); // session.retired
     }
   }

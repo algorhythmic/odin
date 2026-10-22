@@ -40,9 +40,9 @@ test('a recorded parent outside the view stays a labelled root, never a guessed 
   await expect(audit.getByTestId('lineage-label')).toHaveText('Parent not in this project view');
   const edges = await page.locator('path.ancestry-edge').evaluateAll((els) => els.map((e) => `${e.dataset.from}>${e.dataset.to}`));
   expect(edges.sort()).toEqual(['ses-pin-audit>ses-pin-audit-helper', 'ses-pin-exec>ses-pin-worker']);
-  // A branch with no known cost shows no dollar figure, not $0.00.
+  // A branch with no known tokens shows no figure, never 0 tok.
   await expect(audit.getByText('branch unknown (2)', { exact: true })).toBeVisible();
-  await expect(audit).not.toContainText('$');
+  await expect(audit).not.toContainText('tok');
   await audit.click();
   await expect(page.getByTestId('started-by')).toHaveText('ses-pin-archived (not in this view; not inferred)');
   await expect(page.getByRole('button', { name: 'Go to parent' })).toBeDisabled();
@@ -141,7 +141,7 @@ test('overview shows attention items that link to sessions', async ({ page }) =>
   await items.filter({ hasText: 'Host offline' }).first().getByRole('link').click();
   await expect(page).toHaveURL(/sessions\/ses-ops-01$/);
   await expect(page.getByTestId('detail-state')).toHaveText('Host offline');
-  await expect(page.getByTestId('own-cost')).toHaveText('cost unknown');
+  await expect(page.getByTestId('detail-own-tokens')).toHaveText('unknown');
 });
 
 test('go to parent follows recorded ancestry to the root, keeping the target in view', async ({ page }) => {
