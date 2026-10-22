@@ -59,9 +59,9 @@ class GatewayClient:
             self.on_status()
         return self._command("executive_restart_status", {})
 
-    def transition(self, request_id, state, **fields):
-        return self._command("executive_restart_transition",
-                             {"request_id": request_id, "state": state} | fields)["request"]
+    def transition(self, request_id, state, *, kind="restart", **fields):
+        action = "runtime_deploy_transition" if kind == "deploy" else "executive_restart_transition"
+        return self._command(action, {"request_id": request_id, "state": state} | fields)["request"]
 
     def event(self, kind, **fields):
         self.events.append(kind)

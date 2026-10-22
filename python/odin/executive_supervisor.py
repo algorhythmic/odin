@@ -88,9 +88,9 @@ class ServiceClient:
     def status(self):
         return self._command("executive_restart_status", {})
 
-    def transition(self, request_id, state, **fields):
-        return self._command("executive_restart_transition",
-                             {"request_id": request_id, "state": state} | fields)["request"]
+    def transition(self, request_id, state, *, kind="restart", **fields):
+        action = "runtime_deploy_transition" if kind == "deploy" else "executive_restart_transition"
+        return self._command(action, {"request_id": request_id, "state": state} | fields)["request"]
 
     def event(self, kind, **fields):
         return self._command("executive_supervisor_event", {"kind": kind} | fields)
@@ -107,7 +107,8 @@ def _parse(stamp):
 class Supervisor:
     def __init__(self, state, *, client=None, launcher=None, clock=time.time, sleep=time.sleep,
                  quiet_seconds=15.0, stop_timeout=60.0, startup_window=120.0, poll_seconds=1.0,
-                 status_seconds=2.0, output=sys.stderr):
+                 status_seconds=2.0, output=sys.stderr, activator=None, telemetry=None, reexec=None,
+                 report_timeout=60.0):
         from .executive_runtime import _load
 
         self.state = Path(state)
@@ -127,6 +128,15 @@ class Supervisor:
         self.carry = None        # request being carried out across a relaunch
         self.stopped_for = None  # request whose stop ended the last child
         self.late_signal = False  # SIGTERM sent, exit not seen before the timeout
+        self.status_view = {}     # the last status the service returned
+        # Deploy collaborators (item 8): the service activation, the telemetry
+        # unit restart and the re-exec that lets the new revision supervise.
+        from .service_activation import SystemdUserUnit, activate
+
+        self.activator = activator or activate
+        self.telemetry = telemetry or SystemdUserUnit("odin-executive-telemetry").restart
+        self.reexec = reexec or self._reexec
+        self.report_timeout = report_timeout
 
     # -- records ---------------------------------------------------------
 
@@ -159,6 +169,8 @@ class Supervisor:
             try:
                 if kind == "transition":
                     self.client.transition(*args, **fields)
+                elif kind == "deploy":
+                    self.client.transition(*args, kind="deploy", **fields)
                 else:
                     self.client.event(*args, **fields)
             except ServiceRefused as error:
@@ -174,10 +186,24 @@ class Supervisor:
     def _transition_now(self, request, state, **fields):
         """A transition whose answer decides what happens next; None when unreachable."""
         try:
-            return self.client.transition(request["id"], state, **fields)
+            return self.client.transition(request["id"], state, kind=request.get("kind", "restart"), **fields)
         except (OSError, KeyError, TypeError, ValueError) as error:
             self.journal("service_unavailable", code=_code(error))
             return None
+
+    def _report(self, request, state, **fields):
+        """Queue a transition of either kind for delivery."""
+        kind = "deploy" if request.get("kind") == "deploy" else "transition"
+        self._send((kind, (request["id"], state), fields))
+
+    def _report_now(self, request, state, **fields):
+        """Deliver before acting further, retrying while the service restarts."""
+        deadline = self.clock() + self.report_timeout
+        while True:
+            moved = self._transition_now(request, state, **fields)
+            if moved is not None or self.clock() >= deadline:
+                return moved
+            self.sleep(1.0)
 
     def _open_request(self):
         return next((item for item in self._open() if item["state"] == "pending"), None)
@@ -185,14 +211,25 @@ class Supervisor:
     def _open(self):
         """Open requests as the service reports them; empty when it cannot answer."""
         try:
-            items = self.client.status()["open"]
+            view = self.client.status()
+            items = view["open"]
             if not isinstance(items, list) or not all(
                     isinstance(item, dict) and isinstance(item.get("id"), str) and
                     item.get("state") in ("pending", "stopping", "relaunching") for item in items):
                 return []
+            self.status_view = view if isinstance(view, dict) else {}
             return items
         except (OSError, KeyError, TypeError, ValueError):
+            self.status_view = {}
             return []
+
+    def _open_deploy(self):
+        """The open deploy in the last status, or None."""
+        items = self.status_view.get("open_deploys") or []
+        item = items[0] if isinstance(items, list) and items else None
+        valid = (isinstance(item, dict) and item.get("kind") == "deploy" and
+                 isinstance(item.get("id"), str) and isinstance(item.get("requested_head"), str))
+        return item if valid else None
 
     # -- launch ----------------------------------------------------------
 
@@ -245,10 +282,10 @@ class Supervisor:
         marker = read_marker(self.state)
         return marker is not None and marker["event"] == "SessionEnd" and _parse(marker["at"]) >= signalled_at - 1
 
-    def _stop(self, process, request, requested_at, launched_at):
+    def _stop(self, process, request, requested_at, launched_at, first="stopping"):
         """SIGTERM at idle, then wait. Never escalates to a kill."""
-        moved = self._transition_now(request, "stopping")
-        if moved is None or moved["state"] != "stopping":
+        moved = self._transition_now(request, first)
+        if moved is None or moved["state"] != first:
             if moved is not None:
                 self.journal("restart_refused", request_id=request["id"], code=moved.get("code"))
             return None
@@ -272,9 +309,9 @@ class Supervisor:
         # A later exit is this SIGTERM taking effect, not a crash or an operator exit.
         self.late_signal = True
         self.journal("stop_timeout", request_id=request["id"])
-        self._send(("transition", (request["id"], "failed"), {"code": "stop_timeout", "timings": {
+        self._report(request, "failed", code="stop_timeout", timings={
             "wait_idle_seconds": _seconds(requested_at, signalled),
-            "stop_seconds": _seconds(signalled, self.clock())}}))
+            "stop_seconds": _seconds(signalled, self.clock())})
         self.say("Claude Code did not exit after SIGTERM; it keeps running. The restart failed "
                  "(stop_timeout); nothing was killed.")
         return None
@@ -307,10 +344,13 @@ class Supervisor:
                         carry, self.carry = self.carry, None
                         timings = carry.get("timings", {}) | {
                             "relaunch_seconds": _seconds(carry.get("stopped_at", launched_at), self.clock())}
-                        self.journal("restarted", request_id=carry["id"])
-                        self._send(("transition", (carry["id"], "restarted"), {
-                            "timings": timings, "exit_code": carry.get("exit_code"),
-                            "clean_exit_observed": carry.get("clean_exit_observed")}))
+                        if carry.get("kind") == "deploy":
+                            self._finish_deploy(carry, timings)
+                        else:
+                            self.journal("restarted", request_id=carry["id"])
+                            self._send(("transition", (carry["id"], "restarted"), {
+                                "timings": timings, "exit_code": carry.get("exit_code"),
+                                "clean_exit_observed": carry.get("clean_exit_observed")}))
                     elif not warned and self.clock() - launched_at >= self.startup_window:
                         warned = True
                         self.journal("awaiting_operator_confirmation", request_id=self.carry["id"])
@@ -331,10 +371,156 @@ class Supervisor:
                     if code is not None:
                         return code
                     request, seen_at = None, None
+                deploy = self._open_deploy() if request is None and self.carry is None else None
+                if deploy is not None:
+                    code = self._advance_deploy(process, deploy, launched_at)
+                    if code is not None:
+                        return code
                 self.sleep(self.poll_seconds)
             except KeyboardInterrupt:
                 # Ctrl+C belongs to Claude Code in the same terminal.
                 continue
+
+    # -- deploy (item 8) -------------------------------------------------
+
+    def _advance_deploy(self, process, deploy, launched_at):
+        """One poll's step of an open deploy; the child's exit status once stopped."""
+        if deploy["state"] == "pending":
+            moved = self._transition_now(deploy, "draining")
+            if moved is not None and moved["state"] == "draining":
+                self.journal("deploy_draining", request_id=deploy["id"])
+                self.drain_started = self.clock()
+            return None
+        if deploy["state"] != "draining":
+            return None
+        if datetime.fromisoformat(now()) >= datetime.fromisoformat(deploy["drain_deadline"]):
+            self.journal("deploy_drain_timeout", request_id=deploy["id"])
+            self._report(deploy, "failed", code="drain_timeout")
+            return None
+        drain = self.status_view.get("drain") or {}
+        if drain.get("drained") is not True or not self.idle(launched_at):
+            return None
+        # Stop the executive at idle before the service goes away, so no turn
+        # sees it restart; the service rechecks the head when deploying begins.
+        started = getattr(self, "drain_started", None) or self.clock()
+        return self._stop(process, deploy, started, launched_at, first="deploying")
+
+    def _healthy(self):
+        """A read-only status call through the operator socket succeeds."""
+        deadline = self.clock() + self.report_timeout
+        while True:
+            try:
+                view = self.client.status()
+                if isinstance(view, dict) and isinstance(view.get("open"), list):
+                    return True
+            except (OSError, KeyError, TypeError, ValueError):
+                pass
+            if self.clock() >= deadline:
+                return False
+            self.sleep(1.0)
+
+    def _activate(self, config, head, *, rollback=False):
+        record = self.activator(self.state, repository=config["repository"], branch=config["branch"],
+                                head=head, verify_checkout=not rollback, include_queued=False)
+        self.journal("deploy_rollback_activation" if rollback else "deploy_activation",
+                     code=record.get("reason"))
+        return record
+
+    def _restart_telemetry(self):
+        try:
+            self.telemetry()
+            return None
+        except Exception as error:  # noqa: BLE001 - telemetry never decides a deploy
+            self.journal("telemetry_restart_failed", code=_code(error))
+            return "telemetry_restart_failed"
+
+    def _deploy(self, stopped):
+        """Export, switch, activate, check health, roll back on failure.
+
+        Runs with no executive child. Returns True when ``current`` was
+        switched, so the caller re-execs and the new revision supervises.
+        """
+        from . import deploy_copies as copies
+
+        head = stopped["requested_head"]
+        timings = dict(stopped["timings"])
+        config = copies.read_config(self.state)
+        begun = self.clock()
+        if config is None:
+            self._report(stopped, "failed", code="deploy_not_configured", timings=timings)
+            return False
+        try:
+            copies.export(config["deploy_root"], config["repository"], head)
+            exported = self.clock()
+            timings["export_seconds"] = _seconds(begun, exported)
+            previous = copies.switch(config["deploy_root"], head)
+        except (copies.DeployError, OSError) as error:
+            self.journal("deploy_export_failed", code=_code(error))
+            self._report(stopped, "failed", code=_code(error), timings=timings)
+            return False
+        self.journal("deploy_switched", request_id=stopped["id"])
+        record = self._activate(config, head)
+        activated = self.clock()
+        timings["activation_seconds"] = _seconds(exported, activated)
+        healthy = record.get("outcome") == "activated" and self._healthy()
+        timings["health_seconds"] = _seconds(activated, self.clock())
+        fields = {"activation_id": record.get("id"), "timings": timings,
+                  "exit_code": _exit(stopped.get("exit_code")),
+                  "clean_exit_observed": stopped.get("clean_exit_observed")}
+        if healthy:
+            telemetry = self._restart_telemetry()
+            fields |= {"pending_outcome": "deployed", "code": telemetry}
+        else:
+            failure = record.get("reason") if record.get("outcome") != "activated" else "health_check_failed"
+            failure = failure or "activation_failed"
+            self.journal("deploy_unhealthy", request_id=stopped["id"], code=failure)
+            if previous is None:
+                # Nothing to roll back to: restore the state before the deploy.
+                (Path(config["deploy_root"]) / copies.CURRENT).unlink(missing_ok=True)
+                self._restart_telemetry()
+                fields |= {"pending_outcome": None, "code": "rollback_unavailable"}
+            else:
+                copies.switch(config["deploy_root"], previous)
+                back = self._activate(config, previous, rollback=True)
+                fields["rollback_activation_id"] = back.get("id")
+                restored = back.get("outcome") == "activated" and self._healthy()
+                self._restart_telemetry()
+                fields |= ({"pending_outcome": "rolled_back", "code": failure} if restored
+                           else {"pending_outcome": None, "code": "rollback_failed"})
+            self.say(f"deploy of {head} failed ({failure}); {fields['code']}.")
+        moved = self._report_now(stopped, "restarting_executive", **fields)
+        if moved is None:
+            self.journal("deploy_report_pending", request_id=stopped["id"])
+        return True
+
+    def _finish_deploy(self, carry, timings):
+        """The relaunched executive started: record the deploy's final state and prune."""
+        from . import deploy_copies as copies
+
+        outcome = carry.get("pending_outcome") or "failed"
+        self.journal("deploy_" + outcome, request_id=carry["id"])
+        self._report(carry, outcome, timings=timings,
+                     **({"code": carry.get("code") or "deploy_incomplete"} if outcome == "failed" else {}))
+        config = copies.read_config(self.state)
+        if config is not None and outcome == "deployed":
+            try:
+                copies.prune(config["deploy_root"], config["keep"],
+                             protect=[carry.get("previous_revision")] if carry.get("previous_revision") else [])
+            except (copies.DeployError, OSError) as error:
+                self.journal("deploy_prune_failed", code=_code(error))
+
+    def _reexec(self):
+        """Replace this process with a supervisor importing the deployed code.
+
+        The environment is unchanged, so ``run``'s PYTHONPATH (``current``
+        after the migration) selects the code. The lease descriptor is not
+        inherited across exec, so the new process takes the lease again.
+        """
+        self._flush()
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os.execv(sys.executable, [sys.executable, "-m", "odin", "--state", str(self.state),
+                                  "executive-supervise"])
 
     # -- main loop -------------------------------------------------------
 
@@ -347,6 +533,7 @@ class Supervisor:
         """
         request = next(iter(self._open()), None)
         if request is None:
+            self._carry_deploy_at_start()
             return
         if request["state"] == "pending":
             moved = self._transition_now(request, "stopping")
@@ -358,6 +545,29 @@ class Supervisor:
         self.carry = request | {"timings": {"wait_idle_seconds": 0, "stop_seconds": 0},
                                 "stopped_at": self.clock(), "exit_code": None,
                                 "clean_exit_observed": None}
+
+    def _carry_deploy_at_start(self):
+        """A deploy left mid-way by a re-exec or a lost supervisor (item 8)."""
+        from . import deploy_copies as copies
+        from .service_activation import service_revision
+
+        deploy = self._open_deploy()
+        if deploy is None or deploy["state"] not in ("deploying", "restarting_executive"):
+            return
+        if deploy["state"] == "deploying":
+            # The supervisor ended between the switch and its report.
+            config = copies.read_config(self.state)
+            reported = service_revision(self.state)
+            current = copies.current_revision(config["deploy_root"]) if config else None
+            if current == deploy["requested_head"] and reported and reported["revision"] == current:
+                deploy = self._transition_now(deploy, "restarting_executive", pending_outcome="deployed")
+            else:
+                self._report(deploy, "failed", code="supervisor_lost")
+                return
+            if deploy is None:
+                return
+        self.journal("deploy_relaunch", request_id=deploy["id"])
+        self.carry = deploy | {"stopped_at": self.clock()}
 
     def run(self):
         with _lease(self.base / LEASE_FILE):
@@ -388,6 +598,13 @@ class Supervisor:
                     self.say(f"launch refused: {error}. Supervision ended.")
                     self._flush()
                     return 2
+                if self.stopped_for is not None and self.stopped_for.get("kind") == "deploy":
+                    stopped, self.stopped_for = self.stopped_for, None
+                    stopped["timings"] |= {"drain_seconds": stopped["timings"].pop("wait_idle_seconds", 0)}
+                    if self._deploy(stopped):
+                        self.reexec()
+                        return 0  # reached only when re-exec is replaced (tests)
+                    continue
                 if self.stopped_for is not None:
                     stopped, self.stopped_for = self.stopped_for, None
                     self._send(("transition", (stopped["id"], "relaunching"), {

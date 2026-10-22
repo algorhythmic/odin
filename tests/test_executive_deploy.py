@@ -4,6 +4,7 @@ Synthetic evidence: an in-process service gateway and a synthetic git
 repository standing in for the canonical checkout.
 """
 import json
+import time
 import unittest
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
@@ -14,6 +15,7 @@ from odin import deploy_copies as copies
 from odin import executive_supervision as supervision
 from odin.contracts import Contracts, identifier, strict_loads
 from odin.development_evaluator import configure
+from odin.executive_turn_hook import read_marker
 from odin.service_activation import record_service_revision
 from test_deploy_copies import git, synthetic_repository
 from test_development_evaluator import P
@@ -242,3 +244,207 @@ class EvaluatorDrainTests(unittest.TestCase):
         self.assertEqual(runner.tick()["started"], [job["id"]])
         self.wait(runner, lambda: self.loop.job(job["id"])["state"] == "completed")
 
+
+
+class Reexec(Exception):
+    """Stands in for os.execv: the test starts the next supervisor itself."""
+
+
+class FakeUnit:
+    """A fake systemd user unit for the service.
+
+    restart() "starts" the service from current: it writes the service's own
+    revision report with a new pid, unless current points at a revision the
+    test marks as broken, in which case no new process ever reports.
+    """
+
+    def __init__(self, test, broken=()):
+        self.test, self.broken, self.pid, self.restarts = test, set(broken), 1000, []
+        self.unit = "odin-executive-pilot-service"
+        self._report(self.test.revisions[1])
+
+    def _report(self, revision):
+        path = self.test.state / "service-revision.json"
+        from odin.executive_runtime import _write
+        _write(path, "service-revision", {"version": 1, "pid": self.pid, "revision": revision,
+                                          "clean": None, "started_at": "2026-10-22T10:00:00Z"})
+
+    def main_pid(self):
+        return self.pid
+
+    def restart(self):
+        current = copies.current_revision(self.test.temp / "deploy")
+        self.restarts.append(current)
+        if current in self.broken:
+            self.pid += 1  # the unit restarted but the service never reports
+            return
+        self.pid += 1
+        self._report(current)
+
+
+class DeployExecutorTests(DeployBase):
+    """Item 8, end to end with a fake service unit and the fake claude binary."""
+
+    def setUp(self):
+        super().setUp()
+        self.configure(keep=1, drain_timeout_seconds=600)
+        copies.prepare(self.state, head=self.revisions[1])  # the migration's first copy
+        self.unit = FakeUnit(self)
+        self.telemetry = []
+
+    def activator(self, state, **kwargs):
+        from odin.service_activation import activate
+        return activate(state, controller=self.unit, reachable=lambda s: True, timeout=1,
+                        sleep=lambda s: time.sleep(0.01), **kwargs)
+
+    def deploy_supervisor(self, plans, **options):
+        def reexec():
+            raise Reexec()
+        return self.supervisor(plans, activator=self.activator, telemetry=lambda: self.telemetry.append(1),
+                               reexec=reexec, report_timeout=2, **options)
+
+    def ask_mid_turn(self):
+        def mid_turn():
+            marker = read_marker(self.state)
+            if marker and marker["event"] == "UserPromptSubmit" and not self.deploys():
+                self.ok(self.deploy())
+        self.client.on_status = mid_turn
+
+    def activations(self):
+        directory = self.state / "executive-pilot" / "service-activations"
+        return [strict_loads(p.read_text()) for p in sorted(directory.glob("*.json"))]
+
+    def finish(self, plans):
+        """The re-exec'd supervisor: relaunch and record the final state."""
+        self.client.on_status = None
+        return self.deploy_supervisor(plans).run()
+
+    def test_drain_switch_activate_and_resume(self):
+        self.ask_mid_turn()
+        with self.assertRaises(Reexec):
+            self.deploy_supervisor([[["start"], ["turn", 0.3], ["wait"]],
+                                    [["start"], ["sleep", 0.4], ["exit", 0]]]).run()
+        (deploy,) = self.deploys()
+        self.assertEqual((deploy["state"], deploy["pending_outcome"]), ("restarting_executive", "deployed"))
+        self.assertEqual(copies.current_revision(self.temp / "deploy"), self.head)
+        self.assertEqual(self.unit.restarts, [self.head])
+        self.assertEqual(self.telemetry, [1])
+        (activation,) = self.activations()
+        self.assertEqual((activation["outcome"], activation["requested_head"], activation["running_revision"]),
+                         ("activated", self.head, self.head))
+        self.assertEqual(activation["id"], deploy["activation_id"])
+        self.assertEqual(self.finish([[["start"], ["sleep", 0.4], ["exit", 0]]]), 0)
+        (deploy,) = self.deploys()
+        self.assertEqual(deploy["state"], "deployed")
+        self.assertEqual((deploy["exit_code"], deploy["clean_exit_observed"]), (143, True))
+        self.assertTrue({"drain_seconds", "stop_seconds", "export_seconds", "activation_seconds",
+                         "health_seconds", "relaunch_seconds"} <= set(deploy["timings"]))
+        self.assertEqual(self.history("executive.deploy_"),
+                         ["executive.deploy_requested", "executive.deploy_draining",
+                          "executive.deploy_deploying", "executive.deploy_restarting_executive",
+                          "executive.deploy_deployed"])
+        (notice,) = supervision.pending_notices(self.service.store, self.project)
+        self.assertIn(f"{self.head} is deployed", supervision.render_notice(self.service.store, notice))
+        # keep=1: the previous copy is the rollback target and stays; older ones go.
+        self.assertEqual(sorted(copies.copies(self.temp / "deploy")), sorted([self.revisions[1], self.head]))
+
+    def test_failing_service_rolls_back(self):
+        self.unit.broken.add(self.head)
+        self.ask_mid_turn()
+        with self.assertRaises(Reexec):
+            self.deploy_supervisor([[["start"], ["turn", 0.3], ["wait"]]]).run()
+        self.assertEqual(copies.current_revision(self.temp / "deploy"), self.revisions[1])
+        self.assertEqual(self.unit.restarts, [self.head, self.revisions[1]])
+        first, second = self.activations()
+        self.assertEqual((first["outcome"], first["reason"]), ("failed", "service_unreachable_or_unreported"))
+        self.assertEqual((second["outcome"], second["requested_head"]), ("activated", self.revisions[1]))
+        (deploy,) = self.deploys()
+        self.assertEqual((deploy["pending_outcome"], deploy["code"], deploy["rollback_activation_id"]),
+                         ("rolled_back", "service_unreachable_or_unreported", second["id"]))
+        self.assertEqual(self.finish([[["start"], ["sleep", 0.4], ["exit", 0]]]), 0)
+        (deploy,) = self.deploys()
+        self.assertEqual(deploy["state"], "rolled_back")
+        (notice,) = supervision.pending_notices(self.service.store, self.project)
+        self.assertIn("switched back", supervision.render_notice(self.service.store, notice))
+
+    def test_failed_rollback_is_recorded_as_failed(self):
+        self.unit.broken.update({self.head, self.revisions[1]})
+        self.ask_mid_turn()
+        with self.assertRaises(Reexec):
+            self.deploy_supervisor([[["start"], ["turn", 0.3], ["wait"]]]).run()
+        (deploy,) = self.deploys()
+        self.assertEqual((deploy["pending_outcome"], deploy["code"]), (None, "rollback_failed"))
+        self.finish([[["start"], ["sleep", 0.4], ["exit", 0]]])
+        (deploy,) = self.deploys()
+        self.assertEqual((deploy["state"], deploy["code"]), ("failed", "rollback_failed"))
+
+    def test_waits_for_running_turns(self):
+        store = self.service.store
+        columns = [row[1] for row in store.db.execute("PRAGMA table_info(delegation_turns)")]
+        values = {name: "x" for name in columns} | {"id": "turn-running", "state": "running"}
+        store.db.execute(f"INSERT INTO delegation_turns({','.join(columns)}) VALUES({','.join('?' * len(columns))})",
+                         [values[name] for name in columns])
+        seen = []
+        def mid_turn():
+            marker = read_marker(self.state)
+            if marker and marker["event"] == "UserPromptSubmit" and not self.deploys():
+                self.ok(self.deploy())
+            if self.deploys():
+                seen.append(self.deploys()[0]["state"])
+                if len(seen) == 30:
+                    store.db.execute("UPDATE delegation_turns SET state='returned'")
+        self.client.on_status = mid_turn
+        with self.assertRaises(Reexec):
+            self.deploy_supervisor([[["start"], ["turn", 0.2], ["wait"]]]).run()
+        # Still draining for every poll while the turn ran; deploying only after it returned.
+        self.assertEqual(set(seen[1:30]), {"draining"})
+        self.assertNotIn("deploying", seen[:30])
+        self.assertEqual(self.deploys()[0]["state"], "restarting_executive")
+
+    def test_drain_timeout_gives_up_without_stopping(self):
+        store = self.service.store
+        def mid_turn():
+            marker = read_marker(self.state)
+            if marker and marker["event"] == "UserPromptSubmit" and not self.deploys():
+                self.ok(self.deploy())
+                body = strict_loads(store.db.execute("SELECT body FROM executive_deploys").fetchone()[0])
+                soon = (datetime.now(UTC) + timedelta(seconds=0.5)).isoformat().replace("+00:00", "Z")
+                store.db.execute("UPDATE executive_deploys SET body=?",
+                                 (json.dumps(body | {"drain_deadline": soon}),))
+                # A running turn that never finishes holds the drain.
+                columns = [row[1] for row in store.db.execute("PRAGMA table_info(delegation_turns)")]
+                values = {name: "x" for name in columns} | {"id": "turn-stuck", "state": "running"}
+                store.db.execute(f"INSERT INTO delegation_turns({','.join(columns)}) "
+                                 f"VALUES({','.join('?' * len(columns))})", [values[name] for name in columns])
+        self.client.on_status = mid_turn
+        code = self.deploy_supervisor([[["start"], ["turn", 0.2], ["sleep", 2.0], ["exit", 0]]]).run()
+        self.assertEqual(code, 0)
+        self.assertEqual(len(self.launches()), 1)
+        (deploy,) = self.deploys()
+        self.assertEqual((deploy["state"], deploy["code"]), ("failed", "drain_timeout"))
+        self.assertEqual(self.unit.restarts, [])
+        self.assertEqual(copies.current_revision(self.temp / "deploy"), self.revisions[1])
+
+    def test_lost_supervisor_after_the_switch_is_carried(self):
+        self.ok(self.deploy())
+        request = self.deploys()[0]
+        for state in ("draining", "deploying"):
+            self.client.transition(request["id"], state, kind="deploy")
+        copies.export(self.temp / "deploy", self.repository, self.head)
+        copies.switch(self.temp / "deploy", self.head)
+        self.unit.restart()
+        self.assertEqual(self.finish([[["start"], ["sleep", 0.4], ["exit", 0]]]), 0)
+        self.assertEqual(self.deploys()[0]["state"], "deployed")
+
+
+class ActivationQuiescenceTests(DeployBase):
+    def test_queued_turns_held_by_the_drain_do_not_block_a_deploy_activation(self):
+        from odin.service_activation import quiescence
+        store = self.service.store
+        columns = [row[1] for row in store.db.execute("PRAGMA table_info(delegation_turns)")]
+        values = {name: "x" for name in columns} | {"id": "turn-queued", "state": "queued"}
+        store.db.execute(f"INSERT INTO delegation_turns({','.join(columns)}) VALUES({','.join('?' * len(columns))})",
+                         [values[name] for name in columns])
+        store.db.commit()
+        self.assertFalse(quiescence(self.state)["quiescent"])
+        self.assertTrue(quiescence(self.state, include_queued=False)["quiescent"])

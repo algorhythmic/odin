@@ -90,8 +90,12 @@ class SystemdUserUnit:
                   capture_output=True, text=True, timeout=120, check=True)
 
 
-def quiescence(state):
-    """Read-only view of work a service restart would interrupt."""
+def quiescence(state, *, include_queued=True):
+    """Read-only view of work a service restart would interrupt.
+
+    During a deploy drain (ODIN-ADR-039) queued turns cannot launch, so a
+    deploy passes ``include_queued=False`` and only running turns block.
+    """
     path = Path(state) / "odin_history.sqlite3"
     blockers = {"delegated_turns": [], "live_interventions": [], "claimed_loop_stages": []}
     if not path.exists():
@@ -102,12 +106,13 @@ def quiescence(state):
         tables = {row[0] for row in db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
         if "delegation_turns" in tables:
-            marks = ",".join("?" * len(ACTIVE_TURN_STATES))
+            states = ACTIVE_TURN_STATES if include_queued else ACTIVE_TURN_STATES[1:]
+            marks = ",".join("?" * len(states))
             blockers["delegated_turns"] = [
                 {"turn": row[0], "session": row[1], "state": row[2]}
                 for row in db.execute(
                     f"SELECT id, session, state FROM delegation_turns WHERE state IN ({marks}) ORDER BY id",
-                    ACTIVE_TURN_STATES)]
+                    states)]
         if "executive_interventions" in tables:
             from .executive_intervention import _live
 
@@ -197,8 +202,14 @@ def validate_arguments(*, repository, branch, head):
 
 
 def activate(state, *, repository, branch, head, controller=None, reachable=None,
-             timeout=60.0, clock=time.monotonic, sleep=time.sleep):
-    """Restart only the service unit when quiescent and the checkout is reviewed."""
+             timeout=60.0, clock=time.monotonic, sleep=time.sleep, verify_checkout=True,
+             include_queued=True):
+    """Restart only the service unit when quiescent and the checkout is reviewed.
+
+    A deploy rollback (ODIN-ADR-039) passes ``verify_checkout=False``: the
+    previous revision is no longer the checkout's head, and the record still
+    requires the service to report that revision afterwards.
+    """
     from .executive_runtime import _lease, _LeaseBusy
 
     validate_arguments(repository=repository, branch=branch, head=head)
@@ -221,7 +232,8 @@ def activate(state, *, repository, branch, head, controller=None, reachable=None
             try:
                 return _activate(state, record, finish, repository=repository, branch=branch,
                                  head=head, controller=controller, reachable=reachable,
-                                 timeout=timeout, clock=clock, sleep=sleep)
+                                 timeout=timeout, clock=clock, sleep=sleep,
+                                 verify_checkout=verify_checkout, include_queued=include_queued)
             except Exception:
                 # An ordinary error never leaves an unexplained `restarting` record.
                 finish("failed", "activation_error")
@@ -231,7 +243,7 @@ def activate(state, *, repository, branch, head, controller=None, reachable=None
 
 
 def _activate(state, record, finish, *, repository, branch, head, controller,
-              reachable, timeout, clock, sleep):
+              reachable, timeout, clock, sleep, verify_checkout=True, include_queued=True):
     try:
         previous_pid = controller.main_pid()
     except (OSError, subprocess.SubprocessError, ValueError):
@@ -242,13 +254,13 @@ def _activate(state, record, finish, *, repository, branch, head, controller,
     reported = service_revision(state)
     if reported and reported["pid"] == previous_pid:
         record["previous_revision"] = reported["revision"]
-    problem = _checkout(repository, branch=branch, head=head)
+    problem = _checkout(repository, branch=branch, head=head) if verify_checkout else None
     if problem:
         return finish("refused", problem)
     # Read quiescence last, just before the restart, to narrow the window in
     # which the running service could admit new work.
     try:
-        view = quiescence(state)
+        view = quiescence(state, include_queued=include_queued)
     except (sqlite3.Error, ValueError, KeyError, TypeError):
         return finish("refused", "quiescence_unreadable")
     record["quiescence"] = view
