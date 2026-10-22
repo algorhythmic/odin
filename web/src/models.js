@@ -3,6 +3,8 @@
 // itself stays the record; these are display names only.
 
 const MODEL_NAMES = {
+  'gpt-6.1-sol': 'GPT-6.1 Sol',
+  'gpt-6-mini': 'GPT-6 Mini',
   'claude-opus-5-5': 'Opus 5.5',
   'claude-sonnet-5-5': 'Sonnet 5.5',
   'claude-haiku-5-5': 'Haiku 5.5',

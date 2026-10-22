@@ -1,0 +1,449 @@
+{
+  "synthetic": true,
+  "schema": "odin-web-setup-draft-1",
+  "providers": [
+    {
+      "id": "anthropic",
+      "label": "Anthropic",
+      "subscription": "Claude subscription",
+      "sign_in": "Sign in via the Claude Code harness",
+      "supported": true,
+      "lineages": [
+        {
+          "id": "executive-login",
+          "label": "Executive login",
+          "status": "connected",
+          "account_label": "operator@example.invalid",
+          "plan": "Synthetic Claude subscription",
+          "max_concurrent_turns": 1
+        },
+        {
+          "id": "delegation-login",
+          "label": "Delegation login",
+          "status": "connected",
+          "account_label": "delegation@example.invalid",
+          "plan": "Synthetic Claude subscription",
+          "max_concurrent_turns": 1
+        }
+      ]
+    },
+    {
+      "id": "openai",
+      "label": "OpenAI",
+      "subscription": "ChatGPT subscription",
+      "sign_in": "Sign in via the Codex CLI",
+      "supported": true,
+      "lineages": [
+        {
+          "id": "evaluator-codex-login",
+          "label": "Evaluator Codex login",
+          "status": "connected",
+          "account_label": "evaluator@example.invalid",
+          "plan": "Synthetic ChatGPT subscription",
+          "max_concurrent_turns": 1
+        }
+      ]
+    },
+    {
+      "id": "google",
+      "label": "Google",
+      "subscription": "Gemini",
+      "supported": false,
+      "reason": "No installed harness supports it yet",
+      "lineages": []
+    }
+  ],
+  "harnesses": [
+    {
+      "id": "claude-code",
+      "label": "Claude Code",
+      "provider": "anthropic",
+      "version": "2.1.0 (synthetic)",
+      "capabilities": [
+        "Native subagents",
+        "Resume",
+        "Effort levels",
+        "Native compaction",
+        "Remote Control",
+        "Odin channel"
+      ]
+    },
+    {
+      "id": "codex",
+      "label": "Codex CLI",
+      "provider": "openai",
+      "version": "0.120.0 (synthetic)",
+      "capabilities": [
+        "Resume",
+        "Effort levels"
+      ]
+    },
+    {
+      "id": "pi-rpc",
+      "label": "Pi RPC",
+      "provider": null,
+      "version": "Fixture",
+      "fixture_only": true,
+      "selectable": false,
+      "capabilities": [],
+      "note": "Fixture-only control (ODIN-ADR-015)"
+    }
+  ],
+  "models": {
+    "claude-code": [
+      {
+        "id": "claude-opus-5-5",
+        "purpose": "Coordinate complex work and reason through difficult decisions.",
+        "speed": 2,
+        "depth": 5,
+        "efforts": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "id": "claude-sonnet-5-5",
+        "purpose": "Balance implementation depth with responsive iteration.",
+        "speed": 4,
+        "depth": 4,
+        "efforts": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "id": "claude-haiku-5-5",
+        "purpose": "Handle quick searches and small, focused tasks.",
+        "speed": 5,
+        "depth": 2,
+        "efforts": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      },
+      {
+        "id": "claude-fable-5-1",
+        "purpose": "Explore plans and maintain a conversational executive.",
+        "speed": 3,
+        "depth": 4,
+        "efforts": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ]
+      }
+    ],
+    "codex": [
+      {
+        "id": "gpt-6.1-sol",
+        "purpose": "Implement, inspect and review substantial changes.",
+        "speed": 3,
+        "depth": 5,
+        "efforts": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      },
+      {
+        "id": "gpt-6-mini",
+        "purpose": "Handle bounded implementation and focused checks.",
+        "speed": 5,
+        "depth": 3,
+        "efforts": [
+          "low",
+          "medium",
+          "high",
+          "xhigh"
+        ]
+      }
+    ]
+  },
+  "roles": [
+    {
+      "id": "executive",
+      "label": "Executive",
+      "description": "Coordinate the portfolio and keep the operator informed."
+    },
+    {
+      "id": "integration_owner",
+      "label": "Integration owner",
+      "description": "Own integration and shared interface decisions."
+    },
+    {
+      "id": "workstream_orchestrator",
+      "label": "Workstream orchestrator",
+      "description": "Plan and coordinate one workstream."
+    },
+    {
+      "id": "implementer",
+      "label": "Implementer",
+      "description": "Build the assigned change."
+    },
+    {
+      "id": "subagent_search",
+      "label": "Subagent \u00b7 Search",
+      "description": "Find relevant evidence for a bounded question."
+    },
+    {
+      "id": "subagent_implement",
+      "label": "Subagent \u00b7 Implement",
+      "description": "Implement a focused part of the work."
+    },
+    {
+      "id": "subagent_review",
+      "label": "Subagent \u00b7 Review",
+      "description": "Inspect a focused change and its evidence."
+    },
+    {
+      "id": "self_review",
+      "label": "Self-review",
+      "description": "Check the author\u2019s work before returning it."
+    },
+    {
+      "id": "independent_review",
+      "label": "Independent review",
+      "description": "Assess the work from a separate review position."
+    },
+    {
+      "id": "evaluator",
+      "label": "Development evaluator",
+      "description": "Evaluate behavior and select the next bounded test."
+    }
+  ],
+  "presets": {
+    "cross_family": {
+      "label": "Cross-family",
+      "illustrative": false,
+      "roles": {
+        "executive": {
+          "harness": "claude-code",
+          "model": "claude-opus-5-5",
+          "effort": "high",
+          "lineage": "executive-login"
+        },
+        "integration_owner": {
+          "harness": "claude-code",
+          "model": "claude-opus-5-5",
+          "effort": "medium",
+          "lineage": "delegation-login"
+        },
+        "workstream_orchestrator": {
+          "harness": "claude-code",
+          "model": "claude-opus-5-5",
+          "effort": "medium",
+          "lineage": "delegation-login"
+        },
+        "implementer": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "high",
+          "lineage": "evaluator-codex-login"
+        },
+        "subagent_search": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium",
+          "lineage": "evaluator-codex-login"
+        },
+        "subagent_implement": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "high",
+          "lineage": "evaluator-codex-login"
+        },
+        "subagent_review": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "xhigh",
+          "lineage": "evaluator-codex-login"
+        },
+        "self_review": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "xhigh",
+          "lineage": "evaluator-codex-login"
+        },
+        "independent_review": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "xhigh",
+          "lineage": "evaluator-codex-login"
+        },
+        "evaluator": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "high",
+          "lineage": "evaluator-codex-login"
+        }
+      }
+    },
+    "opus_led": {
+      "label": "Opus-led",
+      "illustrative": true,
+      "roles": {
+        "executive": {
+          "harness": "claude-code",
+          "model": "claude-opus-5-5",
+          "effort": "high",
+          "lineage": "executive-login"
+        },
+        "integration_owner": {
+          "harness": "claude-code",
+          "model": "claude-opus-5-5",
+          "effort": "medium",
+          "lineage": "delegation-login"
+        },
+        "workstream_orchestrator": {
+          "harness": "claude-code",
+          "model": "claude-opus-5-5",
+          "effort": "medium",
+          "lineage": "delegation-login"
+        },
+        "implementer": {
+          "harness": "claude-code",
+          "model": "claude-opus-5-5",
+          "effort": "high",
+          "lineage": "delegation-login"
+        },
+        "subagent_search": {
+          "harness": "claude-code",
+          "model": "claude-sonnet-5-5",
+          "effort": "medium",
+          "lineage": "delegation-login"
+        },
+        "subagent_implement": {
+          "harness": "claude-code",
+          "model": "claude-sonnet-5-5",
+          "effort": "high",
+          "lineage": "delegation-login"
+        },
+        "subagent_review": {
+          "harness": "claude-code",
+          "model": "claude-sonnet-5-5",
+          "effort": "xhigh",
+          "lineage": "delegation-login"
+        },
+        "self_review": {
+          "harness": "claude-code",
+          "model": "claude-opus-5-5",
+          "effort": "xhigh",
+          "lineage": "delegation-login"
+        },
+        "independent_review": {
+          "harness": "claude-code",
+          "model": "claude-opus-5-5",
+          "effort": "xhigh",
+          "lineage": "delegation-login"
+        },
+        "evaluator": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "high",
+          "lineage": "evaluator-codex-login"
+        }
+      }
+    },
+    "sol_heavy": {
+      "label": "Sol-heavy",
+      "illustrative": true,
+      "roles": {
+        "executive": {
+          "harness": "claude-code",
+          "model": "claude-opus-5-5",
+          "effort": "high",
+          "lineage": "executive-login"
+        },
+        "integration_owner": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium",
+          "lineage": "evaluator-codex-login"
+        },
+        "workstream_orchestrator": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium",
+          "lineage": "evaluator-codex-login"
+        },
+        "implementer": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "high",
+          "lineage": "evaluator-codex-login"
+        },
+        "subagent_search": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "medium",
+          "lineage": "evaluator-codex-login"
+        },
+        "subagent_implement": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "high",
+          "lineage": "evaluator-codex-login"
+        },
+        "subagent_review": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "xhigh",
+          "lineage": "evaluator-codex-login"
+        },
+        "self_review": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "xhigh",
+          "lineage": "evaluator-codex-login"
+        },
+        "independent_review": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "xhigh",
+          "lineage": "evaluator-codex-login"
+        },
+        "evaluator": {
+          "harness": "codex",
+          "model": "gpt-6.1-sol",
+          "effort": "high",
+          "lineage": "evaluator-codex-login"
+        }
+      }
+    }
+  },
+  "state": {
+    "completed": {
+      "providers": true,
+      "harnesses": true,
+      "models": true,
+      "roles": false
+    },
+    "preset": "cross_family",
+    "harnesses": {
+      "claude-code": {
+        "enabled": true,
+        "lineage": "executive-login",
+        "model": "claude-opus-5-5",
+        "effort": "high"
+      },
+      "codex": {
+        "enabled": true,
+        "lineage": "evaluator-codex-login",
+        "model": "gpt-6.1-sol",
+        "effort": "high"
+      }
+    }
+  }
+}

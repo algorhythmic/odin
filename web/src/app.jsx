@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { parseHash, overviewHref } from './route.js';
 import { getProject, isSynthetic, useDataVersion } from './data.js';
 import { Sidebar, useSidebarNarrow } from './shell.jsx';
-import { SetupPlaceholder } from './placeholders.jsx';
+import { SetupPage } from './setup-page.jsx';
 import { Overview } from './overview.jsx';
 import { Workspace } from './workspace.jsx';
 import { NotFound } from './notfound.jsx';
@@ -21,6 +21,7 @@ function useRoute() {
 
 export function App() {
   const route = useRoute();
+  const setupRoute = route.view === 'setup' || route.view === 'settings';
   useDataVersion();
   const narrow = useSidebarNarrow();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -42,7 +43,7 @@ export function App() {
   let body;
   const project = route.pid ? getProject(route.pid) : null;
   if (route.view === 'overview') body = <Overview />;
-  else if (route.view === 'setup' || route.view === 'settings') body = <SetupPlaceholder step={route.step} section={route.section} />;
+  else if (route.view === 'setup' || route.view === 'settings') body = <SetupPage step={route.step} section={route.section} />;
   else if (route.view === 'history' && project) body = <History project={project} />;
   else if (route.view === 'project' || route.view === 'history') {
     body = project
@@ -66,7 +67,7 @@ export function App() {
               <a class="brand" href={overviewHref()}>Odin</a>
             </header>
           )}
-          {isSynthetic && <UpdateDriver />}
+          {isSynthetic && !setupRoute && <UpdateDriver />}
         </div>
         <main class="content">{body}</main>
       </div>

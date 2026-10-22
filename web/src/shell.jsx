@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { getProjects, isSynthetic } from './data.js';
 import { overviewHref, projectHref, projectViewHref, sessionHref, setupHref, settingsHref, PROJECT_VIEWS, SETTINGS_SECTIONS } from './route.js';
 import { updatePrefs, usePrefs } from './prefs.js';
+import { SetupProgressCard } from './setup-page.jsx';
 import { VIEW_LABELS } from './placeholders.jsx';
 
 export function useSidebarNarrow() {
@@ -79,6 +80,7 @@ export function Sidebar({ route, narrow, open, onClose }) {
         ))}
       </nav>
       <footer class="sidebar-footer">
+        <SetupProgressCard />
         <ThemeToggle />
         {isSynthetic && (
           <span class="synthetic-badge" role="note" data-testid="synthetic-badge"

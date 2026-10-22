@@ -54,17 +54,3 @@ export function ViewPlaceholder({ view }) {
     </section>
   );
 }
-
-const titleCase = (value) => value[0].toUpperCase() + value.slice(1);
-
-export function SetupPlaceholder({ step, section }) {
-  const name = section || step;
-  return (
-    <section class="placeholder" data-testid="setup-placeholder" aria-labelledby="setup-title">
-      <span class="eyebrow">{section ? 'Settings' : 'Setup'} · Not built yet</span>
-      <h1 id="setup-title">{name ? `${section ? 'Settings' : 'Setup'}: ${titleCase(name)}` : 'Setup'}</h1>
-      <p>{name ? `The ${name} panel` : 'The onboarding wizard'} will be built in R2.</p>
-      <p class="muted">Commands are not connected</p>
-    </section>
-  );
-}

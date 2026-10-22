@@ -40,13 +40,29 @@ views `#/projects/<project>/<view>` and
 `#/setup/<step>` and `#/settings/<section>`. A sidebar carries the
 overview, the projects with their views, setup, the theme toggle and the
 synthetic-data badge; below 900 px it is a modal drawer. The five
-non-tree views and the setup pages are placeholders until slices R2–R7.
+non-tree views are placeholders until slices R4–R7. Setup and settings
+share working synthetic configuration panels (R2).
 
 Data sets: the default loads the shared fixtures in `fixtures/`. Add
 `?dataset=large` before the hash (for example
 `http://127.0.0.1:5317/?dataset=large#/projects/proj-large-synthetic`)
 for the seeded 2,000-session tree, generated in the browser from
 `src/fixtures/large.js`; `npm run describe:large` checks it from Node.
+
+Setup uses its own `fixtures/setup.json`, separate from the projection
+fixtures. The default draft has three of four steps done and opens Roles.
+Add `?setup=fresh` before the hash to start with no connected sign-ins,
+enabled harnesses or completed steps; it can be combined with
+`?dataset=large&setup=fresh`. Sign-in completion is an explicitly labelled
+simulation. No field accepts a credential, and no sign-in request leaves
+the browser. The model speed/depth bars are synthetic descriptors.
+
+Providers, harnesses, default models and role routing share one in-memory
+draft across the wizard and settings. Apply records an in-memory snapshot;
+Discard restores that snapshot. Nothing is saved across reload, and this
+applies no configuration to the service. The executive must use Claude Code;
+roles need enabled harnesses and connected sign-ins. Same-family independent
+review is allowed with a warning; shared-lineage capacity is informational.
 
 The bar under the header is a synthetic update driver: "Apply next
 synthetic update" applies the next event from
@@ -110,9 +126,12 @@ not service or desktop measurements.
 
 | Path | Purpose |
 |---|---|
-| `fixtures/*.json` | Shared synthetic projection fixtures: snapshot, session details, update events ([draft shape](../docs/design/WEB-APP-PROJECTION.md)) |
+| `fixtures/default-*.json` | Shared synthetic projection fixtures: snapshot, session details, update events ([draft shape](../docs/design/WEB-APP-PROJECTION.md)) |
 | `src/fixtures/synthetic.js`, `src/fixtures/large.js` | Fixture loading and paged detail requests; seeded large-dataset generator |
 | `src/data.js` | Versioned store over the snapshot: views, ancestry analysis (cycles, outside parents), indexes by session and assignment; the autoplay timers |
+| `fixtures/setup.json` | Separate synthetic setup catalogue, presets and initial draft |
+| `src/setup.js` | Browser-independent setup store, validation, apply and discard |
+| `src/setup-state.jsx`, `src/setup-page.jsx`, `src/setup-panels.jsx` | Setup subscription, wizard, shared settings panels and progress cards |
 | `src/events.js` | Update-event rules (pure; unit-tested in `tests-unit/`) |
 | `src/live.js` | Autoplay scheduling and header summary counts (pure; unit-tested) |
 | `src/driver.jsx`, `src/history.jsx` | Synthetic update driver bar; project history |
@@ -146,8 +165,9 @@ not service or desktop measurements.
   own tokens once and say "+ unknown" when any is missing. Token budgets
   are arbitrary synthetic values, not real limits.
 - A session ending does not mark its run verified.
-- The browser keeps only layout preferences (view mode, collapsed
-  branches, relationship overlay, colour theme). Selection lives in the
+- The setup draft and applied configuration are synthetic in-memory values
+  that reset on reload. The browser persists only layout preferences (view
+  mode, collapsed branches, relationship overlay, colour theme). Selection lives in the
   URL.
 
 ## Presentation
@@ -184,7 +204,10 @@ not service or desktop measurements.
   list each session needing you or failed, its task and the reason;
   their command controls are disabled because commands are not
   connected. A collapsed branch chip reads `+N ›` for the hidden
-  descendants. All of it is instant under `prefers-reduced-motion`.
+  descendants. All of it is instant under `prefers-reduced-motion`. Setup
+  panels use a blur-crossfade and slide (360 ms entrance, 240 ms exit); selected model
+  effort controls unfold over 420 ms. Setup motion uses
+  `cubic-bezier(0.32, 0.72, 0.24, 1)` and is also instant under reduced motion.
 
 ## Not implemented
 

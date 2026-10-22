@@ -144,17 +144,18 @@ test('session selection from attention and details stays in the current view', a
   await expect(page).toHaveURL(/\/queue$/);
 });
 
-test('setup guide links to the wizard and setup and settings routes name their panels', async ({ page }) => {
+test('setup guide links to the wizard and setup and settings routes open their panels', async ({ page }) => {
   await page.goto('/#/');
   const guide = page.getByTestId('setup-guide');
   await expect(guide.getByRole('heading', { name: 'Finish setup' })).toBeVisible();
   await guide.getByRole('link', { name: 'Finish setup' }).click();
-  await expect(page).toHaveURL(/#\/setup$/);
-  await expect(page.getByTestId('setup-placeholder').getByRole('heading', { name: 'Setup', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/#\/setup\/roles$/);
+  await expect(page.getByTestId('setup-placeholder').getByRole('heading', { level: 1 })).toHaveText('Configure Odin’s roles');
   for (const step of [...sections, 'review']) {
     await page.goto(`/#/setup/${step}`);
-    await expect(page.getByTestId('setup-placeholder')).toContainText(`Setup: ${step[0].toUpperCase() + step.slice(1)}`);
-    await expect(page.getByTestId('setup-placeholder')).toContainText('R2');
+    await expect(page.getByRole('navigation', { name: 'Setup steps' })).toBeVisible();
+    await expect(page.locator('.setup-panel-current')).toBeVisible();
+    await expect(page.getByTestId('setup-placeholder')).toContainText('Synthetic: not saved');
   }
   for (const section of sections) {
     await sidebar(page).locator(`a[href="#/settings/${section}"]`).click();
