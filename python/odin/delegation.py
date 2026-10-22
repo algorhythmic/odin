@@ -786,6 +786,9 @@ class Delegation:
 
     def resume_session(self, payload, *, project, actor, operation):
         session = self._session(payload["session_id"], project)
+        if any(payload.get(key) is not None for key in (
+                "disallowed_tools", "subagent_model", "subagent_model_force")):
+            _refuse("session_options_fixed_at_create")
         self._harness(session["harness"])
         if session["state"] == "retired":
             _refuse("session_retired")
@@ -853,6 +856,9 @@ class Delegation:
 
     def stop_session(self, payload, *, project, actor, operation):
         session = self._session(payload["session_id"], project)
+        if any(payload.get(key) is not None for key in (
+                "disallowed_tools", "subagent_model", "subagent_model_force")):
+            _refuse("session_options_fixed_at_create")
         if session["state"] == "retired":
             return self._session_view(session, self._options(session["id"]))
         signalled = []

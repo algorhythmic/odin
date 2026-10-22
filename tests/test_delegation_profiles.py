@@ -13,6 +13,9 @@ from jsonschema import ValidationError
 from odin.contracts import Contracts, identifier
 from odin.delegation import Delegation, DelegationRefused
 from odin.delegation_runner import run
+from odin.executive_mcp import ExecutiveBridge
+from odin.executive_service import submit_executive
+from odin.gateway import error_result
 from tests.test_delegation import DelegationHarness
 
 
@@ -155,6 +158,89 @@ class DelegationProfileTests(unittest.TestCase):
         config["harnesses"]["codex"]["default_disallowed_tools"] = []
         with self.assertRaises(ValidationError):
             Contracts().validate("delegation-config", config)
+
+    def _assert_creation_only_options_refused(self, action):
+        delegation = self.h.gateway.delegation
+        for harness in ("claude-code", "codex"):
+            pinned = ({"disallowed_tools": ["Task"], "subagent_model": "haiku",
+                       "subagent_model_force": True} if harness == "claude-code" else {})
+            session = self._open(harness=harness, **pinned)["session"]["id"]
+            for field, value in (("disallowed_tools", ["Agent"]),
+                                 ("disallowed_tools", []),
+                                 ("subagent_model", "opus"),
+                                 ("subagent_model_force", True),
+                                 ("subagent_model_force", False)):
+                for direct in (False, True):
+                    with self.subTest(action=action, harness=harness, field=field,
+                                      value=value, direct=direct):
+                        options = deepcopy(delegation._options(session))
+                        before = deepcopy(self.h.service.store.get(session))
+                        bindings = deepcopy(self.h.service.store.records("SessionBinding"))
+                        payload = {"action": action, "session_id": session, field: value}
+                        with patch.object(delegation, "reconcile") as reconcile:
+                            with self.assertRaisesRegex(
+                                    DelegationRefused, "^session_options_fixed_at_create$"):
+                                if direct:
+                                    getattr(delegation, action + "_session")(
+                                        payload, project=self.h.project, actor="synthetic",
+                                        operation=identifier())
+                                else:
+                                    self.h.call("delegation_session", payload)
+                            reconcile.assert_not_called()
+                        self.assertEqual(delegation._options(session), options)
+                        self.assertEqual(self.h.service.store.get(session), before)
+                        self.assertEqual(self.h.service.store.records("SessionBinding"), bindings)
+                        resumed = self.h.call("delegation_session", {
+                            "action": "resume", "session_id": session})
+                        self.assertEqual(resumed["options"], options)
+                        self.assertEqual(resumed["session"]["state"], "idle")
+                        self.assertEqual(resumed["session"]["incarnation"], before["incarnation"] + 1)
+            self.h.call("delegation_session", {"action": "stop", "session_id": session})
+
+    def test_creation_only_options_resume_are_refused_without_mutation(self):
+        self._assert_creation_only_options_refused("resume")
+
+    def test_creation_only_options_stop_are_refused_without_mutation(self):
+        self._assert_creation_only_options_refused("stop")
+
+    def test_creation_only_options_refusal_reaches_mcp(self):
+        def socket_handler(command):
+            try:
+                return submit_executive(self.h.gateway, {"command": command}, self.h.project)
+            except DelegationRefused as error:
+                return error_result(error, "fake-backend evidence")
+
+        bridge = ExecutiveBridge(self.h.project, socket_handler)
+        session = self._open()["session"]["id"]
+        for action in ("resume", "stop"):
+            with self.subTest(action=action):
+                result = bridge.call("odin_delegation_session", {
+                    "operation_id": identifier(), "action": action,
+                    "session_id": session, "disallowed_tools": ["Agent"]})
+                self.assertTrue(result["isError"], result)
+                self.assertEqual(result["content"][0]["text"],
+                                 "Executive service refused the request: session_options_fixed_at_create.")
+
+    def test_creation_only_options_null_is_absent_for_direct_lifecycle_calls(self):
+        # Like workstream/role, None is absent at the lifecycle boundary.
+        # The public schema continues to reject null rather than widening create.
+        delegation = self.h.gateway.delegation
+        nulls = {"disallowed_tools": None, "subagent_model": None, "subagent_model_force": None}
+        for harness in ("claude-code", "codex"):
+            session = self._open(harness=harness)["session"]["id"]
+            options = deepcopy(delegation._options(session))
+            for action in ("resume", "stop"):
+                for field in nulls:
+                    with self.subTest(harness=harness, action=action, field=field):
+                        with self.assertRaises(ValidationError):
+                            self.h.call("delegation_session", {
+                                "action": action, "session_id": session, field: None})
+                result = getattr(delegation, action + "_session")(
+                    {"session_id": session} | nulls, project=self.h.project,
+                    actor="synthetic", operation=identifier())
+                self.assertEqual(result["options"], options)
+                self.assertEqual(delegation._options(session), options)
+                self.assertEqual(result["session"]["state"], "idle" if action == "resume" else "retired")
 
     def test_disallowed_native_workers_omit_delegation_briefing(self):
         opened = self._open(subagent_model="haiku", disallowed_tools=["Agent"])
