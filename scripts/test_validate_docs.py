@@ -133,6 +133,20 @@ class DocumentationValidatorTests(unittest.TestCase):
         result = self.validate()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_dependency_dirs_under_web_are_skipped(self) -> None:
+        for relative in (Path("web/node_modules/somepkg/README.md"), Path("web/dist/notes.md")):
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("[x](missing-page.md)\n")
+        result = self.validate()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_dependency_dir_names_outside_web_are_checked(self) -> None:
+        path = self.root / "docs/dist/notes.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("[x](missing-page.md)\n")
+        self.assert_fails_with(self.validate(), "docs/dist/notes.md")
+
 
 if __name__ == "__main__":
     unittest.main()
