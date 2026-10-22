@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 import signal
 import stat
-import subprocess
 import sys
 import time
 
@@ -14,18 +13,11 @@ SLOTS = 2
 
 
 def lock_directory():
+    # One directory for every caller of this user, whatever its environment,
+    # so that the two slots are counted host-wide.
     override = os.environ.get("ODIN_SUITE_LOCK_DIR")
     if override is not None:
         return Path(override)
-    runtime = os.environ.get("XDG_RUNTIME_DIR")
-    if runtime:
-        try:
-            metadata = Path(runtime).stat()
-        except OSError:
-            pass
-        else:
-            if stat.S_ISDIR(metadata.st_mode) and metadata.st_uid == os.getuid():
-                return Path(runtime) / "odin-suite-lock"
     return Path(f"/tmp/odin-suite-lock-{os.getuid()}")
 
 
@@ -75,31 +67,15 @@ def acquire_slot(directory):
         os.close(directory_fd)
 
 
-def run_command(command):
-    child = None
-    pending = []
+def run_command(command, slot):
+    """Replace this process with the command; it inherits and holds the slot.
 
-    def forward(signum, _frame):
-        if child is None:
-            pending.append(signum)
-        else:
-            try:
-                child.send_signal(signum)
-            except ProcessLookupError:
-                pass
-
-    previous = {signum: signal.signal(signum, forward)
-                for signum in (signal.SIGINT, signal.SIGTERM)}
-    try:
-        # Receive terminal signals only through the wrapper, avoiding double SIGINT.
-        child = subprocess.Popen(command, start_new_session=True)
-        for signum in pending:
-            forward(signum, None)
-        status = child.wait()
-        return status if status >= 0 else 128 - status
-    finally:
-        for signum, handler in previous.items():
-            signal.signal(signum, handler)
+    The suite keeps the slot until it exits, even if killed, and receives
+    terminal signals and reports its exit status exactly as if run directly.
+    """
+    if slot is not None:
+        os.set_inheritable(slot, True)
+    os.execvp(command[0], command)
 
 
 def main(argv=None):
@@ -107,19 +83,16 @@ def main(argv=None):
     if len(arguments) < 2 or arguments[0] != "--":
         print("usage: suite_lock.py -- <command...>", file=sys.stderr)
         return 2
-    slot = None
     try:
+        slot = None
         if os.environ.get("ODIN_SUITE_LOCK") != "0":
             slot = acquire_slot(lock_directory())
-        return run_command(arguments[1:])
+        run_command(arguments[1:], slot)
     except (OSError, ValueError) as error:
         print(f"odin suite lock: {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         return 128 + signal.SIGINT
-    finally:
-        if slot is not None:
-            os.close(slot)
 
 
 if __name__ == "__main__":

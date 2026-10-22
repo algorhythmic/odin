@@ -129,7 +129,7 @@ class SuiteLockTests(unittest.TestCase):
                 fcntl.flock(slot, fcntl.LOCK_EX | fcntl.LOCK_NB)
             process.send_signal(signal.SIGTERM)
             stdout, stderr = process.communicate(timeout=2)
-            self.assertEqual(process.returncode, 128 + signal.SIGTERM, stderr)
+            self.assertEqual(process.returncode, -signal.SIGTERM, stderr)
             self.assertEqual((stdout, stderr), ("", ""))
             fcntl.flock(slot, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
@@ -145,10 +145,25 @@ class SuiteLockTests(unittest.TestCase):
         self.assertEqual(process.returncode, 3, stderr)
         self.assertEqual((stdout, stderr), ("", ""))
 
-    def test_child_signal_exit_uses_shell_convention(self):
+    def test_child_signal_exit_is_reported_as_if_run_directly(self):
         result = self.run_command("import os, signal; os.kill(os.getpid(), signal.SIGTERM)")
-        self.assertEqual(result.returncode, 128 + signal.SIGTERM, result.stderr)
+        self.assertEqual(result.returncode, -signal.SIGTERM, result.stderr)
         self.assertEqual(result.stderr, "")
+
+    def test_suite_replaces_the_wrapper_in_the_callers_process_group(self):
+        # No separate wrapper can die and release the slot while the suite
+        # runs, and terminal signals reach the suite's whole process group.
+        process = self.start_command(
+            "import os, signal; print(os.getpid(), os.getpgrp(), flush=True); signal.pause()"
+        )
+        pid, group = map(int, self.read_line(process.stdout).split())
+        self.assertEqual((pid, group), (process.pid, os.getpgrp()))
+        with (self.directory / "slot-0.lock").open("r") as slot:
+            with self.assertRaises(BlockingIOError):
+                fcntl.flock(slot, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            process.kill()
+            process.communicate(timeout=2)
+            fcntl.flock(slot, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
     def test_insecure_directory_is_refused(self):
         self.directory.mkdir(mode=0o700)
@@ -172,22 +187,14 @@ class SuiteLockTests(unittest.TestCase):
         with patch.dict(os.environ, self.environment | {"XDG_RUNTIME_DIR": str(self.root)}):
             self.assertEqual(suite_lock.lock_directory(), self.directory)
 
-    def test_owned_xdg_runtime_directory_is_used(self):
-        with patch.dict(os.environ, {"XDG_RUNTIME_DIR": str(self.root)}, clear=True):
-            self.assertEqual(suite_lock.lock_directory(), self.root / "odin-suite-lock")
-
-    def test_invalid_xdg_runtime_directory_falls_back_without_touching_real_runtime(self):
-        ordinary_file = self.root / "file"
-        ordinary_file.touch()
-        for runtime in (None, self.root / "missing", ordinary_file, self.root):
+    def test_runtime_directory_does_not_split_the_slots(self):
+        for runtime in (None, str(self.root)):
             with self.subTest(runtime=runtime):
-                environment = {} if runtime is None else {"XDG_RUNTIME_DIR": str(runtime)}
-                # Also makes the real temporary directory appear owned by another uid.
-                uid = os.getuid() + 1
-                with patch.dict(os.environ, environment, clear=True), \
-                        patch.object(suite_lock.os, "getuid", return_value=uid):
+                environment = {} if runtime is None else {"XDG_RUNTIME_DIR": runtime}
+                with patch.dict(os.environ, environment, clear=True):
                     self.assertEqual(
-                        suite_lock.lock_directory(), Path(f"/tmp/odin-suite-lock-{uid}")
+                        suite_lock.lock_directory(),
+                        Path(f"/tmp/odin-suite-lock-{os.getuid()}"),
                     )
 
     def test_directory_owned_by_another_uid_is_refused(self):

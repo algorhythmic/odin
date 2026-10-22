@@ -2705,10 +2705,12 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
   full `make check` once, on the combined branch. At most two full suites
   (`make check` or a full `unittest discover`) run host-wide at a time.
   `make test` enforces that limit with a counting lock: `scripts/suite_lock.py`
-  holds one of two `flock` slot files in a private per-user directory
-  (`$XDG_RUNTIME_DIR/odin-suite-lock`, or `/tmp/odin-suite-lock-<uid>`, mode
-  0700) for the duration of the suite. It prints a line to standard error
-  while it waits and passes the suite's exit status through unchanged.
+  takes one of two `flock` slot files in the private per-user directory
+  `/tmp/odin-suite-lock-<uid>` (mode 0700), the same for every caller
+  whatever its environment, then replaces itself with the suite, which holds
+  the slot until it exits. It prints a line to standard error while it
+  waits; the suite's output, signals and exit status are as if it ran
+  directly.
   `ODIN_SUITE_LOCK=0` bypasses it. The lock covers only `make test`;
   a full `unittest discover` started by hand is not counted. The roles and
   efforts of the integration owner and the workstream orchestrators are in
