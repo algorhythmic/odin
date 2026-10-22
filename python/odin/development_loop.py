@@ -1047,8 +1047,9 @@ class DevelopmentLoop:
         background_tasks=None,
         # Crons never hold a completion. Keep this parameter because the hook
         # transport and gateway forward it and retained Stop snapshots replay it.
-        # Its only effect is to supersede completed-stage Stops retained under
-        # the earlier cron rule when their final response differs.
+        # On a completed stage, crons supersede any different final response,
+        # new or replayed, so Stops retained under the earlier cron rule can
+        # reconcile.
         session_crons=None,
     ):
         if stop_hook_active:

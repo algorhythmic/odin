@@ -207,15 +207,18 @@ Completion must match the intended session and active round. A response to
 unrelated operator conversation, a subagent's closing message, a duplicate
 hook, a replaced session or an old round cannot advance the current loop.
 When work remains in the background or evidence is unavailable, preserve
-that distinction. A Stop that reports running background tasks is retained
-for retry and does not complete the stage. Scheduled session crons do not
-hold a completion: they are future prompts, possibly for another project or
-for work unrelated to committed code. The `session_crons` parameter remains
-because the hook transport and gateway forward it and retained Stop snapshots
-replay it. Its only effect is on a completed stage without running background
-tasks: an exact repeat remains a duplicate, while a cron-bearing observation
-with a different final response is superseded, allowing Stops retained under
-the earlier cron rule to reconcile.
+that distinction. For a stage that is ready for completion and not yet
+completed, a Stop that reports running background tasks is retained for retry
+and does not complete the stage. Scheduled session crons do not hold a
+completion: they are future prompts, possibly for another project or for work
+unrelated to committed code. The `session_crons` parameter remains because the
+hook transport and gateway forward it and retained Stop snapshots replay it.
+On a completed stage, running background tasks make the Stop superseded;
+otherwise an exact repeat is a duplicate, a cron-bearing different final
+response is superseded, and any other different final response raises the
+footer-reuse `Conflict`. The cron-bearing supersession applies to new and
+replayed Stops, allowing Stops retained under the earlier cron rule to
+reconcile.
 The development evaluator can request a follow-up test;
 it must not turn a claimed result into independent verification.
 
