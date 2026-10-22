@@ -2310,7 +2310,11 @@ remain available in every profile.
   resolved list, and every claude-code turn, both start and resume, then
   passes `--disallowedTools` with the names joined by commas. The built-in
   default is off. The Codex harness refuses the option with
-  `claude_options_unsupported_by_harness`. Claude Code 2.1.308's help
+  `claude_options_unsupported_by_harness`. `disallowed_tools`,
+  `subagent_model` and `subagent_model_force` are fixed at creation: a
+  resume or stop request that carries any of them, on either harness, is
+  refused with `session_options_fixed_at_create` before anything changes, so
+  the recorded options stay as they were. Claude Code 2.1.308's help
   documents the flag; its binary names the subagent tool `Agent` and still
   accepts the legacy name `Task`. To switch the denial on, the operator adds
   `"default_disallowed_tools": ["Agent", "Task"]` to the `claude-code`

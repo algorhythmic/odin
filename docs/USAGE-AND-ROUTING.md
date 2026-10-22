@@ -78,7 +78,10 @@ passed to every claude-code turn as `--disallowedTools`. The harness default is
 `default_disallowed_tools`, set with `delegation-configure
 --claude-disallowed-tools Agent,Task`. It is off unless configured; the session
 value wins, and an empty list turns it off for that session. Codex sessions
-refuse it. ODIN-ADR-031's 2026-10-22 amendment records why the operator denies
+refuse it. `disallowed_tools`, `subagent_model` and `subagent_model_force` are
+fixed at creation: resume or stop with any of them is refused with
+`session_options_fixed_at_create`, and the recorded options are unchanged; to
+change them, open a new session. ODIN-ADR-031's 2026-10-22 amendment records why the operator denies
 `Agent` (and its legacy name `Task`) to delegated sessions.
 
 Delegation failures are surfaced, not left for the executive to find. When a
