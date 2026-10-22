@@ -11,7 +11,7 @@ from unittest.mock import patch
 from jsonschema import ValidationError
 
 from odin.contracts import Contracts, identifier
-from odin.delegation import Delegation, DelegationRefused
+from odin.delegation import Delegation, DelegationRefused, SESSION_LIFECYCLE_FIELDS
 from odin.delegation_runner import run
 from odin.executive_mcp import ExecutiveBridge
 from odin.executive_service import submit_executive
@@ -202,6 +202,158 @@ class DelegationProfileTests(unittest.TestCase):
 
     def test_creation_only_options_stop_are_refused_without_mutation(self):
         self._assert_creation_only_options_refused("stop")
+
+    def test_schema_fields_are_allowlisted_or_refused_on_both_lifecycle_actions(self):
+        properties = Contracts().validators["executive-tool-input"].schema[
+            "$defs"]["odin_delegation_session"]["properties"]
+        values = {
+            "harness": "codex", "workspace": str(self.h.workspace),
+            "briefing": "Replacement briefing", "model": "replacement-model",
+            "effort": "high", "permission_mode": "plan", "sandbox": "read-only",
+            "budget_usd": 0, "subagent_model": "opus", "subagent_model_force": False,
+            "disallowed_tools": [], "auto_compact_window_tokens": 100000,
+            "native_peer_messaging": False, "workstream": "other", "role": "workstream",
+        }
+        self.assertEqual(SESSION_LIFECYCLE_FIELDS,
+                         {"operation_id", "action", "session_id", "reason"})
+        self.assertEqual(set(values), set(properties) - SESSION_LIFECYCLE_FIELDS)
+        delegation = self.h.gateway.delegation
+        for field in properties:
+            if field in SESSION_LIFECYCLE_FIELDS:
+                continue
+            code = ("session_identity_fixed_at_create" if field in {"workstream", "role"}
+                    else "session_options_fixed_at_create")
+            for harness in ("claude-code", "codex"):
+                for action in ("resume", "stop"):
+                    for direct in (False, True):
+                        with self.subTest(field=field, harness=harness, action=action, direct=direct):
+                            session = self._open(harness=harness)["session"]["id"]
+                            before = deepcopy(self.h.service.store.get(session))
+                            options = deepcopy(delegation._options(session))
+                            bindings = deepcopy(self.h.service.store.records("SessionBinding"))
+                            payload = {"operation_id": identifier(), "action": action,
+                                       "session_id": session, field: values[field]}
+                            Contracts().validate_definition(
+                                "executive-tool-input", "odin_delegation_session", payload)
+                            try:
+                                with patch.object(delegation, "reconcile") as reconcile:
+                                    with self.assertRaisesRegex(DelegationRefused, "^" + code + "$"):
+                                        if direct:
+                                            getattr(delegation, action + "_session")(
+                                                payload, project=self.h.project, actor="synthetic",
+                                                operation=payload["operation_id"])
+                                        else:
+                                            self.h.call("delegation_session", payload)
+                                    reconcile.assert_not_called()
+                                self.assertEqual(self.h.service.store.get(session), before)
+                                self.assertEqual(delegation._options(session), options)
+                                self.assertEqual(self.h.service.store.records("SessionBinding"), bindings)
+                            finally:
+                                self.h.call("delegation_session", {"action": "stop", "session_id": session})
+
+    def test_codex_sandbox_resume_refused_without_changing_incarnation_or_options(self):
+        opened = self._open(harness="codex", sandbox="danger-full-access")
+        session = opened["session"]["id"]
+        before = deepcopy(self.h.service.store.get(session))
+        self.assertEqual(opened["options"]["sandbox"], "danger-full-access")
+        with self.assertRaisesRegex(DelegationRefused, "^session_options_fixed_at_create$"):
+            self.h.call("delegation_session", {
+                "action": "resume", "session_id": session, "sandbox": "read-only"})
+        self.assertEqual(self.h.service.store.get(session), before)
+        self.assertEqual(self.h.gateway.delegation._options(session), opened["options"])
+
+    def test_workstream_stop_refusal_precedes_signalling(self):
+        delegation = self.h.gateway.delegation
+        session = self._open(workstream="original")["session"]["id"]
+        before = deepcopy(self.h.service.store.get(session))
+        running = {"id": identifier(), "session": session, "state": "running",
+                   "seq": 1, "runner": {"pid": 424242}}
+        with patch.object(delegation, "_turns", return_value=[running]), \
+                patch("odin.delegation._runner_alive", return_value=True), \
+                patch("odin.delegation.os.kill") as kill, \
+                patch.object(delegation, "_save_turn") as save_turn, \
+                patch.object(delegation, "reconcile") as reconcile:
+            with self.assertRaisesRegex(DelegationRefused, "^session_identity_fixed_at_create$"):
+                self.h.call("delegation_session", {
+                    "action": "stop", "session_id": session, "workstream": "different"})
+            kill.assert_not_called()
+            save_turn.assert_not_called()
+            reconcile.assert_not_called()
+            self.assertEqual(self.h.service.store.get(session), before)
+            # Control: the same running turn is signalled by an allowed stop.
+            self.h.call("delegation_session", {"action": "stop", "session_id": session})
+            kill.assert_called_once()
+            save_turn.assert_called_once()
+
+    def test_unknown_lifecycle_field_is_refused_on_direct_calls(self):
+        delegation = self.h.gateway.delegation
+        properties = Contracts().validators["executive-tool-input"].schema[
+            "$defs"]["odin_delegation_session"]["properties"]
+        self.assertNotIn("future_creation_option", properties)
+        for action in ("resume", "stop"):
+            with self.subTest(action=action):
+                session = self._open()["session"]["id"]
+                before = deepcopy(self.h.service.store.get(session))
+                try:
+                    with patch.object(delegation, "reconcile") as reconcile:
+                        with self.assertRaisesRegex(DelegationRefused, "^session_options_fixed_at_create$"):
+                            getattr(delegation, action + "_session")(
+                                {"session_id": session, "future_creation_option": False},
+                                project=self.h.project, actor="synthetic", operation=identifier())
+                        reconcile.assert_not_called()
+                    self.assertEqual(self.h.service.store.get(session), before)
+                finally:
+                    self.h.call("delegation_session", {"action": "stop", "session_id": session})
+
+    def test_lifecycle_allowlisted_fields_succeed_through_gateway_and_direct_calls(self):
+        delegation = self.h.gateway.delegation
+        for direct in (False, True):
+            for harness in ("claude-code", "codex"):
+                session = self._open(harness=harness)["session"]["id"]
+                for action in ("resume", "stop"):
+                    with self.subTest(direct=direct, harness=harness, action=action):
+                        payload = {"operation_id": identifier(), "action": action,
+                                   "session_id": session, "reason": "Synthetic lifecycle reason"}
+                        if direct:
+                            result = getattr(delegation, action + "_session")(
+                                payload, project=self.h.project, actor="synthetic",
+                                operation=payload["operation_id"])
+                        else:
+                            result = self.h.call("delegation_session", payload)
+                        self.assertEqual(result["session"]["state"],
+                                         "idle" if action == "resume" else "retired")
+                        self.assertEqual(result["session"]["incarnation"], 2)
+
+    def test_lifecycle_identity_and_unknown_session_refusal_precedence(self):
+        delegation = self.h.gateway.delegation
+        session = self._open()["session"]["id"]
+        self.h.call("delegation_session", {"action": "stop", "session_id": session})
+        for action in ("resume", "stop"):
+            method = getattr(delegation, action + "_session")
+            for field in ("workstream", "role"):
+                for extra, code in (({field: "workstream"}, "session_identity_fixed_at_create"),
+                                    ({field: "workstream", "model": "opus"},
+                                     "session_options_fixed_at_create")):
+                    with self.subTest(action=action, extra=extra):
+                        with self.assertRaisesRegex(DelegationRefused, "^" + code + "$"):
+                            method({"session_id": session} | extra, project=self.h.project,
+                                   actor="synthetic", operation=identifier())
+                        with self.assertRaisesRegex(DelegationRefused, "^unknown_session$"):
+                            method({"session_id": identifier()} | extra, project=self.h.project,
+                                   actor="synthetic", operation=identifier())
+
+    def test_all_schema_creation_fields_and_unknown_null_are_absent_on_direct_calls(self):
+        properties = Contracts().validators["executive-tool-input"].schema[
+            "$defs"]["odin_delegation_session"]["properties"]
+        nulls = {field: None for field in set(properties) - SESSION_LIFECYCLE_FIELDS}
+        nulls["future_creation_option"] = None
+        session = self._open()["session"]["id"]
+        for action in ("resume", "stop"):
+            with self.subTest(action=action):
+                result = getattr(self.h.gateway.delegation, action + "_session")(
+                    {"session_id": session} | nulls, project=self.h.project,
+                    actor="synthetic", operation=identifier())
+                self.assertEqual(result["session"]["state"], "idle" if action == "resume" else "retired")
 
     def test_creation_only_options_stop_refusal_precedes_signalling(self):
         delegation = self.h.gateway.delegation

@@ -28,6 +28,7 @@ from .native_peer import guidance, peer_name
 from .store import Conflict, Refused, digest, now
 
 HARNESSES = ("claude-code", "codex")
+SESSION_LIFECYCLE_FIELDS = frozenset({"operation_id", "action", "session_id", "reason"})
 PROVIDERS = {"claude-code": "anthropic", "codex": "openai"}
 ADAPTERS = {"claude-code": "claude-code-print", "codex": "codex-exec"}
 # Capability evidence for each local adapter. "harness_option" means the
@@ -143,6 +144,16 @@ WORKSTREAM_BRIEFING = (
 
 def _refuse(code):
     raise DelegationRefused(code)
+
+
+def _check_session_lifecycle_fields(payload):
+    """Keep session creation options and identity fixed across resume and stop."""
+    refused = {key for key, value in payload.items()
+               if key not in SESSION_LIFECYCLE_FIELDS and value is not None}
+    if refused - {"workstream", "role"}:
+        _refuse("session_options_fixed_at_create")
+    if refused:
+        _refuse("session_identity_fixed_at_create")
 
 
 def _disallowed_tools(value):
@@ -786,14 +797,10 @@ class Delegation:
 
     def resume_session(self, payload, *, project, actor, operation):
         session = self._session(payload["session_id"], project)
-        if any(payload.get(key) is not None for key in (
-                "disallowed_tools", "subagent_model", "subagent_model_force")):
-            _refuse("session_options_fixed_at_create")
+        _check_session_lifecycle_fields(payload)
         self._harness(session["harness"])
         if session["state"] == "retired":
             _refuse("session_retired")
-        if payload.get("workstream") is not None or payload.get("role") is not None:
-            _refuse("session_identity_fixed_at_create")
         options = self._options(session["id"])
         self._check_identity(project, options, options.get("workspace"), exclude=session["id"])
         self.reconcile()
@@ -856,9 +863,7 @@ class Delegation:
 
     def stop_session(self, payload, *, project, actor, operation):
         session = self._session(payload["session_id"], project)
-        if any(payload.get(key) is not None for key in (
-                "disallowed_tools", "subagent_model", "subagent_model_force")):
-            _refuse("session_options_fixed_at_create")
+        _check_session_lifecycle_fields(payload)
         if session["state"] == "retired":
             return self._session_view(session, self._options(session["id"]))
         signalled = []
