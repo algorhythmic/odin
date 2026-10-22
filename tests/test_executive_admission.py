@@ -1,4 +1,5 @@
 """Local admission paths, relaxed permits and the content-free audit (ODIN-ADR-034)."""
+import hashlib
 import json
 import os
 import stat
@@ -11,8 +12,9 @@ from pathlib import Path
 from jsonschema import ValidationError
 
 from odin import executive_runtime as runtime
-from odin.contracts import ROOT, Contracts, identifier, strict_loads
-from odin.executive_admission import (AUDIT_FILE, interpreter, interpreter_name, read_only,
+from odin.contracts import ROOT, Contracts, canonical, identifier, strict_loads
+from odin.executive_admission import (AUDIT_FILE, AUDIT_KEY_FILE, audit_key, audit_records,
+                                     interpreter, interpreter_name, key_id, read_only,
                                      registered_script, registered_scripts, script_digest)
 from odin.executive_intervention import delegation_guard
 from odin.executive_intervention_hook import REFUSAL, handle
@@ -316,7 +318,7 @@ class HookLocalPathTests(unittest.TestCase):
         self.assertEqual([r['path'] for r in records], ['read_only', 'registered_script'])
         for record in records:
             Contracts().validate('executive-intervention-audit', record)
-            self.assertEqual(set(record), {'schema_version', 'time', 'path', 'tool', 'input_digest'})
+            self.assertEqual(set(record), {'schema_version', 'time', 'path', 'tool', 'input_hmac', 'key_id'})
         with self.assertRaises(ValidationError):
             Contracts().validate('executive-intervention-audit', records[0] | {'command': 'ls'})
 
@@ -467,10 +469,99 @@ class InterpreterRefusalTests(unittest.TestCase):
         path = self.bin / 'bash'; path.write_text('#!/bin/sh\n'); path.chmod(0o700)
         done = subprocess.run([sys.executable, '-m', 'odin', '--state', str(self.state),
                                'executive-register-script', '--path', str(path)],
-                              capture_output=True, text=True,
+                              capture_output=True, check=False, text=True,
                               env=os.environ | {'PYTHONPATH': str(ROOT / 'python')})
         self.assertEqual(done.returncode, 2)
         self.assertIn('script_is_interpreter', done.stderr)
+
+
+class KeyedAuditTests(unittest.TestCase):
+    """Item 11: audit fingerprints are HMAC-SHA256 under a per-installation key."""
+
+    def setUp(self):
+        prepared(self)
+        self.base = self.state / 'executive-pilot'
+
+    def admit(self, command, tool_use='t-1'):
+        out = handle(event(self, command, tool_use=tool_use), state=self.state, project=self.project,
+                     session=self.native, gateway=unavailable)
+        self.assertEqual(out['hookSpecificOutput']['permissionDecision'], 'allow')
+
+    def records(self):
+        return [strict_loads(line) for line in (self.base / AUDIT_FILE).read_text().splitlines()]
+
+    def test_key_created_on_first_use_privately(self):
+        key_path = self.base / AUDIT_KEY_FILE
+        self.assertFalse(key_path.exists())
+        self.assertIsNone(audit_key(self.state, create=False))
+        self.admit('git status')
+        info = key_path.stat()
+        self.assertEqual(stat.S_IMODE(info.st_mode), 0o600)
+        self.assertEqual(info.st_size, 32)
+        self.assertEqual([p.name for p in self.base.iterdir() if p.name.startswith('.audit-key')], [])
+
+    def test_fingerprints_are_keyed_and_stable_across_restarts(self):
+        self.admit('git status', 'a')
+        key = (self.base / AUDIT_KEY_FILE).read_bytes()
+        # A later hook process (a restart) reads the same key.
+        hook = subprocess.run(
+            [sys.executable, '-m', 'odin.executive_intervention_hook', '--state', str(self.state),
+             '--project', self.project, '--session-id', self.native],
+            input=json.dumps(event(self, 'git status', tool_use='b')), capture_output=True, check=False, text=True,
+            timeout=30, env=os.environ | {'PYTHONPATH': str(ROOT / 'python')})
+        self.assertEqual(hook.returncode, 0, hook.stderr)
+        self.assertEqual((self.base / AUDIT_KEY_FILE).read_bytes(), key)
+        first, second = self.records()
+        self.assertEqual(first['input_hmac'], second['input_hmac'])
+        self.assertEqual(first['key_id'], second['key_id'])
+        self.assertEqual(first['key_id'], key_id(key))
+        # A plain hash of the input does not reproduce the fingerprint.
+        plain = hashlib.sha256(canonical({'tool': 'Bash', 'input': {'command': 'git status',
+                                                                    'timeout': 1000}}).encode()).hexdigest()
+        self.assertNotEqual(first['input_hmac'], plain)
+        self.admit('git log', 'c')
+        self.assertNotEqual(self.records()[2]['input_hmac'], first['input_hmac'])
+
+    def test_records_hold_no_command_text_or_key(self):
+        self.admit('grep -rn synthetic-marker-91ab docs')
+        key = (self.base / AUDIT_KEY_FILE).read_bytes()
+        raw = (self.base / AUDIT_FILE).read_text()
+        for fragment in ['synthetic-marker-91ab', 'grep', 'docs', key.hex()]:
+            self.assertNotIn(fragment, raw)
+        view = runtime.status(self.state)['intervention_audit']
+        self.assertNotIn(key.hex(), json.dumps(view))
+        self.assertEqual(view['keyed'], 1)
+        self.assertEqual(view['key_id'], key_id(key))
+
+    def test_unkeyed_records_stay_and_are_marked(self):
+        old = {'schema_version': 1, 'time': '2026-10-22T08:00:00Z', 'path': 'read_only', 'tool': 'Bash',
+               'input_digest': 'a' * 64}
+        path = self.base / AUDIT_FILE
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o600)
+        os.write(fd, (json.dumps(old) + '\n').encode()); os.close(fd)
+        self.admit('git status')
+        lines = path.read_text().splitlines()
+        self.assertEqual(strict_loads(lines[0]), old)
+        view = audit_records(self.state)
+        self.assertEqual([r['keyed'] for r in view['records']], [False, True])
+        self.assertEqual((view['keyed'], view['unkeyed'], view['invalid']), (1, 1, 0))
+        status = runtime.status(self.state)['intervention_audit']
+        self.assertEqual((status['keyed'], status['unkeyed']), (1, 1))
+        self.assertNotIn('records', status)
+
+    def test_unsafe_key_refuses_admission(self):
+        key_path = self.base / AUDIT_KEY_FILE
+        for setup in ['loose', 'short', 'symlink']:
+            key_path.unlink(missing_ok=True)
+            if setup == 'symlink':
+                target = self.temp / 'key'; target.write_bytes(b'k' * 32); target.chmod(0o600)
+                os.symlink(target, key_path)
+            else:
+                key_path.write_bytes(b'k' * (32 if setup == 'loose' else 8))
+                key_path.chmod(0o644 if setup == 'loose' else 0o600)
+            with self.subTest(setup=setup), self.assertRaises(OSError):
+                self.admit('git status')
+        self.assertFalse((self.base / AUDIT_FILE).exists())
 
 
 class RefusalCodeTests(unittest.TestCase):
@@ -520,7 +611,7 @@ class RefusalCodeTests(unittest.TestCase):
         refused = subprocess.run(
             [sys.executable, '-m', 'odin.executive_intervention_hook', '--state', str(self.state),
              '--project', self.project, '--session-id', self.native],
-            input=json.dumps(event(self, 'make check')), capture_output=True, text=True, timeout=30,
+            input=json.dumps(event(self, 'make check')), capture_output=True, check=False, text=True, timeout=30,
             env=os.environ | {'PYTHONPATH': str(ROOT / 'python')})
         self.assertEqual(refused.returncode, 2)
         self.assertTrue(refused.stderr.rstrip().endswith('Code: intervention_service_unreachable.'))

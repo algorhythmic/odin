@@ -407,9 +407,21 @@ shell runs it; they are a workflow boundary, not OS isolation.
    script (bash reads a script as it runs, so appending to it would add
    commands), lie inside the state directory, contain a `.git` component or
    pass through a symlink. Other absolute targets the operator's user can
-   write are allowed. Background execution is allowed. Register scripts, not
-   interpreters: a registered `python` or `sh` would admit any program in its
-   arguments. There is no
+   write are allowed. Background execution is allowed. Registration refuses
+   an interpreter or shell with the code `script_is_interpreter`, because a
+   registered `python` or `sh` would admit any program in its arguments. It
+   matches the basename of the path and of its real path (shells, `python*`,
+   `node`, `perl*`, `ruby*`, `env`, `uv`/`uvx`, `npx`, `deno`, `bun` and
+   command wrappers such as `xargs`, `sudo` or `timeout`, with any version
+   suffix such as `python3.14`), then the file's identity (same inode, or same
+   size and SHA-256) against the interpreter-named programs on `PATH` and in
+   the standard directories, which catches a renamed copy of an ELF
+   interpreter or a wrapper such as `npx-cli.js`. A script whose shebang names
+   an interpreter is a script and is allowed. The hook repeats the check at
+   admission, so an interpreter registered before this check is refused there
+   (the call goes on to the permit path, and its refusal carries
+   `script_is_interpreter`). A copy of an interpreter found on neither `PATH`
+   nor the standard directories is not detected. There is no
    executive tool for registration, and the executive is instructed not to
    change registrations; a permit-admitted command runs with the same user
    authority and could, so this rests on the workflow, not on isolation.
@@ -433,10 +445,31 @@ shell runs it; they are a workflow boundary, not OS isolation.
 admitted without a permit. Each admission without a permit appends one
 record to `executive-pilot/intervention-audit.jsonl` (mode 0600): schema
 version, time, path kind (`read_only`, `registered_script` or
-`memory_directory`), tool and input digest. It holds no command text, file
-content or tool-use identity. The digest is an unkeyed SHA-256, so a short,
-guessable command can be confirmed by hashing candidates. If the record cannot be appended, the call is
-refused. The file is not rotated. Allowed programs still run as the operator:
+`memory_directory`), tool, a keyed fingerprint (`input_hmac`, HMAC-SHA256 of
+the executable input) and the key id. It holds no command text, file content
+or tool-use identity. The key is 32 random bytes created on first use in
+`executive-pilot/audit-key` (mode 0600, refused if it is a symlink, has
+another owner, wider permissions or the wrong size), stays the same across
+restarts, and is never logged, shown or exported; the key id is a truncated
+SHA-256 of the key, so it names the key without revealing it. Without the
+key, a short command cannot be confirmed by hashing guesses. Records written
+before this change (schema version 1, a plain `input_digest`) stay as they
+are; `executive-status` reports `intervention_audit` with keyed and unkeyed
+counts and the current key id, and `audit_records` marks each record
+`keyed: true` or `false`. Anyone who can read the state directory can read
+the key, so this protects exported or copied audit files, not a local reader
+with the operator's authority. Deleting the key starts a new key id; older
+fingerprints can then no longer be compared. If the record or the key cannot
+be written, the call is refused.
+
+When a call matches no local path, the hook asks the service for a permit.
+Its refusal code says why: `intervention_permit_required` (the service
+answered and found no matching permit), `delegated_work_active`,
+`script_is_interpreter`, another fixed code from the service, or
+`intervention_not_admitted` when the service refused without one.
+`intervention_service_unreachable` and
+`intervention_service_response_invalid` mean the permit path itself was not
+available; read-only diagnostics still work then. The file is not rotated. Allowed programs still run as the operator:
 git may run a configured pager, textconv or fsmonitor, the Claude Code shell
 may apply the operator's own aliases or functions, and `git -C` into a
 workspace reads that workspace's git configuration. The code is in

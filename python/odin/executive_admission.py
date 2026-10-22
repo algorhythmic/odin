@@ -9,16 +9,20 @@ operator's authority, and a registered script does whatever its bytes do.
 Anything that matches neither path goes to the permit path or is refused.
 """
 import hashlib
+import hmac
 import os
 import re
+import secrets
 import stat
 from pathlib import Path
 
 from .contracts import Contracts, canonical, strict_loads
-from .store import digest, now
+from .store import now
 
 SCRIPTS_FILE = "registered-scripts.json"
 AUDIT_FILE = "intervention-audit.jsonl"
+AUDIT_KEY_FILE = "audit-key"
+AUDIT_KEY_BYTES = 32
 MAX_SCRIPTS = 64
 MAX_SCRIPT_BYTES = 16 * 1024 * 1024
 LAUNCHER = "run"
@@ -521,10 +525,66 @@ def registered_scripts(state):
         return None
 
 
+def _read_key(path):
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        info = os.fstat(fd)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077 or
+                info.st_size != AUDIT_KEY_BYTES):
+            raise OSError("audit_key_not_private")
+        key = os.read(fd, AUDIT_KEY_BYTES + 1)
+    finally:
+        os.close(fd)
+    if len(key) != AUDIT_KEY_BYTES:
+        raise OSError("audit_key_not_private")
+    return key
+
+
+def audit_key(state, *, create=True):
+    """The per-installation audit key, created on first use; raises OSError.
+
+    The key is 32 random bytes in ``executive-pilot/audit-key`` (0600). It is
+    created by linking a fully written private file into place, so concurrent
+    hooks agree on one key. It is never logged, returned in a view or exported.
+    """
+    base = Path(state) / "executive-pilot"
+    if base.is_symlink() or not base.is_dir():
+        raise OSError("audit_directory_unavailable")
+    path = base / AUDIT_KEY_FILE
+    try:
+        return _read_key(path)
+    except FileNotFoundError:
+        if not create:
+            return None
+    temporary = base / f".{AUDIT_KEY_FILE}.{secrets.token_hex(8)}"
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        os.write(fd, secrets.token_bytes(AUDIT_KEY_BYTES))
+        os.fsync(fd)
+        os.close(fd)
+        try:
+            os.link(temporary, path)
+        except FileExistsError:
+            pass
+    finally:
+        temporary.unlink(missing_ok=True)
+    return _read_key(path)
+
+
+def key_id(key):
+    """A stable public identifier of the key, not usable to recompute fingerprints."""
+    return hashlib.sha256(b"odin-intervention-audit-key-id\0" + key).hexdigest()[:16]
+
+
 def audit(state, kind, tool, inputs):
-    """Append one content-free admission record; raises OSError when it cannot."""
-    record = {"schema_version": 1, "time": now(), "path": kind, "tool": tool,
-              "input_digest": input_digest(tool, inputs)}
+    """Append one content-free admission record; raises OSError when it cannot.
+
+    The fingerprint is HMAC-SHA256 under the per-installation key, so a short
+    command cannot be confirmed by hashing guesses without the key.
+    """
+    key = audit_key(state)
+    record = {"schema_version": 2, "time": now(), "path": kind, "tool": tool,
+              "input_hmac": input_hmac(key, tool, inputs), "key_id": key_id(key)}
     Contracts().validate("executive-intervention-audit", record)
     base = Path(state) / "executive-pilot"
     if base.is_symlink() or not base.is_dir():
@@ -539,6 +599,36 @@ def audit(state, kind, tool, inputs):
         os.close(fd)
 
 
-def input_digest(tool, inputs):
-    """Digest of the executable input; the native description label is ignored."""
-    return digest({"tool": tool, "input": {k: v for k, v in inputs.items() if k != "description"}})
+def input_hmac(key, tool, inputs):
+    """Keyed fingerprint of the executable input; the description label is ignored."""
+    body = canonical({"tool": tool, "input": {k: v for k, v in inputs.items() if k != "description"}})
+    return hmac.new(key, body.encode(), hashlib.sha256).hexdigest()
+
+
+def audit_records(state, *, limit=200):
+    """The latest audit records, each marked ``keyed``; never raises.
+
+    Schema version 1 records, written before keyed fingerprints, carry a plain
+    ``input_digest`` and stay as written; they are marked ``keyed: false``.
+    Invalid lines are counted, not returned.
+    """
+    path = Path(state) / "executive-pilot" / AUDIT_FILE
+    records, invalid = [], 0
+    try:
+        if path.is_symlink() or not path.is_file():
+            return {"records": [], "invalid": 0, "keyed": 0, "unkeyed": 0}
+        lines = path.read_bytes().splitlines()
+    except OSError:
+        return {"records": [], "invalid": 0, "keyed": 0, "unkeyed": 0, "unreadable": True}
+    contracts = Contracts()
+    for line in lines:
+        try:
+            record = strict_loads(line)
+            contracts.validate("executive-intervention-audit", record)
+        except Exception:  # an unreadable line is reported as a count only
+            invalid += 1
+            continue
+        records.append(record | {"keyed": record["schema_version"] >= 2})
+    keyed = sum(r["keyed"] for r in records)
+    return {"records": records[-limit:] if limit else [], "invalid": invalid,
+            "keyed": keyed, "unkeyed": len(records) - keyed}

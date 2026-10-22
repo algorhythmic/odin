@@ -29,7 +29,7 @@ REFUSAL = (
     "jq, sort, uniq, cut, ps, pgrep, date, id, which, pwd, systemctl --user status/show/cat, "
     "journalctl --user without -f, and the pilot launcher's status actions); no ; & ` $( < > "
     "or newlines anywhere, and no unquoted globs, braces or $. "
-    "(2) An operator-registered script, called by its absolute path, with plain arguments and "
+    "(2) An operator-registered script (never an interpreter), called by its absolute path, with plain arguments and "
     "optional redirections to absolute paths or 2>&1; background is allowed. "
     "(3) An exact permit from odin_intervention_begin (up to 32 calls, 3600 s, optional uses and "
     "background), only while delegated work is idle. Write/Edit inside the configured memory "

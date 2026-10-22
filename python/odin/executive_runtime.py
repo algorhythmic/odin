@@ -1373,6 +1373,18 @@ def _service_reachability(manifest):
         return "unavailable"
 
 
+def _audit_summary(state):
+    """Counts of keyed and unkeyed audit records and the key id; never the key."""
+    from .executive_admission import audit_key, audit_records, key_id
+
+    summary = {k: v for k, v in audit_records(state, limit=0).items() if k != "records"}
+    try:
+        key = audit_key(state, create=False)
+    except OSError:
+        return summary | {"key_id": None, "key_unavailable": True}
+    return summary | {"key_id": key_id(key) if key else None}
+
+
 def status(state):
     from .service_activation import last_activation, service_revision
 
@@ -1412,6 +1424,7 @@ def status(state):
         "native_peer_delivery": "unverified" if manifest.get("native_peer_messaging") else "disabled",
         "pending_activation_requires_resume": pending is not None,
         "process_lease_held": running,
+        "intervention_audit": _audit_summary(state),
         "last_launch": receipt,
         "credential_file_present": (
             Path(manifest["config_dir"]) / ".credentials.json"

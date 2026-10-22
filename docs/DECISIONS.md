@@ -2495,6 +2495,42 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
     with the service unavailable (a real hook process with no socket) and the
     content-free audit. Live native behavior needs observation after the
     operator's activation.
+- **Amendment (2026-10-22, operator decision, permit follow-ups):** two of
+  the known limits above are closed; redirection writes, read-only `cat` and
+  background invisibility stay documented limits.
+  - *Interpreter refusal.* `executive-register-script` refuses an
+    interpreter or shell with the fixed code `script_is_interpreter`. It
+    matches the basename of the given path and of its real path (shells,
+    language interpreters, package runners such as `uv`/`uvx`/`npx` and
+    command wrappers such as `env`, `xargs` and `sudo`, with version
+    suffixes) and the file's identity (inode, or size and SHA-256) against the
+    interpreter-named programs on `PATH` and the standard directories. A
+    script whose shebang names an interpreter remains registrable. The hook
+    rechecks at admission, so an earlier registration of an interpreter is
+    refused; an exact permit is still consulted, and its refusal carries
+    `script_is_interpreter`. A copy of an interpreter outside those
+    directories is not detected.
+  - *Keyed audit fingerprints.* New audit records (schema version 2) carry
+    HMAC-SHA256 of the executable input under a per-installation 32-byte key
+    created on first use in `executive-pilot/audit-key` (0600, linked into
+    place atomically, refused if unsafe) and a key id derived from the key.
+    The key is stable across restarts and never logged, shown or exported.
+    Version 1 records stay as written and are reported as unkeyed. The key
+    protects copies of the audit file, not against a local reader of the
+    state directory.
+  - *Refusal codes.* The hook no longer reports a call that matched no path
+    as `intervention_admission_unavailable`. It relays the service's fixed
+    code (`intervention_permit_required`, `delegated_work_active`), or
+    `intervention_not_admitted`, and reserves
+    `intervention_service_unreachable` and
+    `intervention_service_response_invalid` for a permit path that did not
+    answer.
+  - *Checks.* `tests/test_executive_admission.py` covers symlinked
+    interpreters, versioned names, a renamed ELF copy, a shebang script that
+    is allowed, an earlier interpreter registration refused at admission,
+    key creation and permissions, stable fingerprints across a hook process,
+    marking of unkeyed records, no command text or key in records or status,
+    and each refusal code.
 
 ### ODIN-ADR-036 — Workstream delegation sessions and a single integration owner
 

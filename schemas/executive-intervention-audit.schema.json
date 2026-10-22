@@ -1,40 +1,88 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "properties": {
-    "schema_version": {
-      "const": 1
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "path": {
+          "enum": [
+            "read_only",
+            "registered_script",
+            "memory_directory"
+          ]
+        },
+        "tool": {
+          "enum": [
+            "Bash",
+            "Write",
+            "Edit",
+            "NotebookEdit"
+          ]
+        },
+        "input_digest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "time",
+        "path",
+        "tool",
+        "input_digest"
+      ],
+      "additionalProperties": false
     },
-    "time": {
-      "type": "string",
-      "format": "date-time"
-    },
-    "path": {
-      "enum": [
-        "read_only",
-        "registered_script",
-        "memory_directory"
-      ]
-    },
-    "tool": {
-      "enum": [
-        "Bash",
-        "Write",
-        "Edit",
-        "NotebookEdit"
-      ]
-    },
-    "input_digest": {
-      "type": "string",
-      "pattern": "^[a-f0-9]{64}$"
+    {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "time": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "path": {
+          "enum": [
+            "read_only",
+            "registered_script",
+            "memory_directory"
+          ]
+        },
+        "tool": {
+          "enum": [
+            "Bash",
+            "Write",
+            "Edit",
+            "NotebookEdit"
+          ]
+        },
+        "input_hmac": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "key_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{16}$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "time",
+        "path",
+        "tool",
+        "input_hmac",
+        "key_id"
+      ],
+      "additionalProperties": false
     }
-  },
-  "required": [
-    "schema_version",
-    "time",
-    "path",
-    "tool",
-    "input_digest"
-  ],
-  "additionalProperties": false
+  ]
 }
