@@ -43,10 +43,22 @@ for the seeded 2,000-session tree, generated in the browser from
 The bar under the header is a synthetic update driver: "Apply next
 synthetic update" applies the next event from
 `fixtures/default-events.json` to the loaded snapshot and reports
-whether it was applied, a duplicate, a revision gap or rejected
-(unknown session or event type, or a non-integer revision; nothing
-changes). Reloading the
-page starts from the snapshot again.
+whether it was applied, a duplicate, a revision gap or rejected.
+Nothing changes for a rejected event, and its id is not remembered, so
+a corrected re-delivery can apply. Rejected: a non-integer revision; an
+unknown event type; a missing or unknown `session_id`; a
+`session.started` without a record, with a non-string `id` or
+`project_id`, for an unknown project, with an unknown lifecycle or for
+an existing id; a `session.lifecycle_changed` with a lifecycle outside
+the documented set. Reloading the page starts from the snapshot again.
+
+The event rules live in `src/events.js`, without browser or fixture
+imports, and have Node unit tests (built-in runner, no extra
+dependency):
+
+```sh
+npm run test:unit
+```
 
 ## Tests
 
@@ -69,11 +81,12 @@ The large-tree timing scenario (check 9) runs separately so it does not
 skew the functional suite:
 
 ```sh
-EVIDENCE_DIR=/private/path npm run test:perf   # writes large-timings.json
+EVIDENCE_DIR=/private/path npm run test:perf   # writes large-timings.json and large-deep-timings.json
 ```
 
-It records first render, expand and select times on the seeded dataset
-and compares them with the proposed targets (first render under 1 s,
+It records first render, expand and select times on the seeded dataset,
+and the time to expand three depth-8 paths step by step in the tree and
+in the list, and compares them with the proposed targets (first render under 1 s,
 expand or select under 150 ms). The values are written first; a missed
 target then fails the run, so a red timing run still leaves its
 numbers. The values are synthetic prototype timings on one machine,
@@ -85,14 +98,15 @@ not service or desktop measurements.
 |---|---|
 | `fixtures/*.json` | Shared synthetic projection fixtures: snapshot, session details, update events ([draft shape](../docs/design/WEB-APP-PROJECTION.md)) |
 | `src/fixtures/synthetic.js`, `src/fixtures/large.js` | Fixture loading and paged detail requests; seeded large-dataset generator |
-| `src/data.js` | Versioned store over the snapshot: views, ancestry analysis (cycles, outside parents), update-event application |
+| `src/data.js` | Versioned store over the snapshot: views, ancestry analysis (cycles, outside parents), indexes by session and assignment |
+| `src/events.js` | Update-event rules (pure; unit-tested in `tests-unit/`) |
 | `src/driver.jsx`, `src/history.jsx` | Synthetic update driver bar; project history |
 | `src/route.js`, `src/prefs.js` | Hash routes; layout preferences (`odin-web-prefs:v1` in localStorage) |
 | `src/overview.jsx`, `src/workspace.jsx` | Overview and project workspace |
 | `src/tree.jsx`, `src/card.jsx` | d3-hierarchy tidy-tree layout, SVG edges, session cards |
 | `src/list.jsx` | ARIA treeview list alternative with roving tabindex |
 | `src/detail.jsx` | Detail panel; transcripts render as plain text |
-| `tests/`, `tests-perf/` | Playwright specs; the check 9 timing scenario |
+| `tests/`, `tests-perf/`, `tests-unit/` | Playwright specs; the check 9 timing scenarios; Node unit tests |
 | `scripts/describe-large.mjs` | Determinism and shape check for the large dataset |
 
 ## Semantics kept by the prototype

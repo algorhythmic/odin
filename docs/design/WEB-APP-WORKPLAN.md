@@ -48,21 +48,21 @@ and later depend on the service. Nothing waits for the I4 heimdall import.
 
 ## Check traceability
 
-Status is as of pass 2 (2026-10-21). Every result so far is a
+Status is as of pass 3 (2026-10-22). Every result so far is a
 **synthetic prototype** result; none is fake-backend, service or
 desktop evidence.
 
-| Check | Packages | First enforcement | Status after pass 2 |
+| Check | Packages | First enforcement | Status after pass 3 |
 |---|---|---|---|
-| 1 Relationships | W2a, W3, W4 | Playwright `check01-relationships`, `check01-malformed` (synthetic) | Synthetic: ancestry versus typed overlays, imported and outside-parent roots, cycles and self-parents as labelled roots, follow-parent, fit branch. Schema-level W3 draft only ([WEB-APP-PROJECTION.md](WEB-APP-PROJECTION.md)) |
+| 1 Relationships | W2a, W3, W4 | Playwright `check01-relationships`, `check01-malformed` (synthetic) | Synthetic: ancestry versus typed overlays, imported and outside-parent roots, cycles and self-parents as labelled roots, follow-parent, fit branch. W3: draft JSON Schemas under `schemas/web-projection-*` with a Python fixture test ([WEB-APP-PROJECTION.md](WEB-APP-PROJECTION.md)); not adopted |
 | 2 Selection, deep links, missing records | W2a, W4 | Playwright `check02-deeplink` (synthetic routing); access refusal in W4 | Synthetic routing, reload and not-found (including a missing previous attempt); access refusal not started |
-| 3 Updates and reconnect | W2b, W3, W4 | Synthetic update driver (W2b); fake-backend stream tests (W4) | Synthetic: `check03-updates` (idempotent re-delivery, revision gap, selection, collapsed state, list and transcript reading position). No stream, reconnect or cursor expiry yet |
+| 3 Updates and reconnect | W2b, W3, W4 | Synthetic update driver (W2b); fake-backend stream tests (W4) | Synthetic: `check03-updates` (idempotent re-delivery, revision gap, rejected malformed events, selection, collapsed state, list and transcript reading position); Node unit tests of the event rules (`tests-unit/events.test.js`). No stream, reconnect or cursor expiry yet |
 | 4 Visible states | W2a, W2b, W4 | Playwright state labels (synthetic); fake-backend states (W4) | Synthetic: `check04-states-history` (stale and host-offline last-observed times, history with attempts versus resumptions) |
 | 5 Commands and idempotency | W5 | Service and Playwright tests (W5) | Not started; controls shown disabled |
 | 6 Approval binding and stop | W5 | Service and Playwright tests (W5) | Not started |
-| 7 Keyboard, text states, narrow layouts | W2a, W2b | Playwright `check07-keyboard-list` | Synthetic; keyboard list also covered on malformed records |
+| 7 Keyboard, text states, narrow layouts | W2a, W2b | Playwright `check07-keyboard-list` | Synthetic; keyboard list also covered on malformed records; pointer expand in the list; card footers unclipped at 1280 and 800 px; transcript pager keeps keyboard focus |
 | 8 Access, unsafe markup, credentials | W2a, W5a, W4, W5 | Playwright `check08-untrusted-transcript`; access tests in W4 | Synthetic markup rendering and stored-preference checks; access and credentials not started |
-| 9 Large tree | W2c | Playwright timing scenario with recorded dataset | Synthetic timings recorded by `tests-perf/check09-large-timing` on the seeded 2,000-session set (pass 2 evidence, `large-timings.json`, kept outside Git); targets still proposals |
+| 9 Large tree | W2c | Playwright timing scenario with recorded dataset | Synthetic timings recorded by `tests-perf/check09-large-timing` on the seeded 2,000-session set: first render, expand, select, and depth-8 path expansion in tree and list (pass 3 evidence, `large-timings.json` and `large-deep-timings.json`, kept outside Git). All within the proposed targets, so windowing is deferred; targets still proposals |
 | 10 Desktop | W6 | Manual desktop evidence plus script checks | Not started; outside the workstream's current scope |
 
 ## Not in scope
