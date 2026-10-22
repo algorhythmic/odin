@@ -694,6 +694,10 @@ step.
 `--deploy-root` defaults to `~/.local/state/odin-executive-pilot/deploy`
 (created 0700; it must lie outside the repository and the state directory).
 
+`--repository` must be the executive's own checkout after symlinks are
+resolved; any other path is refused as `deploy_repository_mismatch`.
+`--keep` counts previous copies; `current` is kept in addition.
+
 ### One-time migration to pinned deploy copies
 
 Today the runtime reads code from the live integration worktree, so a merge

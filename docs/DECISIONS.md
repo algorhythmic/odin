@@ -3040,8 +3040,9 @@ tab.
   - *Pinned copies.* The deploy root (default
     `~/.local/state/odin-executive-pilot/deploy`, 0700) holds read-only
     `git archive` exports at `<revision>` with their marker, and `current`, a
-    symlink switched by one atomic rename. The configured number of copies is
-    kept; `current` and the rollback target are never removed.
+    symlink switched by one atomic rename. The configured number of previous
+    copies is kept in addition to `current`; `current` and the rollback target
+    are never removed.
     `executive-deploy-prepare --head` exports and switches without restarting
     anything, for the one-time migration; it accepts only the clean
     integration head, as a deploy does. The marker is created exclusively
