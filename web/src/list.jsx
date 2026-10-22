@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { formatTokens, getAssignment, lifecycleLabel, lineageLabel, observedLabel } from './data.js';
+import { formatTokens, getAssignment, isSuperseded, lineageLabel, observedLabel } from './data.js';
+import { StatusChip } from './status.jsx';
 
 // Visible rows in depth-first order. Collapsed branches are not rendered.
 function flatten(roots, childMap, collapsed) {
@@ -75,11 +76,12 @@ export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onT
     <ul class="list-tree" role="tree" aria-label="Sessions by ancestry" ref={ref} onKeyDown={onKeyDown} onScroll={remember} data-testid="list-view">
       {rows.map(({ s, level, kids, pos, size }) => {
         const lineage = lineageLabel(s);
+        const dimmed = s.lifecycle === 'retired' || isSuperseded(s);
         return (
           <li key={s.id} role="treeitem" aria-level={level} aria-setsize={size} aria-posinset={pos}
             aria-expanded={kids.length ? !collapsed.has(s.id) : undefined} aria-selected={s.id === selectedId}
             tabIndex={s.id === active ? 0 : -1} data-session-id={s.id} data-parent={s.parent_session_id || ''}
-            data-lifecycle={s.lifecycle} class={`list-row ${s.id === selectedId ? 'selected' : ''}`}
+            data-lifecycle={s.lifecycle} data-dimmed={dimmed || undefined} class={`list-row ${s.id === selectedId ? 'selected' : ''} ${dimmed ? 'dimmed' : ''}`}
             style={{ paddingLeft: `${(level - 1) * 1.25 + 0.5}rem` }}
             onClick={() => { setFocusId(s.id); onSelect(s.id); }} onFocus={() => setFocusId(s.id)}>
             {/* Pointer path for expand and collapse; keyboard users have the arrow keys. */}
@@ -88,7 +90,7 @@ export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onT
               {kids.length ? (collapsed.has(s.id) ? '▸' : '▾') : '·'}</span>
             <span class="role">{s.role}</span>
             <span class="assignment-short">{getAssignment(s.assignment_id)?.summary}</span>
-            <span class={`state state-${s.lifecycle}`} data-testid="state-label">{lifecycleLabel(s.lifecycle)}</span>
+            <StatusChip session={s} />
             {s.needs_operator_input && <span class="tag tag-needs-input">Needs input</span>}
             {s.stale && <span class="tag tag-stale">Stale</span>}
             {(s.stale || s.lifecycle === 'host_offline') && (

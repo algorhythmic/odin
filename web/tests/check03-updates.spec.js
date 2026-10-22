@@ -32,7 +32,7 @@ test('update events apply once, report duplicates and gaps, and change the views
   await applyNext(page); // evt-003: usage update
   await expect(page.locator('[data-testid="session-card"][data-session-id="ses-worker-a2"]')).toContainText('19.8k tok');
   await applyNext(page); // evt-004: retired
-  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-review-integ"]').getByTestId('state-label')).toHaveText('Retired');
+  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-review-integ"]').getByTestId('state-label')).toHaveText('Stopped');
   // Malformed events change nothing and keep the revision.
   await applyNext(page); // evt-bad-1: unknown session
   await expect(status(page)).toHaveText('Rejected evt-bad-1: unknown session.');

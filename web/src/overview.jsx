@@ -1,4 +1,5 @@
-import { activeWork, attentionItems, commitmentsFor, getAssignment, getProjects, lifecycleLabel, sessionsFor } from './data.js';
+import { activeWork, attentionItems, commitmentsFor, getAssignment, getProjects, sessionsFor } from './data.js';
+import { StatusChip } from './status.jsx';
 import { projectHref, sessionHref } from './route.js';
 
 export function Overview() {
@@ -45,7 +46,7 @@ export function Overview() {
           {active.map((s) => (
             <li key={s.id}>
               <a href={sessionHref(s.project_id, s.id)}>
-                <span class={`state state-${s.lifecycle}`}>{lifecycleLabel(s.lifecycle)}</span>
+                <StatusChip session={s} />
                 <span>{s.role}: {getAssignment(s.assignment_id)?.summary}</span>
               </a>
             </li>

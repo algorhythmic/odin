@@ -4,7 +4,7 @@ This directory holds the first vertical slice of Odin's web app: an
 overview, a project workspace with an interactive agent tree, a detail
 panel, a keyboard-navigable list view and a per-project history. **It
 runs on synthetic data only.** It is not connected to Odin's service, has no authentication,
-and sends no commands. Every view carries a "SYNTHETIC DATA" banner.
+and sends no commands. Every view carries a "Synthetic data" badge in the header.
 
 The handoff and decision record live in
 [`docs/design/WEB-APP-HANDOFF.md`](../docs/design/WEB-APP-HANDOFF.md)
@@ -104,7 +104,8 @@ not service or desktop measurements.
 | `src/data.js` | Versioned store over the snapshot: views, ancestry analysis (cycles, outside parents), indexes by session and assignment |
 | `src/events.js` | Update-event rules (pure; unit-tested in `tests-unit/`) |
 | `src/driver.jsx`, `src/history.jsx` | Synthetic update driver bar; project history |
-| `src/route.js`, `src/prefs.js` | Hash routes; layout preferences (`odin-web-prefs:v1` in localStorage) |
+| `src/route.js`, `src/prefs.js` | Hash routes; layout preferences (`odin-web-prefs:v1` in localStorage): view mode, collapsed branches, relationship overlay, colour theme |
+| `src/models.js`, `src/status.jsx` | Friendly model names and providers; the status chip, provider monogram and tool icons |
 | `src/overview.jsx`, `src/workspace.jsx` | Overview and project workspace |
 | `src/tree.jsx`, `src/card.jsx` | d3-hierarchy tidy-tree layout, SVG edges, session cards |
 | `src/list.jsx` | ARIA treeview list alternative with roving tabindex |
@@ -133,7 +134,30 @@ not service or desktop measurements.
   are arbitrary synthetic values, not real limits.
 - A session ending does not mark its run verified.
 - The browser keeps only layout preferences (view mode, collapsed
-  branches, relationship overlay). Selection lives in the URL.
+  branches, relationship overlay, colour theme). Selection lives in the
+  URL.
+
+## Presentation
+
+- Dark theme is the default whatever the system setting. The header
+  toggle stores the choice in `odin-web-prefs`; it is validated on load
+  like the other preferences. Colour tokens live on `:root` (dark) with
+  a `:root[data-theme="light"]` override. Surfaces, text, chrome,
+  selection and focus are monochrome; colour is used only for status.
+- The status set is Running (blue, spinner), Needs you (amber, clock),
+  Done (green, check), Failed (red, triangle) and Stopped (grey,
+  square). "Needs you" replaces the old "Waiting for input" label
+  everywhere; a failed run on an ended session reads "Failed". `idle`
+  and `host_offline` are recorded lifecycles the set does not cover and
+  keep their precise labels. A stopped session or an attempt a later
+  attempt replaced is dimmed. The spinner does not animate under
+  `prefers-reduced-motion`.
+- Cards show a provider monogram, the role, a friendly model name
+  (`claude-opus-5-5` reads "Opus 5.5"; unmapped ids show as-is), the
+  status chip, the task clamped to two lines, tool/integration icons
+  when the record carries `tools` or `integrations`, and a footer with
+  own tokens, elapsed time, budget, a child-count chip and the branch
+  token total.
 
 ## Not implemented
 

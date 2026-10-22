@@ -70,13 +70,13 @@ test('a branch with no known tokens shows no figure and no Infinity', async ({ p
 test('an ended session shows Verified only when the run outcome is recorded as verified', async ({ page }) => {
   // Recorded verified outcome on an ended session.
   await page.goto(sessionUrl('ses-pin-audit', 'proj-contract-pins'));
-  await expect(page.getByTestId('detail-state')).toHaveText('Ended');
+  await expect(page.getByTestId('detail-state')).toHaveText('Done');
   await expect(page.getByTestId('run-outcome')).toHaveText('Verified');
   // Ended without a verified record: never shown as verified.
   await page.goto(sessionUrl('ses-worker-a2'));
   await expect(page.getByTestId('run-outcome')).toHaveText('Session ended — run not verified (Not verified)');
   await page.goto(sessionUrl('ses-helper-01'));
-  await expect(page.getByTestId('detail-state')).toHaveText('Retired');
+  await expect(page.getByTestId('detail-state')).toHaveText('Stopped');
   await expect(page.getByTestId('run-outcome')).toHaveText('Session ended — run not verified (Outcome unknown)');
 });
 

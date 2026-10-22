@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
 import { parseHash, overviewHref } from './route.js';
 import { getProject, isSynthetic, useDataVersion } from './data.js';
+import { updatePrefs, usePrefs } from './prefs.js';
 import { Overview } from './overview.jsx';
 import { Workspace } from './workspace.jsx';
 import { NotFound } from './notfound.jsx';
@@ -15,6 +16,22 @@ function useRoute() {
     return () => removeEventListener('hashchange', onChange);
   }, []);
   return route;
+}
+
+// Dark is the default whatever the system setting; the stored preference
+// is the only override.
+function ThemeToggle() {
+  const prefs = usePrefs();
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = prefs.theme;
+  }, [prefs.theme]);
+  return (
+    <button type="button" class="theme-toggle" data-testid="theme-toggle"
+      aria-pressed={prefs.theme === 'light'} title="Toggle between the dark and light themes"
+      onClick={() => updatePrefs({ theme: prefs.theme === 'light' ? 'dark' : 'light' })}>
+      Theme: {prefs.theme === 'light' ? 'Light' : 'Dark'}
+    </button>
+  );
 }
 
 export function App() {
@@ -36,14 +53,16 @@ export function App() {
   }
   return (
     <div class="app">
-      {isSynthetic && (
-        <div class="synthetic-banner" role="note" data-testid="synthetic-banner">
-          SYNTHETIC DATA — prototype, not connected to Odin's service
-        </div>
-      )}
       <header class="topbar">
         <a class="brand" href={overviewHref()}>Odin</a>
         <nav aria-label="Primary"><a href={overviewHref()}>Overview</a></nav>
+        <span class="topbar-space" />
+        {isSynthetic && (
+          <span class="synthetic-badge" role="note" data-testid="synthetic-badge"
+            aria-label="Synthetic data — prototype, not connected to Odin's service"
+            title="Prototype, not connected to Odin's service">Synthetic data</span>
+        )}
+        <ThemeToggle />
       </header>
       {isSynthetic && <UpdateDriver />}
       <main class="content">{body}</main>

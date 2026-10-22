@@ -4,7 +4,7 @@ import { RELATION_LABELS, relationshipsFor } from './data.js';
 import { SessionCard } from './card.jsx';
 
 const CARD_W = 220;
-const CARD_H = 190;
+const CARD_H = 182;
 const GAP_X = 24;
 const GAP_Y = 60;
 const PAD = 24;

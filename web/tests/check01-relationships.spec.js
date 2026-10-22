@@ -53,7 +53,7 @@ test('a recorded parent outside the view stays a labelled root, never a guessed 
 
 test('tree renders the ancestry forest and typed relationships distinctly', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
-  await expect(page.getByTestId('synthetic-banner')).toBeVisible();
+  await expect(page.getByTestId('synthetic-badge')).toBeVisible();
   const cards = page.getByTestId('session-card');
   await expect(cards).toHaveCount(projectSessions.length);
 
@@ -132,7 +132,7 @@ test('collapse hides descendants and fit branch scales to the selection', async 
 
 test('overview shows attention items that link to sessions', async ({ page }) => {
   await page.goto('/#/');
-  await expect(page.getByTestId('synthetic-banner')).toBeVisible();
+  await expect(page.getByTestId('synthetic-badge')).toBeVisible();
   const items = page.getByTestId('attention-item');
   for (const label of ['Pending approval', 'Pending decision', 'Needs input', 'Host offline', 'Blocked']) {
     await expect(items.filter({ hasText: label }).first()).toBeVisible();

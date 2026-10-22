@@ -1,4 +1,5 @@
-import { getAssignment, lifecycleLabel, lineageLabel, observedLabel, sessionsFor } from './data.js';
+import { getAssignment, lineageLabel, observedLabel, sessionStatus, sessionsFor } from './data.js';
+import { StatusChip } from './status.jsx';
 import { projectHref, sessionHref } from './route.js';
 
 const ENDED = new Set(['ended', 'retired']);
@@ -33,7 +34,7 @@ export function History({ project }) {
               {ended.map((s) => (
                 <tr key={s.id} data-session-id={s.id}>
                   <td>{link(s)}</td>
-                  <td><span class={`state state-${s.lifecycle}`}>{lifecycleLabel(s.lifecycle)}</span></td>
+                  <td><StatusChip session={s} /></td>
                   <td>{observedLabel(s.observed_at)}</td>
                   <td>{getAssignment(s.assignment_id)?.summary || 'Assignment unknown'}</td>
                   <td>{lineageLabel(s) || '—'}</td>
@@ -52,7 +53,7 @@ export function History({ project }) {
             <ol>
               {list.sort((a, b) => a.attempt - b.attempt).map((s) => (
                 <li key={s.id} data-session-id={s.id}>
-                  Attempt {s.attempt}: {link(s)} — {lifecycleLabel(s.lifecycle)}
+                  Attempt {s.attempt}: {link(s)} — {sessionStatus(s).label}
                   {s.previous_attempt && <> (after {s.previous_attempt})</>}
                 </li>
               ))}

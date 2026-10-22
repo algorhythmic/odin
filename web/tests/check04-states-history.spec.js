@@ -50,7 +50,7 @@ test('history lists ended sessions and separates attempts from resumptions', asy
   await shot(page, 'history');
   // Retiring a session through an update adds it to the history.
   for (let i = 0; i < 5; i += 1) await page.getByRole('button', { name: 'Apply next synthetic update' }).click();
-  await expect(ended.locator('tr[data-session-id="ses-review-integ"]')).toContainText('Retired');
+  await expect(ended.locator('tr[data-session-id="ses-review-integ"]')).toContainText('Stopped');
   await ended.locator('tr[data-session-id="ses-worker-a1"] a').click();
   await expect(page).toHaveURL(/sessions\/ses-worker-a1$/);
 });

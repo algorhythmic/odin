@@ -5,7 +5,8 @@ import { PID, shot, snapshot } from './helpers.js';
 
 const { sessions } = snapshot;
 
-const LABELS = ['Running', 'Waiting for input', 'Idle', 'Ended', 'Retired', 'Host offline'];
+// The status set: every row and card carries a text label, not only a colour.
+const LABELS = ['Running', 'Needs you', 'Idle', 'Done', 'Failed', 'Stopped', 'Host offline'];
 const focusedId = (page) => page.evaluate(() => document.activeElement?.dataset.sessionId);
 
 test('list view is keyboard navigable and conveys state as text', async ({ page }) => {

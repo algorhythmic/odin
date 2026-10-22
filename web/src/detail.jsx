@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   OUTCOME_LABELS, PROGRESS_LABELS, RELATION_LABELS, branchTokens, compactTokens, formatElapsed, formatTokens,
-  getAssignment, getSession, inParentCycle, lifecycleLabel, lineageLabel, loadSessionDetail, observedLabel,
+  getAssignment, getSession, inParentCycle, lineageLabel, loadSessionDetail, observedLabel,
   relationshipsOf, runsForSession, treeParent,
 } from './data.js';
+import { ModelName, StatusChip } from './status.jsx';
 import { sessionHref } from './route.js';
 
 const ENDED = new Set(['ended', 'retired']);
@@ -72,13 +73,13 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
       <h2>{s.role} <code>{s.id}</code></h2>
       <dl class="facts">
         <dt>Session state</dt>
-        <dd><span class={`state state-${s.lifecycle}`} data-testid="detail-state">{lifecycleLabel(s.lifecycle)}</span>
+        <dd><StatusChip session={s} testid="detail-state" /> <code>{s.lifecycle}</code>
           {s.needs_operator_input && <span class="tag tag-needs-input">Needs input</span>}</dd>
         <dt>Observed</dt>
         <dd data-testid="detail-observed">{s.observed_at} ({observedLabel(s.observed_at)})
           {s.stale && <strong class="tag tag-stale"> Stale observation</strong>}
           {s.lifecycle === 'host_offline' && <> — host not reporting; state may have changed since</>}</dd>
-        <dt>Model</dt><dd>{s.model || 'model unknown'}</dd>
+        <dt>Model</dt><dd><ModelName model={s.model} />{s.model ? <> (<code>{s.model}</code>)</> : null}</dd>
         <dt>Provenance</dt><dd>{s.provenance === 'imported' ? 'Imported record' : 'Recorded by Odin'} (synthetic)</dd>
         <dt>Started by</dt>
         <dd data-testid="started-by">

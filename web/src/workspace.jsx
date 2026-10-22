@@ -3,7 +3,7 @@ import {
   activityFor, ancestors, childrenMap, conversationFor, decisionsFor, getProjects, getSession, observedLabel,
   projectTokens, rootsFor, sessionsFor,
 } from './data.js';
-import { loadPrefs, savePrefs } from './prefs.js';
+import { updatePrefs, usePrefs } from './prefs.js';
 import { historyHref, projectHref, sessionHref } from './route.js';
 import { TreeView } from './tree.jsx';
 import { ListTree } from './list.jsx';
@@ -31,7 +31,7 @@ function useNarrow() {
 
 export function Workspace({ project, sid }) {
   const pid = project.id;
-  const [prefs, setPrefs] = useState(loadPrefs);
+  const prefs = usePrefs();
   const narrow = useNarrow();
   // Derived per data version, so update events show without a reload.
   const childMap = childrenMap(pid);
@@ -41,9 +41,8 @@ export function Workspace({ project, sid }) {
   const selectedInProject = selected && selected.project_id === pid ? selected : null;
   const mode = narrow ? 'list' : prefs.mode;
 
-  useEffect(() => { savePrefs(prefs); }, [prefs]);
-  const update = (patch) => setPrefs((p) => ({ ...p, ...patch }));
-  const setCollapsed = (ids) => setPrefs((p) => ({ ...p, collapsed: { ...p.collapsed, [pid]: [...ids] } }));
+  const update = updatePrefs;
+  const setCollapsed = (ids) => updatePrefs({ collapsed: { ...prefs.collapsed, [pid]: [...ids] } });
   const toggle = (id) => {
     const next = new Set(collapsed);
     if (next.has(id)) next.delete(id); else next.add(id);

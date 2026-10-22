@@ -48,18 +48,49 @@ function ix() {
     version, byProject, ancestry: new Map(),
     sessions: new Map(snap.sessions.map((s) => [s.id, s])),
     assignments: new Map(snap.assignments.map((a) => [a.id, a])),
+    // Session ids a later attempt names as its previous_attempt: the
+    // superseded attempt stays in records but is drawn dimmed.
+    superseded: new Set(snap.sessions.filter((s) => s.previous_attempt).map((s) => s.previous_attempt)),
   };
   return index;
 }
 
 export const LIFECYCLE_LABELS = {
   running: 'Running',
-  waiting_for_input: 'Waiting for input',
+  waiting_for_input: 'Needs you',
   idle: 'Idle',
-  ended: 'Ended',
-  retired: 'Retired',
+  ended: 'Done',
+  retired: 'Stopped',
   host_offline: 'Host offline',
 };
+
+// The card status set. Colour and icon are presentation; the label is
+// always shown as text too. `idle` and `host_offline` are recorded
+// lifecycles the reference status set does not cover: they keep their
+// precise labels with neutral and attention styling respectively.
+export const SESSION_STATUS = {
+  running: { key: 'running', icon: 'spinner' },
+  waiting_for_input: { key: 'needs-you', icon: 'clock' },
+  idle: { key: 'idle', icon: 'pause' },
+  ended: { key: 'done', icon: 'check' },
+  failed: { key: 'failed', icon: 'triangle' },
+  retired: { key: 'stopped', icon: 'square' },
+  host_offline: { key: 'host-offline', icon: 'offline' },
+};
+
+// The status a session's card and row show. An ended session whose run
+// is recorded as failed reads "Failed"; "ended" alone reads "Done". An
+// unknown lifecycle is labelled, never guessed.
+export function sessionStatus(s) {
+  if (s.lifecycle === 'ended' && runsForSession(s.id).some((r) => r.outcome === 'failed')) {
+    return { ...SESSION_STATUS.failed, label: 'Failed' };
+  }
+  const st = SESSION_STATUS[s.lifecycle];
+  return st ? { ...st, label: LIFECYCLE_LABELS[s.lifecycle] } : { key: 'unknown', icon: 'question', label: `Unknown state (${s.lifecycle})` };
+}
+
+// True when a later attempt names this session as its previous_attempt.
+export const isSuperseded = (s) => ix().superseded.has(s.id);
 
 export const PROGRESS_LABELS = {
   in_progress: 'In progress',

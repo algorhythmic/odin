@@ -19,7 +19,7 @@ test('hostile transcript markup renders as literal text', async ({ page }) => {
   // Preferences are written by an effect after the render, so wait for it.
   const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('odin-web-prefs:v1') || 'null'));
   await expect.poll(async () => (await stored())?.mode).toBe('list');
-  expect(Object.keys(await stored()).sort()).toEqual(['collapsed', 'mode', 'showRelations']);
+  expect(Object.keys(await stored()).sort()).toEqual(['collapsed', 'mode', 'showRelations', 'theme']);
   expect(await page.evaluate(() => Object.keys(localStorage))).toEqual(['odin-web-prefs:v1']);
 });
 
