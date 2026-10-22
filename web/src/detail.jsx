@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   OUTCOME_LABELS, PROGRESS_LABELS, RELATION_LABELS, branchCost, formatCost, formatElapsed, getAssignment,
   getSession, inParentCycle, lifecycleLabel, lineageLabel, loadSessionDetail, observedLabel, relationshipsOf,
@@ -23,6 +23,9 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
   const [detail, setDetail] = useState(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  // Set synchronously by turn(): `loading` only updates in the effect after
+  // paint, so a fast second activation could otherwise skip a page.
+  const turning = useRef(false);
   // Keyed on the session id and page only: an update event that changes this
   // session's record re-renders the panel without reloading the transcript,
   // so the reading position is kept. Turning a page keeps the current page
@@ -31,12 +34,16 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
     let live = true;
     setLoading(true);
     setDetail((d) => (d && d.session_id === s.id ? d : null));
-    loadSessionDetail(s, page).then((d) => { if (live) { setDetail(d); setLoading(false); } });
+    loadSessionDetail(s, page).then((d) => { if (live) { setDetail(d); setLoading(false); turning.current = false; } });
     return () => { live = false; };
   }, [s.id, page]);
   // aria-disabled rather than disabled, so a button reaching the first or
   // last page keeps keyboard focus.
-  const turn = (to) => { if (!loading && detail && to >= 1 && to <= detail.pages) setPage(to); };
+  const turn = (to) => {
+    if (turning.current || loading || !detail || to === page || to < 1 || to > detail.pages) return;
+    turning.current = true;
+    setPage(to);
+  };
   const off = (blocked) => (blocked || loading ? 'true' : undefined);
 
   const assignment = getAssignment(s.assignment_id);
