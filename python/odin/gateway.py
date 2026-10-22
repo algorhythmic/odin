@@ -11,7 +11,7 @@ from datetime import datetime
 from .budgets import Budget
 from .chirality import Chirality
 from .continuity import Continuity
-from .contracts import ROOT, canonical, strict_loads
+from .contracts import REPOSITORY_ROOT, canonical, strict_loads
 from .coordination import Actor, Coordination
 from .delegation import Delegation
 from .development_gateway import ACTIONS as LOOP_ACTIONS
@@ -392,8 +392,8 @@ class Gateway:
             "execution_backend": "fake_saga",
             "legacy_label_scope": "execution_backend_not_record_persistence",
             "reports": "persisted_unverified_not_applied",
-            "repository_path": str(ROOT),
-            "documentation_path": str(ROOT / "docs"),
+            "repository_path": str(REPOSITORY_ROOT),
+            "documentation_path": str(REPOSITORY_ROOT / "docs"),
             "repository_memory": "explicit_committed_snapshot_not_live_checkout",
         }
 

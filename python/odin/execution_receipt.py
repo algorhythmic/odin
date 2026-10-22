@@ -27,7 +27,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from .contracts import ROOT, Contracts, canonical, identifier, strict_loads
+from .contracts import DEPLOYMENT, ROOT, Contracts, canonical, identifier, strict_loads
 
 SCHEMA = "execution-receipt"
 SCHEMA_VERSION = 1
@@ -329,9 +329,13 @@ def module_source_sha256():
 def _collector():
     """Identity of the code that produced the receipt (self-reported)."""
     try:
-        _, odin_revision = _git(ROOT, "rev-parse", "HEAD")
-        _, porcelain = _git(ROOT, "status", "--porcelain", "--untracked-files=no")
-        odin_revision, dirty = odin_revision.strip(), bool(porcelain.strip())
+        if DEPLOYMENT is not None:
+            # A deployed copy (ODIN-ADR-039) has no git metadata.
+            odin_revision, dirty = DEPLOYMENT["revision"], None
+        else:
+            _, odin_revision = _git(ROOT, "rev-parse", "HEAD")
+            _, porcelain = _git(ROOT, "status", "--porcelain", "--untracked-files=no")
+            odin_revision, dirty = odin_revision.strip(), bool(porcelain.strip())
     except (ReceiptError, OSError, subprocess.TimeoutExpired):
         odin_revision, dirty = None, None
     return {

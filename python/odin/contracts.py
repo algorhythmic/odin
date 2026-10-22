@@ -13,6 +13,32 @@ from pathlib import Path
 from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[2]
+# A deployed copy (ODIN-ADR-039) carries this marker, naming the commit it was
+# exported from and the repository the executive works in. ROOT is only where
+# the code runs from; REPOSITORY_ROOT is the executive's checkout. Without a
+# marker they are the same directory, as before.
+DEPLOYMENT_FILE = ".odin-deployment.json"
+_REVISION = re.compile(r"[0-9a-f]{40}")
+
+
+def deployment(root):
+    """The validated deployment marker in ``root``, or None; raises when invalid."""
+    path = Path(root) / DEPLOYMENT_FILE
+    if not path.exists():
+        return None
+    value = json.loads(path.read_text())
+    repository = value.get("repository") if isinstance(value, dict) else None
+    if (not isinstance(value, dict) or value.get("schema_version") != 1 or
+            set(value) != {"schema_version", "revision", "repository", "exported_at"} or
+            not isinstance(value.get("revision"), str) or not _REVISION.fullmatch(value["revision"]) or
+            not isinstance(repository, str) or not repository.startswith("/") or
+            str(Path(repository)) != repository or not isinstance(value.get("exported_at"), str)):
+        raise ValueError(f"invalid deployment marker in {root}")
+    return value
+
+
+DEPLOYMENT = deployment(ROOT)
+REPOSITORY_ROOT = Path(DEPLOYMENT["repository"]) if DEPLOYMENT else ROOT
 ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 FORMATS = FormatChecker()
 

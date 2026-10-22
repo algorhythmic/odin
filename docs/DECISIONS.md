@@ -2986,6 +2986,28 @@ tab.
 - *After a reboot* the operator starts only `run executive-supervise` in the
   Herdr tab; Herdr restores the shell, not the command. Systemd cannot host
   the supervisor, because the session needs a terminal.
+- *Code root and repository root.* `ROOT` is only where Odin's code runs
+  from. The executive's checkout is `REPOSITORY_ROOT`: the repository named by
+  a deployed copy's marker (`.odin-deployment.json`: schema version, exported
+  revision, repository, export time), or `ROOT` when there is no marker, so
+  nothing changes when the two are the same. The manifest keeps the canonical
+  checkout as `repository_root`; `_load` and the pending-development
+  comparisons check it against `REPOSITORY_ROOT`, so a copy exported from
+  another repository is refused and staging from a copy never moves the
+  executive's working directory into the copy. The prepared bridge and
+  completion-hook files are compared with their code path removed and are
+  rewritten for the launching code under the runtime leases at each launch.
+  A deployed copy reports its marker's revision; its cleanliness is unknown
+  (`null`), not asserted.
+- *Pinned hooks.* `ROOT` is a resolved path, so when the launcher imports
+  Odin through a `current` symlink, a launched session's hook, status and
+  bridge commands name the revision directory it resolved to, not `current`.
+  The session keeps that revision until it is relaunched, even after
+  `current` moves. That is acceptable because every deploy ends with an
+  executive restart through the supervisor (item 8), so a session never
+  outlives the deploy that superseded it by more than that restart, and
+  within a session the hooks, bridge and prompt come from one revision. The
+  pinned copy is never pruned while it is `current` or the rollback target.
 
 **Limits.** A turn that starts between the final idle check and the signal
 can be stopped near its start; the window is one poll at most. Scheduled session wakeups and background work that Claude Code does not

@@ -205,9 +205,9 @@ def main():
         parser.error("this action requires --state")
 
     state = Path(args.state).resolve()
-    from .contracts import ROOT
+    from .contracts import REPOSITORY_ROOT, ROOT
 
-    if state == ROOT or ROOT in state.parents:
+    if any(state == root or root in state.parents for root in (ROOT, REPOSITORY_ROOT)):
         parser.error("runtime state must be outside the repository")
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     if state.stat().st_mode & 0o077:
@@ -489,7 +489,7 @@ def main():
 
         if not args.project:
             parser.error("repository-import requires --project")
-        batches = prepare(Path(args.repository) if args.repository else ROOT, args.project)
+        batches = prepare(Path(args.repository) if args.repository else REPOSITORY_ROOT, args.project)
         results = []
         for payload in batches:
             request = {

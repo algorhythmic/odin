@@ -16,7 +16,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from .contracts import ROOT, identifier, strict_loads
+from .contracts import ROOT, deployment, identifier, strict_loads
 from .store import now as _now
 
 UNIT = "odin-executive-pilot-service"
@@ -39,7 +39,14 @@ def _git(repository, *argv):
 
 
 def code_revision(repository=ROOT):
-    """Head and cleanliness of the checkout this process imports Odin from."""
+    """Head and cleanliness of the checkout this process imports Odin from.
+
+    A deployed copy has no git metadata; its marker names the exported commit,
+    and cleanliness is unknown (None) rather than asserted.
+    """
+    marker = deployment(repository)
+    if marker is not None:
+        return marker["revision"], None
     try:
         return (_git(repository, "rev-parse", "HEAD").strip(),
                 _git(repository, "status", "--porcelain") == "")

@@ -20,7 +20,7 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
-from .contracts import ROOT, Contracts, canonical, identifier, strict_loads
+from .contracts import REPOSITORY_ROOT, ROOT, Contracts, canonical, identifier, strict_loads
 from .executive_admission import SCRIPTS_FILE, registered_scripts, script_digest, script_path
 from .executive_intervention_hook import MEMORY_FILE, memory_directory
 from .executive_mcp import ExecutiveBridge, SocketGateway, ToolFailure
@@ -119,10 +119,11 @@ def _private_directory(value, *, create=False):
     path = Path(value).expanduser().absolute()
     if path != path.resolve():
         raise PermissionError("pilot directories must not traverse symlinks")
-    if path == ROOT or ROOT.is_relative_to(path) or path.is_relative_to(ROOT):
-        raise PermissionError(
-            "pilot state and credentials must be outside the repository"
-        )
+    for root in {ROOT, REPOSITORY_ROOT}:
+        if path == root or root.is_relative_to(path) or path.is_relative_to(root):
+            raise PermissionError(
+                "pilot state and credentials must be outside the repository"
+            )
     if create:
         path.mkdir(mode=0o700, parents=True, exist_ok=True)
     info = path.stat()
@@ -374,7 +375,7 @@ def prepare(
                 manifest["auto_compact_window_tokens"] = existing["auto_compact_window_tokens"]
             manifest["native_session_id"] = existing["native_session_id"]
             if existing["version"] >= 2:
-                manifest.update(version=existing["version"], repository_root=str(ROOT))
+                manifest.update(version=existing["version"], repository_root=str(REPOSITORY_ROOT))
             if existing.get("development_loop"):
                 manifest["development_loop"] = True
             if existing.get("native_peer_messaging"):
@@ -403,7 +404,9 @@ def _load(state):
     manifest = _read(base / "manifest.json", "executive-pilot")
     if manifest["state"] != str(state):
         raise PermissionError("pilot state identity changed")
-    if manifest.get("repository_root", str(ROOT)) != str(ROOT):
+    # The manifest names the executive's checkout. Code may run from that
+    # checkout or from a deployed copy exported from it (ODIN-ADR-039).
+    if manifest.get("repository_root", str(REPOSITORY_ROOT)) != str(REPOSITORY_ROOT):
         raise PermissionError("pilot repository scope differs from this checkout")
     profile = _profile(manifest["config_dir"])
     if (
@@ -420,15 +423,44 @@ def _load(state):
         _settings_path(manifest, base), "executive-pilot-settings"
     ) != _manifest_settings(manifest):
         raise PermissionError("prepared settings differ from the narrow pilot policy")
-    if _read(_mcp_path(manifest, base), "executive-pilot-mcp") != _mcp(manifest):
+    if _code_neutral(_read(_mcp_path(manifest, base), "executive-pilot-mcp")) != _code_neutral(_mcp(manifest)):
         raise PermissionError(
             "prepared MCP configuration differs from the scoped bridge"
         )
-    if manifest.get("development_loop") and _read(
+    if manifest.get("development_loop") and _code_neutral(_read(
         _loop_settings_path(manifest, base), "executive-pilot-loop-settings"
-    ) != _loop_settings(manifest):
+    )) != _code_neutral(_loop_settings(manifest)):
         raise PermissionError("prepared completion hooks differ from the scoped loop")
     return manifest, base
+
+
+def _code_neutral(value):
+    """A prepared file with the code location removed (ODIN-ADR-039).
+
+    The bridge and hook commands name the code root's ``python`` directory,
+    which changes with each deployed copy. Everything else must match exactly.
+    """
+    if isinstance(value, dict):
+        return {key: "<code>" if key == "PYTHONPATH" else _code_neutral(item)
+                for key, item in value.items()}
+    if isinstance(value, list):
+        return [_code_neutral(item) for item in value]
+    if isinstance(value, str) and value.startswith("PYTHONPATH="):
+        return "PYTHONPATH=<code>"
+    return value
+
+
+def _refresh_code_root(manifest, base):
+    """Point the prepared bridge and hook files at the code about to launch.
+
+    Called under all three leases, so no running session reads a file being
+    replaced. ``_load`` has already checked that only the code path differs.
+    """
+    if _read(_mcp_path(manifest, base), "executive-pilot-mcp") != _mcp(manifest):
+        _write(_mcp_path(manifest, base), "executive-pilot-mcp", _mcp(manifest))
+    if manifest.get("development_loop") and _read(
+            _loop_settings_path(manifest, base), "executive-pilot-loop-settings") != _loop_settings(manifest):
+        _write(_loop_settings_path(manifest, base), "executive-pilot-loop-settings", _loop_settings(manifest))
 
 
 def _environment(manifest, base):
@@ -734,7 +766,7 @@ def _pending_development(manifest, base):
     if not path.exists():
         return None
     pending = _read(path, "executive-pilot")
-    expected = manifest | {"version": 3, "repository_root": str(ROOT)}
+    expected = manifest | {"version": 3, "repository_root": str(REPOSITORY_ROOT)}
     staged = ("development_loop", "auto_compact_window_tokens", "native_peer_messaging",
               "implementation_mode", "intervention_enabled", "model")
     comparable = {key: value for key, value in pending.items() if key not in staged}
@@ -763,14 +795,14 @@ def enable_development(state):
             _write(
                 base / "pending-development.json",
                 "executive-pilot",
-                manifest | {"version": 3, "repository_root": str(ROOT)},
+                manifest | {"version": 3, "repository_root": str(REPOSITORY_ROOT)},
             )
         return {
             "profile_version": 3,
             "pending_activation": manifest["version"] != 3,
             "effective_on_next_start": True,
             "native_session_id": manifest["native_session_id"],
-            "repository_root": str(ROOT),
+            "repository_root": str(REPOSITORY_ROOT),
             "native_tools": "default",
             "permission_mode": "bypassPermissions",
             "environment": "inherited_operator_environment",
@@ -1085,6 +1117,7 @@ def _owned_runtime(state, *, hold_configuration=False):
                     _write(base / "manifest.json", "executive-pilot", pending)
                     (base / "pending-development.json").unlink()
                     manifest = pending
+                _refresh_code_root(manifest, base)
                 if hold_configuration:
                     # Identity/profile mutations must exclude concurrent staging.
                     # Foreground sessions release this lock so an upgrade can be
@@ -1384,7 +1417,7 @@ def enable_repository_reads(state):
         _credential_lock,
     ):
         if manifest["version"] == 1:
-            manifest = {**manifest, "version": 2, "repository_root": str(ROOT)}
+            manifest = {**manifest, "version": 2, "repository_root": str(REPOSITORY_ROOT)}
             _write(
                 _settings_path(manifest, base),
                 "executive-pilot-settings",

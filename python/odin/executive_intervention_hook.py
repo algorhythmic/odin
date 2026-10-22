@@ -11,7 +11,7 @@ import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from .contracts import ROOT, canonical, identifier, strict_loads
+from .contracts import REPOSITORY_ROOT, ROOT, canonical, identifier, strict_loads
 from .executive_mcp import SocketGateway, ToolFailure
 from .contracts import Contracts
 from .executive_admission import (audit, read_only, registered_interpreter, registered_script,
@@ -54,7 +54,8 @@ def memory_directory(value, *, state):
     if any(os.path.islink(part) for part in (path, *path.parents)) or not path.is_dir():
         raise ValueError("memory_directory_invalid")
     real = Path(os.path.realpath(path))
-    for other in (Path(os.path.realpath(ROOT)), Path(os.path.realpath(state))):
+    for other in (Path(os.path.realpath(ROOT)), Path(os.path.realpath(REPOSITORY_ROOT)),
+                  Path(os.path.realpath(state))):
         if real == other or real.is_relative_to(other) or other.is_relative_to(real):
             raise ValueError("memory_directory_invalid")
     return path
