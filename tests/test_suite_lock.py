@@ -264,14 +264,22 @@ class SuiteLockTests(unittest.TestCase):
     def test_slot_owned_by_another_uid_is_refused(self):
         self.directory.mkdir(mode=0o700)
         (self.directory / "slot-0.lock").touch(mode=0o600)
-        uid = os.getuid()
-        # Accept the directory's real owner, then simulate a foreign slot owner.
-        with patch.object(suite_lock.os, "getuid", side_effect=[uid, uid + 1]) as getuid:
+        real_fstat = os.fstat
+
+        def fstat(descriptor):
+            # Keep the directory's real owner; report a foreign slot owner.
+            metadata = real_fstat(descriptor)
+            if stat.S_ISREG(metadata.st_mode):
+                fields = list(metadata)
+                fields[stat.ST_UID] = os.getuid() + 1
+                return os.stat_result(fields)
+            return metadata
+
+        with patch.object(suite_lock.os, "fstat", side_effect=fstat):
             with self.assertRaisesRegex(
                 ValueError, "slot-0.lock is not a regular file owned by the current uid"
             ):
                 suite_lock.acquire_slot(self.directory)
-        self.assertEqual(getuid.call_count, 2)
 
 
 if __name__ == "__main__":
