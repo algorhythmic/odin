@@ -11,7 +11,8 @@
     },
     "kind": {
       "enum": [
-        "executive_restart"
+        "executive_restart",
+        "runtime_deploy"
       ]
     },
     "project": {
@@ -27,7 +28,9 @@
         "restarted",
         "failed",
         "refused",
-        "cancelled"
+        "cancelled",
+        "deployed",
+        "rolled_back"
       ]
     },
     "code": {

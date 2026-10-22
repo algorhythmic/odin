@@ -245,9 +245,28 @@
           "$ref": "#/$defs/odin_executive_restart"
         }
       }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_runtime_deploy"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_runtime_deploy"
+        }
+      }
     }
   ],
   "$defs": {
+    "odin_runtime_deploy": {
+      "type": "object",
+      "properties": {
+        "head": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "operation_id": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"}
+      },
+      "required": ["head", "operation_id"],
+      "additionalProperties": false
+    },
     "odin_executive_restart": {
       "type": "object",
       "properties": {

@@ -58,10 +58,11 @@ TOOL_ACTIONS = {
     "odin_intervention_end": "intervention_end",
     "odin_intervention_status": "intervention_status",
     "odin_executive_restart": "executive_restart_request",
+    "odin_runtime_deploy": "runtime_deploy_request",
 }
 LOOP_TOOLS = frozenset(
     {"odin_loop_claim", "odin_loop_ready", "odin_loop_status", "odin_loop_ack", "odin_loop_delegate", "odin_context_checkpoint", "odin_intervention_begin", "odin_intervention_end", "odin_intervention_status",
-     "odin_executive_restart"}
+     "odin_executive_restart", "odin_runtime_deploy"}
 )
 READ_ONLY_TOOLS = frozenset(
     {
@@ -122,6 +123,19 @@ def _checkpoint_validation_error(error):
     return ("Input not dispatched: " + (".".join(parts) or "arguments")[:120]
             + ": " + reason + ".")[:220]
 TOOL_DESCRIPTIONS = {
+    "odin_runtime_deploy": (
+        "Ask the operator's supervisor to deploy an accepted change: head must be the current head of "
+        "the configured integration branch, from a clean checkout, after the integration owner merged "
+        "it. Never deploy an unaccepted head. Records a request and starts a drain: queued delegated "
+        "turns and evaluator jobs stay queued, running ones finish. At the next idle turn end the "
+        "supervisor stops this session, exports the commit, switches current, restarts the service, "
+        "checks its health (rolling back on failure), restarts telemetry and resumes this session on "
+        "the result; a notice reports deployed, rolled_back or failed. Fixed refusal codes include "
+        "deploy_not_configured, deploy_request_pending, deploy_head_not_integration_head, "
+        "deploy_tree_dirty, deploy_head_already_current, restart_request_pending, "
+        "intervention_outcome_unknown and loop_stage_active. End your turn after a successful "
+        "request. Supply a new ULID operation_id."
+    ),
     "odin_executive_restart": (
         "Ask the operator's supervisor (executive-supervise) to restart this executive session, for "
         "example to load staged model, mode, permit or prompt changes. Records a request only; the "

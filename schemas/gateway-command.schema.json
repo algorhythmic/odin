@@ -74,7 +74,9 @@
         "executive_restart_request",
         "executive_restart_status",
         "executive_restart_transition",
-        "executive_supervisor_event"
+        "executive_supervisor_event",
+        "runtime_deploy_request",
+        "runtime_deploy_transition"
       ]
     },
     "payload": {

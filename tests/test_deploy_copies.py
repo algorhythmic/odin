@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from jsonschema import ValidationError
 from odin import deploy_copies as copies
 from odin import executive_runtime as runtime
 from odin.contracts import DEPLOYMENT_FILE, ROOT, Contracts, deployment, strict_loads
@@ -137,7 +138,7 @@ class ConfigurationTests(Base):
             arguments = {"repository": self.repository, "branch": "integration"} | kwargs
             with self.subTest(kwargs=kwargs), self.assertRaises(copies.DeployError):
                 copies.configure(self.state, **arguments)
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             copies.configure(self.state, repository=self.repository, branch="integration", keep=0)
         with self.assertRaises(copies.DeployError) as caught:
             copies.prepare(self.state, head=self.revisions[0])

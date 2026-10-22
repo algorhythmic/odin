@@ -151,6 +151,130 @@
         "kind"
       ],
       "additionalProperties": false
+    },
+    "runtime_deploy_request": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "head": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      },
+      "required": [
+        "project",
+        "session_id",
+        "head"
+      ],
+      "additionalProperties": false
+    },
+    "runtime_deploy_transition": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "state": {
+          "enum": [
+            "draining",
+            "deploying",
+            "restarting_executive",
+            "deployed",
+            "rolled_back",
+            "failed",
+            "refused",
+            "cancelled"
+          ]
+        },
+        "code": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}$"
+            }
+          ]
+        },
+        "timings": {
+          "type": "object",
+          "maxProperties": 16,
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 86400000
+          }
+        },
+        "activation_id": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          ]
+        },
+        "rollback_activation_id": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$"
+            }
+          ]
+        },
+        "pending_outcome": {
+          "enum": [
+            null,
+            "deployed",
+            "rolled_back"
+          ]
+        },
+        "clean_exit_observed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": -255,
+              "maximum": 255
+            }
+          ]
+        }
+      },
+      "required": [
+        "project",
+        "request_id",
+        "state"
+      ],
+      "additionalProperties": false
     }
   }
 }
