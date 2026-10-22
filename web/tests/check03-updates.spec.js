@@ -86,10 +86,9 @@ test('update events apply once, report duplicates and gaps, and change the views
   await expect(liveA2.getByTestId('state-label')).toHaveText('Done');
   await expect(page.getByTestId('revision')).toHaveText('18');
   await expect(page.getByRole('button', { name: 'Apply next synthetic update' })).toBeDisabled();
-  // Activity lists the applied events, newest first.
-  const activity = page.getByTestId('activity-item');
-  await expect(activity.first()).toContainText('ops worker attempt 2 finished');
-  await expect(activity.filter({ hasText: 'docs helper started by documentation' })).toHaveCount(1);
+  // Applied sessions stay inspectable after the conversation/activity panel was removed.
+  await page.goto(sessionUrl('ses-live-a2'));
+  await expect(page.getByTestId('run-outcome')).toContainText('not verified');
   await shot(page, 'updates-applied');
 });
 

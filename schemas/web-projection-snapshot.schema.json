@@ -11,6 +11,7 @@
     "revision",
     "cursor",
     "generated_at",
+    "executive_session_id",
     "projects",
     "commitments",
     "assignments",
@@ -383,6 +384,13 @@
           }
         }
       }
+    },
+    "executive_session_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
     }
   },
   "$defs": {
@@ -411,7 +419,10 @@
           "minLength": 1
         },
         "project_id": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "minLength": 1
         },
         "parent_session_id": {

@@ -7,7 +7,7 @@ export const LARGE_SPEC = { sessions: 2000, roots: 40, maxDepth: 8, transcriptPa
 
 const LIFECYCLES = ['running', 'waiting_for_input', 'idle', 'ended', 'retired', 'host_offline'];
 const PROGRESS = ['in_progress', 'blocked', 'awaiting_review', 'done_unverified', 'accepted'];
-const ROLES = ['executive', 'integration owner', 'worker', 'reviewer'];
+const ROLES = ['workstream orchestrator', 'integration owner', 'worker', 'reviewer'];
 const MODELS = ['claude-opus-5-5', 'claude-haiku-5-5', 'claude-sonnet-5-5', null];
 const DAY_START = Date.UTC(2026, 9, 21);
 
@@ -79,7 +79,7 @@ export function generateLargeSnapshot(spec = LARGE_SPEC, seed = LARGE_SEED) {
     sessions.push({
       id: sid,
       project_id: pid,
-      parent_session_id: parentIdx === null ? null : padId('ses-L', parentIdx),
+      parent_session_id: parentIdx === null ? 'ses-L-executive' : padId('ses-L', parentIdx),
       provenance: 'recorded',
       role: pick(rnd, ROLES),
       assignment_id: asgId,
@@ -98,6 +98,12 @@ export function generateLargeSnapshot(spec = LARGE_SPEC, seed = LARGE_SEED) {
     assignments.push(asg);
   }
 
+  sessions.unshift({
+    ...sessions[0], id: 'ses-L-executive', project_id: null, parent_session_id: null,
+    role: 'executive', assignment_id: null, model: 'claude-opus-5-5',
+    lifecycle: 'running', needs_operator_input: false, stale: false,
+  });
+
   const relationships = [];
   for (let n = 0; n < 100; n += 1) {
     const from = Math.floor(rnd() * spec.sessions);
@@ -109,6 +115,7 @@ export function generateLargeSnapshot(spec = LARGE_SPEC, seed = LARGE_SEED) {
   return {
     schema: 'odin.web.projection.snapshot/v0-draft',
     synthetic: true,
+    executive_session_id: 'ses-L-executive',
     dataset: 'large',
     revision: 0,
     cursor: 'cur-large-0000',

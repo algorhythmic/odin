@@ -24,7 +24,7 @@ const GROUPS = {
   },
 };
 
-export function AttentionChips({ pid, view = 'tree' }) {
+export function AttentionChips({ pid }) {
   const counts = projectSummary(pid);
   const [open, setOpen] = useState(null); // 'needs' | 'failed' | null
   const chipsRef = useRef({ needs: null, failed: null });
@@ -53,6 +53,12 @@ export function AttentionChips({ pid, view = 'tree' }) {
     };
   }, [open]);
 
+  const anchor = open && chipsRef.current[open]?.getBoundingClientRect();
+  const popupStyle = anchor ? {
+    top: anchor.bottom + 6,
+    left: Math.max(8, Math.min(anchor.left, innerWidth - Math.min(380, innerWidth * 0.8) - 8)),
+  } : undefined;
+
   return (
     <span class="attention-chips" data-testid="attention-chips">
       {Object.entries(GROUPS).map(([kind, g]) => {
@@ -68,11 +74,11 @@ export function AttentionChips({ pid, view = 'tree' }) {
             </button>
             {open === kind && (
               <div class="attention-pop" role="dialog" aria-label={`Sessions that ${g.label}`}
-                tabIndex={-1} ref={popRef} data-testid="attention-popover" data-kind={kind}>
+                style={popupStyle} tabIndex={-1} ref={popRef} data-testid="attention-popover" data-kind={kind}>
                 <ul class="attention-items">
                   {sessions.map((s) => (
                     <li key={s.id} data-testid="attention-pop-item" data-session-id={s.id}>
-                      <a href={sessionHref(pid, s.id, view)}><strong>{s.role}</strong> <code>{s.id}</code></a>
+                      <a href={sessionHref(pid, s.id)}><strong>{s.role}</strong> <code>{s.id}</code></a>
                       <div class="attention-task">{getAssignment(s.assignment_id)?.summary || 'Assignment unknown'}</div>
                       <div class="muted attention-reason">{g.reason(s)}</div>
                       <div class="actions-row">

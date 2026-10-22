@@ -16,7 +16,7 @@ test.describe('theme', () => {
   test.use({ colorScheme: 'light' });
 
   test('dark theme is the default whatever the system prefers', async ({ page }) => {
-    await page.goto(`/#/projects/${PID}`);
+    await page.goto('/#/');
     await expect(page.getByTestId('session-card').first()).toBeVisible();
     expect(await theme(page)).toBe('dark');
     expect(await bodyBg(page)).toBe('rgb(16, 20, 25)');
@@ -39,7 +39,7 @@ test.describe('theme', () => {
     await shot(page, 'theme-light');
 
     await page.reload();
-    await expect(page.getByTestId('overview')).toBeVisible();
+    await expect(page.getByTestId('workspace')).toBeVisible();
     expect(await theme(page)).toBe('light');
     expect(await bodyBg(page)).toBe('rgb(245, 246, 248)');
 
@@ -54,7 +54,7 @@ test.describe('theme', () => {
       localStorage.setItem('odin-web-prefs:v1', JSON.stringify({ theme: 'neon', mode: 'tree' }));
     });
     await page.reload();
-    await expect(page.getByTestId('overview')).toBeVisible();
+    await expect(page.getByTestId('workspace')).toBeVisible();
     expect(await theme(page)).toBe('dark');
     expect(await bodyBg(page)).toBe('rgb(16, 20, 25)');
   });
@@ -73,7 +73,7 @@ test('a quiet synthetic badge in the header replaces the banner on every view', 
 });
 
 test('every status renders its label and icon on the card', async ({ page }) => {
-  await page.goto(`/#/projects/${PID}`);
+  await page.goto('/#/');
   const cases = [
     ['ses-exec-01', 'Running', 'status-icon-spinner'],
     ['ses-review-exec', 'Needs you', 'status-icon-clock'],
@@ -97,7 +97,7 @@ test('every status renders its label and icon on the card', async ({ page }) => 
 });
 
 test('stopped cards and superseded attempts are dimmed', async ({ page }) => {
-  await page.goto(`/#/projects/${PID}`);
+  await page.goto('/#/');
   for (const id of ['ses-helper-01', 'ses-worker-a1']) {
     await expect(card(page, id)).toHaveAttribute('data-dimmed', 'true');
     const opacity = await card(page, id).evaluate((el) => Number(getComputedStyle(el).opacity));
@@ -111,7 +111,7 @@ test('stopped cards and superseded attempts are dimmed', async ({ page }) => {
 });
 
 test('cards show a provider monogram and a friendly model name', async ({ page }) => {
-  await page.goto(`/#/projects/${PID}`);
+  await page.goto('/#/');
   const expected = new Map(snapshot.sessions.filter((s) => s.project_id === PID).map((s) => [s.id, s.model]));
   const names = {
     'claude-opus-5-5': 'Opus 5.5',
@@ -131,7 +131,7 @@ test('cards show a provider monogram and a friendly model name', async ({ page }
 });
 
 test('the task text wraps to two lines instead of truncating to one', async ({ page }) => {
-  await page.goto(`/#/projects/${PID}`);
+  await page.goto('/#/');
   const task = card(page, 'ses-exec-01').getByTestId('task-text');
   await expect(task).toBeVisible();
   const style = await task.evaluate((el) => {

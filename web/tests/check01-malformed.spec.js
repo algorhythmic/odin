@@ -13,13 +13,13 @@ test('cycle and self-parent sessions are labelled roots, never dropped or given 
   await page.goto(`/#/projects/${MAL}`);
   // Every record is shown: nothing in a cycle is dropped.
   await expect(page.getByTestId('session-card')).toHaveCount(malformed.length);
-  await expect(page.getByText(`${malformed.length} sessions, 4 roots`)).toBeVisible();
+  await expect(page.getByTestId('project-node')).toHaveCount(1);
   for (const id of ['ses-mal-cycle-a', 'ses-mal-cycle-b', 'ses-mal-self']) {
     await expect(card(page, id).getByTestId('lineage-label')).toHaveText('Parent cycle in records');
   }
   // The recorded parent is kept as data; only the non-cycle child attaches.
   await expect(card(page, 'ses-mal-self')).toHaveAttribute('data-parent', 'ses-mal-self');
-  expect((await edgesOf(page)).sort()).toEqual(['ses-mal-cycle-a>ses-mal-cycle-child', 'ses-mal-root>ses-mal-attempt']);
+  expect((await edgesOf(page)).sort()).toEqual(['ses-exec-01>ses-mal-root', 'ses-mal-cycle-a>ses-mal-cycle-child', 'ses-mal-root>ses-mal-attempt']);
   await shot(page, 'malformed-cycles');
 
   await card(page, 'ses-mal-cycle-b').getByRole('button').first().click();
@@ -32,8 +32,8 @@ test('cycle and self-parent sessions are labelled roots, never dropped or given 
 
   // The list view shows the same forest and stays keyboard navigable.
   await page.getByRole('button', { name: 'List', exact: true }).click();
-  await expect(page.locator('[role="treeitem"]')).toHaveCount(malformed.length);
-  await expect(page.locator('[role="treeitem"][aria-level="1"]')).toHaveCount(4);
+  await expect(page.locator('[role="treeitem"]')).toHaveCount(malformed.length + 1);
+  await expect(page.locator('[role="treeitem"][aria-level="2"]')).toHaveCount(4);
   await page.locator('[role="treeitem"][data-session-id="ses-mal-root"]').focus();
   await page.keyboard.press('End');
   await expect.poll(() => page.evaluate(() => document.activeElement?.dataset.sessionId)).toBe('ses-mal-self');
@@ -41,7 +41,7 @@ test('cycle and self-parent sessions are labelled roots, never dropped or given 
 
 test('an empty project renders an empty forest with finite dimensions', async ({ page }) => {
   await page.goto('/#/projects/proj-empty');
-  await expect(page.getByText('0 sessions, 0 roots')).toBeVisible();
+  await expect(page.getByTestId('agent-summary')).toHaveText('0 agents · 0 running');
   await expect(page.getByTestId('session-card')).toHaveCount(0);
   const svg = page.locator('svg.tree-edges');
   for (const attr of ['width', 'height']) {
@@ -56,7 +56,7 @@ test('an empty project renders an empty forest with finite dimensions', async ({
   const html = await page.getByTestId('tree-view').innerHTML();
   expect(html).not.toMatch(/NaN|Infinity/);
   await page.getByRole('button', { name: 'List', exact: true }).click();
-  await expect(page.locator('[role="treeitem"]')).toHaveCount(0);
+  await expect(page.locator('[role="treeitem"]')).toHaveCount(1);
   await shot(page, 'empty-project');
 });
 

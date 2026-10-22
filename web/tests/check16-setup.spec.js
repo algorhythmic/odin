@@ -65,10 +65,10 @@ test('fresh walkthrough connects sign-ins, picks defaults, customizes roles and 
   await apply.click();
   await expect(page.getByRole('status').filter({ hasText: 'Applied (synthetic, not saved)' })).toBeVisible();
   await expect(page.getByTestId('setup-progress-card')).toHaveCount(0);
-  await page.getByRole('link', { name: 'Overview', exact: true }).click();
-  await expect(page.getByTestId('setup-guide')).toHaveCount(0);
+  await page.getByTestId('sidebar-executive').click();
+  await expect(page.getByTestId('setup-progress-card')).toHaveCount(0);
   await page.reload();
-  await expect(page.getByTestId('setup-guide')).toContainText('Setup 0 of 4');
+  await expect(page.getByTestId('setup-progress-card')).toContainText('Setup 0 of 4');
 });
 
 for (const [i, step] of steps.entries()) test(`setup deep link: ${step}`, async ({ page }) => {
@@ -83,11 +83,10 @@ for (const [i, step] of steps.entries()) test(`setup deep link: ${step}`, async 
   await settledShot(page, `setup-${step}-dark`);
 });
 
-test('default setup opens roles, and both progress cards follow the same draft', async ({ page }) => {
+test('default setup opens roles from the shared sidebar progress card', async ({ page }) => {
   await page.goto('/#/');
-  await expect(page.getByTestId('setup-guide')).toContainText('Setup 3 of 4');
   await expect(page.getByTestId('setup-progress-card')).toContainText('Setup 3 of 4');
-  await page.getByTestId('setup-guide').getByRole('link', { name: 'Finish setup' }).click();
+  await page.getByTestId('setup-progress-card').click();
   await expect(page).toHaveURL(/setup\/roles$/);
   await expect(page.getByTestId('update-driver')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Opus-led/ })).toContainText('Illustrative');
@@ -118,7 +117,7 @@ test('shared sign-ins are summarized once above the role table on every role pag
   }
 });
 
-test('snapshot updates stay on overview and projects when navigating through setup and settings', async ({ page }) => {
+test('snapshot updates stay on portfolio and project trees when navigating through setup and settings', async ({ page }) => {
   await page.goto('/#/');
   const driver = page.getByTestId('update-driver');
   await expect(driver).toBeVisible();
@@ -129,7 +128,7 @@ test('snapshot updates stay on overview and projects when navigating through set
     await expect(page).toHaveURL(new RegExp(`${route}$`));
     await expect(driver).toHaveCount(0);
   }
-  for (const route of ['', `projects/${PID}`, `projects/${PID}/history`]) {
+  for (const route of ['', `projects/${PID}`]) {
     await page.evaluate((hash) => { location.hash = hash; }, `#/${route}`);
     await expect(page).toHaveURL(new RegExp(`#/${route}$`));
     await expect(driver).toBeVisible();

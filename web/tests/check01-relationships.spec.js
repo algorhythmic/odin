@@ -12,7 +12,7 @@ test('fixture keeps ancestry separate from typed relationships', () => {
   const outside = sessions.filter((s) => s.parent_session_id && !byId.has(s.parent_session_id));
   expect(outside.map((s) => s.id)).toEqual(['ses-pin-audit']);
   const roots = projectSessions.filter((s) => !s.parent_session_id);
-  expect(roots.length).toBeGreaterThanOrEqual(2);
+  expect(roots.length).toBeGreaterThanOrEqual(1);
   expect(roots.some((s) => s.provenance === 'imported')).toBe(true);
   const reviews = relationships.filter((r) => r.type === 'review');
   expect(reviews.length).toBeGreaterThanOrEqual(2);
@@ -34,12 +34,12 @@ test('a recorded parent outside the view stays a labelled root, never a guessed 
   const count = sessions.filter((s) => s.project_id === pid).length;
   await page.goto(`/#/projects/${pid}`);
   await expect(page.getByTestId('session-card')).toHaveCount(count);
-  await expect(page.getByText(`${count} sessions, 2 roots`)).toBeVisible();
+  await expect(page.getByTestId('project-node')).toHaveCount(1);
   const audit = page.locator('[data-testid="session-card"][data-session-id="ses-pin-audit"]');
   await expect(audit).toHaveAttribute('data-parent', 'ses-pin-archived');
   await expect(audit.getByTestId('lineage-label')).toHaveText('Parent not in this project view');
   const edges = await page.locator('path.ancestry-edge').evaluateAll((els) => els.map((e) => `${e.dataset.from}>${e.dataset.to}`));
-  expect(edges.sort()).toEqual(['ses-pin-audit>ses-pin-audit-helper', 'ses-pin-exec>ses-pin-worker']);
+  expect(edges.sort()).toEqual(['ses-exec-01>ses-pin-exec', 'ses-pin-audit>ses-pin-audit-helper', 'ses-pin-exec>ses-pin-worker']);
   // A branch with no known tokens shows no figure, never 0 tok.
   await expect(audit.getByText('branch unknown (2)', { exact: true })).toBeVisible();
   await expect(audit).not.toContainText('tok');
@@ -48,7 +48,7 @@ test('a recorded parent outside the view stays a labelled root, never a guessed 
   await expect(page.getByRole('button', { name: 'Go to parent' })).toBeDisabled();
   await shot(page, 'parent-outside-view');
   await page.getByRole('button', { name: 'List', exact: true }).click();
-  await expect(page.locator('[role="treeitem"]')).toHaveCount(count);
+  await expect(page.locator('[role="treeitem"]')).toHaveCount(count + 1);
 });
 
 test('tree renders the ancestry forest and typed relationships distinctly', async ({ page }) => {
@@ -73,7 +73,7 @@ test('tree renders the ancestry forest and typed relationships distinctly', asyn
   }
 
   // Multiple roots, including the unparented imported session.
-  await expect(page.locator('[data-testid="session-card"][data-parent=""]')).toHaveCount(2);
+  await expect(page.locator('[data-testid="session-card"][data-parent=""]')).toHaveCount(1);
   const imported = page.locator('[data-session-id="ses-imported-01"]');
   await expect(imported.getByTestId('lineage-label')).toHaveText('Imported — parent unknown');
 
@@ -130,18 +130,17 @@ test('collapse hides descendants and fit branch scales to the selection', async 
   await expect(page).toHaveURL(/sessions\/ses-exec-01$/);
 });
 
-test('overview shows attention items that link to sessions', async ({ page }) => {
+test('portfolio attention chips link to sessions and keep offline observations visible', async ({ page }) => {
   await page.goto('/#/');
   await expect(page.getByTestId('synthetic-badge')).toBeVisible();
-  const items = page.getByTestId('attention-item');
-  for (const label of ['Pending approval', 'Pending decision', 'Needs input', 'Host offline', 'Blocked']) {
-    await expect(items.filter({ hasText: label }).first()).toBeVisible();
-  }
-  await shot(page, 'overview');
-  await items.filter({ hasText: 'Host offline' }).first().getByRole('link').click();
-  await expect(page).toHaveURL(/sessions\/ses-ops-01$/);
+  await page.getByTestId('chip-needs').click();
+  await page.getByTestId('attention-popover').getByRole('link').first().click();
+  await expect(page).toHaveURL(/sessions\/ses-review-exec$/);
+  await expect(page.getByTestId('detail-state')).toHaveText('Needs you');
+  await page.goto('/#/sessions/ses-ops-01');
   await expect(page.getByTestId('detail-state')).toHaveText('Host offline');
   await expect(page.getByTestId('detail-own-tokens')).toHaveText('unknown');
+  await shot(page, 'portfolio-attention');
 });
 
 test('go to parent follows recorded ancestry to the root, keeping the target in view', async ({ page }) => {

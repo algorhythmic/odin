@@ -98,24 +98,12 @@ h3 { font-size: 0.95rem; margin: 14px 0 6px; }
 }
 .sidebar-nav a:hover { background: var(--surface); color: var(--text); }
 .sidebar-nav a[aria-current="page"] { background: var(--surface-2); color: var(--text); }
-.sidebar-nav .sidebar-views { margin: 4px 0 8px 18px; padding-left: 8px; border-left: 1px solid var(--border); }
-.sidebar-views a { padding: 5px 10px; font-size: 0.85rem; }
 .sidebar-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 4px 0; border-top: 1px solid var(--border); }
 .sidebar-footer .theme-toggle { width: 100%; text-align: left; }
 dialog.sidebar { position: fixed; inset: 0 auto 0 0; margin: 0; max-height: none; max-width: min(280px, 90vw); width: 280px; }
 dialog.sidebar:not([open]) { display: none; }
 dialog.sidebar::backdrop { background: rgb(0 0 0 / 55%); }
-.setup-guide { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
-.setup-guide p { margin: 0; }
-.setup-link { padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; text-decoration: none; }
-.placeholder { max-width: 860px; padding: 28px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
-.placeholder h1, .placeholder h2 { margin-top: 10px; }
-.placeholder p { max-width: 65ch; }
 .eyebrow { color: var(--muted); font-size: 0.8rem; }
-.view-switcher { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
-.view-switcher a { padding: 5px 10px; border-radius: 7px; text-decoration: none; color: var(--muted); }
-.view-switcher a[aria-current="page"] { background: var(--surface-2); color: var(--text); }
-.view-switcher a:hover { color: var(--text); }
 @media (max-width: 899px) {
   .content { padding: 16px; }
 }
@@ -172,26 +160,17 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
 .tag-pending-approval, .tag-pending-decision { color: var(--muted); }
 .lineage { font-size: 0.8rem; font-style: italic; color: var(--muted); }
 
-/* Overview */
-.overview { max-width: 960px; display: grid; gap: 20px; }
-.overview section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; }
-.overview ul { margin: 0; padding-left: 18px; }
-.overview li { margin: 6px 0; }
-.attention-list a, .active-list a { display: inline-flex; gap: 8px; align-items: baseline; text-decoration: none; }
-.attention-list a > :last-child, .active-list a > :last-child { text-decoration: underline; }
-.attention-list .tag { margin-left: 0; }
-
 /* Workspace: the tree fills the page and the canvas grows with content —
    the page scrolls instead of a fixed-height inner box clipping rows.
-   Secondary panels are toggles around the tree; session details open in a
-   right-side drawer that sits just below the pinned header (--chrome-h is
-   measured in app.jsx). */
+   Session details open below the measured chrome and one-line toolbar;
+   horizontal canvas scrolling leaves the fit controls in reach. */
 .chrome { position: sticky; top: 0; z-index: 60; }
 .workspace.has-detail:not(.narrow) { padding-right: calc(min(400px, 34vw) + 12px); }
-.project-nav { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 10px; max-width: 560px; }
-.project-nav ul { list-style: none; padding: 0; margin: 0 0 8px; }
-.project-nav a[aria-current="page"] { font-weight: 700; }
-.toolbar { position: sticky; top: var(--chrome-h, 0px); z-index: 40; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 6px 0; margin-bottom: 8px; background: var(--canvas); }
+
+.toolbar {
+  position: sticky; top: var(--chrome-h, 0px); z-index: 55; display: flex; flex-wrap: wrap;
+  gap: 10px; align-items: center; padding: 6px 0; margin-bottom: 8px; background: var(--canvas);
+}
 .segmented { display: inline-flex; }
 .segmented button { border-radius: 0; }
 .segmented button:first-child { border-radius: 6px 0 0 6px; }
@@ -231,7 +210,7 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
    under the parent; the typed-relationship overlay is the only part of
    the canvas that carries --accent, on its strokes, arrowheads and
    labels. The legend stays monochrome. */
-.ancestry-edge { fill: none; stroke: var(--edge); stroke-width: 2; }
+.ancestry-edge, .project-edge { fill: none; stroke: var(--edge); stroke-width: 2; }
 .port-dot { fill: var(--canvas); stroke: var(--edge); stroke-width: 2; }
 .relation-edge > path { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 2 3; }
 .relation-edge.relation-review > path { stroke-dasharray: 6 4; }
@@ -279,18 +258,12 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
 .twisty { width: 1em; color: var(--muted); }
 .twisty-toggle { cursor: pointer; }
 
-.conversation { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 10px; max-width: 900px; }
-.messages { list-style: none; padding: 0; margin: 0; }
-.messages p { margin: 2px 0 8px; }
 .speaker { font-weight: 600; }
-.decision { border: 1px solid var(--border); border-left: 3px solid var(--text); border-radius: 6px; padding: 6px 8px; margin-bottom: 8px; }
-.composer { display: grid; gap: 4px; }
-.composer textarea { width: 100%; font: inherit; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; }
 
 /* Session details: a right-side drawer on wide layouts, an in-flow panel
    on narrow ones. */
 .detail {
-  position: fixed; top: var(--chrome-h, 0px); right: 0; bottom: 0;
+  position: fixed; top: calc(var(--chrome-h, 0px) + var(--toolbar-h, 0px)); right: 0; bottom: 0;
   width: min(400px, 34vw); overflow-y: auto; padding: 8px 14px 16px;
   background: var(--surface); border-left: 1px solid var(--border);
   box-shadow: -10px 0 22px rgb(0 0 0 / 30%); z-index: 50;
@@ -483,3 +456,44 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
   .setup-progress progress::-webkit-progress-value { transition: none; }
   .setup-panel-leaving { display: none; }
 }
+
+/* The branch uses the same square connectors as the canvas. */
+.sidebar-nav .sidebar-executive { display: flex; gap: 9px; align-items: center; }
+.sidebar-executive strong { text-transform: capitalize; font-weight: 600; }
+.sidebar-executive small { display: block; color: var(--muted); font-size: 0.75rem; }
+.status-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--st); }
+.sidebar-nav .sidebar-branch { margin: 0 0 20px 14px; }
+.sidebar-branch li { position: relative; padding-left: 14px; }
+.sidebar-branch li::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; border-left: 1px solid var(--edge); }
+.sidebar-branch li:last-child::before { bottom: 50%; }
+.sidebar-branch li::after { content: ''; position: absolute; left: 0; top: 50%; width: 14px; border-top: 1px solid var(--edge); }
+.sidebar-branch a { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; }
+.sidebar-project-name { flex: 1; }
+.sidebar-branch small { color: var(--muted); font-variant-numeric: tabular-nums; }
+.scope-header { display: flex; align-items: center; gap: 24px; padding: 12px 0; }
+.executive-header { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
+.executive-header strong { text-transform: capitalize; }
+.project-node {
+  position: absolute; display: flex; gap: 10px; align-items: center; padding: 8px 12px;
+  background: var(--canvas); border: 1px solid var(--edge); border-radius: 5px;
+  font-size: 0.72rem; white-space: nowrap; text-align: left;
+}
+.project-node strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.project-node > span { flex: none; }
+.list-row[data-node-kind="project"] { background: var(--surface-2); font-size: 0.8rem; }
+.project-edge { stroke-dasharray: 3 3; }
+.legend-line.project { border-top-style: dotted; }
+.branch-muted, .tree-edges [data-muted="true"] { opacity: 0.35; }
+.toolbar { flex-wrap: nowrap; white-space: nowrap; font-size: 0.75rem; gap: 10px; }
+.toolbar h1 { font-size: 1rem; }
+.toolbar .check { white-space: nowrap; }
+@media (max-width: 759px) {
+  .toolbar { flex-wrap: wrap; white-space: normal; }
+  .scope-header { flex-wrap: wrap; gap: 12px; }
+}
+
+.tree-scroller { max-width: 100%; overflow-x: auto; padding-bottom: 8px; }
+.toolbar { max-width: 100%; overflow-x: auto; }
+.toolbar > * { flex-shrink: 0; }
+.attention-pop { position: fixed; right: auto; white-space: normal; }
+@media (max-width: 759px) { .toolbar { overflow: visible; } }

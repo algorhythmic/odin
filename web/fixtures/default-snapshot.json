@@ -60,7 +60,7 @@
       "project_id": "proj-odin-webapp",
       "commitment_id": "cmt-webapp-v0",
       "owner_session_id": "ses-exec-01",
-      "summary": "Coordinate the web app commitment",
+      "summary": "Oversee every project and keep the operator informed",
       "progress": "in_progress"
     },
     {
@@ -190,7 +190,7 @@
   "sessions": [
     {
       "id": "ses-exec-01",
-      "project_id": "proj-odin-webapp",
+      "project_id": null,
       "parent_session_id": null,
       "provenance": "recorded",
       "role": "executive",
@@ -434,11 +434,11 @@
     {
       "id": "ses-pin-exec",
       "project_id": "proj-contract-pins",
-      "parent_session_id": null,
+      "parent_session_id": "ses-exec-01",
       "provenance": "recorded",
-      "role": "executive",
+      "role": "integration owner",
       "assignment_id": "asg-pin-coord",
-      "model": "claude-fable-5-1",
+      "model": "claude-opus-5-5",
       "lifecycle": "running",
       "needs_operator_input": false,
       "observed_at": "2026-10-21T10:20:00Z",
@@ -522,9 +522,9 @@
     {
       "id": "ses-mal-root",
       "project_id": "proj-malformed",
-      "parent_session_id": null,
+      "parent_session_id": "ses-exec-01",
       "provenance": "recorded",
-      "role": "executive",
+      "role": "integration owner",
       "assignment_id": null,
       "model": null,
       "lifecycle": "running",
@@ -803,5 +803,6 @@
     ],
     "proj-malformed": [],
     "proj-empty": []
-  }
+  },
+  "executive_session_id": "ses-exec-01"
 }

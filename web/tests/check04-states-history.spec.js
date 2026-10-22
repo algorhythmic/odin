@@ -19,13 +19,16 @@ test('stale and host-offline sessions show their last observed time', async ({ p
   await expect(observed).toContainText('Stale observation');
   await expect(observed).toContainText('host not reporting');
   await page.goto('/#/');
-  await expect(page.getByTestId('attention-item').filter({ hasText: 'operations last observed' })).toContainText('last observed 06:05 UTC');
+  await page.getByRole('button', { name: 'Tree', exact: true }).click();
+  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-ops-01"]').getByTestId('last-observed'))
+    .toHaveText('Last observed 06:05 UTC');
   await shot(page, 'stale-offline');
 });
 
 test('history lists ended sessions and separates attempts from resumptions', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
-  await page.getByRole('link', { name: 'History' }).click();
+  for (let i = 0; i < 5; i += 1) await page.getByRole('button', { name: 'Apply next synthetic update' }).click();
+  await page.getByRole('link', { name: 'History', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`#/projects/${PID}/history$`));
   const ended = page.getByTestId('history-ended');
   for (const id of ['ses-worker-a1', 'ses-worker-a2', 'ses-helper-01', 'ses-imported-01']) {
@@ -49,7 +52,6 @@ test('history lists ended sessions and separates attempts from resumptions', asy
   await expect(page.locator('[data-testid="history-attempts"] [data-session-id="ses-docs-01"]')).toHaveCount(0);
   await shot(page, 'history');
   // Retiring a session through an update adds it to the history.
-  for (let i = 0; i < 5; i += 1) await page.getByRole('button', { name: 'Apply next synthetic update' }).click();
   await expect(ended.locator('tr[data-session-id="ses-review-integ"]')).toContainText('Stopped');
   await ended.locator('tr[data-session-id="ses-worker-a1"] a').click();
   await expect(page).toHaveURL(/sessions\/ses-worker-a1$/);

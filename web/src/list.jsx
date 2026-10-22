@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { formatTokens, getAssignment, isSuperseded, lineageLabel, observedLabel } from './data.js';
+import { ProjectLabel } from './project-node.jsx';
 import { StatusChip } from './status.jsx';
 
 // Visible rows in depth-first order. Collapsed branches are not rendered.
@@ -18,7 +19,7 @@ function flatten(roots, childMap, collapsed) {
 
 // ARIA treeview with roving tabindex: Up/Down move, Right expands or enters,
 // Left collapses or moves to the parent, Home/End jump, Enter/Space select.
-export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onToggle }) {
+export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onToggle, highlight }) {
   const rows = flatten(roots, childMap, collapsed);
   const [focusId, setFocusId] = useState(null);
   const ref = useRef(null);
@@ -66,7 +67,10 @@ export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onT
       case 'ArrowLeft':
         if (expanded) { moved.current = true; onToggle(row.s.id); } else if (row.parent) go(row.parent);
         break;
-      case 'Enter': case ' ': moved.current = true; onSelect(row.s.id); break;
+      case 'Enter': case ' ':
+        moved.current = true;
+        if (row.s.project) onToggle(row.s.id); else onSelect(row.s.id);
+        break;
       default: return;
     }
     e.preventDefault();
@@ -75,19 +79,26 @@ export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onT
   return (
     <ul class="list-tree" role="tree" aria-label="Sessions by ancestry" ref={ref} onKeyDown={onKeyDown} onScroll={remember} data-testid="list-view">
       {rows.map(({ s, level, kids, pos, size }) => {
-        const lineage = lineageLabel(s);
+        const lineage = s.project ? null : lineageLabel(s);
         const dimmed = s.lifecycle === 'retired' || isSuperseded(s);
+        const muted = highlight && s.project_id && s.project_id !== highlight;
+        const classes = ['list-row', s.id === selectedId && 'selected', dimmed && 'dimmed', muted && 'branch-muted'];
         return (
           <li key={s.id} role="treeitem" aria-level={level} aria-setsize={size} aria-posinset={pos}
-            aria-expanded={kids.length ? !collapsed.has(s.id) : undefined} aria-selected={s.id === selectedId}
-            tabIndex={s.id === active ? 0 : -1} data-session-id={s.id} data-parent={s.parent_session_id || ''}
-            data-lifecycle={s.lifecycle} data-dimmed={dimmed || undefined} class={`list-row ${s.id === selectedId ? 'selected' : ''} ${dimmed ? 'dimmed' : ''}`}
+            aria-label={s.project ? `Project ${s.project.name}` : undefined}
+            aria-expanded={s.project || kids.length ? !collapsed.has(s.id) : undefined}
+            aria-selected={s.project ? undefined : s.id === selectedId}
+            tabIndex={s.id === active ? 0 : -1} data-session-id={s.id} data-project-id={s.project_id || undefined}
+            data-node-kind={s.project ? 'project' : 'session'} data-parent={s.parent_session_id || ''}
+            data-lifecycle={s.lifecycle} data-dimmed={dimmed || undefined} class={classes.filter(Boolean).join(' ')}
             style={{ paddingLeft: `${(level - 1) * 1.25 + 0.5}rem` }}
-            onClick={() => { setFocusId(s.id); onSelect(s.id); }} onFocus={() => setFocusId(s.id)}>
+            onClick={() => { setFocusId(s.id); if (s.project) onToggle(s.id); else onSelect(s.id); }}
+            onFocus={() => setFocusId(s.id)}>
             {/* Pointer path for expand and collapse; keyboard users have the arrow keys. */}
             <span class={`twisty ${kids.length ? 'twisty-toggle' : ''}`} aria-hidden="true" data-testid={kids.length ? 'list-toggle' : undefined}
               onClick={kids.length ? (e) => { e.stopPropagation(); moved.current = true; setFocusId(s.id); onToggle(s.id); } : undefined}>
               {kids.length ? (collapsed.has(s.id) ? '▸' : '▾') : '·'}</span>
+            {s.project ? <ProjectLabel project={s.project} /> : <>
             <span class="role">{s.role}</span>
             <span class="assignment-short">{getAssignment(s.assignment_id)?.summary}</span>
             <StatusChip session={s} />
@@ -98,6 +109,7 @@ export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onT
             )}
             {lineage && <span class="lineage">{lineage}</span>}
             <span class="muted">{formatTokens(s.tokens)}</span>
+            </>}
           </li>
         );
       })}

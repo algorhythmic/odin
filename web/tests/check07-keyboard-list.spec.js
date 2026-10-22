@@ -1,5 +1,5 @@
 // Handoff check 7: keyboard navigation through an equivalent list, state as text,
-// and narrow layouts that keep conversation and decision actions usable.
+// and narrow layouts that keep session details and actions usable.
 import { test, expect } from '@playwright/test';
 import { PID, shot, snapshot } from './helpers.js';
 
@@ -15,18 +15,18 @@ test('list view is keyboard navigable and conveys state as text', async ({ page 
   const tree = page.getByRole('tree', { name: 'Sessions by ancestry' });
   await expect(tree).toBeVisible();
   const items = tree.getByRole('treeitem');
-  await expect(items).toHaveCount(sessions.filter((s) => s.project_id === PID).length);
+  await expect(items).toHaveCount(sessions.filter((s) => s.project_id === PID).length + 1);
 
   // Every row carries a text state label, not only a colour.
-  for (const row of await items.all()) {
+  for (const row of await tree.locator('[data-node-kind="session"]').all()) {
     await expect(row.getByTestId('state-label')).toHaveText(new RegExp(`^(${LABELS.join('|')})$`));
   }
 
-  // Tab into the tree: the roving tab stop is the first root.
+  // Tab into the tree: the roving tab stop is the project grouping.
   await page.getByRole('button', { name: 'List', exact: true }).focus();
   await page.keyboard.press('Tab');
-  await expect.poll(() => focusedId(page)).toBe('ses-exec-01');
-  await expect(tree.getByRole('treeitem', { selected: false }).first()).toHaveAttribute('tabindex', '0');
+  await expect.poll(() => focusedId(page)).toBe(`project:${PID}`);
+  await expect(tree.getByRole('treeitem').first()).toHaveAttribute('tabindex', '0');
 
   await page.keyboard.press('ArrowDown');
   await expect.poll(() => focusedId(page)).toBe('ses-integ-01');
@@ -51,7 +51,7 @@ test('list view is keyboard navigable and conveys state as text', async ({ page 
   await page.keyboard.press('End');
   await expect.poll(() => focusedId(page)).toBe('ses-imported-01');
   await page.keyboard.press('Home');
-  await expect.poll(() => focusedId(page)).toBe('ses-exec-01');
+  await expect.poll(() => focusedId(page)).toBe(`project:${PID}`);
   await shot(page, 'list-view');
 });
 
@@ -74,10 +74,6 @@ test('narrow layout defaults to the list and keeps actions usable', async ({ pag
   await expect(page.getByTestId('tree-view')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Tree', exact: true })).toHaveCount(0);
   await expect(page.getByTestId('detail-panel')).toBeVisible();
-  await expect(page.getByTestId('pending-decision')).toBeVisible();
-  const composer = page.getByLabel('Message');
-  await composer.scrollIntoViewIfNeeded();
-  await expect(composer).toBeVisible();
   const actions = page.getByTestId('actions-note');
   await actions.scrollIntoViewIfNeeded();
   await expect(actions).toBeVisible();
@@ -92,19 +88,18 @@ test('list view rows expand and collapse with the pointer on the large synthetic
   await page.getByRole('button', { name: 'List', exact: true }).click();
   const tree = page.getByRole('tree', { name: 'Sessions by ancestry' });
   const items = tree.getByRole('treeitem');
-  // Branches start collapsed above 200 sessions: only the 40 roots show.
-  await expect(items).toHaveCount(40);
+  // Large projects start at their grouping row; expanding reveals 40 recorded starts.
+  await expect(items).toHaveCount(1);
   const first = items.first();
   await expect(first).toHaveAttribute('aria-expanded', 'false');
   await first.getByTestId('list-toggle').click();
   await expect(first).toHaveAttribute('aria-expanded', 'true');
-  const id = await first.getAttribute('data-session-id');
-  await expect(tree.locator(`[role="treeitem"][data-parent="${id}"]`).first()).toBeVisible();
+  await expect(tree.locator('[data-node-kind="session"]')).toHaveCount(40);
   // The toggle does not select the row.
-  await expect(first).toHaveAttribute('aria-selected', 'false');
+  await expect(first).not.toHaveAttribute('aria-selected');
   await first.getByTestId('list-toggle').click();
   await expect(first).toHaveAttribute('aria-expanded', 'false');
-  await expect(tree.locator(`[role="treeitem"][data-parent="${id}"]`)).toHaveCount(0);
+  await expect(tree.locator('[data-node-kind="session"]')).toHaveCount(0);
 });
 
 // Card footers wrap instead of clipping: the branch token total stays whole
@@ -115,7 +110,7 @@ for (const width of [1280, 800]) {
     await page.goto(`/#/projects/${PID}`);
     const totals = page.getByTestId('branch-tokens');
     await expect(totals.first()).toBeVisible();
-    expect(await totals.count()).toBeGreaterThan(2);
+    expect(await totals.count()).toBeGreaterThanOrEqual(2);
     const clipped = await totals.evaluateAll((els) => els.flatMap((el) => {
       const card = el.closest('[data-testid="session-card"]').getBoundingClientRect();
       const r = el.getBoundingClientRect();

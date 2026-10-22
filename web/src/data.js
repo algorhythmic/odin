@@ -3,6 +3,7 @@
 // and re-derives every view. A service projection would replace the source.
 import { useEffect, useState } from 'preact/hooks';
 import * as fx from './fixtures/synthetic.js';
+import { ancestryLabel, groupedTree, projectAncestry } from './ancestry.js';
 import { reduceEvent } from './events.js';
 import { attentionCounts, cleanSpeed, displayedElapsed, failedSessionIds, intervalFor, observeElapsed } from './live.js';
 
@@ -46,7 +47,7 @@ function ix() {
     byProject.get(s.project_id).push(s);
   }
   index = {
-    version, byProject, ancestry: new Map(),
+    version, byProject, ancestry: new Map(), grouped: new Map(),
     sessions: new Map(snap.sessions.map((s) => [s.id, s])),
     assignments: new Map(snap.assignments.map((a) => [a.id, a])),
     // Session ids a later attempt names as its previous_attempt: the
@@ -119,8 +120,12 @@ export const RELATION_LABELS = {
 export const lifecycleLabel = (s) => LIFECYCLE_LABELS[s] || `Unknown state (${s})`;
 
 export const getProjects = () => snap.projects;
+export const getExecutive = () => {
+  const session = getSession(snap.executive_session_id);
+  return session?.project_id === null ? session : null;
+};
 export const getProject = (id) => snap.projects.find((p) => p.id === id) || null;
-export const sessionsFor = (pid) => ix().byProject.get(pid) || [];
+export const sessionsFor = (pid) => pid === undefined ? snap.sessions : ix().byProject.get(pid) || [];
 export const getSession = (id) => ix().sessions.get(id) || null;
 export const getAssignment = (id) => ix().assignments.get(id) || null;
 export const getRun = (id) => snap.runs.find((r) => r.id === id) || null;
@@ -144,36 +149,7 @@ export const relationshipsOf = (id) => snap.relationships.filter((r) => r.from =
 export function ancestry(pid) {
   const cache = ix().ancestry;
   if (cache.has(pid)) return cache.get(pid);
-  const list = sessionsFor(pid);
-  const inProject = new Map(list.map((s) => [s.id, s]));
-  const outside = new Set(list.filter((s) => s.parent_session_id && !inProject.has(s.parent_session_id)).map((s) => s.id));
-  const cycle = new Set();
-  const state = new Map(); // 1: on the current walk, 2: finished
-  for (const s of list) {
-    const path = [];
-    let cur = s;
-    while (cur && !state.has(cur.id)) {
-      state.set(cur.id, 1);
-      path.push(cur.id);
-      cur = cur.parent_session_id ? inProject.get(cur.parent_session_id) : null;
-    }
-    if (cur && state.get(cur.id) === 1) {
-      for (const id of path.slice(path.indexOf(cur.id))) cycle.add(id);
-    }
-    for (const id of path) state.set(id, 2);
-  }
-  const children = new Map();
-  const parentOf = new Map();
-  const roots = [];
-  for (const s of list) {
-    if (!s.parent_session_id || outside.has(s.id) || cycle.has(s.id)) roots.push(s);
-    else {
-      if (!children.has(s.parent_session_id)) children.set(s.parent_session_id, []);
-      children.get(s.parent_session_id).push(s);
-      parentOf.set(s.id, s.parent_session_id);
-    }
-  }
-  const result = { roots, children, parentOf, outside, cycle };
+  const result = projectAncestry(snap.sessions, pid, snap.executive_session_id);
   cache.set(pid, result);
   return result;
 }
@@ -181,15 +157,18 @@ export function ancestry(pid) {
 export const parentOutsideProject = (s) => ancestry(s.project_id).outside.has(s.id);
 export const inParentCycle = (s) => ancestry(s.project_id).cycle.has(s.id);
 // The parent drawn in the tree, or null for any kind of root.
-export const treeParent = (s) => getSession(ancestry(s.project_id).parentOf.get(s.id)) || null;
+export function treeParent(s) {
+  if (s.id === snap.executive_session_id) return null;
+  if (s.parent_session_id === snap.executive_session_id) return getExecutive();
+  return getSession(ancestry(s.project_id).parentOf.get(s.id)) || null;
+}
 export const childrenMap = (pid) => ancestry(pid).children;
 export const rootsFor = (pid) => ancestry(pid).roots;
 
 // Tree ancestors, nearest first. The forest is acyclic by construction.
 export function ancestors(s) {
-  const { parentOf } = ancestry(s.project_id);
   const out = [];
-  for (let p = parentOf.get(s.id); p; p = parentOf.get(p)) out.push(p);
+  for (let p = treeParent(s); p; p = treeParent(p)) out.push(p.id);
   return out;
 }
 
@@ -257,7 +236,13 @@ export function formatTokenSum(t) {
   return text;
 }
 
-export const branchSum = (session, children) => tokenSum([session, ...descendants(session.id, children)]);
+export const branchSum = (session, children) => {
+  // Group rows carry no usage. The executive totals only its admitted descendants.
+  if (session.id === snap.executive_session_id) {
+    return tokenSum([session, ...snap.sessions.filter((s) => s.id !== session.id && ancestors(s).includes(session.id))]);
+  }
+  return tokenSum([session, ...descendants(session.id, children)].filter((s) => !s.project));
+};
 export function branchTokens(session, children) {
   return formatTokenSum(branchSum(session, children));
 }
@@ -300,9 +285,8 @@ export function cardElapsed(s) {
 }
 
 export function lineageLabel(s) {
-  if (s.provenance === 'imported' && !s.parent_session_id) return 'Imported — parent unknown';
-  if (inParentCycle(s)) return 'Parent cycle in records';
-  if (parentOutsideProject(s)) return 'Parent not in this project view';
+  const label = ancestryLabel(s, ancestry(s.project_id));
+  if (label) return label;
   if (s.attempt) return `Attempt ${s.attempt}${s.previous_attempt ? ` (after ${s.previous_attempt})` : ''}`;
   if (s.resumption) return `Resumed ×${s.resumption.count} (same session)`;
   return null;
@@ -422,4 +406,18 @@ export function setAutoplaySpeed(next) {
   speed = cleanSpeed(next);
   if (playing) scheduleEvent();
   bump();
+}
+
+export function portfolioTree(pid) {
+  const cache = ix().grouped;
+  if (!cache.has(pid)) cache.set(pid, groupedTree(pid ? [getProject(pid)] : getProjects(), getExecutive(), ancestry, !!pid));
+  return cache.get(pid);
+}
+
+export function projectStatus(pid) {
+  const c = projectSummary(pid);
+  if (c.failed) return { key: 'failed', label: 'Failed' };
+  if (c.needsYou) return { key: 'needs-you', label: 'Needs you' };
+  if (c.running) return { key: 'running', label: 'Running' };
+  return { key: 'idle', label: 'Done or idle' };
 }

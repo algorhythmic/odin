@@ -1,10 +1,11 @@
 # Odin web app — synthetic prototype
 
-This directory holds the first vertical slice of Odin's web app: an
-overview, a project workspace with an interactive agent tree, a detail
-panel, a keyboard-navigable list view and a per-project history. **It
-runs on synthetic data only.** It is not connected to Odin's service, has no authentication,
-and sends no commands. Every view carries a "Synthetic data" badge in the header.
+This directory holds the synthetic Odin web app: a portfolio agent tree
+rooted at one executive, project grouping nodes, scoped project trees,
+a detail drawer, a keyboard-navigable list and portfolio/project history.
+**It runs on synthetic data only.** It is not connected to Odin's service,
+has no authentication and sends no commands. Every view carries a
+"Synthetic data" badge in the sidebar.
 
 The handoff and decision record live in
 [`docs/design/WEB-APP-HANDOFF.md`](../docs/design/WEB-APP-HANDOFF.md)
@@ -30,23 +31,25 @@ npm run build
 npm run preview      # http://127.0.0.1:5318/
 ```
 
-Routes are hash based so a static build deep-links without server
-rewrites: `#/`, `#/projects/<project>`, `#/projects/<project>/history`,
-`#/projects/<project>/sessions/<session>`, and from the redesign
-([WEB-APP-REDESIGN.md](../docs/design/WEB-APP-REDESIGN.md)) the project
-views `#/projects/<project>/<view>` and
-`#/projects/<project>/<view>/sessions/<session>` (`queue`, `lanes`,
-`graph`, `decisions`, `board`; the tree is the default), `#/setup`,
-`#/setup/<step>` and `#/settings/<section>`. A sidebar carries the
-overview, the projects with their views, setup, the theme toggle and the
-synthetic-data badge; below 900 px it is a modal drawer. The five
-non-tree views are placeholders until slices R4–R7. Setup and settings
-share working synthetic configuration panels (R2).
+Routes are hash based so a static build deep-links without server rewrites:
+
+- `#/`: portfolio tree; `#/sessions/<session>` selects in the full tree.
+- `#/projects/<project>`: scoped project tree with a compact executive header.
+- `#/projects/<project>/sessions/<session>`: scoped session selection.
+- `#/history` and `#/projects/<project>/history`: portfolio and project history.
+- `#/setup`, `#/setup/<step>` and `#/settings/<section>`: synthetic setup and settings.
+
+The sidebar connects projects beneath the executive. Hover or keyboard
+focus highlights a project's branch on portfolio routes; clicking scopes
+the tree. Below 900 px the sidebar is a modal drawer. Below 760 px the
+list replaces the canvas. Tree/List is a layout preference; selection
+stays in the URL. Deferred Queue, Lanes, Graph, Decisions and Board routes
+render not found. Setup and settings share working synthetic panels.
 
 Data sets: the default loads the shared fixtures in `fixtures/`. Add
 `?dataset=large` before the hash (for example
 `http://127.0.0.1:5317/?dataset=large#/projects/proj-large-synthetic`)
-for the seeded 2,000-session tree, generated in the browser from
+for 2,000 seeded project sessions plus one executive, generated in the browser from
 `src/fixtures/large.js`; `npm run describe:large` checks it from Node.
 
 Setup uses its own `fixtures/setup.json`, separate from the projection
@@ -64,7 +67,7 @@ applies no configuration to the service. The executive must use Claude Code;
 roles need enabled harnesses and connected sign-ins. Same-family independent
 review is allowed with a warning; shared-lineage capacity is informational.
 
-The bar under the header is a synthetic update driver: "Apply next
+On tree pages the bar above the header is a synthetic update driver: "Apply next
 synthetic update" applies the next event from
 `fixtures/default-events.json` to the loaded snapshot and reports
 whether it was applied, a duplicate, a revision gap or rejected. Play
@@ -117,7 +120,7 @@ EVIDENCE_DIR=/private/path npm run test:perf   # writes large-timings.json and l
 It records first render, expand and select times on the seeded dataset,
 and the time to expand three depth-8 paths step by step in the tree and
 in the list, and compares them with the proposed targets (first render under 1 s,
-expand or select under 150 ms). The values are written first; a missed
+expand or select under 150 ms). Large trees open collapsed to their project nodes. The values are written first; a missed
 target then fails the run, so a red timing run still leaves its
 numbers. The values are synthetic prototype timings on one machine,
 not service or desktop measurements.
@@ -128,7 +131,7 @@ not service or desktop measurements.
 |---|---|
 | `fixtures/default-*.json` | Shared synthetic projection fixtures: snapshot, session details, update events ([draft shape](../docs/design/WEB-APP-PROJECTION.md)) |
 | `src/fixtures/synthetic.js`, `src/fixtures/large.js` | Fixture loading and paged detail requests; seeded large-dataset generator |
-| `src/data.js` | Versioned store over the snapshot: views, ancestry analysis (cycles, outside parents), indexes by session and assignment; the autoplay timers |
+| `src/data.js`, `src/ancestry.js` | Versioned store over the snapshot: views, ancestry analysis (cycles, outside parents), indexes by session and assignment; the autoplay timers |
 | `fixtures/setup.json` | Separate synthetic setup catalogue, presets and initial draft |
 | `src/setup.js` | Browser-independent setup store, validation, apply and discard |
 | `src/setup-state.jsx`, `src/setup-page.jsx`, `src/setup-panels.jsx` | Setup subscription, wizard, shared settings panels and progress cards |
@@ -137,8 +140,8 @@ not service or desktop measurements.
 | `src/driver.jsx`, `src/history.jsx` | Synthetic update driver bar; project history |
 | `src/route.js`, `src/prefs.js` | Hash routes; layout preferences (`odin-web-prefs:v1` in localStorage): view mode, collapsed branches, relationship overlay, colour theme |
 | `src/models.js`, `src/status.jsx` | Friendly model names and providers; the status chip, provider monogram and tool icons |
-| `src/overview.jsx`, `src/workspace.jsx` | Overview and project workspace |
-| `src/tree.jsx`, `src/card.jsx` | d3-hierarchy tidy-tree layout, SVG edges, session cards |
+| `src/workspace.jsx` | Portfolio and scoped project workspace |
+| `src/tree.jsx`, `src/card.jsx`, `src/project-node.jsx` | Square connector layout, SVG edges, session cards and project groupings |
 | `src/tokencount.jsx`, `src/attention.jsx` | Animated token figures; the header attention chips and popovers |
 | `src/list.jsx` | ARIA treeview list alternative with roving tabindex |
 | `src/detail.jsx` | Detail panel; transcripts render as plain text |
@@ -147,12 +150,18 @@ not service or desktop measurements.
 
 ## Semantics kept by the prototype
 
-- The tree edge is session ancestry only (`parent_session_id`). Review,
+- Solid tree edges are session ancestry only (`parent_session_id`). Review,
   delegation, run association and assignment ownership are typed
   relationships, drawn as dashed overlays and listed in details.
 - An imported session with no known parent stays a root.
-- A session whose recorded parent is outside the project view is shown as
-  a labelled root; no parent is guessed.
+- The draft snapshot requires `executive_session_id` (string or null).
+  Only that executive has `project_id: null`. Cross-project ancestry is
+  admitted only from the executive; other cross-project parents yield
+  "Parent in another project". Unavailable parents stay labelled roots.
+- Project nodes are grouping rows, never sessions. Dotted connectors
+  distinguish project membership from recorded starts. An executive's
+  recorded starts route through their project node. Labelled roots hang
+  from their group without acquiring an ancestry parent.
 - Sessions whose parent chain loops (including a self-parent) are shown
   as roots labelled "Parent cycle in records": never dropped, never given
   a guessed edge.
@@ -162,7 +171,8 @@ not service or desktop measurements.
   (uncached input + cache write + output) excludes cache reads; the
   detail panel shows the four-way split. Unknown reads "unknown";
   estimates read "est."; branch totals and the project header total sum
-  own tokens once and say "+ unknown" when any is missing. Token budgets
+  own tokens once and say "+ unknown" when any is missing. Group rows add no usage;
+  the executive branch totals only its admitted recorded descendants. Token budgets
   are arbitrary synthetic values, not real limits.
 - A session ending does not mark its run verified.
 - The setup draft and applied configuration are synthetic in-memory values
@@ -199,8 +209,8 @@ not service or desktop measurements.
   fade/slide in and their connector draws itself, running sessions tick
   elapsed each second and token figures count up to the new value (an
   unknown is shown immediately, never through an intermediate number).
-  The workspace header carries a live summary (`N agents · N running ·
-  N needs you · N failed · total`) and attention chips whose popovers
+  The one-line workspace header carries `N agents · N running`, a token
+  total and inline attention chips whose popovers
   list each session needing you or failed, its task and the reason;
   their command controls are disabled because commands are not
   connected. A collapsed branch chip reads `+N ›` for the hidden

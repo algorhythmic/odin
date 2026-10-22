@@ -10,9 +10,9 @@ assert.equal(first, second, 'same seed must produce identical output');
 
 const snapshot = JSON.parse(first);
 const summary = describeLarge(snapshot);
-assert.equal(summary.sessions, 2000, 'session count');
-assert.equal(summary.roots, 40, 'root count');
-assert.equal(summary.maxDepth, 8, 'maximum depth');
+assert.equal(summary.sessions, 2001, 'session count');
+assert.equal(summary.roots, 1, 'root count');
+assert.equal(summary.maxDepth, 9, 'maximum depth');
 
 console.log(JSON.stringify(summary, null, 2));
 console.log(`sha256 ${createHash('sha256').update(JSON.stringify(snapshot)).digest('hex')}`);

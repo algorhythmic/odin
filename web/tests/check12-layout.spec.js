@@ -2,8 +2,8 @@
 // square-cornered connectors from a port dot under each parent, the first
 // level in a horizontal row, deeper levels stacked under the parent's left
 // edge, and a canvas that grows with content so the page scrolls (no
-// fixed-height box clips it). Detail, list and conversation move to a
-// right-side drawer and toggles around the tree.
+// fixed-height box clips it). Details use a right-side drawer; Tree/List
+// is the only layout toggle.
 import { test, expect } from '@playwright/test';
 import { PID, sessionUrl, shot, snapshot } from './helpers.js';
 
@@ -91,12 +91,12 @@ test('every recorded parent-child edge has a square-cornered connector and a por
   const curved = await edges.evaluateAll((els) => els.map((e) => e.getAttribute('d')).filter((d) => /[CQSTAcqsta]/.test(d)));
   expect(curved, 'ancestry connectors must be square-cornered').toEqual([]);
   // A port dot under every parent that shows children.
-  const parents = new Set(expected.map((e) => e.split('>')[0]));
+  const parents = new Set(await edges.evaluateAll((els) => els.map((e) => e.dataset.via || e.dataset.from)));
   await expect(page.locator('circle.port-dot')).toHaveCount(parents.size);
   for (const pid of parents) await expect(page.locator(`circle.port-dot[data-parent="${pid}"]`)).toHaveCount(1);
 });
 
-test('selection opens a right-side detail drawer; list, projects and conversation are toggles', async ({ page }) => {
+test('selection opens a detail drawer; List remains and removed panels stay absent', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
   await expect(page.getByTestId('detail-panel')).toHaveCount(0);
 
@@ -116,20 +116,9 @@ test('selection opens a right-side detail drawer; list, projects and conversatio
   await page.goto(sessionUrl('ses-helper-01'));
   await expect(page.getByTestId('detail-panel')).toHaveAttribute('data-session-id', 'ses-helper-01');
 
-  // The project list is a toggle above the canvas.
-  const projects = page.getByRole('button', { name: 'Projects' });
-  await expect(projects).toHaveAttribute('aria-expanded', 'false');
-  await projects.click();
-  await expect(page.getByRole('navigation', { name: 'Projects' })).toBeVisible();
-
-  // The planning conversation is a toggle below the canvas; it starts open.
-  const conv = page.getByRole('button', { name: 'Conversation' });
-  await expect(conv).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByTestId('conversation')).toBeVisible();
-  await conv.click();
+  await expect(page.getByRole('button', { name: 'Projects', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Conversation', exact: true })).toHaveCount(0);
   await expect(page.getByTestId('conversation')).toHaveCount(0);
-  await conv.click();
-  await expect(page.getByTestId('conversation')).toBeVisible();
 
   // The list view stays a toggle away from the tree.
   await page.getByRole('button', { name: 'List', exact: true }).click();

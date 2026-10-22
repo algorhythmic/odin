@@ -1,25 +1,19 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import {
-  activityFor, ancestors, childrenMap, conversationFor, decisionsFor, getProjects, getSession, observedLabel,
-  projectSum, projectSummary, rootsFor, sessionsFor,
+  ancestors, getExecutive, getSession, portfolioTree, projectSum, projectSummary, sessionsFor,
 } from './data.js';
+import { projectNodeId } from './ancestry.js';
 import { updatePrefs, usePrefs } from './prefs.js';
-import { historyHref, projectHref, projectViewHref, sessionHref, PROJECT_VIEWS } from './route.js';
+import { historyHref, projectHref, sessionHref } from './route.js';
 import { TreeView } from './tree.jsx';
 import { ListTree } from './list.jsx';
 import { DetailPanel } from './detail.jsx';
 import { NotFound } from './notfound.jsx';
 import { AttentionChips } from './attention.jsx';
 import { TokenSum } from './tokencount.jsx';
-import { ViewPlaceholder, VIEW_LABELS } from './placeholders.jsx';
+import { ModelName, StatusChip } from './status.jsx';
 
 const NARROW = '(max-width: 759px)';
-// Large projects open collapsed to their roots until the user expands them.
-const COLLAPSE_ABOVE = 200;
-
-function defaultCollapsed(pid, childMap) {
-  return sessionsFor(pid).length > COLLAPSE_ABOVE ? [...childMap.keys()] : [];
-}
 
 function useNarrow() {
   const [narrow, setNarrow] = useState(() => matchMedia(NARROW).matches);
@@ -32,165 +26,93 @@ function useNarrow() {
   return narrow;
 }
 
-export function Workspace({ project, sid, view = 'tree' }) {
-  const pid = project.id;
+export function Workspace({ project, sid, highlight }) {
+  const header = useRef(null);
+  useLayoutEffect(() => {
+    const el = header.current;
+    const measure = () => el.parentElement.style.setProperty('--toolbar-h', `${el.offsetHeight}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const pid = project?.id;
+  const title = project?.name || 'Portfolio';
+  const base = pid ? projectHref(pid) : '#/';
   const prefs = usePrefs();
   const narrow = useNarrow();
-  // Secondary panels around the full-page tree: the project list and the
-  // planning conversation are toggles, session details open as a drawer.
-  const [showProjects, setShowProjects] = useState(false);
-  const [showConv, setShowConv] = useState(true);
-  // Derived per data version, so update events show without a reload.
-  const childMap = childrenMap(pid);
-  const roots = rootsFor(pid);
-  const collapsed = useMemo(() => new Set(prefs.collapsed[pid] ?? defaultCollapsed(pid, childMap)), [prefs, pid, childMap]);
+  const executive = getExecutive();
+  const { roots, children: childMap } = portfolioTree(pid);
+  const prefKey = pid || 'portfolio';
+  const collapsed = useMemo(() => new Set(prefs.collapsed[prefKey]
+    ?? (sessionsFor(pid).length > 200 ? [...childMap.keys()].filter((id) => id !== executive?.id) : [])),
+  [prefs, prefKey, childMap]);
   const selected = sid ? getSession(sid) : null;
-  const selectedInProject = selected && selected.project_id === pid ? selected : null;
+  const admitted = selected && (!pid || selected.project_id === pid || selected.id === executive?.id) ? selected : null;
   const mode = narrow ? 'list' : prefs.mode;
-
-  const update = updatePrefs;
-  const setCollapsed = (ids) => updatePrefs({ collapsed: { ...prefs.collapsed, [pid]: [...ids] } });
+  const counts = projectSummary(pid);
+  const setCollapsed = (ids) => updatePrefs({ collapsed: { ...prefs.collapsed, [prefKey]: [...ids] } });
   const toggle = (id) => {
     const next = new Set(collapsed);
     if (next.has(id)) next.delete(id); else next.add(id);
     setCollapsed(next);
   };
-  const select = (id) => { location.hash = sessionHref(pid, id, view); };
+  const select = (id) => { location.hash = sessionHref(pid, id); };
 
-  // A deep link to a hidden session expands its ancestors.
+  // A deep link reveals grouping rows as well as recorded ancestors.
   useEffect(() => {
-    if (!selectedInProject) return;
+    if (!admitted) return;
     const next = new Set(collapsed);
+    const ids = [...ancestors(admitted), projectNodeId(admitted.project_id)];
     let changed = false;
-    for (const p of ancestors(selectedInProject)) {
-      if (next.delete(p)) changed = true;
-    }
+    for (const id of ids) if (next.delete(id)) changed = true;
     if (changed) setCollapsed(next);
   }, [sid]);
 
   return (
     <div class={`workspace ${narrow ? 'narrow' : ''} ${sid ? 'has-detail' : ''}`} data-testid="workspace" data-mode={mode}>
-      <div class="toolbar">
-        <h1>{project.name}</h1>
-        <span class="muted">{sessionsFor(pid).length} sessions, {roots.length} roots</span>
-        <AgentSummary pid={pid} />
-        <AttentionChips pid={pid} view={view} />
+      {pid && <div class="scope-header">
+        <a href="#/">All projects</a>
+        {executive && <a class="executive-header" href={sessionHref(undefined, executive.id)} data-testid="executive-header">
+          <strong>{executive.role}</strong> <ModelName model={executive.model} /> <StatusChip session={executive} />
+        </a>}
+      </div>}
+      <div class="toolbar" ref={header} data-testid="tree-header">
+        <h1>{title}</h1>
+        <span class="muted" data-testid="agent-summary" aria-live="polite">
+          {counts.agents} agents · {counts.running} running
+        </span>
+        <AttentionChips pid={pid} />
+        <TokenSum sum={projectSum(pid)} compactUnknown testid="project-tokens" />
         <a href={historyHref(pid)}>History</a>
-        <button type="button" aria-expanded={showProjects} onClick={() => setShowProjects((v) => !v)}>Projects</button>
-        <button type="button" aria-expanded={showConv} onClick={() => setShowConv((v) => !v)}>Conversation</button>
-        <nav class="view-switcher" aria-label="Project views">
-          {PROJECT_VIEWS.map((v) => (
-            <a key={v} href={sid ? sessionHref(pid, sid, v) : projectViewHref(pid, v)}
-              aria-current={view === v ? 'page' : undefined}>{VIEW_LABELS[v]}</a>
-          ))}
-        </nav>
-        {view === 'tree' && mode === 'tree' && (
-          <label class="check">
-            <input type="checkbox" checked={prefs.showRelations}
-              onChange={(e) => update({ showRelations: e.currentTarget.checked })} />
-            Show typed relationships
-          </label>
-        )}
-        {/* Segmented is last: Tab from List must reach the list's roving
-            treeitem before any other control. */}
-        {view === 'tree' && !narrow && (
+        <label class="check">
+          <input type="checkbox" checked={prefs.showRelations}
+            onChange={(e) => updatePrefs({ showRelations: e.currentTarget.checked })} />
+          Show typed relationships
+        </label>
+        {!narrow && (
           <div class="segmented" role="group" aria-label="Layout">
-            <button type="button" aria-pressed={mode === 'tree'} onClick={() => update({ mode: 'tree' })}>Tree</button>
-            <button type="button" aria-pressed={mode === 'list'} onClick={() => update({ mode: 'list' })}>List</button>
+            <button type="button" aria-pressed={mode === 'tree'} onClick={() => updatePrefs({ mode: 'tree' })}>Tree</button>
+            <button type="button" aria-pressed={mode === 'list'} onClick={() => updatePrefs({ mode: 'list' })}>List</button>
           </div>
         )}
       </div>
-
-      {showProjects && (
-        <nav class="project-nav" aria-label="Projects">
-          <h2>Projects</h2>
-          <ul>
-            {getProjects().map((p) => (
-              <li key={p.id}>
-                <a href={projectHref(p.id)} aria-current={p.id === pid ? 'page' : undefined}>{p.name}</a>
-              </li>
-            ))}
-          </ul>
-          <p class="muted">Host: {project.host}</p>
-        </nav>
-      )}
-
-      {view === 'tree' ? (
-        <section class="tree-area" aria-label="Agent tree">
-          {mode === 'tree'
-            ? <TreeView pid={pid} roots={roots} childMap={childMap} collapsed={collapsed} selectedId={selectedInProject?.id}
-                onSelect={select} onToggle={toggle} showRelations={prefs.showRelations} />
-            : <ListTree roots={roots} childMap={childMap} collapsed={collapsed} selectedId={selectedInProject?.id}
-                onSelect={select} onToggle={toggle} />}
-        </section>
-      ) : <ViewPlaceholder view={view} />}
-
-      {showConv && <Conversation pid={pid} view={view} />}
-
-      {sid && (
-        <aside class="detail" aria-label="Session details">
-          <div class="drawer-bar">
-            <button type="button" onClick={() => { location.hash = projectViewHref(pid, view); }}>Close</button>
-          </div>
-          {selectedInProject
-            ? <DetailPanel key={selectedInProject.id} session={selectedInProject} childMap={childMap} onSelect={select} />
-            : <NotFound title="Session not found"
-                message={`Session "${sid}" is not in ${project.name}. It may not exist, may belong to another project, or you may not have access.`}
-                href={projectViewHref(pid, view)} linkText="Back to the project" />}
-        </aside>
-      )}
+      <section class="tree-area" aria-label="Agent tree">
+        {mode === 'tree'
+          ? <TreeView pid={pid} roots={roots} childMap={childMap} collapsed={collapsed} selectedId={admitted?.id}
+              highlight={highlight} onSelect={select} onToggle={toggle} showRelations={prefs.showRelations} />
+          : <ListTree roots={roots} childMap={childMap} collapsed={collapsed} selectedId={admitted?.id}
+              highlight={highlight} onSelect={select} onToggle={toggle} />}
+      </section>
+      {sid && <aside class="detail" aria-label="Session details">
+        <div class="drawer-bar"><button type="button" onClick={() => { location.hash = base; }}>Close</button></div>
+        {admitted
+          ? <DetailPanel key={admitted.id} session={admitted} childMap={childMap} onSelect={select} />
+          : <NotFound title="Session not found"
+              message={`Session "${sid}" is not in ${title}. `
+                + 'It may not exist, may belong to another project, or you may not have access.'}
+              href={base} linkText={pid ? 'Back to the project' : 'All projects'} />}
+      </aside>}
     </div>
-  );
-}
-
-// Live header summary: agent and attention counts plus the project token
-// total, all re-derived from the snapshot on every applied update.
-function AgentSummary({ pid }) {
-  const c = projectSummary(pid);
-  return (
-    <span class="agent-summary" data-testid="agent-summary" aria-live="polite">
-      {c.agents} agents · {c.running} running · {c.needsYou} needs you · {c.failed} failed ·{' '}
-      <TokenSum sum={projectSum(pid)} prefix="total " testid="project-tokens" />
-    </span>
-  );
-}
-
-function Conversation({ pid, view }) {
-  const entries = conversationFor(pid);
-  const activity = activityFor(pid);
-  const decisions = decisionsFor(pid).filter((d) => d.status === 'pending');
-  return (
-    <section class="conversation" aria-labelledby="conv-h">
-      <h2 id="conv-h">Planning conversation</h2>
-      {decisions.map((d) => (
-        <div class="decision" key={d.id} data-testid="pending-decision">
-          <strong>{d.kind === 'approval' ? 'Pending approval' : 'Pending decision'}:</strong> {d.title}
-          <div class="muted">Request {d.id} · proposal {d.proposal.id} revision {d.proposal.revision} · {d.proposal.digest}</div>
-        </div>
-      ))}
-      {entries.length ? (
-        <ol class="messages" data-testid="conversation">
-          {entries.map((m, i) => (
-            <li key={i}><span class="speaker">{m.speaker}</span> <time class="muted">{m.at}</time><p>{m.text}</p></li>
-          ))}
-        </ol>
-      ) : <p class="muted">No planning messages recorded for this project.</p>}
-      <h3 id="activity-h">Recent activity</h3>
-      {activity.length ? (
-        <ol class="activity" aria-labelledby="activity-h" data-testid="activity">
-          {activity.map((a) => (
-            <li key={a.id} data-testid="activity-item" data-kind={a.kind}>
-              <time class="muted">{observedLabel(a.at)}</time> <a href={sessionHref(pid, a.session_id, view)}>{a.text}</a>
-            </li>
-          ))}
-        </ol>
-      ) : <p class="muted">No activity recorded for this project.</p>}
-      <form class="composer" onSubmit={(e) => e.preventDefault()}>
-        <label for="composer-input">Message</label>
-        <textarea id="composer-input" rows={2} disabled aria-describedby="composer-note" />
-        <button type="submit" disabled aria-describedby="composer-note">Send</button>
-        <p id="composer-note" class="muted">Commands are not connected in this synthetic prototype.</p>
-      </form>
-    </section>
   );
 }

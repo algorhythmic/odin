@@ -1,4 +1,4 @@
-import { getAssignment, lineageLabel, observedLabel, sessionStatus, sessionsFor } from './data.js';
+import { getAssignment, getProjects, lineageLabel, observedLabel, sessionStatus, sessionsFor } from './data.js';
 import { StatusChip } from './status.jsx';
 import { projectHref, sessionHref } from './route.js';
 
@@ -7,7 +7,18 @@ const ENDED = new Set(['ended', 'retired']);
 // History of a project: sessions that have ended or retired, then the two
 // kinds of continuation kept apart. A new attempt is a distinct session; a
 // resumption continues the same session and never adds a row of its own.
-export function History({ project }) {
+export function History({ project, grouped = false }) {
+  if (!project) return (
+    <div class="portfolio-history" data-testid="portfolio-history">
+      <p><a href="#/">All projects</a></p>
+      <h1>History — Portfolio</h1>
+      {getProjects().map((p) => <section key={p.id} data-project-id={p.id}><History project={p} grouped /></section>)}
+    </div>
+  );
+  return <ProjectHistory project={project} grouped={grouped} />;
+}
+
+function ProjectHistory({ project, grouped }) {
   const pid = project.id;
   const sessions = sessionsFor(pid);
   const ended = sessions.filter((s) => ENDED.has(s.lifecycle)).sort((a, b) => b.observed_at.localeCompare(a.observed_at));
@@ -22,11 +33,11 @@ export function History({ project }) {
 
   return (
     <div class="history" data-testid="history">
-      <p><a href={projectHref(pid)}>Back to {project.name}</a></p>
-      <h1>History — {project.name}</h1>
+      {!grouped && <p><a href={projectHref(pid)}>Back to {project.name}</a></p>}
+      {grouped ? <h2>{project.name}</h2> : <h1>History — {project.name}</h1>}
 
-      <section aria-labelledby="hist-ended-h">
-        <h2 id="hist-ended-h">Ended and retired sessions</h2>
+      <section aria-labelledby={`${pid}-hist-ended-h`}>
+        <h2 id={`${pid}-hist-ended-h`}>Ended and retired sessions</h2>
         {ended.length ? (
           <table data-testid="history-ended">
             <thead><tr><th>Session</th><th>State</th><th>Last observed</th><th>Assignment</th><th>Lifecycle identity</th></tr></thead>
@@ -45,8 +56,8 @@ export function History({ project }) {
         ) : <p class="muted">No ended or retired sessions.</p>}
       </section>
 
-      <section aria-labelledby="hist-attempts-h">
-        <h2 id="hist-attempts-h">Attempts (distinct sessions)</h2>
+      <section aria-labelledby={`${pid}-hist-attempts-h`}>
+        <h2 id={`${pid}-hist-attempts-h`}>Attempts (distinct sessions)</h2>
         {attempts.size ? [...attempts].map(([key, list]) => (
           <div key={key} data-testid="history-attempts" data-assignment={key}>
             <h3>{getAssignment(key)?.summary || key}</h3>
@@ -62,8 +73,8 @@ export function History({ project }) {
         )) : <p class="muted">No repeated attempts recorded.</p>}
       </section>
 
-      <section aria-labelledby="hist-resumed-h">
-        <h2 id="hist-resumed-h">Resumptions (same session)</h2>
+      <section aria-labelledby={`${pid}-hist-resumed-h`}>
+        <h2 id={`${pid}-hist-resumed-h`}>Resumptions (same session)</h2>
         {resumed.length ? (
           <ul data-testid="history-resumptions">
             {resumed.map((s) => (

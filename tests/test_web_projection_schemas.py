@@ -68,7 +68,7 @@ class ProjectionSchemaTests(unittest.TestCase):
         return snapshot
 
     def test_fixtures_are_mapped_and_valid(self):
-        names = sorted(path.name for path in FIXTURES.glob("*.json"))
+        names = sorted(path.name for path in FIXTURES.glob("*.json") if path.name != "setup.json")
         self.assertEqual(names, sorted(FIXTURE_SCHEMAS), "fixture file without a schema mapping")
         for name, schema in FIXTURE_SCHEMAS.items():
             with self.subTest(fixture=name):
@@ -125,6 +125,37 @@ class ProjectionSchemaTests(unittest.TestCase):
         self.assertTrue(schema.is_valid(snapshot))
         snapshot["unexpected"] = True
         self.assertFalse(schema.is_valid(snapshot))
+
+    def test_snapshot_requires_nullable_executive_id(self):
+        schema = self.validator("web-projection-snapshot")
+        snapshot = self.load("default-snapshot.json")
+        self.assertEqual(snapshot["executive_session_id"], "ses-exec-01")
+        for value, valid in [("ses-exec-01", True), (None, True), ("", False), (42, False)]:
+            with self.subTest(executive=value):
+                candidate = copy.deepcopy(snapshot)
+                candidate["executive_session_id"] = value
+                self.assertEqual(schema.is_valid(candidate), valid)
+        del snapshot["executive_session_id"]
+        self.assertFalse(schema.is_valid(snapshot))
+
+    def test_session_project_is_nullable_but_still_required(self):
+        schema = self.validator("web-projection-snapshot")
+        for value, valid in [(None, True), ("proj-odin-webapp", True), ("", False), (42, False)]:
+            with self.subTest(project=value):
+                self.assertEqual(schema.is_valid(self.snapshot_with_session(project_id=value)), valid)
+        snapshot = self.load("default-snapshot.json")
+        del snapshot["sessions"][0]["project_id"]
+        self.assertFalse(schema.is_valid(snapshot))
+
+    def test_fixture_has_one_portfolio_executive(self):
+        snapshot = self.load("default-snapshot.json")
+        executives = [s for s in snapshot["sessions"] if s["project_id"] is None]
+        self.assertEqual([s["id"] for s in executives], [snapshot["executive_session_id"]])
+        for session in snapshot["sessions"]:
+            if session["id"] in {"ses-pin-exec", "ses-mal-root"}:
+                self.assertEqual(session["role"], "integration owner")
+                self.assertEqual(session["parent_session_id"], snapshot["executive_session_id"])
+        self.assertFalse(any(s["project_id"] == "proj-empty" for s in snapshot["sessions"]))
 
     def test_session_requires_parent_session_id(self):
         schema = self.validator("web-projection-snapshot")

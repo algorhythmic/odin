@@ -33,6 +33,7 @@ Schema: `odin.web.projection.snapshot/v0-draft`.
 | revision | integer | Increases monotonically per projection. Scope is open (section 9). |
 | cursor | string | Opaque resume position. Clients store it and never parse it. |
 | generated_at | string | RFC 3339 UTC time the snapshot was built. |
+| executive_session_id | string or null | The single executive's session, which roots the portfolio tree (redesign, 2026-10-22). `null` when no executive is recorded. |
 | projects | array | `id`, `name`, `summary`, `host`. |
 | commitments | array | `id`, `project_id`, `title`, `status`, `owner`. |
 | assignments | array | `id`, `project_id`, `commitment_id`, `owner_session_id`, `summary`, `progress`. |
@@ -51,7 +52,7 @@ the record has them.
 | Field | Type | Meaning |
 |---|---|---|
 | `id` | string | Stable session id. |
-| `project_id` | string | Owning project. |
+| `project_id` | string or null | Owning project. `null` only for the executive's session, which oversees every project. |
 | `parent_session_id` | string or null | Recorded ancestry parent. `null` makes a root (section 5). |
 | `provenance` | string | `recorded` or `imported`. |
 | `role` | string | Free-text role, for example `worker` or `reviewer`. |
@@ -192,11 +193,21 @@ The transport is not chosen here. W4 records it.
 
 | Case | Placement | Label | Fixture |
 |---|---|---|---|
-| Parent null, `provenance` `recorded` | Root | none | `ses-exec-01`, `ses-pin-exec` |
+| The executive (`executive_session_id`) | Root of the portfolio tree | none | `ses-exec-01` |
+| Parent is the executive, any project | Under the project's grouping node, edge from the executive | none | `ses-integ-01`, `ses-pin-exec` |
+| Parent null, `provenance` `recorded`, not the executive | Root under its project node | none | none in the default fixture |
 | Parent null, `provenance` `imported` | Root | "Imported — parent unknown" | `ses-imported-01` |
 | Parent named, not in this project view | Root | "Parent not in this project view" | `ses-pin-audit` (parent `ses-pin-archived`) |
 | Parent chain loops, including self-parent | Root, one per loop member | "Parent cycle in records" | `ses-mal-cycle-a`, `ses-mal-cycle-b`, `ses-mal-self` |
 | Descendant of a loop member, not on the loop | Child of that member | none | `ses-mal-cycle-child` |
+
+Project nodes are grouping nodes drawn by the client between the
+executive and each project's sessions. They are not sessions and carry no
+ancestry; their connector is drawn and labelled differently ("project").
+Cross-project ancestry is accepted only from the executive: a session
+whose recorded parent is a session in another project is a labelled root
+("Parent in another project"). Labelled roots hang from their project's
+node.
 
 A loop is found by walking `parent_session_id`. If the walk returns to a
 session already on it, every session on the loop is a labelled root.

@@ -22,9 +22,9 @@ const headlineText = (s) => {
   return h === null ? 'unknown' : `${s.tokens.basis === 'estimate' ? 'est. ' : ''}${compact(h)} tok`;
 };
 
-test('no dollar figure anywhere on the overview', async ({ page }) => {
+test('no dollar figure anywhere on the portfolio', async ({ page }) => {
   await page.goto('/#/');
-  await expect(page.getByTestId('overview')).toBeVisible();
+  await expect(page.getByTestId('workspace')).toBeVisible();
   expect(await page.locator('body').innerText()).not.toContain('$');
 });
 
@@ -75,5 +75,5 @@ test('branch totals and the project total sum own tokens once and count unknowns
   }
   const expected = `${estimate ? 'est. ' : ''}${compact(known)} tok + unknown (${unknown})`;
   expect(unknown).toBeGreaterThan(0);
-  await expect(page.getByTestId('project-tokens')).toHaveText(`total ${expected}`);
+  await expect(page.getByTestId('project-tokens')).toHaveText(expected.replace(/unknown \((\d+)\)/, '$1 unknown'));
 });

@@ -2,12 +2,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  parseHash, overviewHref, projectHref, historyHref, projectViewHref, sessionHref,
-  setupHref, settingsHref, PROJECT_VIEWS, SETUP_STEPS, SETTINGS_SECTIONS,
+  parseHash, overviewHref, projectHref, historyHref, sessionHref,
+  setupHref, settingsHref, SETUP_STEPS, SETTINGS_SECTIONS,
 } from '../src/route.js';
 
 test('existing routes keep their shapes and hrefs', () => {
-  for (const hash of ['', '#', '#/', undefined]) assert.deepEqual(parseHash(hash), { view: 'overview' });
+  for (const hash of ['', '#', '#/', undefined]) assert.deepEqual(parseHash(hash), { view: 'portfolio', sid: null });
   assert.equal(overviewHref(), '#/');
   assert.equal(projectHref('p'), '#/projects/p');
   assert.equal(historyHref('p'), '#/projects/p/history');
@@ -17,14 +17,16 @@ test('existing routes keep their shapes and hrefs', () => {
   assert.deepEqual(parseHash(historyHref('p')), { view: 'history', pid: 'p' });
 });
 
-test('every project view round trips with and without session selection', () => {
-  for (const view of PROJECT_VIEWS) {
-    const extra = view === 'tree' ? {} : { projectView: view };
-    assert.deepEqual(parseHash(projectViewHref('p', view)), { view: 'project', pid: 'p', ...extra, sid: null });
-    assert.deepEqual(parseHash(sessionHref('p', 's', view)), { view: 'project', pid: 'p', ...extra, sid: 's' });
+test('portfolio session selection and history round trip', () => {
+  assert.equal(sessionHref(null, 's'), '#/sessions/s');
+  assert.deepEqual(parseHash(sessionHref(null, 's')), { view: 'portfolio', sid: 's' });
+  assert.equal(historyHref(), '#/history');
+  assert.deepEqual(parseHash(historyHref()), { view: 'history' });
+  for (const view of ['queue', 'lanes', 'graph', 'decisions', 'board']) {
+    for (const suffix of ['', '/sessions/s']) {
+      assert.deepEqual(parseHash(`#/projects/p/${view}${suffix}`), { view: 'unknown' });
+    }
   }
-  assert.equal(projectViewHref('p'), projectHref('p'));
-  assert.equal(projectViewHref('p', 'tree'), projectHref('p'));
 });
 
 test('setup and all steps round trip', () => {
@@ -40,18 +42,15 @@ test('all settings sections round trip', () => {
 test('project and session identifiers are encoded separately and decoded once', () => {
   const pid = 'project / #?% 雪';
   const sid = 'session / %2F';
-  for (const view of PROJECT_VIEWS) {
-    assert.equal(parseHash(projectViewHref(pid, view)).pid, pid);
-    const route = parseHash(sessionHref(pid, sid, view));
-    assert.equal(route.pid, pid);
-    assert.equal(route.sid, sid);
-  }
+  assert.equal(parseHash(projectHref(pid)).pid, pid);
+  assert.equal(parseHash(sessionHref(pid, sid)).sid, sid);
+  assert.equal(parseHash(sessionHref(null, sid)).sid, sid);
   assert.equal(parseHash(historyHref(pid)).pid, pid);
 });
 
 test('unknown and incomplete routes are not found', () => {
   for (const hash of [
-    '#/missing', '#/projects', '#/projects/p/tree', '#/projects/p/unknown',
+    '#/sessions', '#/sessions/s/extra', '#/history/extra', '#/missing', '#/projects', '#/projects/p/tree', '#/projects/p/unknown',
     '#/projects/p/queue/sessions', '#/projects/p/queue/sessions/s/extra',
     '#/projects/p/sessions', '#/projects/p/sessions/s/extra', '#/projects/p/history/sessions/s',
     '#/setup/unknown', '#/setup/providers/extra', '#/settings', '#/settings/review',

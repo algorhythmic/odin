@@ -1,5 +1,5 @@
 // Handoff check 9 (synthetic prototype timings): the seeded large dataset
-// (2,000 sessions, 40 roots, depth 8) opened collapsed to its roots. Records
+// (2,000 project sessions, 40 executive starts, depth 8, plus one executive) opened collapsed to its project node. Records
 // first render, expand and select times, and expanding whole depth-8 paths
 // in the tree and the list, in headless Chromium on this machine
 // and writes them before comparing with the proposed targets. The targets
@@ -12,7 +12,8 @@ import { test, expect } from '@playwright/test';
 import { describeLarge, generateLargeSnapshot, LARGE_SEED, LARGE_SPEC } from '../src/fixtures/large.js';
 
 const PID = LARGE_SPEC.projectId;
-const URL = `/?dataset=large#/projects/${PID}`;
+const URL = '/?dataset=large#/';
+const PROJECT = `project:${PID}`;
 const TARGETS = { first_render_ms: 1000, expand_ms: 150, select_ms: 150 };
 const DEEP_PATHS = 3;
 const LOADS = 5;
@@ -46,17 +47,17 @@ const timedClick = (page, selector, done) => page.evaluate(([sel, want]) => new 
 test('large synthetic tree: first render, expand and select timings', async ({ page, browserName }) => {
   test.setTimeout(120_000);
   const data = describeLarge(generateLargeSnapshot());
-  expect(data.sessions).toBe(2000);
+  expect(data.sessions).toBe(2001);
   const snapshot = generateLargeSnapshot();
   const kids = new Map();
   for (const s of snapshot.sessions) if (s.parent_session_id) kids.set(s.parent_session_id, (kids.get(s.parent_session_id) || 0) + 1);
-  const roots = snapshot.sessions.filter((s) => !s.parent_session_id).map((s) => s.id);
+  const roots = snapshot.sessions.filter((s) => s.parent_session_id === snapshot.executive_session_id).map((s) => s.id);
 
   const first = [];
   for (let i = 0; i < LOADS; i += 1) {
     await page.goto('about:blank');
     await page.goto(URL);
-    await expect(page.getByTestId('session-card')).toHaveCount(roots.length);
+    await expect(page.getByTestId('session-card')).toHaveCount(1);
     const t = await page.evaluate(() => new Promise((resolve) => {
       const read = () => performance.getEntriesByName('odin:tree-rendered')[0]?.startTime;
       const poll = () => (read() != null ? resolve(read()) : setTimeout(poll, 5));
@@ -68,13 +69,13 @@ test('large synthetic tree: first render, expand and select timings', async ({ p
 
   // Expand: the roots with the most children, one at a time, collapsing again after.
   const expandIds = [...roots].sort((a, b) => (kids.get(b) || 0) - (kids.get(a) || 0)).slice(0, SAMPLES);
-  const expand = [];
+  const expand = [await timedClick(page, '[data-testid="project-node"]', { cards: roots.length + 1 })];
   for (const id of expandIds) {
     const n = kids.get(id) || 0;
     const sel = `[data-testid="session-card"][data-session-id="${id}"] button.toggle`;
-    expand.push(await timedClick(page, sel, { cards: roots.length + n }));
+    expand.push(await timedClick(page, sel, { cards: roots.length + 1 + n }));
     await page.locator(sel).click();
-    await expect(page.getByTestId('session-card')).toHaveCount(roots.length);
+    await expect(page.getByTestId('session-card')).toHaveCount(roots.length + 1);
   }
 
   // Select: root cards across the forest; done when the detail panel shows it.
@@ -89,7 +90,7 @@ test('large synthetic tree: first render, expand and select timings', async ({ p
     dataset: { ...data, seed: LARGE_SEED },
     method: {
       first_render: `performance mark "odin:tree-rendered" (TreeView first effect) relative to navigation start; ${LOADS} fresh loads of the built app from vite preview on 127.0.0.1`,
-      expand: 'in-page click on a root\'s expand toggle until the expected card count is in the DOM, plus one animation frame',
+      expand: 'in-page click on a project or session expand toggle until the expected card count is in the DOM, plus one animation frame',
       select: 'in-page click on a card title until the detail panel shows that session, plus one animation frame (transcript loads after)',
       browser: `${browserName} headless (Playwright ${test.info().config.version})`,
     },
@@ -112,8 +113,8 @@ test('large synthetic tree: first render, expand and select timings', async ({ p
 // Root-to-leaf paths ending at the deepest sessions, from distinct roots.
 function deepPaths(snapshot, count) {
   const byId = new Map(snapshot.sessions.map((x) => [x.id, x]));
-  const pathTo = (x) => { const p = [x.id]; for (let q = x.parent_session_id; q; q = byId.get(q).parent_session_id) p.unshift(q); return p; };
-  const all = snapshot.sessions.map(pathTo).sort((a, b) => b.length - a.length || a.at(-1).localeCompare(b.at(-1)));
+  const pathTo = (x) => { const p = [x.id]; for (let q = x.parent_session_id; q && q !== snapshot.executive_session_id; q = byId.get(q).parent_session_id) p.unshift(q); return p; };
+  const all = snapshot.sessions.filter((s) => s.id !== snapshot.executive_session_id).map(pathTo).sort((a, b) => b.length - a.length || a.at(-1).localeCompare(b.at(-1)));
   const picked = [];
   for (const p of all) if (!picked.some((q) => q[0] === p[0])) { picked.push(p); if (picked.length === count) break; }
   return picked;
@@ -124,7 +125,7 @@ test('large synthetic tree: expanding depth-8 paths in the tree and the list', a
   const snapshot = generateLargeSnapshot();
   const kids = new Map();
   for (const x of snapshot.sessions) if (x.parent_session_id) kids.set(x.parent_session_id, (kids.get(x.parent_session_id) || 0) + 1);
-  const roots = snapshot.sessions.filter((x) => !x.parent_session_id).length;
+  const roots = snapshot.sessions.filter((x) => x.parent_session_id === snapshot.executive_session_id).length;
   const paths = deepPaths(snapshot, DEEP_PATHS);
   expect(paths.every((p) => p.length === LARGE_SPEC.maxDepth)).toBe(true);
 
@@ -133,18 +134,19 @@ test('large synthetic tree: expanding depth-8 paths in the tree and the list', a
     await page.evaluate(() => localStorage.clear());
     await page.goto('about:blank');
     await page.goto(URL);
-    await expect(page.getByTestId('session-card')).toHaveCount(roots);
+    await expect(page.getByTestId('session-card')).toHaveCount(1);
     if (mode === 'list') {
       await page.getByRole('button', { name: 'List', exact: true }).click();
-      await expect(page.getByRole('treeitem')).toHaveCount(roots);
+      await expect(page.getByRole('treeitem')).toHaveCount(2);
     }
   };
 
   const tree = { step: [], total: [], select: [] };
   for (const p of paths) {
     await fresh('tree');
-    let shown = roots;
-    let total = 0;
+    let shown = roots + 1;
+    let total = await timedClick(page, '[data-testid="project-node"]', { cards: shown });
+    tree.step.push(total);
     for (const id of p.slice(0, -1)) {
       shown += kids.get(id);
       const t = await timedClick(page, `[data-testid="session-card"][data-session-id="${id}"] button.toggle`, { cards: shown });
@@ -160,8 +162,9 @@ test('large synthetic tree: expanding depth-8 paths in the tree and the list', a
   const list = { step: [], total: [] };
   for (const p of paths) {
     await fresh('list');
-    let shown = roots;
-    let total = 0;
+    let shown = roots + 2;
+    let total = await timedClick(page, `[role="treeitem"][data-session-id="${PROJECT}"] [data-testid="list-toggle"]`, { rows: shown });
+    list.step.push(total);
     for (const id of p.slice(0, -1)) {
       shown += kids.get(id);
       const t = await timedClick(page, `[role="treeitem"][data-session-id="${id}"] [data-testid="list-toggle"]`, { rows: shown });
@@ -177,8 +180,8 @@ test('large synthetic tree: expanding depth-8 paths in the tree and the list', a
     dataset: { ...describeLarge(snapshot), seed: LARGE_SEED },
     paths: paths.map((p) => ({ root: p[0], leaf: p.at(-1), depth: p.length, cards_added: p.slice(0, -1).map((id) => kids.get(id)) })),
     method: {
-      step: 'one expand on a depth-8 path, from a fresh load with every branch collapsed: in-page click on the toggle until the expected number of cards (tree) or rows (list) is in the DOM, plus one animation frame',
-      total: 'sum of the 7 steps of one path',
+      step: 'one project or session expand on a depth-8 path, from a fresh load with every branch collapsed: in-page click on the toggle until the expected number of cards (tree) or rows (list) is in the DOM, plus one animation frame',
+      total: 'project expansion plus seven ancestry expansions along one path',
       select: 'in-page click on the depth-8 card title until the detail panel shows it, plus one frame (assignment lookup by index)',
       browser: `${browserName} headless (Playwright ${test.info().config.version})`,
     },

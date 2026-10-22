@@ -2,16 +2,22 @@ import { branchSum, cardElapsed, compactTokens, descendants, getAssignment, isSu
 import { ModelName, ProviderLogo, StatusChip, ToolIcons } from './status.jsx';
 import { TokenCount, TokenSum } from './tokencount.jsx';
 
-export function SessionCard({ session: s, childMap, style, selected, expanded, childCount, entering, onSelect, onToggle }) {
+export function SessionCard({
+  session: s, childMap, style, selected, expanded, childCount, entering, muted, onSelect, onToggle,
+}) {
   const assignment = getAssignment(s.assignment_id);
   const lineage = lineageLabel(s);
   // Stopped sessions and attempts a later attempt replaced are dimmed.
   const dimmed = s.lifecycle === 'retired' || isSuperseded(s);
   // Collapsing hides the whole subtree, so the chip counts descendants.
-  const hidden = childCount ? descendants(s.id, childMap).length : 0;
+  const groups = (childMap.get(s.id) || []).some((node) => node.project);
+  const hidden = groups ? childCount : childCount ? descendants(s.id, childMap).length : 0;
+  const unit = groups ? 'project' : 'session';
+  const classes = ['card', muted && 'branch-muted', selected && 'selected', dimmed && 'card-dimmed', entering && 'card-enter'];
   return (
-    <div class={`card ${selected ? 'selected' : ''} ${dimmed ? 'card-dimmed' : ''} ${entering ? 'card-enter' : ''}`} style={style}
-      data-testid="session-card" data-session-id={s.id} data-parent={s.parent_session_id || ''}
+    <div class={classes.filter(Boolean).join(' ')} style={style}
+      data-project-id={s.project_id || undefined} data-testid="session-card"
+      data-session-id={s.id} data-parent={s.parent_session_id || ''}
       data-lifecycle={s.lifecycle} data-role={s.role} data-dimmed={dimmed || undefined} onClick={() => onSelect(s.id)}>
       <div class="card-head">
         <ProviderLogo model={s.model} />
@@ -42,7 +48,7 @@ export function SessionCard({ session: s, childMap, style, selected, expanded, c
         </span>
         {childCount > 0 && (
           <button type="button" class="toggle child-chip" aria-expanded={expanded}
-            aria-label={`${expanded ? 'Collapse' : 'Expand'} ${hidden} session${hidden > 1 ? 's' : ''} under ${s.role}`}
+            aria-label={`${expanded ? 'Collapse' : 'Expand'} ${hidden} ${unit}${hidden > 1 ? 's' : ''} under ${s.role}`}
             onClick={(e) => { e.stopPropagation(); onToggle(s.id); }}>
             {expanded ? `▾ ${hidden}` : `+${hidden} ›`}
           </button>

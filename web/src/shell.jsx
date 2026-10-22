@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { getProjects, isSynthetic } from './data.js';
-import { overviewHref, projectHref, projectViewHref, sessionHref, setupHref, settingsHref, PROJECT_VIEWS, SETTINGS_SECTIONS } from './route.js';
+import { getExecutive, getProjects, isSynthetic, projectStatus, projectSummary, sessionStatus } from './data.js';
+import { overviewHref, projectHref, setupHref, settingsHref } from './route.js';
+import { friendlyModelName } from './models.js';
 import { updatePrefs, usePrefs } from './prefs.js';
 import { SetupProgressCard } from './setup-page.jsx';
-import { VIEW_LABELS } from './placeholders.jsx';
 
 export function useSidebarNarrow() {
   const [narrow, setNarrow] = useState(() => matchMedia('(max-width: 899px)').matches);
@@ -30,8 +30,13 @@ function ThemeToggle() {
   );
 }
 
-export function Sidebar({ route, narrow, open, onClose }) {
+export function Sidebar({ route, narrow, open, onClose, onHighlight }) {
   const dialogRef = useRef(null);
+  const executive = getExecutive();
+  const executiveStatus = executive && sessionStatus(executive);
+  const hovered = useRef(null);
+  const focused = useRef(null);
+  const highlight = () => onHighlight(route.view === 'portfolio' ? hovered.current || focused.current : null);
   // A native modal supplies focus containment, Escape and focus return.
   useLayoutEffect(() => {
     const dialog = dialogRef.current;
@@ -48,36 +53,33 @@ export function Sidebar({ route, narrow, open, onClose }) {
         {narrow && <button type="button" aria-label="Close menu" onClick={onClose}>×</button>}
       </div>
       <nav class="sidebar-nav" aria-label="Primary" onClick={(e) => { if (narrow && e.target.closest('a')) onClose(); }}>
-        <a href={overviewHref()} aria-current={route.view === 'overview' ? 'page' : undefined}>Overview</a>
-        <h2>Projects</h2>
-        <ul>
-          {getProjects().map((project) => (
-            <li key={project.id}>
-              <a href={projectHref(project.id)} aria-current={route.pid === project.id && route.view === 'project' && !route.projectView ? 'page' : undefined}>
-                {project.name}
+        <a class="sidebar-executive" href={overviewHref()} data-testid="sidebar-executive"
+          aria-current={route.view === 'portfolio' ? 'page' : undefined}>
+          {executive ? <>
+            <span class={`status-dot status-${executiveStatus.key}`} role="img" aria-label={executiveStatus.label} />
+            <span><strong>{executive.role}</strong><small>{friendlyModelName(executive.model)}</small></span>
+          </> : <span>Portfolio · Executive unavailable</span>}
+        </a>
+        <ul class="sidebar-branch">
+          {getProjects().map((project) => {
+            const status = projectStatus(project.id);
+            const counts = projectSummary(project.id);
+            return <li key={project.id}>
+              <a href={projectHref(project.id)} data-testid="sidebar-project" data-project-id={project.id}
+                aria-current={route.pid === project.id ? 'page' : undefined}
+                onMouseEnter={() => { hovered.current = project.id; highlight(); }}
+                onMouseLeave={() => { hovered.current = null; highlight(); }}
+                onFocus={() => { focused.current = project.id; highlight(); }}
+                onBlur={() => { focused.current = null; highlight(); }}>
+                <span class={`status-dot status-${status.key}`} role="img" aria-label={status.label} />
+                <span class="sidebar-project-name">{project.name}</span>
+                <small>{counts.agents}</small>
               </a>
-              {route.pid === project.id && (
-                <ul class="sidebar-views" aria-label={`${project.name} views`}>
-                  {PROJECT_VIEWS.map((view) => (
-                    <li key={view}>
-                      <a href={route.sid ? sessionHref(project.id, route.sid, view) : projectViewHref(project.id, view)}
-                        aria-current={route.view === 'project' && (route.projectView || 'tree') === view ? 'page' : undefined}>
-                        {VIEW_LABELS[view]}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
+            </li>;
+          })}
         </ul>
-        <h2>Setup</h2>
-        <a href={setupHref()} aria-current={route.view === 'setup' ? 'page' : undefined}>Setup guide</a>
-        {SETTINGS_SECTIONS.map((section) => (
-          <a key={section} href={settingsHref(section)} aria-current={route.section === section ? 'page' : undefined}>
-            {section[0].toUpperCase() + section.slice(1)}
-          </a>
-        ))}
+        <a href={setupHref()} aria-current={route.view === 'setup' ? 'page' : undefined}>Setup</a>
+        <a href={settingsHref('providers')} aria-current={route.view === 'settings' ? 'page' : undefined}>Settings</a>
       </nav>
       <footer class="sidebar-footer">
         <SetupProgressCard />

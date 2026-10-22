@@ -10,7 +10,7 @@ export async function shot(page, name) {
 }
 
 export const PID = 'proj-odin-webapp';
-export const sessionUrl = (sid, pid = PID) => `/#/projects/${pid}/sessions/${sid}`;
+export const sessionUrl = (sid, pid = PID) => sid === 'ses-exec-01' ? `/#/sessions/${sid}` : `/#/projects/${pid}/sessions/${sid}`;
 
 // Fixtures are read as JSON so the specs see exactly what the app loads.
 const fixtureDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures');

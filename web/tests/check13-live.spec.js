@@ -64,7 +64,7 @@ test('a delivered session fades in and its connector draws in', async ({ page })
 });
 
 test('running sessions tick elapsed each second and the Running chip spins', async ({ page }) => {
-  await page.goto(`/#/projects/${PID}`);
+  await page.goto('/#/');
   const elapsed = card(page, 'ses-exec-01').getByTestId('elapsed');
   await expect(elapsed).toHaveText('2h 34m 00s');
   // Nothing ticks while the player is stopped.
@@ -95,19 +95,19 @@ test('a session that starts running mid-play ticks only since it appeared', asyn
 
 test('the header summary counts update live with the run', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
-  await expect(summary(page)).toContainText('10 agents · 3 running · 1 needs you · 1 failed ·');
+  await expect(summary(page)).toContainText('9 agents · 2 running');
   await applyNext(page); // evt-001: reviewer running again
-  await expect(summary(page)).toContainText('10 agents · 4 running · 0 needs you · 1 failed ·');
+  await expect(summary(page)).toContainText('9 agents · 3 running');
   await applyNext(page); // evt-002: docs helper appears
-  await expect(summary(page)).toContainText('11 agents · 5 running · 0 needs you · 1 failed ·');
+  await expect(summary(page)).toContainText('10 agents · 4 running');
   // Token totals update live too (a2 gains 19.8k measured on evt-003,
   // which also drops the est. marker from the project total; evt-002's
   // docs helper already added its measured 850 tok).
-  await expect(page.getByTestId('project-tokens')).toContainText('total est. 131.6k tok');
+  await expect(page.getByTestId('project-tokens')).toContainText('est. 89.4k tok');
   await applyNext(page); // duplicate
   await applyNext(page); // evt-003: worker a2 usage measured
   await page.clock.runFor(1000); // let the count animation reach its target
-  await expect(page.getByTestId('project-tokens')).toContainText('total 133.6k tok + unknown (3)');
+  await expect(page.getByTestId('project-tokens')).toContainText('91.3k tok + 3 unknown');
   // And the attention chips track the same counts.
   await expect(page.getByTestId('chip-needs')).toHaveText('0 needs you ˅');
   await expect(page.getByTestId('chip-failed')).toHaveText('1 failed ˅');
@@ -250,7 +250,7 @@ test.describe('reduced motion', () => {
   test.use({ reducedMotion: 'reduce' });
 
   test('new sessions, connectors and the spinner are instant under prefers-reduced-motion', async ({ page }) => {
-    await page.goto(`/#/projects/${PID}`);
+    await page.goto('/#/');
     await speed(page).selectOption('4');
     await toggle(page).click();
     await page.clock.runFor(600); // evt-001, evt-002

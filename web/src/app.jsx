@@ -3,7 +3,6 @@ import { parseHash, overviewHref } from './route.js';
 import { getProject, isSynthetic, useDataVersion } from './data.js';
 import { Sidebar, useSidebarNarrow } from './shell.jsx';
 import { SetupPage } from './setup-page.jsx';
-import { Overview } from './overview.jsx';
 import { Workspace } from './workspace.jsx';
 import { NotFound } from './notfound.jsx';
 import { History } from './history.jsx';
@@ -21,10 +20,12 @@ function useRoute() {
 
 export function App() {
   const route = useRoute();
-  const setupRoute = route.view === 'setup' || route.view === 'settings';
+  const treeRoute = route.view === 'portfolio' || route.view === 'project';
   useDataVersion();
   const narrow = useSidebarNarrow();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [highlight, setHighlight] = useState(null);
+  useEffect(() => { setHighlight(null); }, [route]);
   useEffect(() => { setDrawerOpen(false); }, [route, narrow]);
   const appRef = useRef(null);
   const chromeRef = useRef(null);
@@ -42,22 +43,22 @@ export function App() {
   }, []);
   let body;
   const project = route.pid ? getProject(route.pid) : null;
-  if (route.view === 'overview') body = <Overview />;
+  if (route.view === 'portfolio') body = <Workspace sid={route.sid} highlight={highlight} />;
   else if (route.view === 'setup' || route.view === 'settings') body = <SetupPage step={route.step} section={route.section} />;
-  else if (route.view === 'history' && project) body = <History project={project} />;
+  else if (route.view === 'history' && (!route.pid || project)) body = <History project={project} />;
   else if (route.view === 'project' || route.view === 'history') {
     body = project
-      ? <Workspace key={project.id} project={project} sid={route.sid} view={route.projectView} />
+      ? <Workspace key={project.id} project={project} sid={route.sid} />
       : <NotFound title="Project not found"
           message={`No project "${route.pid}" exists in this data set, or you do not have access to it.`}
-          href={overviewHref()} linkText="Back to the overview" />;
+          href={overviewHref()} linkText="All projects" />;
   } else {
     body = <NotFound title="Page not found" message="This address does not match a project or session route."
-      href={overviewHref()} linkText="Back to the overview" />;
+      href={overviewHref()} linkText="All projects" />;
   }
   return (
     <div class="app" ref={appRef}>
-      <Sidebar route={route} narrow={narrow} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <Sidebar route={route} narrow={narrow} open={drawerOpen} onClose={() => setDrawerOpen(false)} onHighlight={setHighlight} />
       <div class="page">
         <div class="chrome" ref={chromeRef}>
           {narrow && (
@@ -67,7 +68,7 @@ export function App() {
               <a class="brand" href={overviewHref()}>Odin</a>
             </header>
           )}
-          {isSynthetic && !setupRoute && <UpdateDriver />}
+          {isSynthetic && treeRoute && <UpdateDriver />}
         </div>
         <main class="content">{body}</main>
       </div>

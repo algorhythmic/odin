@@ -46,13 +46,13 @@ export function TokenCount({ tokens, testid }) {
 
 // A summed token figure (branch or project total). The known part
 // animates; the " + unknown (n)" suffix is text and updates at once.
-export function TokenSum({ sum, prefix = '', testid }) {
+export function TokenSum({ sum, prefix = '', testid, compactUnknown = false }) {
   const shown = useAnimatedNumber(sum.knownCount ? sum.known : null);
   let text;
   if (shown == null) text = `unknown (${sum.unknown})`;
   else {
     text = `${sum.estimate ? 'est. ' : ''}${compactTokens(shown)} tok`;
-    if (sum.unknown) text += ` + unknown (${sum.unknown})`;
+    if (sum.unknown) text += compactUnknown ? ` + ${sum.unknown} unknown` : ` + unknown (${sum.unknown})`;
   }
   return <span data-testid={testid}>{prefix}{text}</span>;
 }
