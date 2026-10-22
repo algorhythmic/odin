@@ -219,6 +219,17 @@ class DevelopmentHandoverTests(unittest.TestCase):
             executive=True,
         )
         self.assertEqual(claimed["stage"]["state"], "claimed")
+        ready = self.send(
+            "loop_ready",
+            ids | {"session_id": self.successor, "evidence_packet": {}},
+            executive=True,
+        )
+        self.assertEqual(ready["stage"]["id"], self.stage)
+        self.assertEqual(ready["stage"]["state"], "ready")
+        self.assertTrue(ready["completion_marker"])
+        self.assertEqual(
+            self.core.stage(self.stage)["session_id"], self.successor
+        )
         checkpoint = {
             "revision": 1,
             "branch": None,
