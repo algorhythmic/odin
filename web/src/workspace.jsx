@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
-  ancestors, childrenMap, conversationFor, decisionsFor, getSession, projects, rootsFor, sessionsFor,
+  activityFor, ancestors, childrenMap, conversationFor, decisionsFor, getProjects, getSession, observedLabel, rootsFor,
+  sessionsFor,
 } from './data.js';
 import { loadPrefs, savePrefs } from './prefs.js';
-import { projectHref, sessionHref } from './route.js';
+import { historyHref, projectHref, sessionHref } from './route.js';
 import { TreeView } from './tree.jsx';
 import { ListTree } from './list.jsx';
 import { DetailPanel } from './detail.jsx';
 import { NotFound } from './notfound.jsx';
 
 const NARROW = '(max-width: 759px)';
+// Large projects open collapsed to their roots until the user expands them.
+const COLLAPSE_ABOVE = 200;
+
+function defaultCollapsed(pid, childMap) {
+  return sessionsFor(pid).length > COLLAPSE_ABOVE ? [...childMap.keys()] : [];
+}
 
 function useNarrow() {
   const [narrow, setNarrow] = useState(() => matchMedia(NARROW).matches);
@@ -26,9 +33,10 @@ export function Workspace({ project, sid }) {
   const pid = project.id;
   const [prefs, setPrefs] = useState(loadPrefs);
   const narrow = useNarrow();
-  const childMap = useMemo(() => childrenMap(pid), [pid]);
-  const roots = useMemo(() => rootsFor(pid), [pid]);
-  const collapsed = useMemo(() => new Set(prefs.collapsed[pid] || []), [prefs, pid]);
+  // Derived per data version, so update events show without a reload.
+  const childMap = childrenMap(pid);
+  const roots = rootsFor(pid);
+  const collapsed = useMemo(() => new Set(prefs.collapsed[pid] ?? defaultCollapsed(pid, childMap)), [prefs, pid]);
   const selected = sid ? getSession(sid) : null;
   const selectedInProject = selected && selected.project_id === pid ? selected : null;
   const mode = narrow ? 'list' : prefs.mode;
@@ -59,7 +67,7 @@ export function Workspace({ project, sid }) {
       <nav class="project-nav" aria-label="Projects">
         <h2>Projects</h2>
         <ul>
-          {projects.map((p) => (
+          {getProjects().map((p) => (
             <li key={p.id}>
               <a href={projectHref(p.id)} aria-current={p.id === pid ? 'page' : undefined}>{p.name}</a>
             </li>
@@ -72,6 +80,7 @@ export function Workspace({ project, sid }) {
         <div class="toolbar">
           <h1>{project.name}</h1>
           <span class="muted">{sessionsFor(pid).length} sessions, {roots.length} roots</span>
+          <a href={historyHref(pid)}>History</a>
           {!narrow && (
             <div class="segmented" role="group" aria-label="View">
               <button type="button" aria-pressed={mode === 'tree'} onClick={() => update({ mode: 'tree' })}>Tree</button>
@@ -109,6 +118,7 @@ export function Workspace({ project, sid }) {
 
 function Conversation({ pid }) {
   const entries = conversationFor(pid);
+  const activity = activityFor(pid);
   const decisions = decisionsFor(pid).filter((d) => d.status === 'pending');
   return (
     <section class="conversation" aria-labelledby="conv-h">
@@ -119,11 +129,23 @@ function Conversation({ pid }) {
           <div class="muted">Request {d.id} · proposal {d.proposal.id} revision {d.proposal.revision} · {d.proposal.digest}</div>
         </div>
       ))}
-      <ol class="messages">
-        {entries.map((m, i) => (
-          <li key={i}><span class="speaker">{m.speaker}</span> <time class="muted">{m.at}</time><p>{m.text}</p></li>
-        ))}
-      </ol>
+      {entries.length ? (
+        <ol class="messages" data-testid="conversation">
+          {entries.map((m, i) => (
+            <li key={i}><span class="speaker">{m.speaker}</span> <time class="muted">{m.at}</time><p>{m.text}</p></li>
+          ))}
+        </ol>
+      ) : <p class="muted">No planning messages recorded for this project.</p>}
+      <h3 id="activity-h">Recent activity</h3>
+      {activity.length ? (
+        <ol class="activity" aria-labelledby="activity-h" data-testid="activity">
+          {activity.map((a) => (
+            <li key={a.id} data-testid="activity-item" data-kind={a.kind}>
+              <time class="muted">{observedLabel(a.at)}</time> <a href={sessionHref(pid, a.session_id)}>{a.text}</a>
+            </li>
+          ))}
+        </ol>
+      ) : <p class="muted">No activity recorded for this project.</p>}
       <form class="composer" onSubmit={(e) => e.preventDefault()}>
         <label for="composer-input">Message</label>
         <textarea id="composer-input" rows={2} disabled aria-describedby="composer-note" />

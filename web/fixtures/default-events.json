@@ -1,0 +1,121 @@
+{
+  "schema": "odin.web.projection.events/v0-draft",
+  "synthetic": true,
+  "dataset": "default",
+  "base_revision": 0,
+  "note": "Synthetic update events applied in order by the prototype's update driver. evt-002 is delivered twice on purpose (idempotency); evt-005 skips revisions on purpose (gap).",
+  "events": [
+    {
+      "event_id": "evt-001",
+      "revision": 1,
+      "cursor": "cur-default-0001",
+      "at": "2026-10-21T10:46:00Z",
+      "type": "session.lifecycle_changed",
+      "summary": "reviewer resumed work after the operator answered",
+      "payload": {
+        "session_id": "ses-review-exec",
+        "lifecycle": "running",
+        "needs_operator_input": false,
+        "observed_at": "2026-10-21T10:46:00Z"
+      }
+    },
+    {
+      "event_id": "evt-002",
+      "revision": 2,
+      "cursor": "cur-default-0002",
+      "at": "2026-10-21T10:47:00Z",
+      "type": "session.started",
+      "summary": "docs helper started by documentation",
+      "payload": {
+        "session": {
+          "id": "ses-docs-helper",
+          "project_id": "proj-odin-webapp",
+          "parent_session_id": "ses-docs-01",
+          "provenance": "recorded",
+          "role": "docs helper",
+          "assignment_id": "asg-docs",
+          "model": "claude-haiku-5-5",
+          "lifecycle": "running",
+          "needs_operator_input": false,
+          "observed_at": "2026-10-21T10:47:00Z",
+          "stale": false,
+          "cost": {
+            "amount_usd": 0.05,
+            "basis": "measured"
+          },
+          "elapsed_s": 60,
+          "budget": null
+        }
+      }
+    },
+    {
+      "event_id": "evt-002",
+      "revision": 2,
+      "cursor": "cur-default-0002",
+      "at": "2026-10-21T10:47:00Z",
+      "type": "session.started",
+      "summary": "docs helper started by documentation",
+      "payload": {
+        "session": {
+          "id": "ses-docs-helper",
+          "project_id": "proj-odin-webapp",
+          "parent_session_id": "ses-docs-01",
+          "provenance": "recorded",
+          "role": "docs helper",
+          "assignment_id": "asg-docs",
+          "model": "claude-haiku-5-5",
+          "lifecycle": "running",
+          "needs_operator_input": false,
+          "observed_at": "2026-10-21T10:47:00Z",
+          "stale": false,
+          "cost": {
+            "amount_usd": 0.05,
+            "basis": "measured"
+          },
+          "elapsed_s": 60,
+          "budget": null
+        }
+      }
+    },
+    {
+      "event_id": "evt-003",
+      "revision": 3,
+      "cursor": "cur-default-0003",
+      "at": "2026-10-21T10:48:00Z",
+      "type": "session.cost_updated",
+      "summary": "worker attempt 2 cost measured",
+      "payload": {
+        "session_id": "ses-worker-a2",
+        "cost": {
+          "amount_usd": 2.45,
+          "basis": "measured"
+        }
+      }
+    },
+    {
+      "event_id": "evt-004",
+      "revision": 4,
+      "cursor": "cur-default-0004",
+      "at": "2026-10-21T10:49:00Z",
+      "type": "session.retired",
+      "summary": "integration reviewer retired",
+      "payload": {
+        "session_id": "ses-review-integ",
+        "observed_at": "2026-10-21T10:49:00Z"
+      }
+    },
+    {
+      "event_id": "evt-005",
+      "revision": 9,
+      "cursor": "cur-default-0009",
+      "at": "2026-10-21T10:55:00Z",
+      "type": "session.lifecycle_changed",
+      "summary": "arrives after missed revisions",
+      "payload": {
+        "session_id": "ses-docs-01",
+        "lifecycle": "idle",
+        "observed_at": "2026-10-21T10:55:00Z"
+      }
+    }
+  ]
+}

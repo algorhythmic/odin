@@ -112,7 +112,7 @@ button[aria-pressed="true"] { background: var(--accent); color: #fff; border-col
 .card-foot { display: flex; justify-content: space-between; gap: 6px; margin-top: auto; }
 .toggle { padding: 0 6px; font-size: 0.8rem; }
 
-.list-tree { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); }
+.list-tree { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); max-height: min(560px, 60vh); overflow: auto; overflow-anchor: none; position: relative; }
 .list-row { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; padding: 6px 8px; border-bottom: 1px solid var(--border); cursor: pointer; }
 .list-row:last-child { border-bottom: 0; }
 .list-row.selected { background: #e8efff; }
@@ -132,7 +132,8 @@ button[aria-pressed="true"] { background: var(--accent); color: #fff; border-col
 .facts dt { color: var(--muted); }
 .facts dd { margin: 0; }
 .actions-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
-.transcript { list-style: none; padding: 0; margin: 0; }
+.transcript { list-style: none; padding: 0; margin: 0; max-height: 320px; overflow: auto; overscroll-behavior: contain; }
+.pager { display: flex; gap: 8px; align-items: center; margin: 4px 0 8px; }
 .transcript li { border-left: 3px solid var(--border); padding-left: 8px; margin-bottom: 8px; }
 .transcript .gap { border-left-color: var(--offline); color: var(--offline); font-weight: 600; }
 .transcript-text { margin: 2px 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: 0.85em; }
@@ -147,3 +148,10 @@ button[aria-pressed="true"] { background: var(--accent); color: #fff; border-col
   .workspace { grid-template-columns: 170px minmax(0, 1fr) 300px; }
 }
 .card-title[aria-pressed="true"] { background: none; color: inherit; border: 0; }
+.observed { color: var(--offline); font-size: 0.8rem; font-weight: 600; }
+.update-driver { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 6px 16px; background: #eef2ff; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.activity { list-style: none; padding: 0; margin: 0 0 8px; font-size: 0.85rem; }
+.activity li { margin: 2px 0; }
+.history table { border-collapse: collapse; width: 100%; background: var(--surface); }
+.history th, .history td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.history section { margin-bottom: 16px; }

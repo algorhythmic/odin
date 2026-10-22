@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'preact/hooks';
 import { parseHash, overviewHref } from './route.js';
-import { getProject, isSynthetic } from './data.js';
+import { getProject, isSynthetic, useDataVersion } from './data.js';
 import { Overview } from './overview.jsx';
 import { Workspace } from './workspace.jsx';
 import { NotFound } from './notfound.jsx';
+import { History } from './history.jsx';
+import { UpdateDriver } from './driver.jsx';
 
 function useRoute() {
   const [route, setRoute] = useState(() => parseHash(location.hash));
@@ -17,10 +19,12 @@ function useRoute() {
 
 export function App() {
   const route = useRoute();
+  useDataVersion();
   let body;
+  const project = route.pid ? getProject(route.pid) : null;
   if (route.view === 'overview') body = <Overview />;
-  else if (route.view === 'project') {
-    const project = getProject(route.pid);
+  else if (route.view === 'history' && project) body = <History project={project} />;
+  else if (route.view === 'project' || route.view === 'history') {
     body = project
       ? <Workspace key={project.id} project={project} sid={route.sid} />
       : <NotFound title="Project not found"
@@ -41,6 +45,7 @@ export function App() {
         <a class="brand" href={overviewHref()}>Odin</a>
         <nav aria-label="Primary"><a href={overviewHref()}>Overview</a></nav>
       </header>
+      {isSynthetic && <UpdateDriver />}
       <main class="content">{body}</main>
     </div>
   );

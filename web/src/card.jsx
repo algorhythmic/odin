@@ -1,4 +1,4 @@
-import { branchCost, formatCost, formatElapsed, getAssignment, lifecycleLabel, lineageLabel } from './data.js';
+import { branchCost, formatCost, formatElapsed, getAssignment, lifecycleLabel, lineageLabel, observedLabel } from './data.js';
 
 export function SessionCard({ session: s, childMap, style, selected, expanded, childCount, onSelect, onToggle }) {
   const assignment = getAssignment(s.assignment_id);
@@ -16,6 +16,9 @@ export function SessionCard({ session: s, childMap, style, selected, expanded, c
         {s.needs_operator_input && <span class="tag tag-needs-input">Needs input</span>}
         {s.stale && <span class="tag tag-stale">Stale</span>}
       </div>
+      {(s.stale || s.lifecycle === 'host_offline') && (
+        <div class="card-row observed" data-testid="last-observed">Last observed {observedLabel(s.observed_at)}</div>
+      )}
       <div class="card-row muted">{s.model || 'model unknown'}</div>
       {lineage && <div class="card-row lineage" data-testid="lineage-label">{lineage}</div>}
       <div class="card-row muted">

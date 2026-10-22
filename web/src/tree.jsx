@@ -4,7 +4,7 @@ import { RELATION_LABELS, relationshipsFor } from './data.js';
 import { SessionCard } from './card.jsx';
 
 const CARD_W = 220;
-const CARD_H = 172;
+const CARD_H = 190;
 const GAP_X = 24;
 const GAP_Y = 60;
 const PAD = 24;
@@ -96,6 +96,9 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     if (s >= 0.7) setScale(s);
     else el.querySelector('[data-testid="session-card"]')?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
   }, []);
+
+  // Timing mark for the large-tree check: first commit of the tree view.
+  useEffect(() => { performance.mark('odin:tree-rendered'); }, []);
 
   // Keep the selected card in view without moving the user's scroll otherwise.
   useEffect(() => {

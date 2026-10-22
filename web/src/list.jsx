@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { formatCost, getAssignment, lifecycleLabel, lineageLabel } from './data.js';
+import { formatCost, getAssignment, lifecycleLabel, lineageLabel, observedLabel } from './data.js';
 
 // Visible rows in depth-first order. Collapsed branches are not rendered.
 function flatten(roots, childMap, collapsed) {
@@ -24,6 +24,23 @@ export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onT
   const active = rows.find((r) => r.s.id === focusId) ? focusId
     : rows.find((r) => r.s.id === selectedId) ? selectedId : rows[0]?.s.id;
   const moved = useRef(false);
+  // Reading position: the first visible row and its offset from the top.
+  // Rows inserted or removed above it by an update must not move it.
+  const anchor = useRef(null);
+  const remember = () => {
+    const el = ref.current;
+    if (!el) return;
+    // A row with less than a few pixels showing is not the one being read.
+    const row = [...el.children].find((r) => r.offsetTop + r.offsetHeight > el.scrollTop + 4);
+    anchor.current = row && el.scrollTop > 0 ? { id: row.dataset.sessionId, delta: row.offsetTop - el.scrollTop } : null;
+  };
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const a = anchor.current;
+    const row = a && el?.querySelector(`[data-session-id="${CSS.escape(a.id)}"]`);
+    if (row) el.scrollTop = row.offsetTop - a.delta;
+  });
 
   useLayoutEffect(() => {
     if (!moved.current) return;
@@ -55,7 +72,7 @@ export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onT
   };
 
   return (
-    <ul class="list-tree" role="tree" aria-label="Sessions by ancestry" ref={ref} onKeyDown={onKeyDown} data-testid="list-view">
+    <ul class="list-tree" role="tree" aria-label="Sessions by ancestry" ref={ref} onKeyDown={onKeyDown} onScroll={remember} data-testid="list-view">
       {rows.map(({ s, level, kids, pos, size }) => {
         const lineage = lineageLabel(s);
         return (
@@ -71,6 +88,9 @@ export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onT
             <span class={`state state-${s.lifecycle}`} data-testid="state-label">{lifecycleLabel(s.lifecycle)}</span>
             {s.needs_operator_input && <span class="tag tag-needs-input">Needs input</span>}
             {s.stale && <span class="tag tag-stale">Stale</span>}
+            {(s.stale || s.lifecycle === 'host_offline') && (
+              <span class="observed" data-testid="last-observed">Last observed {observedLabel(s.observed_at)}</span>
+            )}
             {lineage && <span class="lineage">{lineage}</span>}
             <span class="muted">{formatCost(s.cost)}</span>
           </li>

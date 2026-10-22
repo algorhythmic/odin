@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import {
   OUTCOME_LABELS, PROGRESS_LABELS, RELATION_LABELS, branchCost, formatCost, formatElapsed, getAssignment,
-  getSession, lifecycleLabel, lineageLabel, loadSessionDetail, relationshipsOf, runsForSession,
+  getSession, inParentCycle, lifecycleLabel, lineageLabel, loadSessionDetail, observedLabel, relationshipsOf,
+  runsForSession, treeParent,
 } from './data.js';
 import { sessionHref } from './route.js';
 
@@ -20,15 +21,21 @@ function recordLabel(id) {
 
 export function DetailPanel({ session: s, childMap, onSelect }) {
   const [detail, setDetail] = useState(null);
+  const [page, setPage] = useState(1);
+  // Keyed on the session id and page only: an update event that changes this
+  // session's record re-renders the panel without reloading the transcript,
+  // so the reading position is kept.
   useEffect(() => {
     let live = true;
     setDetail(null);
-    loadSessionDetail(s.id).then((d) => { if (live) setDetail(d); });
+    loadSessionDetail(s, page).then((d) => { if (live) setDetail(d); });
     return () => { live = false; };
-  }, [s.id]);
+  }, [s.id, page]);
 
   const assignment = getAssignment(s.assignment_id);
-  const parent = s.parent_session_id ? getSession(s.parent_session_id) : null;
+  // The tree parent; null for roots, including cycle members and parents
+  // outside the project, whose recorded parent is shown as text only.
+  const parent = treeParent(s);
   const lineage = lineageLabel(s);
   // A target in another project opens in that project's workspace; an
   // unknown id opens the not-found response rather than doing nothing.
@@ -48,12 +55,15 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
         <dd><span class={`state state-${s.lifecycle}`} data-testid="detail-state">{lifecycleLabel(s.lifecycle)}</span>
           {s.needs_operator_input && <span class="tag tag-needs-input">Needs input</span>}</dd>
         <dt>Observed</dt>
-        <dd>{s.observed_at}{s.stale && <strong class="tag tag-stale"> Stale observation</strong>}</dd>
+        <dd data-testid="detail-observed">{s.observed_at} ({observedLabel(s.observed_at)})
+          {s.stale && <strong class="tag tag-stale"> Stale observation</strong>}
+          {s.lifecycle === 'host_offline' && <> — host not reporting; state may have changed since</>}</dd>
         <dt>Model</dt><dd>{s.model || 'model unknown'}</dd>
         <dt>Provenance</dt><dd>{s.provenance === 'imported' ? 'Imported record' : 'Recorded by Odin'} (synthetic)</dd>
         <dt>Started by</dt>
         <dd data-testid="started-by">
           {parent ? recordLabel(parent.id)
+            : inParentCycle(s) ? `${s.parent_session_id} (recorded parent is part of a cycle; shown as a root, not inferred)`
             : s.parent_session_id ? `${s.parent_session_id} (not in this view; not inferred)`
             : s.provenance === 'imported' ? 'Parent unknown (imported; not inferred)' : 'No recorded parent (root)'}
         </dd>
@@ -123,8 +133,15 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
       <section aria-labelledby="tr-h">
         <h3 id="tr-h">Transcript</h3>
         <p class="muted">Transcript text is untrusted and shown as plain text.</p>
+        {detail && detail.pages > 1 && (
+          <div class="pager" data-testid="transcript-pager">
+            <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)}>Earlier</button>
+            <span>Page {detail.page} of {detail.pages}</span>
+            <button type="button" disabled={page >= detail.pages} onClick={() => setPage(page + 1)}>Later</button>
+          </div>
+        )}
         {!detail ? <p class="muted">Loading…</p> : (
-          <ol class="transcript" data-testid="transcript">
+          <ol class="transcript" data-testid="transcript" tabIndex={0} aria-label="Transcript entries">
             {detail.transcript.map((t, i) => (t.kind === 'gap' ? (
               <li key={`gap-${i}`} class="gap" data-testid="transcript-gap">
                 Transcript gap: entries {t.from_seq}–{t.to_seq} missing. {t.reason}

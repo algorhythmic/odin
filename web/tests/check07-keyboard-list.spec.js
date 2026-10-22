@@ -1,8 +1,9 @@
 // Handoff check 7: keyboard navigation through an equivalent list, state as text,
 // and narrow layouts that keep conversation and decision actions usable.
 import { test, expect } from '@playwright/test';
-import { sessions } from '../src/fixtures/synthetic.js';
-import { PID, shot } from './helpers.js';
+import { PID, shot, snapshot } from './helpers.js';
+
+const { sessions } = snapshot;
 
 const LABELS = ['Running', 'Waiting for input', 'Idle', 'Ended', 'Retired', 'Host offline'];
 const focusedId = (page) => page.evaluate(() => document.activeElement?.dataset.sessionId);

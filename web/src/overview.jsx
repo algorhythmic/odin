@@ -1,4 +1,4 @@
-import { activeWork, attentionItems, commitmentsFor, getAssignment, lifecycleLabel, projects, sessionsFor } from './data.js';
+import { activeWork, attentionItems, commitmentsFor, getAssignment, getProjects, lifecycleLabel, sessionsFor } from './data.js';
 import { projectHref, sessionHref } from './route.js';
 
 export function Overview() {
@@ -23,7 +23,7 @@ export function Overview() {
       <section aria-labelledby="projects-h">
         <h2 id="projects-h">Projects</h2>
         <ul class="project-list">
-          {projects.map((p) => {
+          {getProjects().map((p) => {
             const sessions = sessionsFor(p.id);
             return (
               <li key={p.id}>

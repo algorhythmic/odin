@@ -1,7 +1,8 @@
 // Handoff check 1: ancestry, ownership and review are not conflated.
 import { test, expect } from '@playwright/test';
-import { sessions, relationships, assignments } from '../src/fixtures/synthetic.js';
-import { PID, sessionUrl, shot } from './helpers.js';
+import { PID, sessionUrl, shot, snapshot } from './helpers.js';
+
+const { sessions, relationships, assignments } = snapshot;
 
 const projectSessions = sessions.filter((s) => s.project_id === PID);
 const byId = new Map(sessions.map((s) => [s.id, s]));
@@ -141,4 +142,47 @@ test('overview shows attention items that link to sessions', async ({ page }) =>
   await expect(page).toHaveURL(/sessions\/ses-ops-01$/);
   await expect(page.getByTestId('detail-state')).toHaveText('Host offline');
   await expect(page.getByTestId('own-cost')).toHaveText('cost unknown');
+});
+
+test('go to parent follows recorded ancestry to the root, keeping the target in view', async ({ page }) => {
+  await page.goto(sessionUrl('ses-helper-01'));
+  const view = page.getByTestId('tree-view');
+  for (const id of ['ses-worker-a2', 'ses-integ-01', 'ses-exec-01']) {
+    await page.getByRole('button', { name: 'Go to parent' }).click();
+    await expect(page).toHaveURL(new RegExp(`sessions/${id}$`));
+    const selected = page.locator('[data-testid="session-card"].selected');
+    await expect(selected).toHaveAttribute('data-session-id', id);
+    await expect(selected).toBeInViewport();
+    expect(await view.evaluate((el, sid) => {
+      const v = el.getBoundingClientRect();
+      const c = el.querySelector(`[data-testid="session-card"][data-session-id="${sid}"]`).getBoundingClientRect();
+      return c.left >= v.left - 1 && c.right <= v.right + 1 && c.top >= v.top - 1 && c.bottom <= v.bottom + 1;
+    }, id), `${id} inside the tree viewport`).toBe(true);
+  }
+  await expect(page.getByRole('button', { name: 'Go to parent' })).toBeDisabled();
+  // A review relationship is never followed as parentage.
+  await page.goto(sessionUrl('ses-review-integ'));
+  await page.getByRole('button', { name: 'Go to parent' }).click();
+  await expect(page).toHaveURL(/sessions\/ses-integ-01$/);
+});
+
+test('fit branch on a root fits its whole branch and fit all fits the forest', async ({ page }) => {
+  await page.goto(sessionUrl('ses-exec-01'));
+  await page.getByRole('button', { name: 'Fit branch' }).click();
+  const view = page.getByTestId('tree-view');
+  await expect(view).not.toHaveAttribute('data-scale', '1');
+  const box = await view.boundingBox();
+  const branch = projectSessions.filter((s) => s.id !== 'ses-imported-01').map((s) => s.id);
+  for (const id of branch) {
+    const c = await page.locator(`[data-testid="session-card"][data-session-id="${id}"]`).boundingBox();
+    expect(c.x, `${id} left`).toBeGreaterThanOrEqual(box.x - 1);
+    expect(c.y, `${id} top`).toBeGreaterThanOrEqual(box.y - 1);
+    expect(c.x + c.width, `${id} right`).toBeLessThanOrEqual(box.x + box.width + 1);
+    expect(c.y + c.height, `${id} bottom`).toBeLessThanOrEqual(box.y + box.height + 1);
+  }
+  await page.getByRole('button', { name: 'Fit all' }).click();
+  for (const s of projectSessions) {
+    await expect(page.locator(`[data-testid="session-card"][data-session-id="${s.id}"]`)).toBeInViewport();
+  }
+  await shot(page, 'fit-all');
 });
