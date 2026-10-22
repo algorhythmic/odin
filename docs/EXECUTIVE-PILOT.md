@@ -372,8 +372,12 @@ shell runs it; they are a workflow boundary, not OS isolation.
    newlines are refused anywhere, even inside quotes. Unquoted `$`, globs,
    braces, parentheses, `#` and `!` are refused, as are
    `run_in_background`, a sandbox override and abbreviated long options that
-   could select a refused one. The hook decides this locally and never calls
-   the service, so it still works when the service is down.
+   could select a refused one. When a memory directory is configured, git is
+   refused if it would start inside it (through `-C` or the current
+   directory), because the executive writes there without a permit and a
+   planted git configuration could name a program for git to run. The hook
+   decides this locally and never calls the service, so it still works when
+   the service is down.
 2. **Operator-registered scripts, no permit.** The operator registers a
    script by absolute path:
 
@@ -390,7 +394,13 @@ shell runs it; they are a workflow boundary, not OS isolation.
    requires registering it again. The hook admits a `Bash` call whose first
    word is a registered path whose current hash matches, followed by plain
    arguments and optional `>`, `>>`, `1>`, `2>` or `<` redirections to
-   absolute paths, or `2>&1`. Background execution is allowed. There is no
+   absolute paths, or `2>&1`. A redirection target may not be a registered
+   script (bash reads a script as it runs, so appending to it would add
+   commands), lie inside the state directory, contain a `.git` component or
+   pass through a symlink. Other absolute targets the operator's user can
+   write are allowed. Background execution is allowed. Register scripts, not
+   interpreters: a registered `python` or `sh` would admit any program in its
+   arguments. There is no
    executive tool for registration, and the executive is instructed not to
    change registrations; a permit-admitted command runs with the same user
    authority and could, so this rests on the workflow, not on isolation.
@@ -407,13 +417,16 @@ shell runs it; they are a workflow boundary, not OS isolation.
    not_observed_by_odin` with a note that Odin does not observe the outcome.
    Foreground permits keep the existing completion tracking, unknown-outcome
    blocking of new delegation and operator-only `intervention_reconcile`.
+   A launched background command, like a background registered script, is
+   invisible to the busy guard, so delegated turns may run while it does.
 
 `Write` and `Edit` inside a configured memory directory (below) are also
 admitted without a permit. Each admission without a permit appends one
 record to `executive-pilot/intervention-audit.jsonl` (mode 0600): schema
 version, time, path kind (`read_only`, `registered_script` or
 `memory_directory`), tool and input digest. It holds no command text, file
-content or tool-use identity. If the record cannot be appended, the call is
+content or tool-use identity. The digest is an unkeyed SHA-256, so a short,
+guessable command can be confirmed by hashing candidates. If the record cannot be appended, the call is
 refused. The file is not rotated. Allowed programs still run as the operator:
 git may run a configured pager, textconv or fsmonitor, the Claude Code shell
 may apply the operator's own aliases or functions, and `git -C` into a
@@ -443,7 +456,8 @@ the hook re-checks it on every call, so it applies without a relaunch. A
 `Write` or `Edit` whose real target lies strictly inside that directory, through
 existing real directories, is allowed without a permit. Target paths that are
 symlinks, relative, contain `..`, or resolve outside the directory fall through
-to the normal permit path. `NotebookEdit` and all other tools are
+to the normal permit path, and so does any target with a `.git` component.
+`NotebookEdit` and all other tools are
 unchanged, and `Bash` follows the admission paths above. The check is a path boundary, not an inode boundary: a hard link
 inside the directory is not detected (creating one needs `Bash`, which stays
 permit-gated). It runs at `PreToolUse`, so a concurrent change between the

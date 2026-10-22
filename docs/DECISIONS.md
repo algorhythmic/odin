@@ -2446,7 +2446,10 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
     (`run` beside the state directory) with status actions only. `;`, `&`,
     backticks, `$(`, `<`, `>` and newlines are refused anywhere; `|` joins
     only allowed segments; unquoted `$`, globs, braces, parentheses, `#`
-    and `!` are refused; `run_in_background` is refused. A down service can
+    and `!` are refused; `run_in_background` is refused; git is refused when
+    it would start inside the configured memory directory, and memory-directory
+    writes refuse `.git` components, so the executive cannot plant a git
+    configuration for read-only git to run. A down service can
     therefore still be diagnosed. This exposes nothing beyond native Read,
     except that git, systemd and the operator's shell environment may run
     programs they are already configured to run.
@@ -2457,7 +2460,9 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
     Bash call whose first word is a registered path, with no symlink in any
     component and a current hash equal to the registration, followed by plain
     arguments and optional `>`, `>>`, `1>`, `2>`, `<` redirections to
-    absolute paths or `2>&1`; background is allowed. The hash is checked at
+    absolute paths or `2>&1`; background is allowed. A redirection target may
+    not be a registered script, lie in the state directory, contain `.git` or
+    pass through a symlink. The hash is checked at
     `PreToolUse`, so a change between the check and execution is not
     prevented, and the script itself does whatever its bytes do.
   - *Permits.* Lifetime up to 3600 s (was 300); up to 32 calls (was 8); an
