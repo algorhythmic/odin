@@ -959,6 +959,9 @@
         "session_id": {
           "type": "string",
           "format": "uuid"
+        },
+        "predecessor": {
+          "type": "boolean"
         }
       },
       "required": []

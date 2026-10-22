@@ -2082,10 +2082,10 @@ remain available in every profile.
   D7.11's commitment truth and D24's retained refresh ownership stand. No
   producer contract, Saga guarantee, Mimir review requirement, managed
   session-host gate, X-12/X-15 disposition or handoff is closed.
-- **Cross-reference:** ODIN-ADR-038 (proposed) would let the operator hand a
-  non-terminal loop and its pending stage to a successor native session, for
-  example after `executive-new-session`, instead of binding the loop to its
-  starting session for life.
+- **Cross-reference:** ODIN-ADR-038 (accepted and implemented) lets the
+  operator hand a non-terminal loop and its pending stage to a successor
+  native session, for example after `executive-new-session`, instead of
+  binding the loop to its starting session for life.
 
 ### ODIN-ADR-029 — Structured execution receipts as attributed local evidence
 
@@ -2207,8 +2207,8 @@ remain available in every profile.
   wrong-session refusal, unrelated replies not captured, operator deadline
   control). These are synthetic; live acceptance requires an observed
   activation of the service and bridge.
-- **Cross-reference:** ODIN-ADR-038 (proposed) would re-address a handed-over
-  loop's unacknowledged notices to the successor native session.
+- **Cross-reference:** ODIN-ADR-038 (accepted and implemented) re-addresses a
+  handed-over loop's unacknowledged notices to the successor native session.
 
 ### ODIN-ADR-031 — Measured usage and accountable development orchestration
 
@@ -2269,9 +2269,9 @@ remain available in every profile.
   Code 2.1.308 binary. Live behaviour is unverified, so session views report
   `fork_subagent: "disabled_requested_not_verified"`. Inherited skill models
   and provider fallbacks remain exceptions.
-- **Cross-reference:** ODIN-ADR-038 (proposed) would let the successor of a
-  handed-over loop checkpoint against it and, on request, read its
-  predecessor's latest checkpoint.
+- **Cross-reference:** ODIN-ADR-038 (accepted and implemented) lets the
+  successor of a handed-over loop checkpoint against it and, on request, read
+  its predecessor's latest checkpoint.
 
 ### ODIN-ADR-032 — Native peer messaging for live coordination
 
@@ -2707,10 +2707,17 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
 ### ODIN-ADR-038 — Operator handover of a development loop to a successor native session
 
 - **Date/status:** 2026-10-21; proposed by operator direction ("we need a way
-  to hand a loop from one session to another"). The operator resolved the four
-  open questions the same day (see *Resolved questions*). Not implemented: no
-  handover command, schema field or test exists. The fixed refusal codes under
-  *Diagnosis* are implemented separately and transfer nothing.
+  to hand a loop from one session to another") and accepted by the operator
+  the same day, resolving the four open questions Q1–Q4 (see *Resolved
+  questions*). Implemented 2026-10-22, limited to what the synthetic tests
+  prove: `odin development-handover` (gateway action `loop_handover`), the
+  loop field `previous_session_ids`, the `development_loop.handed_over`
+  history event (which also records the loop's project; the predecessor
+  checkpoint read follows only handovers in the caller's project),
+  `odin_context_status` with `predecessor: true` and the
+  `development_loop_handover` rotation output. Live acceptance — an observed
+  rotation and handover on the pilot — remains open. The fixed refusal codes
+  under *Diagnosis* are implemented separately and transfer nothing.
 - **Problem:** a development loop, its stages and its notices carry the native
   session UUID that started the loop (ODIN-ADR-028, ODIN-ADR-030). A context
   checkpoint that names a loop must come from that session (ODIN-ADR-031).
@@ -2806,17 +2813,19 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
   error, and an unknown loop and another project's loop share one checkpoint
   code. Tests are in `tests/test_usage_gateway.py`. This record does not
   state their results.
-- **Planned checks:** `tests/test_development_handover.py`: each refusal;
+- **Checks:** `tests/test_development_handover.py`: each refusal;
   identical and conflicting replay; the predecessor refused afterwards; the
-  successor's status, claim and checkpoint; a pending stage re-offered under a
-  new delivery ID; unacknowledged notices re-addressed and acknowledged ones
-  kept; the history event; persistence across a service restart; no handover
-  tool on the executive bridge; the voice surface refused; the predecessor
-  checkpoint returned only on request, only across a recorded handover, and
-  `no_recorded_predecessor` otherwise. `tests/test_executive_runtime.py`: the
-  rotation output names the handover command when the previous session owns
-  an active loop, and reports an unmade check when the service is down. Live
-  acceptance needs an observed rotation and handover on the pilot.
+  successor's status, claim, ready and checkpoint; a pending stage re-offered
+  under a new delivery ID; unacknowledged notices re-addressed and
+  acknowledged ones kept; the history event; persistence across a service
+  restart; no handover tool on the executive bridge; the voice surface
+  refused; the predecessor checkpoint returned only on request, only across a
+  recorded handover, and `no_recorded_predecessor` otherwise.
+  `tests/test_executive_runtime.py`: the rotation output names the handover
+  command when the previous session owns an active loop, and reports an
+  unmade check when the service is down. This record does not state their
+  results. Live acceptance needs an observed rotation and handover on the
+  pilot.
 - **Resolved questions (operator, 2026-10-21):**
   - Q1, a claimed or ready stage: always refused, resolved first through
     reconciliation or a stop. Moving it on an operator assertion that the old

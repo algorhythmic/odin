@@ -662,7 +662,7 @@ class NoticeRecoveryTests(unittest.TestCase):
         schema = copy.deepcopy(
             self.store.contracts.validators["development-loop"].schema
         )
-        new_keys = ("deadlines", "attention", "delegation_profile")
+        new_keys = ("deadlines", "attention", "delegation_profile", "previous_session_ids")
         for key in new_keys:
             schema["properties"].pop(key)
         # The 972a92d shape: exactly these properties, additionalProperties false.

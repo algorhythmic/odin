@@ -556,3 +556,12 @@ class ContinuityCheckpoints:
         if session_id is not None: _id(session_id, "session_id")
         row = self.store.db.execute("SELECT body FROM context_checkpoints WHERE project_id=? AND (? IS NULL OR session_id=?) ORDER BY created_at DESC, rowid DESC LIMIT 1", (project_id, session_id, session_id)).fetchone()
         return strict_loads(row[0]) if row else None
+
+    def latest_checkpoint_entry(self, project_id, session_id):
+        """A session's latest checkpoint with its recorded identity and time."""
+        _project(self.store, project_id)
+        _id(session_id, "session_id")
+        row = self.store.db.execute("SELECT operation_id,created_at,body FROM context_checkpoints WHERE project_id=? AND session_id=? ORDER BY created_at DESC, rowid DESC LIMIT 1", (project_id, session_id)).fetchone()
+        if row is None:
+            return None
+        return {"operation_id": row[0], "created_at": row[1], "checkpoint": strict_loads(row[2])}

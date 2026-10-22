@@ -471,6 +471,12 @@ checked against service records. The bridge supplies Fable's native UUID.
 `odin_context_status` and `odin_resume` expose the retained note; commitments,
 assignments and stage state remain authoritative. A note never completes work
 or independently proves that an artifact exists or matches its supplied hash.
+With `predecessor: true`, `odin_context_status` also returns the latest
+checkpoint of the session that most recently handed a loop to the bound
+session, per the recorded `development_loop.handed_over` history events
+(ODIN-ADR-038). The read is on request only, never rewrites the checkpoint,
+and labels it `predecessor_checkpoint`: an attributed claim to reconcile with
+loop status, commitments and git.
 
 Stage native earlier compaction without changing the executive UUID:
 
@@ -679,7 +685,8 @@ something first. Each code is fixed text with no input, path or foreign record:
 | `checkpoint_stage_requires_loop` | A `stage_id` was given without `loop_id` |
 | `checkpoint_revision_not_advanced` | The revision does not exceed this session's latest checkpoint |
 | `checkpoint_binding_mismatch`, `checkpoint_session_mismatch` | A field differs from the bridge's trusted binding |
+| `no_recorded_predecessor` | `odin_context_status` with `predecessor: true`, but no recorded `development_loop.handed_over` event names the calling session as successor |
 
 A loop in another project still returns the generic `access denied` read
-error. A rotated executive session cannot yet take over its predecessor's loop.
-The proposed transfer is ODIN-ADR-038.
+error. A rotated executive session takes over its predecessor's loop only
+through the operator's `loop_handover` transition (ODIN-ADR-038).

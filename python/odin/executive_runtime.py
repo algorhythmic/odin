@@ -20,10 +20,10 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
-from .contracts import ROOT, Contracts, canonical, strict_loads
+from .contracts import ROOT, Contracts, canonical, identifier, strict_loads
 from .executive_admission import SCRIPTS_FILE, registered_scripts, script_digest, script_path
 from .executive_intervention_hook import MEMORY_FILE, memory_directory
-from .executive_mcp import ExecutiveBridge, SocketGateway
+from .executive_mcp import ExecutiveBridge, SocketGateway, ToolFailure
 from .native_peer import guidance as peer_guidance, peer_name
 
 DEFAULT_MODEL = "claude-fable-5-1"
@@ -1238,10 +1238,94 @@ def new_session(state):
         _prepare_loop_files(manifest, base)
         _write(base / "manifest.json", "executive-pilot", manifest)
         receipt.unlink(missing_ok=True)
-    return {
+    result = {
         "previous_native_session_id": previous,
         "native_session_id": manifest["native_session_id"],
         "native_history_preserved": True,
+    }
+    handover = _active_loop_handover(manifest, previous)
+    if handover is not None:
+        result["development_loop_handover"] = handover
+    return result
+
+
+def _active_loop_handover(manifest, previous):
+    """Read-only check: does the rotated session still own a non-terminal loop?
+
+    Rotation never moves a loop. A reachable service returns the predecessor's
+    loops, and a non-terminal one names the exact operator handover command.
+    Any read failure reports an unmade check and the manual step instead.
+    """
+    reason = "executive session rotated"
+    manual = (
+        "run odin development-status --project "
+        + manifest["project"]
+        + " and look for a non-terminal loop owned by "
+        + previous
+        + "; if one is found, run odin development-handover --loop <ID> "
+        "--from-session "
+        + previous
+        + " --to-session "
+        + manifest["native_session_id"]
+        + ' --expected-revision <N> --reason "'
+        + reason
+        + '"'
+    )
+    try:
+        receipt = SocketGateway(manifest["state"], timeout=2)(
+            {
+                "schema_version": 1,
+                "operation_id": identifier(),
+                "action": "loop_status",
+                "payload": {
+                    "project": manifest["project"],
+                    "session_id": previous,
+                },
+            }
+        )
+        if not isinstance(receipt, dict) or "error" in receipt:
+            raise ToolFailure("loop status read failed")
+        loops = receipt["result"]["loops"]
+        if not isinstance(loops, list):
+            raise ToolFailure("loop status receipt malformed")
+        loop = next(
+            (
+                item
+                for item in loops
+                if isinstance(item, dict)
+                and item.get("status") not in {"complete", "stopped"}
+            ),
+            None,
+        )
+        if loop is not None and (
+            not isinstance(loop.get("id"), str)
+            or type(loop.get("revision")) is not int
+        ):
+            raise ToolFailure("loop status receipt malformed")
+    except Exception:
+        return {
+            "checked": False,
+            "reason": "the service did not answer a read-only loop status request",
+            "manual_step": manual,
+        }
+    if loop is None:
+        return None
+    return {
+        "loop_id": loop["id"],
+        "revision": loop["revision"],
+        "command": (
+            "odin development-handover --loop "
+            + str(loop["id"])
+            + " --from-session "
+            + previous
+            + " --to-session "
+            + manifest["native_session_id"]
+            + " --expected-revision "
+            + str(loop["revision"])
+            + ' --reason "'
+            + reason
+            + '"'
+        ),
     }
 
 

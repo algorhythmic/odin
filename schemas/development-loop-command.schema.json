@@ -472,6 +472,44 @@
         "evidence_packet"
       ]
     },
+    "loop_handover": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "loop_id": {
+          "type": "string",
+          "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"
+        },
+        "from_session": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "to_session": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "loop_id",
+        "from_session",
+        "to_session",
+        "expected_revision",
+        "reason"
+      ]
+    },
     "loop_delegate": {
       "type": "object",
       "additionalProperties": false,

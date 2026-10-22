@@ -15,6 +15,7 @@ from unittest.mock import patch
 from jsonschema import ValidationError
 from odin import executive_runtime as runtime
 from odin.contracts import ROOT
+from odin.executive_mcp import ToolFailure
 
 
 class ExecutiveRuntimeTests(unittest.TestCase):
@@ -683,6 +684,88 @@ class ExecutiveRuntimeTests(unittest.TestCase):
             / f"launch-{previous['native_session_id']}.json"
         )
         self.assertEqual(json.loads(archived.read_text())["state"], "not_launched")
+
+    def test_new_session_names_handover_command_for_owned_active_loop(self):
+        manifest = self.prepare()
+        previous = manifest["native_session_id"]
+        loop = {
+            "id": "01K00000000000000000000002",
+            "revision": 7,
+            "status": "executive_pending",
+            "session_id": previous,
+        }
+        receipt = {
+            "schema_version": 1,
+            "operation_id": "01K00000000000000000000003",
+            "label": "fake-backend evidence",
+            "result": {"loops": [loop]},
+        }
+        with patch.object(runtime, "SocketGateway") as socket_gateway:
+            socket_gateway.return_value.return_value = receipt
+            result = runtime.new_session(self.state)
+        socket_gateway.assert_called_once_with(manifest["state"], timeout=2)
+        sent = socket_gateway.return_value.call_args.args[0]
+        self.assertEqual(sent["action"], "loop_status")
+        self.assertEqual(
+            sent["payload"],
+            {"project": manifest["project"], "session_id": previous},
+        )
+        hint = result["development_loop_handover"]
+        self.assertEqual(hint["loop_id"], loop["id"])
+        self.assertEqual(hint["revision"], 7)
+        self.assertEqual(
+            hint["command"],
+            "odin development-handover --loop "
+            + loop["id"]
+            + " --from-session "
+            + previous
+            + " --to-session "
+            + result["native_session_id"]
+            + ' --expected-revision 7 --reason "executive session rotated"',
+        )
+        # Rotation only reports; the loop record itself is never moved here.
+        self.assertNotEqual(result["native_session_id"], previous)
+
+    def test_new_session_reports_unmade_loop_check_when_service_is_down(self):
+        self.prepare()
+        with patch.object(runtime, "SocketGateway") as socket_gateway:
+            socket_gateway.return_value.side_effect = ToolFailure(
+                "Executive service unavailable."
+            )
+            result = runtime.new_session(self.state)
+        hint = result["development_loop_handover"]
+        self.assertFalse(hint["checked"])
+        self.assertTrue(hint["reason"])
+        self.assertIn("development-status", hint["manual_step"])
+        self.assertIn("development-handover", hint["manual_step"])
+        self.assertNotEqual(
+            result["native_session_id"], result["previous_native_session_id"]
+        )
+        # An error receipt or malformed reply is the same unmade check.
+        for bad in ({"error": "PermissionError"}, {"result": {}}, "not json"):
+            with self.subTest(bad=bad), patch.object(
+                runtime, "SocketGateway"
+            ) as socket_gateway:
+                socket_gateway.return_value.return_value = bad
+                again = runtime.new_session(self.state)
+            self.assertFalse(again["development_loop_handover"]["checked"])
+
+    def test_new_session_adds_no_handover_field_without_an_active_loop(self):
+        self.prepare()
+        receipt = {
+            "schema_version": 1,
+            "operation_id": "01K00000000000000000000003",
+            "label": "fake-backend evidence",
+            "result": {"loops": []},
+        }
+        for loops in ([], [{"status": "stopped"}, {"status": "complete"}]):
+            receipt["result"]["loops"] = loops
+            with self.subTest(loops=loops), patch.object(
+                runtime, "SocketGateway"
+            ) as socket_gateway:
+                socket_gateway.return_value.return_value = receipt
+                result = runtime.new_session(self.state)
+            self.assertNotIn("development_loop_handover", result)
 
     def test_launch_uses_identity_read_after_acquiring_runtime_lock(self):
         original = self.prepare(enable_mcp=False)
