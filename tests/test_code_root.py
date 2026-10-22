@@ -15,7 +15,14 @@ from pathlib import Path
 
 from odin import contracts
 from odin import executive_runtime as runtime
-from odin.contracts import DEPLOYMENT_FILE, REPOSITORY_ROOT, ROOT, Contracts, deployment, strict_loads
+from odin.contracts import (
+    DEPLOYMENT_FILE,
+    REPOSITORY_ROOT,
+    ROOT,
+    Contracts,
+    deployment,
+    strict_loads,
+)
 from odin.executive_service import prepare_project
 
 REVISION = "0123456789abcdef0123456789abcdef01234567"
