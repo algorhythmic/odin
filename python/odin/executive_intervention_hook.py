@@ -81,6 +81,9 @@ def _memory_write(tool, inputs, *, memory, state):
     if _unsafe(value):
         return False
     target = Path(value)
+    # Read-only git must never find a configuration the executive wrote.
+    if any(part.lower() == ".git" for part in target.parts):
+        return False
     if any(os.path.islink(part) for part in (target, *target.parents)):
         return False
     if target.exists() and not target.is_file():
@@ -92,12 +95,19 @@ def _memory_write(tool, inputs, *, memory, state):
             inside != real and inside.is_relative_to(real))
 
 
-def local_path(tool, inputs, *, state, memory=None, scripts=None):
+def _memory_root(memory, state):
+    try:
+        return os.path.realpath(memory_directory(memory, state=state)) if memory is not None else None
+    except ValueError:
+        return None
+
+
+def local_path(tool, inputs, *, state, cwd=None, memory=None, scripts=None):
     """Admission path decided without the service, or None."""
     if tool == "Bash":
-        if read_only(inputs, state=state):
+        if read_only(inputs, state=state, cwd=cwd, memory=_memory_root(memory, state)):
             return "read_only"
-        if registered_script(inputs, scripts=scripts):
+        if registered_script(inputs, scripts=scripts, state=state):
             return "registered_script"
         return None
     if _memory_write(tool, inputs, memory=memory, state=state):
@@ -114,7 +124,8 @@ def handle(event, *, state, project, session, gateway=None, memory=None, scripts
         not isinstance(event.get("tool_input"), dict)):
         raise ValueError("invalid_intervention_hook")
     pre = event["hook_event_name"] == "PreToolUse"
-    kind = local_path(event["tool_name"], event["tool_input"], state=state, memory=memory, scripts=scripts)
+    kind = local_path(event["tool_name"], event["tool_input"], state=state, cwd=event["cwd"],
+                      memory=memory, scripts=scripts)
     if kind is not None:
         # Local paths never call the service, so a stopped service can be diagnosed.
         if pre:

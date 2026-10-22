@@ -262,15 +262,42 @@ def _bash_inputs(inputs, *, background):
     command = inputs.get("command")
     if not isinstance(command, str) or not command.strip() or len(command) > 16384:
         return None
-    if inputs.get("dangerouslyDisableSandbox") not in (None, False):
+    # Identity checks: 0 and 1 compare equal to False and True.
+    if inputs.get("dangerouslyDisableSandbox", False) is not False:
         return None
-    if inputs.get("run_in_background") not in (None, False) + ((True,) if background else ()):
+    flag = inputs.get("run_in_background", False)
+    if flag is not False and not (background and flag is True):
         return None
     return command
 
 
-def read_only(inputs, *, state):
-    """True only for a foreground Bash command made entirely of allowed segments."""
+def _inside(path, roots):
+    """True when the real path equals or lies inside one of the real roots."""
+    real = Path(os.path.realpath(path))
+    return any(real == root or real.is_relative_to(root) for root in roots)
+
+
+def _git_directory(args, cwd):
+    """The directory git starts in after its ``-C`` options, or None."""
+    directory, i = cwd, 0
+    while i < len(args) and args[i].startswith("-"):
+        if args[i] == "-C" and i + 1 < len(args):
+            value = args[i + 1]
+            directory = value if os.path.isabs(value) else (
+                os.path.join(directory, value) if directory else None)
+            i += 2
+        else:
+            i += 1
+    return directory if directory and os.path.isabs(directory) else None
+
+
+def read_only(inputs, *, state, cwd=None, memory=None):
+    """True only for a foreground Bash command made entirely of allowed segments.
+
+    ``memory`` is the real path of the configured memory directory. The
+    executive writes there without a permit, so git never starts inside it:
+    a planted git configuration could name a program for git to run.
+    """
     command = _bash_inputs(inputs, background=False)
     if command is None or any(mark in command for mark in READ_ONLY_FORBIDDEN):
         return False
@@ -298,15 +325,31 @@ def read_only(inputs, *, state):
         rule = RULES.get(words[0])
         if rule is None or not rule(words[1:]):
             return False
+        if words[0] == "git" and memory is not None:
+            directory = _git_directory(words[1:], cwd)
+            if directory is None or _inside(directory, [Path(memory)]):
+                return False
     return True
 
 
-def _absolute_target(value):
-    return (isinstance(value, str) and value.startswith("/") and "\x00" not in value and
-            ".." not in value.split("/"))
+def _absolute_target(value, protected):
+    """An absolute redirection target that cannot rewrite Odin's admission inputs.
+
+    A script must not write to itself or another registered script (bash reads
+    a script as it runs), to the state directory with the registry and audit,
+    or into any ``.git`` path, and no existing component may be a symlink.
+    """
+    if (not isinstance(value, str) or not value.startswith("/") or "\x00" in value or
+            ".." in value.split("/") or ".git" in value.lower().split("/")):
+        return False
+    path = Path(value)
+    if any(part.is_symlink() for part in (path, *path.parents)):
+        return False
+    real = Path(os.path.realpath(value))
+    return not any(real == root or (root.is_dir() and real.is_relative_to(root)) for root in protected)
 
 
-def registered_script(inputs, *, scripts):
+def registered_script(inputs, *, scripts, state=None):
     """True for a registered script path whose current hash matches, with plain
     arguments and optional redirections to absolute paths or ``2>&1``."""
     if not scripts:
@@ -324,6 +367,9 @@ def registered_script(inputs, *, scripts):
     expected = next((s["sha256"] for s in scripts if s["path"] == path), None)
     if expected is None or not _safe_file(path):
         return False
+    protected = [Path(os.path.realpath(s["path"])) for s in scripts]
+    if state is not None:
+        protected.append(Path(os.path.realpath(state)))
     i = 1
     while i < len(tokens):
         kind, text, extra = tokens[i]
@@ -337,10 +383,10 @@ def registered_script(inputs, *, scripts):
             if extra != "2" or target[1] != "1":
                 return False
         elif text in (">", ">>"):
-            if extra not in (None, "1", "2") or not _absolute_target(target[1]):
+            if extra not in (None, "1", "2") or not _absolute_target(target[1], protected):
                 return False
         elif text == "<":
-            if extra not in (None, "0") or not _absolute_target(target[1]):
+            if extra not in (None, "0") or not _absolute_target(target[1], protected):
                 return False
         else:
             return False

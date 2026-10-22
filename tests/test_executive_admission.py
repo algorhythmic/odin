@@ -168,7 +168,8 @@ class RegisteredScriptTests(unittest.TestCase):
         runtime.register_script(self.state, path=str(self.script))
 
     def admits(self, command, **inputs):
-        return registered_script({'command': command} | inputs, scripts=registered_scripts(self.state))
+        return registered_script({'command': command} | inputs, scripts=registered_scripts(self.state),
+                                 state=self.state)
 
     def test_registration_records_path_and_hash_privately(self):
         path = self.state / 'executive-pilot' / 'registered-scripts.json'
@@ -220,6 +221,21 @@ class RegisteredScriptTests(unittest.TestCase):
         copy = self.bin / 'copy.sh'; copy.write_bytes(self.script.read_bytes())
         self.script.unlink(); os.symlink(copy, self.script)
         self.assertFalse(self.admits(str(self.script)))
+
+    def test_redirections_cannot_rewrite_admission_inputs(self):
+        # Bash reads a script as it runs, so appending to it would add commands.
+        other = self.bin / 'other.sh'; other.write_text('#!/bin/sh\n')
+        runtime.register_script(self.state, path=str(other))
+        registry = self.state / 'executive-pilot' / 'registered-scripts.json'
+        (self.temp / 'repo' / '.git').mkdir(parents=True)
+        os.symlink(self.temp / 'out', self.temp / 'out-link')
+        for target in [self.script, other, registry, self.state / 'executive-pilot' / AUDIT_FILE,
+                       self.temp / 'repo' / '.git' / 'config', self.temp / 'repo' / '.GIT' / 'x',
+                       self.temp / 'out-link', self.temp / 'out-link' / 'x']:
+            for operator in ['>', '>>', '2>', '<']:
+                with self.subTest(target=target, operator=operator):
+                    self.assertFalse(self.admits(f'{self.script} hello {operator} {target}'))
+        self.assertTrue(self.admits(f'{self.script} hello >> {self.temp / "out.log"} 2>&1'))
 
     def test_removed_registration_refused(self):
         result = runtime.register_script(self.state, path=str(self.script), remove=True)
@@ -302,6 +318,32 @@ class HookLocalPathTests(unittest.TestCase):
             self.assertEqual(set(record), {'schema_version', 'time', 'path', 'tool', 'input_digest'})
         with self.assertRaises(ValidationError):
             Contracts().validate('executive-intervention-audit', records[0] | {'command': 'ls'})
+
+    def test_git_never_starts_inside_the_memory_directory(self):
+        # The executive writes the memory directory without a permit; a planted
+        # git configuration there could name a program for read-only git to run.
+        memory = self.temp / 'memory'; (memory / 'sub').mkdir(parents=True)
+        runtime.configure_memory_directory(self.state, directory=str(memory))
+        configured = str(memory)
+        def decide(command, cwd=None):
+            ev = event(self, command) | ({'cwd': cwd} if cwd else {})
+            return handle(ev, state=self.state, project=self.project, session=self.native,
+                          gateway=lambda c: {'error': 'refused'}, memory=configured)
+        for command, cwd in [(f'git -C {memory} status', None), (f'git -C {memory}/sub log', None),
+                             (f'git -C /tmp -C {memory} status', None), (f'git -C {self.temp} -C memory status', None),
+                             ('git status', str(memory)), ('git -C sub status', str(memory)),
+                             (f'git -C {memory}/sub/.. diff', None), ('git log', 'relative/cwd')]:
+            with self.subTest(command=command, cwd=cwd), self.assertRaises(ValueError):
+                decide(command, cwd)
+        for command in ['git status', f'git -C {self.temp} status', f'ls {memory}', f'cat {memory}/n.md']:
+            with self.subTest(command=command):
+                self.assertEqual(decide(command)['hookSpecificOutput']['permissionDecision'], 'allow')
+        (memory / '.git').mkdir()
+        for target in [memory / '.git' / 'config', memory / '.git', memory / 'sub' / '.GIT']:
+            with self.subTest(target=target), self.assertRaises(ValueError):
+                handle(event(self, tool='Write', tool_input={'file_path': str(target), 'content': 'x'}),
+                       state=self.state, project=self.project, session=self.native,
+                       gateway=lambda c: {'error': 'refused'}, memory=configured)
 
     def test_unwritable_audit_refuses_admission(self):
         path = self.state / 'executive-pilot' / AUDIT_FILE
