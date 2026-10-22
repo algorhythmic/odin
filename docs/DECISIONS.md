@@ -2316,9 +2316,11 @@ remain available in every profile.
   (`SESSION_LIFECYCLE_FIELDS` in `python/odin/delegation.py`). For a known
   session, on either harness and whatever its state, any other field with a
   value is refused before anything changes: `workstream` or `role` alone
-  with `session_identity_fixed_at_create`, anything else (including a field
-  the schema does not define) with `session_options_fixed_at_create`, which
-  wins when both kinds are present. The recorded options stay as they were,
+  with `session_identity_fixed_at_create`, any other field with
+  `session_options_fixed_at_create`, which wins when both kinds are present.
+  A field the tool schema does not define is rejected by schema validation
+  before the service sees it; a direct call to the lifecycle method refuses
+  it with `session_options_fixed_at_create`. The recorded options stay as they were,
   and no runner is signalled. An unknown session is still refused as
   `unknown_session`. The service treats a `null` value as absent; the tool
   schema rejects `null` for every such field except `budget_usd`. A test

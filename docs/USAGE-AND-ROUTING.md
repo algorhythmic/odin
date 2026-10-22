@@ -79,8 +79,8 @@ passed to every claude-code turn as `--disallowedTools`. The harness default is
 --claude-disallowed-tools Agent,Task`. It is off unless configured; the session
 value wins, and an empty list turns it off for that session. Codex sessions
 refuse it. Every session setting is fixed at creation: resume and stop accept
-only `operation_id`, `action`, `session_id` and `reason`. Any other field with
-a value is refused before anything changes, `workstream` or `role` with
+only `operation_id`, `action`, `session_id` and `reason`. Any other schema field
+with a value is refused before anything changes, `workstream` or `role` with
 `session_identity_fixed_at_create` and anything else with
 `session_options_fixed_at_create`; to change a setting, open a new session. An
 unknown session is refused as `unknown_session` first. ODIN-ADR-031's 2026-10-22 amendment records why the operator denies
