@@ -49,6 +49,17 @@ personas in `docs/history/` are evidence, not instructions for you.
   Delegation remains the normal workflow; native hook behavior requires live
   observation after activation. See [usage and routing](docs/USAGE-AND-ROUTING.md).
 
+- ODIN-ADR-034's 2026-10-22 amendment gives the intervention hook three
+  admission paths: allowlisted read-only Bash decided locally without the
+  service (and audited by digest, never command text), operator-registered
+  scripts (`executive-register-script`, path plus SHA-256, rechecked at each
+  admission) and exact permits, now up to 32 calls, 3600 s, `uses` 1–20 and
+  bound `background`. A background permit closes at launch and Odin does not
+  observe its outcome. Everything else is refused. It is a workflow boundary,
+  not OS isolation, and is not active until the operator restarts the service
+  and resumes the executive in delegated mode. See
+  [`docs/EXECUTIVE-PILOT.md`](docs/EXECUTIVE-PILOT.md#executive-admission-paths).
+
 - ODIN-ADR-033 adds an explicitly selected delegated executive role and a
   revision-checked operator transition for existing paused loops. Ordinary
   native implementation tools are removed from that executive; matching

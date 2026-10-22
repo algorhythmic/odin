@@ -2428,6 +2428,60 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
   Memory notes are working notes
   only: they never record, replace or evidence Odin commitments, approvals
   or acceptance.
+- **Amendment (2026-10-22, operator decision, executive intervention
+  permits):** the delegated-mode friction of small operations (the trial
+  kickoff alone cost a full delegated Opus turn) bought no safety, so the
+  hook gains two local paths and permits are relaxed. The boundary is still a
+  native workflow check, not OS isolation.
+  - *Read-only diagnostics without a permit.* The hook admits locally,
+    without calling the service, a foreground Bash call made entirely of
+    allowlisted segments: git read subcommands (including `git -C <path>`,
+    listing-only `branch`, `reflog`/`reflog show`, `worktree list`,
+    `stash list`, `remote -v`), `ls`, `cat`, `head`, `tail`, `wc`, `stat`,
+    `du`, `df`, `find` without `-exec`/`-execdir`/`-delete`/`-ok`/`-fprint*`,
+    `grep`/`rg` without `--pre`, `jq`, `sort`, `uniq`, `cut`, `ps`, `pgrep`,
+    `date`, `uptime`, `id`, `whoami`, `which`, `pwd`, `systemctl --user`
+    `status|show|is-active|is-enabled|list-units|cat`, `journalctl --user`
+    without follow, vacuum, rotate or flush options, and the pilot launcher
+    (`run` beside the state directory) with status actions only. `;`, `&`,
+    backticks, `$(`, `<`, `>` and newlines are refused anywhere; `|` joins
+    only allowed segments; unquoted `$`, globs, braces, parentheses, `#`
+    and `!` are refused; `run_in_background` is refused. A down service can
+    therefore still be diagnosed. This exposes nothing beyond native Read,
+    except that git, systemd and the operator's shell environment may run
+    programs they are already configured to run.
+  - *Operator-registered scripts.* `executive-register-script --path <abs>`
+    (and `--remove`) is an operator-only CLI action with no executive tool. It
+    stores the path and SHA-256 in `executive-pilot/registered-scripts.json`,
+    refusing relative, non-normalized and symlinked paths. The hook admits a
+    Bash call whose first word is a registered path, with no symlink in any
+    component and a current hash equal to the registration, followed by plain
+    arguments and optional `>`, `>>`, `1>`, `2>`, `<` redirections to
+    absolute paths or `2>&1`; background is allowed. The hash is checked at
+    `PreToolUse`, so a change between the check and execution is not
+    prevented, and the script itself does whatever its bytes do.
+  - *Permits.* Lifetime up to 3600 s (was 300); up to 32 calls (was 8); an
+    optional `uses` (1–20) expands into that many single-use permits for an
+    identical call; an optional `background: true` per Bash call binds
+    `run_in_background` into the input digest. A background permit closes at
+    launch (`launched`), is never an unknown outcome, and its view states
+    that Odin does not observe the outcome. Sandbox overrides stay refused.
+  - *Kept.* The busy guard for permit begin and admission while delegated
+    turns are queued or running; unknown-outcome tracking and operator-only
+    reconcile; fail-closed refusal of anything matching none of the paths,
+    with a refusal message that names the three paths; delegation as the
+    default for implementation work.
+  - *Audit.* Each admission without a permit (read-only, registered script,
+    memory directory) appends a private JSONL record (time, path kind, tool,
+    input digest; no command text) to `executive-pilot/intervention-audit.jsonl`.
+    The hook refuses the call if it cannot append the record.
+  - *Checks.* `tests/test_executive_admission.py` covers allowlist accept and
+    reject tables (injections, writing options, background), registered
+    scripts (hash mismatch, symlink, relative path, removal, extra shell
+    operators), permit bounds, `uses`, background binding and view, admission
+    with the service unavailable (a real hook process with no socket) and the
+    content-free audit. Live native behavior needs observation after the
+    operator's activation.
 
 ### ODIN-ADR-036 — Workstream delegation sessions and a single integration owner
 
