@@ -921,8 +921,8 @@ subagents, compactor, triage, decision models):
   foundational, for any Codex adapter (D24.4c).
 - Quota behaviour: queue or pause when the selected account reaches its
   limit; switching to paid API usage only through an explicitly
-  configured fallback; the `now` block and the overview show the state
-  (D24.5).
+  configured fallback; the `now` block and the web app overview
+  (ODIN-ADR-037) show the state (D24.5).
 - The operator's development login and the managed agents' login stay
   separate; Odin's planning sessions and the workers may use different
   modes (D24.6).

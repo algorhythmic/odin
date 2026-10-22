@@ -365,7 +365,7 @@ joint Saga and Odin decision record frozen at
 | D24.4a | Refresh ownership for Odin's planner credentials | Odin | IO §11 | locked | — |
 | D24.4b | Refresh ownership for worker lineages (Claude `setup-token` or per-lineage login; Codex `auth.json` per worker) | Saga | — | locked | — |
 | D24.4c | Codex app-server externally managed token mode stays experimental, not foundational | Odin (a Codex adapter) | IO §11 | locked | — |
-| D24.5 | Quota behaviour: queue or pause at the limit; paid fallback only when configured; shown in `now` and the overview | Odin (its sessions and display); Saga (worker launches) | IO §5 `now`, §11; AC-23 | locked | — |
+| D24.5 | Quota behaviour: queue or pause at the limit; paid fallback only when configured; shown in `now` and the web app overview (ODIN-ADR-037) | Odin (its sessions and display); Saga (worker launches) | IO §5 `now`, §11; AC-23 | locked | — |
 | D24.6 | Account separation: development login vs managed agents; planning and workers may use different modes | Shared rule | AGENTS.md; IO §11 | locked | — |
 | D24.7 | Credential lineages: establish, persist in Saga's secret store, single refresher, retire; launcher injects; no shared writable credential directory after the shadow period | Saga | — | locked | — |
 | D24.8a | Default: planning sessions on `api` (included credits) | Odin | DECISIONS.md D24; IO §11, §15 | default, pending operator confirmation | Source heading says locked; source §5 q12 asks for confirmation and the source contract said "proposed" (review N8). Saga's map records the same status as `D24.d`. Billing re-test open |
