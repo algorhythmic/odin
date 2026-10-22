@@ -83,6 +83,20 @@ section conflicts with later sections, this section wins.
    sibling slide 420 ms, all on `cubic-bezier(0.32, 0.72, 0.24, 1)`), and
    is instant under `prefers-reduced-motion`.
 
+7. **The overview returns as the sidebar** (operator, after R3a). The
+   left panel becomes a compact, detailed dashboard that adapts to its
+   width: the executive and the project branch, the attention items
+   (needs you, failed) and portfolio activity, and a **usage meter per
+   connected provider sign-in**. Setup and Settings move to the bottom
+   beside the theme toggle. The panel can be collapsed to a narrow rail
+   with a button, and resized by dragging its edge. Usage meters show the
+   W3a limit-probe windows of each sign-in (for example
+   `claude.five_hour`, `claude.weekly`, `codex.five_hour`) as utilization
+   percentages with reset times and Odin's admission band
+   ([usage and routing](../USAGE-AND-ROUTING.md)), plus token usage; an
+   unavailable probe reads "unavailable", never 0, and there are no
+   prices. The prototype uses synthetic samples.
+
 ADR-037 records its layout (an overview page, a planning conversation or
 activity area) as default design rather than accepted direction; this
 revision replaces that layout for the prototype. Its accepted parts (the
@@ -294,6 +308,7 @@ Playwright specs for what it adds.
 | R1 | App shell (sidebar, drawer on narrow screens), refreshed tokens, project view switcher and routes for all six views; Queue, Lanes, Graph, Decisions and Board render a placeholder stating what they will show and which records they need | — |
 | R2 | `fixtures/setup.json`, the onboarding wizard (`#/setup`), settings pages and synthetic in-memory apply; the overview's setup guide card | R1 |
 | R3a | Portfolio tree (revised direction 1–5): single executive root, project grouping nodes, sidebar branch with highlight and scope, one-line header, removal of the overview page, conversation panel, Projects toggle and deferred views; fixtures, draft schema and Python test for `executive_session_id` | R2 |
+| R3c | Sidebar dashboard (revised direction 7): overview content, provider usage meters, Setup and Settings at the bottom, collapse to a rail, drag to resize | R3a |
 | R3b | Live simulation (revised direction 6): continuous create, work, finish and remove through the event rules, with the observed Agent Tree motion; card presentation pass (harness tag, fold to one line) | R3a |
 | Deferred | Decision Tree, Agent Queue and Delegate Board, Agent Lanes, Agent Graph (formerly R4–R7) | operator decision |
 
