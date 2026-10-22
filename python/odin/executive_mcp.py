@@ -201,7 +201,7 @@ TOOL_DESCRIPTIONS = {
         "The service checks the requested loop profile. Native subagent use and models require observed evidence."
     ),
     "odin_usage_status": ("Read observed usage, missing telemetry and next-work admission policy. Token counts are not subscription quota or an enforced spend ceiling."),
-    "odin_context_status": ("Read the latest bounded, attributed context checkpoint; reconcile it with canonical commitments and live stage status."),
+    "odin_context_status": ("Read the latest bounded, attributed context checkpoint; reconcile it with canonical commitments and live stage status. With predecessor: true, also read the latest checkpoint of the session that most recently handed a loop to this one (refused with no_recorded_predecessor when no handover is recorded); it stays the predecessor's attributed claim to reconcile, never rewritten state."),
     "odin_context_checkpoint": ("Save a bounded continuation note before compaction: revision, worktree, artifacts, obligations, reviews, stable operation IDs and next action. Does not complete work or compact the native session."),
     "odin_loop_claim": (
         "Claim an offered development-evaluator message before acting on it. "
@@ -355,6 +355,13 @@ class ExecutiveBridge:
         # command field. Canonical records and operator responses stay intact.
         view = payload.pop("view", "compact")
         if name in LOOP_TOOLS or (name == "odin_usage_status" and self.session_id):
+            payload["session_id"] = self.session_id
+        elif (
+            name == "odin_context_status"
+            and payload.get("predecessor")
+            and self.session_id
+        ):
+            # A predecessor lookup is bound to this session, never a claimed one.
             payload["session_id"] = self.session_id
         operation = payload.pop("operation_id", None) or identifier()
         command = {

@@ -221,6 +221,15 @@ The reset requires the launch/credential locks to be free, archives launch
 metadata and retains native transcripts. It does not erase project records
 or recover a failed operation by silently replaying it.
 
+Rotation never moves a development loop. After rotating, the command reads
+the service for a non-terminal loop still owned by the previous session;
+when one exists the output includes `development_loop_handover` with the
+loop's ID, its revision and the exact `odin development-handover` command
+for the operator to run. If the service cannot be reached the check is
+reported unmade (`checked: false`) and the output names the manual step:
+inspect `odin development-status` for a loop owned by the previous session,
+then run `development-handover`.
+
 ## Delegate work through Odin
 
 Version 3 has two delegation paths. Native subagents (the Agent tool) suit

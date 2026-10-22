@@ -8,7 +8,7 @@ from odin.contracts import identifier, strict_loads
 from odin.coordination import Actor
 from odin.executive_mcp import ExecutiveBridge
 from odin.executive_service import prepare_project, submit_executive
-from odin.gateway import Gateway, GatewayContext
+from odin.gateway import Gateway, GatewayContext, error_result
 from odin.service import Service
 from odin.store import Conflict
 
@@ -124,6 +124,19 @@ class DevelopmentHandoverTests(unittest.TestCase):
             },
             identifier(),
         )
+
+    def checkpoint(self, summary, **extra):
+        return {
+            "revision": 1,
+            "branch": "codex/synthetic",
+            "worktree": "/tmp/synthetic",
+            "artifact_refs": [],
+            "open_obligations": [],
+            "pending_reviews": [],
+            "operation_ids": [],
+            "next_action": "continue",
+            "summary": summary,
+        } | extra
 
     def payload(self, **overrides):
         loop = self.core.get(self.loop)
@@ -476,6 +489,156 @@ class DevelopmentHandoverTests(unittest.TestCase):
         with self.assertRaises(PermissionError):
             self.gateway.submit(command, context=self.operator)
         self.assertEqual(self.core.get(self.loop)["session_id"], self.session)
+
+    def test_predecessor_checkpoint_returned_only_on_request(self):
+        self.pending_loop()
+        operation = identifier()
+        saved = self.send(
+            "context_checkpoint",
+            {
+                "session_id": self.session,
+                # Deliberately unbound: the read never requires a loop field.
+                "checkpoint": self.checkpoint("predecessor working notes"),
+            },
+            operation,
+            executive=True,
+        )
+        self.send("loop_handover", self.payload())
+        plain = self.send(
+            "context_status", {"session_id": self.successor}, executive=True
+        )
+        self.assertNotIn("predecessor_checkpoint", plain)
+        self.assertNotIn("predecessor_session_id", plain)
+        view = self.send(
+            "context_status",
+            {"session_id": self.successor, "predecessor": True},
+            executive=True,
+        )
+        # The caller's own checkpoint field is unchanged; the predecessor's
+        # is an attributed claim with identity, id, time and a reconcile note.
+        self.assertIsNone(view["checkpoint"])
+        self.assertEqual(view["predecessor_session_id"], self.session)
+        entry = view["predecessor_checkpoint"]
+        self.assertEqual(entry["session_id"], self.session)
+        self.assertEqual(entry["checkpoint_id"], operation)
+        self.assertTrue(entry["recorded_at"])
+        self.assertEqual(entry["checkpoint"], saved["checkpoint"])
+        self.assertIn("reconcile", entry["claim"])
+
+    def test_predecessor_checkpoint_requires_recorded_handover(self):
+        self.pending_loop()
+        for payload in (
+            {"session_id": self.successor, "predecessor": True},
+            {"predecessor": True},
+        ):
+            with self.subTest(payload=payload), self.assertRaisesRegex(
+                Conflict, "no_recorded_predecessor"
+            ):
+                self.send("context_status", payload, executive=True)
+        # The session that handed a loop away has no recorded predecessor.
+        self.send("loop_handover", self.payload())
+        with self.assertRaisesRegex(Conflict, "no_recorded_predecessor"):
+            self.send(
+                "context_status",
+                {"session_id": self.session, "predecessor": True},
+                executive=True,
+            )
+
+    def test_predecessor_checkpoint_through_bridge(self):
+        self.pending_loop()
+        self.send("loop_handover", self.payload())
+
+        def socket(command):
+            try:
+                return submit_executive(
+                    self.gateway, {"command": command}, self.project
+                )
+            except Exception as error:  # noqa: BLE001 - as the serve handler
+                return error_result(error, "synthetic")
+
+        bridge = ExecutiveBridge(
+            self.project, socket, development_loop=True,
+            session_id=self.successor,
+        )
+        definition = next(
+            tool for tool in bridge.tools() if tool["name"] == "odin_context_status"
+        )
+        self.assertEqual(
+            definition["inputSchema"]["properties"]["predecessor"],
+            {"type": "boolean"},
+        )
+        # A handover exists but the predecessor never wrote a checkpoint:
+        # the entry is null and the predecessor session is named.
+        result = strict_loads(
+            bridge.call("odin_context_status", {"predecessor": True})[
+                "content"
+            ][0]["text"]
+        )["result"]
+        self.assertIsNone(result["predecessor_checkpoint"])
+        self.assertEqual(result["predecessor_session_id"], self.session)
+        # The bound session identity is used even when another is supplied.
+        result = strict_loads(
+            bridge.call(
+                "odin_context_status",
+                {"predecessor": True, "session_id": self.session},
+            )["content"][0]["text"]
+        )["result"]
+        self.assertEqual(result["predecessor_session_id"], self.session)
+        # Without a recorded handover the refusal is a fixed code.
+        rotated = ExecutiveBridge(
+            self.project, socket, development_loop=True,
+            session_id=self.session,
+        )
+        refused = rotated.call("odin_context_status", {"predecessor": True})
+        self.assertTrue(refused["isError"])
+        self.assertEqual(
+            refused["content"][0]["text"],
+            "Executive service refused the request: no_recorded_predecessor.",
+        )
+
+    def test_predecessor_is_the_most_recent_recorded_hander(self):
+        self.pending_loop()
+        third = str(uuid.uuid4())
+        for session, summary in (
+            (self.session, "first owner"),
+            (third, "third owner"),
+        ):
+            self.send(
+                "context_checkpoint",
+                {
+                    "session_id": session,
+                    "checkpoint": self.checkpoint(summary),
+                },
+                executive=True,
+            )
+        # session -> successor -> third -> successor: history, not the loop
+        # field, decides that the successor's predecessor is the third session.
+        self.send("loop_handover", self.payload())
+        self.send(
+            "loop_handover",
+            self.payload(from_session=self.successor, to_session=third),
+        )
+        self.send(
+            "loop_handover",
+            self.payload(from_session=third, to_session=self.successor),
+        )
+        view = self.send(
+            "context_status",
+            {"session_id": self.successor, "predecessor": True},
+            executive=True,
+        )
+        self.assertEqual(view["predecessor_session_id"], third)
+        self.assertEqual(
+            view["predecessor_checkpoint"]["checkpoint"]["summary"],
+            "third owner",
+        )
+        # The middle session's own recorded predecessor is still resolvable.
+        view = self.send(
+            "context_status",
+            {"session_id": third, "predecessor": True},
+            executive=True,
+        )
+        self.assertEqual(view["predecessor_session_id"], self.successor)
 
 
 if __name__ == "__main__":

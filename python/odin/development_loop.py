@@ -1439,6 +1439,21 @@ class DevelopmentLoop:
 
         return self._mutate(operation_id, "handover", arguments, apply)
 
+    def predecessor_session(self, session_id):
+        """The session that most recently handed a loop to ``session_id``.
+
+        The recorded ``development_loop.handed_over`` history events are the
+        authority, not the loop's ``previous_session_ids`` view.
+        """
+        row = self.store.db.execute(
+            "SELECT body FROM history "
+            "WHERE json_extract(body,'$.kind')='development_loop.handed_over' "
+            "AND json_extract(body,'$.payload.to_session')=? "
+            "ORDER BY seq DESC LIMIT 1",
+            (session_id,),
+        ).fetchone()
+        return strict_loads(row[0])["payload"]["from_session"] if row else None
+
     def configure_delegation(
         self, loop_id, stage_id, session_id, profile, operation_id, *, expected_revision
     ):

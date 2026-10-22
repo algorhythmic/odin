@@ -21,6 +21,34 @@ def scope(gateway, payload):
             raise PermissionError("usage stage scope mismatch")
 
 
+def _predecessor(gateway, project, session_id):
+    """The latest checkpoint of the session that most recently handed a loop
+    to ``session_id``, resolved from recorded ``handed_over`` history.
+
+    Checkpoints stay attributed to the session that wrote them and are never
+    rewritten; this read returns one verbatim as an attributed claim.
+    """
+    if not isinstance(session_id, str):
+        raise Refused("no_recorded_predecessor")
+    predecessor = gateway.development_loop.predecessor_session(session_id)
+    if predecessor is None:
+        raise Refused("no_recorded_predecessor")
+    view = {"predecessor_session_id": predecessor, "predecessor_checkpoint": None}
+    record = gateway.checkpoints.latest_checkpoint_entry(project, predecessor)
+    if record is not None:
+        view["predecessor_checkpoint"] = {
+            "session_id": predecessor,
+            "checkpoint_id": record["operation_id"],
+            "recorded_at": record["created_at"],
+            "checkpoint": record["checkpoint"],
+            "claim": (
+                "attributed note written by the predecessor session; reconcile "
+                "it with loop status, commitments and git before relying on it"
+            ),
+        }
+    return view
+
+
 def dispatch(gateway, action, payload, context, operation):
     if context.actor.subject != "fable-executive" or action not in EXECUTIVE_ACTIONS:
         gateway._operator(context)
@@ -75,8 +103,11 @@ def dispatch(gateway, action, payload, context, operation):
         return {"usage": view, "policy": gateway.usage_policy.get(project),
                 "admission": gateway.usage_policy.check(project, purpose="status", session_id=payload.get("session_id"))}
     if action == "context_status":
-        return {"checkpoint": gateway.checkpoints.latest_checkpoint(project, payload.get("session_id")),
-                "verification": "attributed_summary_not_canonical_state"}
+        result = {"checkpoint": gateway.checkpoints.latest_checkpoint(project, payload.get("session_id")),
+                  "verification": "attributed_summary_not_canonical_state"}
+        if payload.get("predecessor"):
+            result.update(_predecessor(gateway, project, payload.get("session_id")))
+        return result
     if action == "context_checkpoint":
         item = payload["checkpoint"]
         if item.get("session_id", payload["session_id"]) != payload["session_id"]:
