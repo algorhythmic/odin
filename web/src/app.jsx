@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { parseHash, overviewHref } from './route.js';
 import { getProject, isSynthetic, useDataVersion } from './data.js';
 import { updatePrefs, usePrefs } from './prefs.js';
@@ -37,6 +37,20 @@ function ThemeToggle() {
 export function App() {
   const route = useRoute();
   useDataVersion();
+  const appRef = useRef(null);
+  const chromeRef = useRef(null);
+  // The pinned header's real height, published as --chrome-h so the toolbar
+  // and the detail drawer can sit exactly below it at any wrap width.
+  useLayoutEffect(() => {
+    const app = appRef.current;
+    const chrome = chromeRef.current;
+    if (!app || !chrome) return undefined;
+    const set = () => app.style.setProperty('--chrome-h', `${chrome.offsetHeight}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(chrome);
+    return () => ro.disconnect();
+  }, []);
   let body;
   const project = route.pid ? getProject(route.pid) : null;
   if (route.view === 'overview') body = <Overview />;
@@ -52,19 +66,21 @@ export function App() {
       href={overviewHref()} linkText="Back to the overview" />;
   }
   return (
-    <div class="app">
-      <header class="topbar">
-        <a class="brand" href={overviewHref()}>Odin</a>
-        <nav aria-label="Primary"><a href={overviewHref()}>Overview</a></nav>
-        <span class="topbar-space" />
-        {isSynthetic && (
-          <span class="synthetic-badge" role="note" data-testid="synthetic-badge"
-            aria-label="Synthetic data — prototype, not connected to Odin's service"
-            title="Prototype, not connected to Odin's service">Synthetic data</span>
-        )}
-        <ThemeToggle />
-      </header>
-      {isSynthetic && <UpdateDriver />}
+    <div class="app" ref={appRef}>
+      <div class="chrome" ref={chromeRef}>
+        <header class="topbar">
+          <a class="brand" href={overviewHref()}>Odin</a>
+          <nav aria-label="Primary"><a href={overviewHref()}>Overview</a></nav>
+          <span class="topbar-space" />
+          {isSynthetic && (
+            <span class="synthetic-badge" role="note" data-testid="synthetic-badge"
+              aria-label="Synthetic data — prototype, not connected to Odin's service"
+              title="Prototype, not connected to Odin's service">Synthetic data</span>
+          )}
+          <ThemeToggle />
+        </header>
+        {isSynthetic && <UpdateDriver />}
+      </div>
       <main class="content">{body}</main>
     </div>
   );

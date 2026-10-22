@@ -33,6 +33,10 @@ export function Workspace({ project, sid }) {
   const pid = project.id;
   const prefs = usePrefs();
   const narrow = useNarrow();
+  // Secondary panels around the full-page tree: the project list and the
+  // planning conversation are toggles, session details open as a drawer.
+  const [showProjects, setShowProjects] = useState(false);
+  const [showConv, setShowConv] = useState(true);
   // Derived per data version, so update events show without a reload.
   const childMap = childrenMap(pid);
   const roots = rootsFor(pid);
@@ -62,55 +66,66 @@ export function Workspace({ project, sid }) {
   }, [sid]);
 
   return (
-    <div class={`workspace ${narrow ? 'narrow' : ''}`} data-testid="workspace" data-mode={mode}>
-      <nav class="project-nav" aria-label="Projects">
-        <h2>Projects</h2>
-        <ul>
-          {getProjects().map((p) => (
-            <li key={p.id}>
-              <a href={projectHref(p.id)} aria-current={p.id === pid ? 'page' : undefined}>{p.name}</a>
-            </li>
-          ))}
-        </ul>
-        <p class="muted">Host: {project.host}</p>
-      </nav>
+    <div class={`workspace ${narrow ? 'narrow' : ''} ${sid ? 'has-detail' : ''}`} data-testid="workspace" data-mode={mode}>
+      <div class="toolbar">
+        <h1>{project.name}</h1>
+        <span class="muted">{sessionsFor(pid).length} sessions, {roots.length} roots · <span data-testid="project-tokens">total {projectTokens(pid)}</span></span>
+        <a href={historyHref(pid)}>History</a>
+        <button type="button" aria-expanded={showProjects} onClick={() => setShowProjects((v) => !v)}>Projects</button>
+        <button type="button" aria-expanded={showConv} onClick={() => setShowConv((v) => !v)}>Conversation</button>
+        {mode === 'tree' && (
+          <label class="check">
+            <input type="checkbox" checked={prefs.showRelations}
+              onChange={(e) => update({ showRelations: e.currentTarget.checked })} />
+            Show typed relationships
+          </label>
+        )}
+        {/* Segmented is last: Tab from List must reach the list's roving
+            treeitem before any other control. */}
+        {!narrow && (
+          <div class="segmented" role="group" aria-label="View">
+            <button type="button" aria-pressed={mode === 'tree'} onClick={() => update({ mode: 'tree' })}>Tree</button>
+            <button type="button" aria-pressed={mode === 'list'} onClick={() => update({ mode: 'list' })}>List</button>
+          </div>
+        )}
+      </div>
+
+      {showProjects && (
+        <nav class="project-nav" aria-label="Projects">
+          <h2>Projects</h2>
+          <ul>
+            {getProjects().map((p) => (
+              <li key={p.id}>
+                <a href={projectHref(p.id)} aria-current={p.id === pid ? 'page' : undefined}>{p.name}</a>
+              </li>
+            ))}
+          </ul>
+          <p class="muted">Host: {project.host}</p>
+        </nav>
+      )}
 
       <section class="tree-area" aria-label="Agent tree">
-        <div class="toolbar">
-          <h1>{project.name}</h1>
-          <span class="muted">{sessionsFor(pid).length} sessions, {roots.length} roots · <span data-testid="project-tokens">total {projectTokens(pid)}</span></span>
-          <a href={historyHref(pid)}>History</a>
-          {!narrow && (
-            <div class="segmented" role="group" aria-label="View">
-              <button type="button" aria-pressed={mode === 'tree'} onClick={() => update({ mode: 'tree' })}>Tree</button>
-              <button type="button" aria-pressed={mode === 'list'} onClick={() => update({ mode: 'list' })}>List</button>
-            </div>
-          )}
-          {mode === 'tree' && (
-            <label class="check">
-              <input type="checkbox" checked={prefs.showRelations}
-                onChange={(e) => update({ showRelations: e.currentTarget.checked })} />
-              Show typed relationships
-            </label>
-          )}
-        </div>
         {mode === 'tree'
           ? <TreeView pid={pid} roots={roots} childMap={childMap} collapsed={collapsed} selectedId={selectedInProject?.id}
               onSelect={select} onToggle={toggle} showRelations={prefs.showRelations} />
           : <ListTree roots={roots} childMap={childMap} collapsed={collapsed} selectedId={selectedInProject?.id}
               onSelect={select} onToggle={toggle} />}
-        <Conversation pid={pid} />
       </section>
 
-      <aside class="detail" aria-label="Session details">
-        {sid && !selectedInProject
-          ? <NotFound title="Session not found"
-              message={`Session "${sid}" is not in ${project.name}. It may not exist, may belong to another project, or you may not have access.`}
-              href={projectHref(pid)} linkText="Back to the project" />
-          : selectedInProject
+      {showConv && <Conversation pid={pid} />}
+
+      {sid && (
+        <aside class="detail" aria-label="Session details">
+          <div class="drawer-bar">
+            <button type="button" onClick={() => { location.hash = projectHref(pid); }}>Close</button>
+          </div>
+          {selectedInProject
             ? <DetailPanel key={selectedInProject.id} session={selectedInProject} childMap={childMap} onSelect={select} />
-            : <p class="muted">Select a session in the tree or list to see its assignment, transcript, run, evidence and budget.</p>}
-      </aside>
+            : <NotFound title="Session not found"
+                message={`Session "${sid}" is not in ${project.name}. It may not exist, may belong to another project, or you may not have access.`}
+                href={projectHref(pid)} linkText="Back to the project" />}
+        </aside>
+      )}
     </div>
   );
 }
