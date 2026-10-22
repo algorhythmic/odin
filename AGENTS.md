@@ -403,8 +403,8 @@ floor or remove a registry entry. Retain withdrawn IDs and their defining
 rows. Historical and dated-research
 evidence links are inventoried separately in `docs/provenance/HISTORICAL-LINKS.md`.
 A pass proves documentation integrity, not semantic completeness or runtime
-behavior. The validator skips `node_modules/`, `.playwright-browsers/`, `dist/`,
-`test-results/` and `playwright-report/`.
+behavior. Under `web/` the validator skips `node_modules/`,
+`.playwright-browsers/`, `dist/`, `test-results/` and `playwright-report/`.
 
 For the web app, see [`web/README.md`](web/README.md): `cd web && npm ci`,
 then `npm run browsers:install` (Chromium inside `web/`, never system-wide)

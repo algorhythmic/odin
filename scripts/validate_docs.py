@@ -23,8 +23,8 @@ STABLE_ID_DOCUMENTS = {
 # grow, but removing an existing entry must not make its definition optional.
 # AC-51 to AC-57 (ODIN-ADR-037) were added to the floor on 2026-10-21.
 BASELINE_ID_COUNTS = {"AC": 57, "DC": 8, "EC": 16}
-# Installed frontend dependencies, browsers and build or test output are not
-# repository documents.
+# Installed frontend dependencies, browsers and build or test output under
+# web/ are not repository documents.
 UNTRACKED_DEPENDENCY_DIRS = {"node_modules", ".playwright-browsers", "dist", "test-results", "playwright-report"}
 FROZEN_RESEARCH_DIRS = {
     Path("docs/research/harness-research-2026-10"),
@@ -241,7 +241,9 @@ def main() -> int:
     checked = 0
     for path in sorted(ROOT.rglob("*.md")):
         relative = path.relative_to(ROOT)
-        if ".git" in relative.parts or path in snapshots or UNTRACKED_DEPENDENCY_DIRS & set(relative.parts):
+        if ".git" in relative.parts or path in snapshots or (
+            relative.parts[0] == "web" and UNTRACKED_DEPENDENCY_DIRS & set(relative.parts)
+        ):
             continue
         if relative.parent in FROZEN_RESEARCH_DIRS and relative.name != "README.md":
             continue  # Dated evidence links are inventoried in the editable wrappers.
