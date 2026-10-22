@@ -3,6 +3,7 @@
 // and re-derives every view. A service projection would replace the source.
 import { useEffect, useState } from 'preact/hooks';
 import * as fx from './fixtures/synthetic.js';
+import { reduceEvent } from './events.js';
 
 export const isSynthetic = fx.synthetic === true;
 export const datasetName = new URLSearchParams(location.search).get('dataset') === 'large' ? 'large' : 'default';
@@ -43,7 +44,11 @@ function ix() {
     if (!byProject.has(s.project_id)) byProject.set(s.project_id, []);
     byProject.get(s.project_id).push(s);
   }
-  index = { version, sessions: new Map(snap.sessions.map((s) => [s.id, s])), byProject, ancestry: new Map() };
+  index = {
+    version, byProject, ancestry: new Map(),
+    sessions: new Map(snap.sessions.map((s) => [s.id, s])),
+    assignments: new Map(snap.assignments.map((a) => [a.id, a])),
+  };
   return index;
 }
 
@@ -85,7 +90,7 @@ export const getProjects = () => snap.projects;
 export const getProject = (id) => snap.projects.find((p) => p.id === id) || null;
 export const sessionsFor = (pid) => ix().byProject.get(pid) || [];
 export const getSession = (id) => ix().sessions.get(id) || null;
-export const getAssignment = (id) => snap.assignments.find((a) => a.id === id) || null;
+export const getAssignment = (id) => ix().assignments.get(id) || null;
 export const getRun = (id) => snap.runs.find((r) => r.id === id) || null;
 export const runsForSession = (sid) => snap.runs.filter((r) => r.session_id === sid);
 export const commitmentsFor = (pid) => snap.commitments.filter((c) => c.project_id === pid);
@@ -239,62 +244,18 @@ export function observedLabel(at) {
 }
 
 // --- Synthetic update driver -------------------------------------------
-// Applies projection update events to the loaded snapshot. An event id seen
-// before is ignored (idempotent re-delivery); a revision that skips ahead is
-// a gap and is not applied, because only a fresh snapshot can repair it.
+// Applies projection update events to the loaded snapshot; the rules live in
+// events.js so they can be tested without a browser.
 
-const replaceSession = (id, patch) => {
-  snap.sessions = snap.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s));
-  index = null;
-};
-
-const EVENT_TYPES = new Set(['session.lifecycle_changed', 'session.started', 'session.cost_updated', 'session.retired']);
-
-// Rejected events change nothing and are not remembered, so a corrected
-// re-delivery under the same id can still apply.
 export function applyEvent(evt) {
-  const base = { event_id: evt.event_id, type: evt.type, revision: evt.revision };
-  if (seenEvents.has(evt.event_id)) return { ...base, status: 'duplicate' };
-  if (!Number.isInteger(evt.revision)) return { ...base, status: 'rejected', reason: 'revision is not an integer' };
-  if (!EVENT_TYPES.has(evt.type)) return { ...base, status: 'rejected', reason: 'unknown event type' };
-  if (evt.revision > snap.revision + 1) return { ...base, status: 'gap', current: snap.revision };
-  if (evt.revision <= snap.revision) return { ...base, status: 'stale', current: snap.revision };
-  const p = evt.payload || {};
-  let sessionId = p.session_id;
-  if (evt.type === 'session.started') {
-    if (!p.session?.id) return { ...base, status: 'rejected', reason: 'missing session record' };
-  } else if (sessionId === undefined || !getSession(sessionId)) {
-    return { ...base, status: 'rejected', reason: 'unknown session' };
+  const { result, snapshot } = reduceEvent(snap, seenEvents, evt);
+  if (result.status === 'applied') {
+    snap = snapshot;
+    seenEvents.add(evt.event_id);
+    index = null;
+    bump();
   }
-  switch (evt.type) {
-    case 'session.lifecycle_changed': {
-      const patch = { lifecycle: p.lifecycle, observed_at: p.observed_at };
-      if ('needs_operator_input' in p) patch.needs_operator_input = p.needs_operator_input;
-      if ('stale' in p) patch.stale = p.stale;
-      replaceSession(p.session_id, patch);
-      break;
-    }
-    case 'session.started':
-      sessionId = p.session.id;
-      if (getSession(sessionId)) return { ...base, status: 'rejected', reason: 'session already exists' };
-      snap.sessions = [...snap.sessions, p.session];
-      index = null;
-      break;
-    case 'session.cost_updated': replaceSession(p.session_id, { cost: p.cost }); break;
-    case 'session.retired': replaceSession(p.session_id, { lifecycle: 'retired', needs_operator_input: false, observed_at: p.observed_at }); break;
-    default: return { ...base, status: 'rejected', reason: 'unknown event type' };
-  }
-  seenEvents.add(evt.event_id);
-  snap.revision = evt.revision;
-  snap.cursor = evt.cursor;
-  const pid = getSession(sessionId)?.project_id;
-  if (pid) {
-    snap.activity = { ...snap.activity, [pid]: [...(snap.activity[pid] || []), {
-      id: evt.event_id, at: evt.at, kind: evt.type, session_id: sessionId, text: evt.summary || evt.type,
-    }] };
-  }
-  bump();
-  return { ...base, status: 'applied' };
+  return result;
 }
 
 export const driverState = () => ({

@@ -40,9 +40,22 @@ test('update events apply once, report duplicates and gaps, and change the views
   await applyNext(page); // evt-bad-2: unknown event type
   await expect(status(page)).toHaveText('Rejected evt-bad-2: unknown event type.');
   await expect(page.getByTestId('revision')).toHaveText('4');
+  // The remaining malformed deliveries (unit-tested in tests-unit/) are rejected too.
+  for (const [id, reason] of [
+    ['evt-bad-3', 'revision is not an integer'], ['evt-bad-4', 'missing session record'],
+    ['evt-bad-5', 'session already exists'], ['evt-bad-6', 'unknown lifecycle'], ['evt-bad-7', 'missing session_id'],
+    ['evt-bad-8', 'session id is not a string'], ['evt-bad-9', 'unknown project'],
+  ]) {
+    await applyNext(page);
+    await expect(status(page)).toHaveText(`Rejected ${id}: ${reason}.`);
+    await expect(page.getByTestId('revision')).toHaveText('4');
+  }
+  await applyNext(page); // evt-bad-6 re-delivered, corrected: applies
+  await expect(status(page)).toHaveText('Applied evt-bad-6 (session.lifecycle_changed) at revision 5.');
+  await expect(page.getByTestId('revision')).toHaveText('5');
   await applyNext(page); // evt-005: skips revisions
-  await expect(status(page)).toHaveText('Not applied evt-005: revision 9 skips ahead of 4; a fresh snapshot is needed.');
-  await expect(page.getByTestId('revision')).toHaveText('4');
+  await expect(status(page)).toHaveText('Not applied evt-005: revision 9 skips ahead of 5; a fresh snapshot is needed.');
+  await expect(page.getByTestId('revision')).toHaveText('5');
   await expect(page.locator('[data-testid="session-card"][data-session-id="ses-docs-01"]').getByTestId('state-label')).toHaveText('Running');
   await expect(page.getByRole('button', { name: 'Apply next synthetic update' })).toBeDisabled();
   // Activity lists the applied events, newest first.

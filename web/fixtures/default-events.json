@@ -131,6 +131,156 @@
       }
     },
     {
+      "event_id": "evt-bad-3",
+      "revision": 5.5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:10Z",
+      "type": "session.lifecycle_changed",
+      "summary": "revision is not an integer",
+      "payload": {
+        "session_id": "ses-docs-01",
+        "lifecycle": "idle",
+        "observed_at": "2026-10-21T10:51:10Z"
+      }
+    },
+    {
+      "event_id": "evt-bad-4",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:20Z",
+      "type": "session.started",
+      "summary": "started without a session record",
+      "payload": {}
+    },
+    {
+      "event_id": "evt-bad-5",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:30Z",
+      "type": "session.started",
+      "summary": "starts a session that already exists",
+      "payload": {
+        "session": {
+          "id": "ses-docs-01",
+          "project_id": "proj-odin-webapp",
+          "parent_session_id": "ses-docs-01",
+          "provenance": "recorded",
+          "role": "docs helper",
+          "assignment_id": "asg-docs",
+          "model": "claude-haiku-5-5",
+          "lifecycle": "running",
+          "needs_operator_input": false,
+          "observed_at": "2026-10-21T10:47:00Z",
+          "stale": false,
+          "cost": {
+            "amount_usd": 0.05,
+            "basis": "measured"
+          },
+          "elapsed_s": 60,
+          "budget": null
+        }
+      }
+    },
+    {
+      "event_id": "evt-bad-6",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:40Z",
+      "type": "session.lifecycle_changed",
+      "summary": "names a lifecycle outside the documented set",
+      "payload": {
+        "session_id": "ses-pin-worker",
+        "lifecycle": "paused",
+        "observed_at": "2026-10-21T10:51:40Z"
+      }
+    },
+    {
+      "event_id": "evt-bad-7",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:50Z",
+      "type": "session.cost_updated",
+      "summary": "has no session_id",
+      "payload": {
+        "cost": {
+          "amount_usd": 1.0,
+          "basis": "measured"
+        }
+      }
+    },
+    {
+      "event_id": "evt-bad-8",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:52:00Z",
+      "type": "session.started",
+      "summary": "session id is a number",
+      "payload": {
+        "session": {
+          "id": 42,
+          "project_id": "proj-odin-webapp",
+          "parent_session_id": "ses-docs-01",
+          "provenance": "recorded",
+          "role": "docs helper",
+          "assignment_id": "asg-docs",
+          "model": "claude-haiku-5-5",
+          "lifecycle": "running",
+          "needs_operator_input": false,
+          "observed_at": "2026-10-21T10:47:00Z",
+          "stale": false,
+          "cost": {
+            "amount_usd": 0.05,
+            "basis": "measured"
+          },
+          "elapsed_s": 60,
+          "budget": null
+        }
+      }
+    },
+    {
+      "event_id": "evt-bad-9",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:52:10Z",
+      "type": "session.started",
+      "summary": "session in a project the snapshot does not hold",
+      "payload": {
+        "session": {
+          "id": "ses-elsewhere",
+          "project_id": "proj-not-loaded",
+          "parent_session_id": null,
+          "provenance": "recorded",
+          "role": "docs helper",
+          "assignment_id": "asg-docs",
+          "model": "claude-haiku-5-5",
+          "lifecycle": "running",
+          "needs_operator_input": false,
+          "observed_at": "2026-10-21T10:47:00Z",
+          "stale": false,
+          "cost": {
+            "amount_usd": 0.05,
+            "basis": "measured"
+          },
+          "elapsed_s": 60,
+          "budget": null
+        }
+      }
+    },
+    {
+      "event_id": "evt-bad-6",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:40Z",
+      "type": "session.lifecycle_changed",
+      "summary": "contract pins worker running again (corrected re-delivery)",
+      "payload": {
+        "session_id": "ses-pin-worker",
+        "lifecycle": "running",
+        "needs_operator_input": false,
+        "observed_at": "2026-10-21T10:51:40Z"
+      }
+    },
+    {
       "event_id": "evt-005",
       "revision": 9,
       "cursor": "cur-default-0009",

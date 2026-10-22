@@ -12,6 +12,7 @@
     "browsers:install": "PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers playwright install chromium",
     "test": "PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers playwright test",
     "test:perf": "PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers playwright test -c playwright.perf.config.js",
+    "test:unit": "node --test tests-unit/",
     "describe:large": "node scripts/describe-large.mjs"
   },
   "dependencies": {

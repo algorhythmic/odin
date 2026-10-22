@@ -1,0 +1,69 @@
+// Projection update events applied to a snapshot (draft rules in
+// docs/design/WEB-APP-PROJECTION.md, section 4). Pure: no DOM, no fixtures,
+// so Node can test it directly (tests-unit/). The store in data.js keeps the
+// current snapshot and the set of applied event ids and calls reduceEvent.
+//
+// An event id seen before is ignored (idempotent re-delivery); a revision
+// that skips ahead is a gap and is not applied, because only a fresh
+// snapshot can repair it. Rejected events change nothing and are not
+// remembered, so a corrected re-delivery under the same id can still apply.
+
+export const LIFECYCLES = new Set(['running', 'idle', 'waiting_for_input', 'ended', 'retired', 'host_offline']);
+export const EVENT_TYPES = new Set(['session.lifecycle_changed', 'session.started', 'session.cost_updated', 'session.retired']);
+
+const isId = (v) => typeof v === 'string' && v.length > 0;
+
+// Returns { result, snapshot }. `snapshot` is a new object when the event
+// applied and the same object otherwise; `seen` is read, never modified.
+export function reduceEvent(snapshot, seen, evt) {
+  const base = { event_id: evt.event_id, type: evt.type, revision: evt.revision };
+  const keep = (extra) => ({ result: { ...base, ...extra }, snapshot });
+  const reject = (reason) => keep({ status: 'rejected', reason });
+  if (seen.has(evt.event_id)) return keep({ status: 'duplicate' });
+  if (!Number.isInteger(evt.revision)) return reject('revision is not an integer');
+  if (!EVENT_TYPES.has(evt.type)) return reject('unknown event type');
+  if (evt.revision > snapshot.revision + 1) return keep({ status: 'gap', current: snapshot.revision });
+  if (evt.revision <= snapshot.revision) return keep({ status: 'stale', current: snapshot.revision });
+
+  const p = evt.payload || {};
+  const byId = new Map(snapshot.sessions.map((s) => [s.id, s]));
+  let sessions = snapshot.sessions;
+  let sessionId = p.session_id;
+  const patch = (fields) => snapshot.sessions.map((s) => (s.id === sessionId ? { ...s, ...fields } : s));
+
+  if (evt.type === 'session.started') {
+    const s = p.session;
+    if (!s || typeof s !== 'object') return reject('missing session record');
+    if (!isId(s.id)) return reject('session id is not a string');
+    if (!isId(s.project_id)) return reject('project_id is not a string');
+    if (!snapshot.projects.some((pr) => pr.id === s.project_id)) return reject('unknown project');
+    if (!LIFECYCLES.has(s.lifecycle)) return reject('unknown lifecycle');
+    if (byId.has(s.id)) return reject('session already exists');
+    sessionId = s.id;
+    sessions = [...snapshot.sessions, s];
+  } else {
+    if (!isId(sessionId)) return reject('missing session_id');
+    if (!byId.has(sessionId)) return reject('unknown session');
+    switch (evt.type) {
+      case 'session.lifecycle_changed': {
+        if (!LIFECYCLES.has(p.lifecycle)) return reject('unknown lifecycle');
+        const fields = { lifecycle: p.lifecycle, observed_at: p.observed_at };
+        if ('needs_operator_input' in p) fields.needs_operator_input = p.needs_operator_input;
+        if ('stale' in p) fields.stale = p.stale;
+        sessions = patch(fields);
+        break;
+      }
+      case 'session.cost_updated': sessions = patch({ cost: p.cost }); break;
+      default: sessions = patch({ lifecycle: 'retired', needs_operator_input: false, observed_at: p.observed_at }); // session.retired
+    }
+  }
+
+  const pid = sessions.find((s) => s.id === sessionId).project_id;
+  const activity = { ...snapshot.activity, [pid]: [...(snapshot.activity?.[pid] || []), {
+    id: evt.event_id, at: evt.at, kind: evt.type, session_id: sessionId, text: evt.summary || evt.type,
+  }] };
+  return {
+    result: { ...base, status: 'applied' },
+    snapshot: { ...snapshot, sessions, activity, revision: evt.revision, cursor: evt.cursor },
+  };
+}
