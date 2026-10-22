@@ -30,7 +30,7 @@ def _predecessor(gateway, project, session_id):
     """
     if not isinstance(session_id, str):
         raise Refused("no_recorded_predecessor")
-    predecessor = gateway.development_loop.predecessor_session(session_id)
+    predecessor = gateway.development_loop.predecessor_session(session_id, project)
     if predecessor is None:
         raise Refused("no_recorded_predecessor")
     view = {"predecessor_session_id": predecessor, "predecessor_checkpoint": None}

@@ -1428,6 +1428,7 @@ class DevelopmentLoop:
                 "development_loop.handed_over",
                 {
                     "loop_id": loop_id,
+                    "project": loop["project"],
                     "from_session": from_session,
                     "to_session": to_session,
                     "revision": loop["revision"],
@@ -1439,8 +1440,9 @@ class DevelopmentLoop:
 
         return self._mutate(operation_id, "handover", arguments, apply)
 
-    def predecessor_session(self, session_id):
-        """The session that most recently handed a loop to ``session_id``.
+    def predecessor_session(self, session_id, project):
+        """The session that most recently handed a loop in ``project`` to
+        ``session_id``.
 
         The recorded ``development_loop.handed_over`` history events are the
         authority, not the loop's ``previous_session_ids`` view.
@@ -1449,8 +1451,9 @@ class DevelopmentLoop:
             "SELECT body FROM history "
             "WHERE json_extract(body,'$.kind')='development_loop.handed_over' "
             "AND json_extract(body,'$.payload.to_session')=? "
+            "AND json_extract(body,'$.payload.project')=? "
             "ORDER BY seq DESC LIMIT 1",
-            (session_id,),
+            (session_id, project),
         ).fetchone()
         return strict_loads(row[0])["payload"]["from_session"] if row else None
 
