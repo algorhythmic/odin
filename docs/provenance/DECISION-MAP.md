@@ -552,7 +552,7 @@ carry the same supersession in their last column.
 | D20.8 handling table | amended | ODIN-ADR-010 |
 | D20.10 | superseded for Odin | ODIN-ADR-007 |
 | D20.11 first configuration; D20.5 remaining desk-overview description | amended | ODIN-ADR-037 |
-| ODIN-ADR-010 surface list and D20.11 preservation; ODIN-ADR-007 human-view consequence; D15 "(D20's first configuration)" parenthetical | amended | ODIN-ADR-037 |
+| ODIN-ADR-010 surface list and D20.11 preservation; ODIN-ADR-007 human-view consequence; ODIN-ADR-023's "I4's human view/import" reading; D15 "(D20's first configuration)" parenthetical | amended | ODIN-ADR-037 |
 | D22.3, D22.5 | superseded for Odin | ODIN-ADR-012 |
 | D24.3 (Odin's classes) | amended | ODIN-ADR-009 |
 | D15.Eb timing | amended (control only; D7.6 honoured) | ODIN-ADR-015 |

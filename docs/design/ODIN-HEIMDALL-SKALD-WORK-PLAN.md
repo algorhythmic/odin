@@ -178,7 +178,8 @@ Heimdall state. This is EC-01/04/06/12/13/14 work, not a replacement for them.
 
 **Owner:** Odin. Reuse the newer continuity and memory implementation.
 
-Build one project slice first. Its human view shows objective, owner, open
+Build one project slice first. Its human view (the web app under
+ODIN-ADR-037) shows objective, owner, open
 commitments, recent activity, last supported milestone, blockers, pending
 decisions, next trigger, evidence age and source coverage. Provide a
 portfolio view and a change-since-acknowledgement briefing. Preserve the

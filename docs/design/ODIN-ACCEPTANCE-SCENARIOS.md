@@ -75,7 +75,7 @@ operations without WCU.
 | Review | Mechanical checks precede independent critique by two reviewer positions where required (ODIN-ADR-013) | Evidence packet, each position's verdict, the service-combined authenticated verdict, any bounded re-review |
 | Authorization | Operator approves the exact proposal through the shared command path | Request, principal, proposal digest, expiry and authority receipt |
 | Execution | Saga admits runs within the delegation; waiting dependencies remain queued | Run IDs, event sequences, refusal/acceptance and limit evidence |
-| Workspace | Herdr exposes supported sessions by workstream; overview remains available | Explicit identity bindings and capability labels |
+| Workspace | The web app overview and agent tree show the work by workstream; Herdr exposes attachable sessions only where its adapter supports it (ODIN-ADR-037) | Explicit identity bindings and capability labels |
 | Visibility | One human view shows commitments (Odin), runs (Saga) and transcripts (capture module), each attributed to its owner; no heimdall projection (ODIN-ADR-007) | Source coverage, owner attribution, project associations, source revision/freshness |
 | Human decision | B's explicit request reaches the operator without an unnecessary planning turn | Request/correlation IDs, delivery and response receipts |
 | Reconciliation | Apply the answer to the correct assignment; wake the planner only if it changes the larger plan | Revision change and routing explanation |

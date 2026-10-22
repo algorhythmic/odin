@@ -277,7 +277,7 @@ session host, child dispatch or any live Saga gate.
       revisions as provenance and a receipt, and later heimdall-side
       edits refused (I/O contract §14); imported records then appear in
       the human view with their provenance. The human view itself moved
-      to the human-view track below Phase A (ODIN-ADR-037) and does not
+      to the human-view track above Phase A (ODIN-ADR-037) and does not
       wait for this import. Exit: the import is idempotent with a receipt
       and no second editable task store remains (proposed AC-38).
 - Phase exit (D15): the CLI and Odin encounter identical policy (G-6).
@@ -320,7 +320,7 @@ session host, child dispatch or any live Saga gate.
       activation; count fallback and digest costs (ODIN-ADR-004).
 - [ ] **I6 attention prompts** (ODIN-ADR-010): typed, capped prompts
       with mandatory response records, logged in shadow mode from I4
-      alongside the human view, leave shadow mode only when logged
+      (independently of the human-view track, ODIN-ADR-037), leave shadow mode only when logged
       outcomes support the caps (proposed AC-39). Voice stays backlog
       until its data-policy decision (X-13) and never carries an
       approval until a hash-binding mechanism exists.

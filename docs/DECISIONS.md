@@ -1691,6 +1691,9 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   retrieval. The detailed compactor context, reuse, retention and live-data
   choices under X-10 remain open. X-1, X-7, X-11 production isolation,
   X-12/X-13/X-15, Saga Phase B and the handoff are not closed.
+- **Cross-reference:** ODIN-ADR-037 moves the human view out of I4 into the
+  human-view track; "I4's human view/import" above now reads as the
+  human-view track plus the I4 import.
 
 ### ODIN-ADR-024 — Native Fable executive conversation pilot
 
@@ -2498,8 +2501,8 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
 - **Context:** D20.5 and D20.11 made the terminal workspace (Herdr) the
   desk overview and part of the first configuration. ODIN-ADR-010 kept that
   first configuration while turning surfaces into adapters, and
-  ODIN-ADR-007 promised one human view, scheduled with the I4 heimdall
-  import. The operator works across many concurrent sessions and wants one
+  ODIN-ADR-007 promised one human view, which the roadmap scheduled with
+  the I4 heimdall import. The operator works across many concurrent sessions and wants one
   navigable place to see who started whom, what each session is doing and
   where to intervene, without a terminal workspace.
 - **Decision:**

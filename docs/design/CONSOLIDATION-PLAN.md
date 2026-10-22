@@ -11,6 +11,13 @@ to an inherited decision, it names the ADR that would record it and says
 whose record the change belongs to. The decision record continues to
 win until the operator records otherwise ([`../DECISIONS.md`](../DECISIONS.md)).
 
+**2026-10-21:** ODIN-ADR-037 supersedes this plan's human-view items. The
+human view is a web app with an agent tree, not a summoned terminal client;
+it is delivered as its own track, not bundled with the commitment import
+(§2 import step, P5), which keeps its G-10 prerequisite. Herdr is no longer
+one of the two operator interfaces; it is an optional inspection and
+attachment adapter.
+
 Evidence: four investigation reports dated 2026-10-16 in
 [`../research/consolidation-2026-10/`](../research/consolidation-2026-10/README.md),
 referred to below as the Go inventory, the Saga inventory, the
