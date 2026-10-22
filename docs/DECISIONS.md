@@ -2706,12 +2706,16 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
   (`make check` or a full `unittest discover`) run host-wide at a time.
   `make test` enforces that limit with a counting lock: `scripts/suite_lock.py`
   takes one of two `flock` slot files in the private per-user directory
-  `/tmp/odin-suite-lock-<uid>` (mode 0700), the same for every caller
-  whatever its environment, then replaces itself with the suite, which holds
-  the slot until it exits. It prints a line to standard error while it
-  waits; the suite's output, signals and exit status are as if it ran
-  directly.
-  `ODIN_SUITE_LOCK=0` bypasses it. The lock covers only `make test`;
+  `/tmp/odin-suite-lock-<uid>` (mode 0700), then replaces itself with the
+  suite, which holds the slot until it exits. It prints a line to standard
+  error while it waits; the suite's output, signals and exit status are as
+  if it ran directly. Two deliberate opt-outs exist, and each must be set
+  explicitly: `ODIN_SUITE_LOCK=0` bypasses the lock, and
+  `ODIN_SUITE_LOCK_DIR` selects a separate slot pool for the lock's own
+  tests. The lock honours `ODIN_SUITE_LOCK_DIR` only together with
+  `ODIN_SUITE_LOCK_TEST=1`; set alone, it is refused and the suite does not
+  run, so it cannot split the pool by accident. The lock covers only
+  `make test`;
   a full `unittest discover` started by hand is not counted. The roles and
   efforts of the integration owner and the workstream orchestrators are in
   ODIN-ADR-031's amendment of the same date, which also states the
