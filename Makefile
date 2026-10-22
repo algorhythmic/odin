@@ -13,7 +13,7 @@ contracts:
 	$(GO) test ./...
 
 test:
-	PYTHONPATH=python $(PYTHON) -m unittest discover -s tests -v
+	PYTHONPATH=python $(PYTHON) scripts/suite_lock.py -- $(PYTHON) -m unittest discover -s tests -v
 
 demo:
 	@test -n "$(STATE)" || (echo 'Set STATE to a new private directory outside this checkout'; exit 1)
