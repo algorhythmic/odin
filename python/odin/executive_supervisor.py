@@ -116,6 +116,8 @@ class Supervisor:
 
         self.state = Path(state)
         manifest, self.base = _load(state)
+        self.session_manifest = manifest
+        self.child_started = False
         if manifest["version"] != 3:
             raise SupervisorRefused("supervisor_requires_development_profile")
         self.project = manifest["project"]
@@ -173,7 +175,7 @@ class Supervisor:
                 if kind == "transition":
                     self.client.transition(*args, **fields)
                 elif kind == "deploy":
-                    self.client.transition(*args, kind="deploy", **fields)
+                    self._remember_deploy(self.client.transition(*args, kind="deploy", **fields))
                 else:
                     self.client.event(*args, **fields)
             except ServiceRefused as error:
@@ -187,12 +189,26 @@ class Supervisor:
         return True
 
     def _transition_now(self, request, state, **fields):
-        """A transition whose answer decides what happens next; None when unreachable."""
+        """An answered transition or local refusal; None only when unreachable."""
         try:
-            return self.client.transition(request["id"], state, kind=request.get("kind", "restart"), **fields)
+            moved = self.client.transition(request["id"], state, kind=request.get("kind", "restart"), **fields)
+            if request.get("kind") == "deploy":
+                self._remember_deploy(moved)
+            return moved
+        except ServiceRefused as error:
+            self.journal("report_refused", code=_code(error))
+            return request | {"state": "refused", "code": _code(error)}
         except (OSError, KeyError, TypeError, ValueError) as error:
             self.journal("service_unavailable", code=_code(error))
             return None
+
+    def _remember_deploy(self, moved):
+        """Keep our own transitions visible until the next service status poll."""
+        items = self.status_view.get("open_deploys") or []
+        self.status_view["open_deploys"] = [
+            moved if item["id"] == moved["id"] else item for item in items
+            if item["id"] != moved["id"] or moved["state"] in (
+                "pending", "draining", "deploying", "restarting_executive")]
 
     def _report(self, request, state, **fields):
         """Queue a transition of either kind for delivery."""
@@ -242,9 +258,7 @@ class Supervisor:
         return start(self.state, resume=resume, supervised=True, watch=watch, require_terminal=False)
 
     def _session(self):
-        from .executive_runtime import _load
-
-        return _load(self.state)[0]
+        return self.session_manifest
 
     def _transcript_quiet(self, manifest, at):
         """True when no transcript of the session changed within the quiet window."""
@@ -337,6 +351,10 @@ class Supervisor:
         return code
 
     def watch(self, process):
+        from .executive_runtime import _load
+
+        self.child_started = True
+        self.session_manifest = _load(self.state)[0]
         launched_at = self.clock()
         warned = False
         seen_at = None
@@ -400,11 +418,10 @@ class Supervisor:
                 self.journal("deploy_draining", request_id=deploy["id"])
                 self.drain_started = self.clock()
             return None
-        if deploy["state"] == "restarting_executive" and self.carry is None:
+        if deploy["state"] in ("deploying", "restarting_executive") and self.carry is None:
             # Not carried at start (for example the service was unreachable then):
             # this session is the relaunch, so record the outcome once it has started.
-            self.journal("deploy_relaunch", request_id=deploy["id"])
-            self.carry = deploy | {"stopped_at": self.clock()}
+            self._carry_deploy(deploy)
             return None
         if deploy["state"] != "draining":
             return None
@@ -466,7 +483,12 @@ class Supervisor:
         timings = dict(stopped["timings"])
         base = {"exit_code": _exit(stopped.get("exit_code")),
                 "clean_exit_observed": stopped.get("clean_exit_observed")}
-        config = copies.read_config(self.state)
+        try:
+            config = copies.read_config(self.state)
+        except Exception as error:  # noqa: BLE001 - nothing was switched; still relaunch
+            self.journal("deploy_error", code=_code(error))
+            self._report(stopped, "failed", code="deploy_error", timings=timings, **base)
+            return None
         if config is None:
             self._report(stopped, "failed", code="deploy_not_configured", timings=timings, **base)
             return None
@@ -558,10 +580,15 @@ class Supervisor:
         from . import deploy_copies as copies
 
         outcome = carry.get("pending_outcome") or "failed"
+        try:
+            config = copies.read_config(self.state)
+        except Exception as error:  # noqa: BLE001 - metadata failure must not end supervision
+            self.journal("deploy_error", code=_code(error))
+            outcome, config = "failed", None
+            carry = carry | {"code": "deploy_error"}
         self.journal("deploy_" + outcome, request_id=carry["id"])
         self._report(carry, outcome, timings=timings,
                      **({"code": carry.get("code") or "deploy_incomplete"} if outcome == "failed" else {}))
-        config = copies.read_config(self.state)
         if config is not None and outcome == "deployed":
             try:
                 copies.prune(config["deploy_root"], config["keep"],
@@ -612,17 +639,25 @@ class Supervisor:
 
     def _carry_deploy_at_start(self):
         """A deploy left mid-way by a re-exec or a lost supervisor (item 8)."""
+        deploy = self._open_deploy()
+        if deploy is not None and deploy["state"] in ("deploying", "restarting_executive"):
+            self._carry_deploy(deploy)
+
+    def _carry_deploy(self, deploy):
+        """Reconcile a lost report at startup or once the service answers later."""
         from . import deploy_copies as copies
         from .service_activation import service_revision
 
-        deploy = self._open_deploy()
-        if deploy is None or deploy["state"] not in ("deploying", "restarting_executive"):
-            return
         if deploy["state"] == "deploying":
             # The supervisor ended between the switch and its report.
-            config = copies.read_config(self.state)
-            reported = service_revision(self.state)
-            current = copies.current_revision(config["deploy_root"]) if config else None
+            try:
+                config = copies.read_config(self.state)
+                reported = service_revision(self.state)
+                current = copies.current_revision(config["deploy_root"]) if config else None
+            except Exception as error:  # noqa: BLE001 - report failure and keep the executive running
+                self.journal("deploy_error", code=_code(error))
+                self._report(deploy, "failed", code="deploy_error")
+                return
             if current == deploy["requested_head"] and reported and reported["revision"] == current:
                 deploy = self._transition_now(deploy, "restarting_executive", pending_outcome="deployed")
             else:
@@ -630,7 +665,7 @@ class Supervisor:
                     self._align_current(config)
                 self._report(deploy, "failed", code="supervisor_lost")
                 return
-            if deploy is None:
+            if deploy is None or deploy["state"] != "restarting_executive":
                 return
         self.journal("deploy_relaunch", request_id=deploy["id"])
         self.carry = deploy | {"stopped_at": self.clock()}
@@ -644,10 +679,11 @@ class Supervisor:
                 resume = (self.base / "launch.json").exists()
                 self.stopped_for = None
                 self.late_signal = False
+                self.child_started = False
                 try:
                     code = self.launcher(resume, self.watch)
                 except Exception as error:
-                    if not isinstance(error, PermissionError):
+                    if not isinstance(error, PermissionError) or self.child_started:
                         # Unexpected: record what is known, then let it surface.
                         self.journal("supervisor_error", code=_code(error))
                         if self.carry is not None:

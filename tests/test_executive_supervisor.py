@@ -14,7 +14,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from odin import executive_runtime as runtime
 from odin import executive_supervision as supervision
@@ -27,6 +27,7 @@ from odin.executive_supervisor import (
     LEASE_FILE,
     Supervisor,
     SupervisorRefused,
+    ServiceRefused,
 )
 from odin.executive_turn_hook import read_marker, record
 from odin.gateway import Gateway, GatewayContext, error_result
@@ -251,6 +252,50 @@ class TurnMarkerTests(Base):
 
 
 class SupervisorTests(Base):
+    def test_report_refusal_is_final_and_journaled_once(self):
+        supervisor = self.supervisor([], sleep=Mock())
+        supervisor.client = Mock()
+        supervisor.client.transition.side_effect = ServiceRefused("deploy_transition_invalid")
+        request = {"id": identifier(), "kind": "deploy"}
+        # A clock reaching the deadline on the next retry bounds the pre-fix test.
+        with patch.object(supervisor, "clock", side_effect=[0, 0, 61]):
+            supervisor._report_now(request, "restarting_executive")
+        supervisor.client.transition.assert_called_once()
+        supervisor.sleep.assert_not_called()
+        journal = [json.loads(line) for line in
+                   (supervisor.base / JOURNAL_FILE).read_text().splitlines()]
+        self.assertEqual([(r["kind"], r.get("code")) for r in journal],
+                         [("report_refused", "deploy_transition_invalid")])
+
+    def test_session_is_loaded_once_per_launch_and_refreshed(self):
+        supervisor = self.supervisor([], sleep=lambda s: None)
+        supervisor.client = Mock()
+        supervisor.client.status.return_value = {"open": [], "open_deploys": []}
+        supervisor.carry = {"id": identifier()}
+        for native in (self.native, identifier()):
+            manifest = self.manifest | {"native_session_id": native}
+            process = Mock()
+            process.poll.side_effect = [None, None, None, 0]
+            with patch.object(runtime, "_load", side_effect=[(manifest, supervisor.base),
+                                                           PermissionError("synthetic")]) as load:
+                self.assertEqual(supervisor.watch(process), 0)
+                self.assertEqual(supervisor._session()["native_session_id"], native)
+            self.assertEqual(load.call_count, 1)
+
+    def test_mid_watch_permission_error_is_not_a_launch_refusal(self):
+        supervisor = self.supervisor([])
+        process = Mock()
+        process.poll.return_value = None
+        supervisor.launcher = lambda resume, watch: watch(process)
+        # The startup event flush succeeds; the watch's first flush fails.
+        supervisor._flush = Mock(side_effect=[True, PermissionError("synthetic watch error"), True, True])
+        with self.assertRaises(PermissionError):
+            supervisor.run()
+        journal = [json.loads(line)["kind"] for line in
+                   (supervisor.base / JOURNAL_FILE).read_text().splitlines()]
+        self.assertIn("supervisor_error", journal)
+        self.assertNotIn("launch_failed", journal)
+
     def test_request_idle_clean_stop_and_resume_with_staged_changes(self):
         # The executive asks mid-turn and the operator has staged a model change.
         def mid_turn():
@@ -295,7 +340,7 @@ class SupervisorTests(Base):
                 self.ok(self.request())
         self.client.on_status = mid_turn
         code = self.supervisor([[["start"], ["turn", 1.0], ["wait"]],
-                                [["start"], ["exit", 0]]]).run()
+                                [["start"], ["sleep", 0.3], ["exit", 0]]]).run()
         self.assertEqual(code, 0)
         (request,) = self.requests()
         # Requested at the turn's start, signalled only after its Stop marker

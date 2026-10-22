@@ -7,7 +7,7 @@ import json
 import time
 import unittest
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import test_delegation
 import test_development_evaluator
@@ -482,6 +482,100 @@ class PromptGuidanceTests(DeployBase):
 
 class DeployFailureTests(ExecutorBase):
     """Review follow-ups: errors, refusals, the lease and the bounds."""
+
+    def config_error_after_stop(self, corrupt):
+        self.ask_mid_turn()
+        supervisor = self.deploy_supervisor([[["start"], ["turn", 0.3], ["wait"]],
+                                             [["start"], ["sleep", 0.4], ["exit", 0]]])
+        original = supervisor._deploy
+        def deploy(stopped):
+            corrupt(supervisor.base / copies.CONFIG_FILE)
+            return original(stopped)
+        supervisor._deploy = deploy
+        self.assertEqual(supervisor.run(), 0)
+        (deploy,) = self.deploys()
+        self.assertEqual((deploy["state"], deploy["code"]), ("failed", "deploy_error"))
+        self.assertEqual(len(self.launches()), 2)
+
+    def test_malformed_deploy_config_after_stop_relaunches(self):
+        self.config_error_after_stop(lambda path: path.write_text("{"))
+
+    def test_nonprivate_deploy_config_after_stop_relaunches(self):
+        self.config_error_after_stop(lambda path: path.chmod(0o644))
+
+    def test_finish_config_error_reports_failed(self):
+        request = self.ok(self.deploy())["request"]
+        for state in ("draining", "deploying"):
+            self.client.transition(request["id"], state, kind="deploy")
+        carry = self.client.transition(request["id"], "restarting_executive", kind="deploy",
+                                       pending_outcome="deployed")
+        supervisor = self.deploy_supervisor([])
+        with patch.object(copies, "read_config", side_effect=PermissionError("synthetic")):
+            supervisor._finish_deploy(carry, {})
+        self.assertEqual((self.deploys()[0]["state"], self.deploys()[0]["code"]),
+                         ("failed", "deploy_error"))
+
+    def reconcile_metadata_error(self, name):
+        request = self.ok(self.deploy())["request"]
+        for state in ("draining", "deploying"):
+            self.client.transition(request["id"], state, kind="deploy")
+        supervisor = self.deploy_supervisor([[["start"], ["sleep", 0.4], ["exit", 0]]])
+        # Isolate the supervisor's reads from the service status implementation.
+        supervisor.status_view = {"open_deploys": [request | {"state": "deploying"}]}
+        with patch.object(copies, name, side_effect=copies.DeployError("synthetic")):
+            supervisor._carry_deploy_at_start()
+        self.assertEqual((self.deploys()[0]["state"], self.deploys()[0]["code"]),
+                         ("failed", "deploy_error"))
+        self.assertEqual(supervisor.run(), 0)
+
+    def test_reconcile_config_error_still_launches(self):
+        self.reconcile_metadata_error("read_config")
+
+    def test_reconcile_current_error_still_launches(self):
+        self.reconcile_metadata_error("current_revision")
+
+    def test_deploy_transition_updates_view_between_status_polls(self):
+        request = self.ok(self.deploy())["request"]
+        at = [1000.0]
+        supervisor = self.deploy_supervisor([], clock=lambda: at[0])
+        supervisor._open()
+        process = Mock()
+        for tick in (1000.0, 1001.0):
+            at[0] = tick
+            supervisor._advance_deploy(process, supervisor._open_deploy(), 999)
+        self.assertEqual(supervisor.drain_started, 1000.0)
+        self.assertEqual(supervisor._open_deploy()["state"], "draining")
+        journal = [json.loads(line)["kind"] for line in
+                   (supervisor.base / "supervisor-journal.jsonl").read_text().splitlines()]
+        self.assertEqual(journal.count("deploy_draining"), 1)
+        self.assertEqual(self.deploys()[0]["id"], request["id"])
+
+    def deploying_found_later(self, activated):
+        request = self.ok(self.deploy())["request"]
+        for state in ("draining", "deploying"):
+            self.client.transition(request["id"], state, kind="deploy")
+        copies.export(self.temp / "deploy", self.repository, self.head)
+        copies.switch(self.temp / "deploy", self.head)
+        if activated:
+            self.unit.restart()
+        original = self.client.status
+        calls = []
+        def flaky():
+            calls.append(1)
+            if len(calls) <= 2:
+                raise OSError("unreachable")
+            return original()
+        self.client.status = flaky
+        self.assertEqual(self.finish([[["start"], ["sleep", 0.6], ["exit", 0]]]), 0)
+        return self.deploys()[0]
+
+    def test_deploying_found_later_is_reconciled(self):
+        self.assertEqual(self.deploying_found_later(activated=True)["state"], "deployed")
+
+    def test_deploying_found_later_with_mismatched_service_fails(self):
+        deploy = self.deploying_found_later(activated=False)
+        self.assertEqual((deploy["state"], deploy["code"]), ("failed", "supervisor_lost"))
+        self.assertEqual(copies.current_revision(self.temp / "deploy"), self.revisions[1])
 
     def test_error_during_activation_relaunches_and_aligns_current(self):
         def broken(state, **kwargs):
