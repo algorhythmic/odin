@@ -12,12 +12,13 @@ from jsonschema import ValidationError
 
 from odin import executive_runtime as runtime
 from odin.contracts import ROOT, Contracts, identifier, strict_loads
-from odin.executive_admission import AUDIT_FILE, read_only, registered_script, registered_scripts
+from odin.executive_admission import (AUDIT_FILE, interpreter, interpreter_name, read_only,
+                                     registered_script, registered_scripts, script_digest)
 from odin.executive_intervention import delegation_guard
 from odin.executive_intervention_hook import REFUSAL, handle
-from odin.executive_mcp import ExecutiveBridge
+from odin.executive_mcp import ExecutiveBridge, ToolFailure
 from odin.executive_service import prepare_project, submit_executive
-from odin.gateway import Gateway
+from odin.gateway import Gateway, error_result
 from odin.service import Service
 
 ACCEPT = [
@@ -374,6 +375,155 @@ class HookLocalPathTests(unittest.TestCase):
                        '(3) An exact permit', 'delegate implementation']:
             self.assertIn(phrase, refused.stderr)
         self.assertNotIn('rm -rf', refused.stderr)
+
+
+class InterpreterRefusalTests(unittest.TestCase):
+    """Item 10: an interpreter or shell is never a registered script."""
+
+    def setUp(self):
+        prepared(self)
+        self.bin = self.temp / 'bin'; self.bin.mkdir()
+
+    def register(self, path):
+        return runtime.register_script(self.state, path=str(path))
+
+    def refused(self, path):
+        with self.assertRaises(ValueError) as caught:
+            self.register(path)
+        self.assertEqual(str(caught.exception), 'script_is_interpreter')
+
+    def test_interpreter_names_with_versions(self):
+        for name in ['sh', 'bash', 'zsh', 'fish', 'dash', 'python', 'python3', 'python3.14',
+                     'Python3.14t', 'pypy3.10', 'node', 'node22', 'perl', 'perl5.40', 'ruby3.3',
+                     'env', 'uv', 'uvx', 'npx', 'npx-cli.js', 'deno', 'bun', 'bunx', 'xargs',
+                     'sudo', 'awk', 'busybox']:
+            with self.subTest(name=name):
+                self.assertTrue(interpreter_name(name))
+        for name in ['diagnose.sh', 'check', 'bashful', 'shellcheck', 'python-report',
+                     'envoy', 'node-health.py', 'make-check']:
+            with self.subTest(name=name):
+                self.assertFalse(interpreter_name(name))
+
+    def test_versioned_and_plain_names_refused(self):
+        for name in ['python3.14', 'bash', 'perl5.40', 'uvx']:
+            path = self.bin / name
+            path.write_text('#!/bin/sh\n'); path.chmod(0o700)
+            with self.subTest(name=name):
+                self.refused(path)
+
+    def test_symlinked_interpreter_refused(self):
+        real = Path(os.path.realpath('/bin/sh'))
+        link = self.bin / 'diagnose'; os.symlink(real, link)
+        self.refused(link)
+        self.assertTrue(interpreter(str(link)))
+
+    def test_renamed_copy_of_an_elf_interpreter_refused(self):
+        # /usr/bin/env is an ELF interpreter on the standard path; a renamed
+        # copy keeps its identity (size and SHA-256).
+        source = Path('/usr/bin/env')
+        if not source.is_file():
+            self.skipTest('no /usr/bin/env on this host')
+        copy = self.bin / 'mytool'; copy.write_bytes(source.read_bytes()); copy.chmod(0o700)
+        self.assertEqual(copy.read_bytes()[:4], b'\x7fELF')
+        self.refused(copy)
+
+    def test_script_with_an_interpreter_shebang_is_allowed(self):
+        for name, body in [('diagnose.py', '#!/usr/bin/python3\nprint(1)\n'),
+                           ('check.sh', '#!/bin/bash\necho ok\n'),
+                           ('report', '#!/usr/bin/env python3\nprint(1)\n')]:
+            path = self.bin / name
+            path.write_text(body); path.chmod(0o700)
+            with self.subTest(name=name):
+                self.assertFalse(interpreter(str(path)))
+                self.register(path)
+        self.assertTrue(registered_script({'command': str(self.bin / 'report')},
+                                          scripts=registered_scripts(self.state), state=self.state))
+
+    def test_earlier_registration_of_an_interpreter_is_refused_at_admission(self):
+        source = Path('/usr/bin/env')
+        if not source.is_file():
+            self.skipTest('no /usr/bin/env on this host')
+        copy = self.bin / 'mytool'; copy.write_bytes(source.read_bytes()); copy.chmod(0o700)
+        # A registry written before the check existed.
+        registry = self.state / 'executive-pilot' / 'registered-scripts.json'
+        registry.write_text(json.dumps({'schema_version': 1, 'scripts': [
+            {'path': str(copy), 'sha256': script_digest(str(copy))}]}))
+        registry.chmod(0o600)
+        scripts = registered_scripts(self.state)
+        self.assertIsNotNone(scripts)
+        self.assertFalse(registered_script({'command': f'{copy} ls'}, scripts=scripts, state=self.state))
+        calls = []
+        def service(command):
+            calls.append(command['action'])
+            return {'error': 'AccessRefused', 'label': 'x', 'detail': 'intervention_permit_required'}
+        with self.assertRaises(ValueError) as caught:
+            handle(event(self, f'{copy} ls'), state=self.state, project=self.project,
+                   session=self.native, gateway=service, scripts=scripts)
+        self.assertEqual(str(caught.exception), 'script_is_interpreter')
+        # An exact permit, a separate path, is still asked for first.
+        self.assertEqual(calls, ['intervention_authorize'])
+
+    def test_operator_cli_reports_the_code(self):
+        path = self.bin / 'bash'; path.write_text('#!/bin/sh\n'); path.chmod(0o700)
+        done = subprocess.run([sys.executable, '-m', 'odin', '--state', str(self.state),
+                               'executive-register-script', '--path', str(path)],
+                              capture_output=True, text=True,
+                              env=os.environ | {'PYTHONPATH': str(ROOT / 'python')})
+        self.assertEqual(done.returncode, 2)
+        self.assertIn('script_is_interpreter', done.stderr)
+
+
+class RefusalCodeTests(unittest.TestCase):
+    """An unmatched call is refused with the service's code, distinct from an
+    unreachable service."""
+
+    def setUp(self):
+        prepared(self)
+        self.service = Service(self.state); self.addCleanup(self.service.close)
+        self.gateway = Gateway(self.service)
+
+    def socket_like(self, command):
+        # The socket server's own error mapping, without a socket.
+        try:
+            return submit_executive(self.gateway, {'command': command}, self.project)
+        except Exception as error:  # noqa: BLE001 - mirrors the server
+            return error_result(error, 'synthetic')
+
+    def code(self, gateway, command='make check'):
+        with self.assertRaises(ValueError) as caught:
+            handle(event(self, command), state=self.state, project=self.project,
+                   session=self.native, gateway=gateway)
+        return str(caught.exception)
+
+    def test_no_match_is_not_reported_as_unavailable(self):
+        self.assertEqual(self.code(self.socket_like), 'intervention_permit_required')
+
+    def test_unreachable_and_invalid_responses_have_their_own_codes(self):
+        def down(command):
+            raise ToolFailure('Executive service unavailable.')
+        def garbled(command):
+            raise ToolFailure('Invalid executive service response.')
+        self.assertEqual(self.code(down), 'intervention_service_unreachable')
+        self.assertEqual(self.code(garbled), 'intervention_service_response_invalid')
+        self.assertEqual(self.code(lambda c: ['not', 'a', 'receipt']), 'intervention_service_response_invalid')
+        # A refusal without a fixed code is still a refusal, not unavailability.
+        self.assertEqual(self.code(lambda c: {'error': 'ValueError', 'label': 'x'}), 'intervention_not_admitted')
+        self.assertEqual(self.code(lambda c: {'error': 'ValueError', 'detail': 'has spaces in it'}),
+                         'intervention_not_admitted')
+
+    def test_busy_project_is_relayed(self):
+        from unittest.mock import patch
+        with patch('odin.executive_intervention._busy', return_value=True):
+            self.assertEqual(self.code(self.socket_like), 'delegated_work_active')
+
+    def test_hook_process_reports_unreachable(self):
+        refused = subprocess.run(
+            [sys.executable, '-m', 'odin.executive_intervention_hook', '--state', str(self.state),
+             '--project', self.project, '--session-id', self.native],
+            input=json.dumps(event(self, 'make check')), capture_output=True, text=True, timeout=30,
+            env=os.environ | {'PYTHONPATH': str(ROOT / 'python')})
+        self.assertEqual(refused.returncode, 2)
+        self.assertTrue(refused.stderr.rstrip().endswith('Code: intervention_service_unreachable.'))
 
 
 class RelaxedPermitTests(unittest.TestCase):

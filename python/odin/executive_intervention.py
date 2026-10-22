@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .contracts import Contracts, canonical, strict_loads
-from .store import Conflict, digest, now
+from .store import AccessRefused, Conflict, Refused, digest, now
 
 ACTIONS = {"intervention_begin", "intervention_end", "intervention_status",
            "intervention_authorize", "intervention_finish", "intervention_reconcile"}
@@ -114,7 +114,7 @@ def dispatch(gateway, action, payload, context, operation):
     if (manifest.get("intervention_enabled") is not True or
         manifest.get("implementation_mode") != "delegated" or
         manifest["project"] != project or manifest["native_session_id"] != session):
-        raise PermissionError("executive_intervention_not_configured")
+        raise AccessRefused("executive_intervention_not_configured")
     rows = [x for x in _rows(store, project) if x["session_id"] == session]
     item = next((x for x in rows if x["id"] == payload.get("intervention_id")), None)
     if action == "intervention_status":
@@ -123,7 +123,7 @@ def dispatch(gateway, action, payload, context, operation):
         gateway.coordination._live()
         delegation_guard(store, project)
         if _busy(store, project):
-            raise Conflict("delegated_work_active")
+            raise Refused("delegated_work_active")
         # `uses` repeats an identical call; each use is its own one-use permit.
         permits = [{"tool": p["tool"], "input_digest": digest(_call_input(p)),
                     "state": "available", "tool_use_id": None} | ({"background": True} if p.get("background") else {})
@@ -137,7 +137,7 @@ def dispatch(gateway, action, payload, context, operation):
         if item is None:
             raise Conflict("intervention_not_found")
         if _busy(store, project):
-            raise Conflict("delegated_work_active")
+            raise Refused("delegated_work_active")
         for permit in item["permits"]:
             if permit["state"] == "admitted":
                 permit["state"] = "reconciled"
@@ -153,7 +153,7 @@ def dispatch(gateway, action, payload, context, operation):
         item["state"] = "closed"
     elif action in {"intervention_authorize", "intervention_finish"}:
         if payload["cwd"] != manifest["repository_root"]:
-            raise PermissionError("intervention_working_directory_mismatch")
+            raise AccessRefused("intervention_working_directory_mismatch")
         wanted = digest(normalized(payload["tool"], payload["input"]))
         tool_use = payload["tool_use_id"]
         matches = [(x, p) for x in rows for p in x["permits"]
@@ -172,11 +172,11 @@ def dispatch(gateway, action, payload, context, operation):
         else:
             gateway.coordination._live()
             if _busy(store, project):
-                raise Conflict("delegated_work_active")
+                raise Refused("delegated_work_active")
             matches = [(x, p) for x in rows if _live(x) for p in x["permits"]
                        if p["state"] == "available" and p["input_digest"] == wanted]
             if not matches:
-                raise PermissionError("intervention_permit_required")
+                raise AccessRefused("intervention_permit_required")
             item, permit = matches[0]
             # A background permit closes at launch: no completion is awaited.
             permit.update(state="launched" if permit.get("background") else "admitted", tool_use_id=tool_use)

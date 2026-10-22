@@ -12,13 +12,15 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from .contracts import ROOT, canonical, identifier, strict_loads
-from .executive_mcp import SocketGateway
+from .executive_mcp import SocketGateway, ToolFailure
 from .contracts import Contracts
-from .executive_admission import audit, read_only, registered_script, registered_scripts
+from .executive_admission import (audit, read_only, registered_interpreter, registered_script,
+                                  registered_scripts)
 from .executive_intervention import TOOLS, _live, normalized
 from .store import digest
 
 MEMORY_FILE = "memory-directory.json"
+CODE = re.compile(r"[a-z][a-z0-9_]{0,63}")
 REFUSAL = (
     "Odin executive mode: this call matched none of the three admission paths. "
     "(1) Read-only diagnostics, admitted without a permit: one foreground Bash command, "
@@ -135,14 +137,25 @@ def handle(event, *, state, project, session, gateway=None, memory=None, scripts
         return {}
     wanted = digest(normalized(event["tool_name"], event["tool_input"]))
     operation = identifier()
-    response = (gateway or SocketGateway(state, timeout=3))({
-        "schema_version": 1, "operation_id": operation,
-        "action": "intervention_authorize" if pre else "intervention_finish",
-        "payload": {"project": project, "session_id": session,
-                    "cwd": event["cwd"], "tool_use_id": event["tool_use_id"],
-                    "tool": event["tool_name"], "input": event["tool_input"]}})
-    if not isinstance(response, dict) or "error" in response:
-        raise ValueError("intervention_admission_unavailable")
+    try:
+        response = (gateway or SocketGateway(state, timeout=3))({
+            "schema_version": 1, "operation_id": operation,
+            "action": "intervention_authorize" if pre else "intervention_finish",
+            "payload": {"project": project, "session_id": session,
+                        "cwd": event["cwd"], "tool_use_id": event["tool_use_id"],
+                        "tool": event["tool_name"], "input": event["tool_input"]}})
+    except ToolFailure as error:
+        raise ValueError("intervention_service_unreachable" if str(error) == "Executive service unavailable."
+                         else "intervention_service_response_invalid") from None
+    if not isinstance(response, dict):
+        raise ValueError("intervention_service_response_invalid")
+    if "error" in response:
+        # The service answered and refused: relay its fixed code, never its text.
+        if event["tool_name"] == "Bash" and registered_interpreter(event["tool_input"], scripts=scripts):
+            raise ValueError("script_is_interpreter")
+        detail = response.get("detail")
+        raise ValueError(detail if isinstance(detail, str) and CODE.fullmatch(detail)
+                         else "intervention_not_admitted")
     Contracts().validate("gateway-receipt", response)
     if response["operation_id"] != operation:
         raise ValueError("intervention_receipt_identity_mismatch")
@@ -176,7 +189,7 @@ def handle(event, *, state, project, session, gateway=None, memory=None, scripts
 def refusal(error):
     """The fixed refusal text, plus the error code when it is a bare code."""
     code = str(error)
-    return REFUSAL + (f" Code: {code}." if re.fullmatch(r"[a-z][a-z0-9_]{0,63}", code) else "")
+    return REFUSAL + (f" Code: {code}." if CODE.fullmatch(code) else "")
 
 
 def main():

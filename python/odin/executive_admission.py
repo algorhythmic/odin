@@ -51,6 +51,18 @@ LAUNCHER_STATUS = {"status", "executive-status", "development-status",
 LAUNCHER_FLAGS = {"--project", "--loop", "--stage", "--native-session"}
 LAUNCHER_VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")
 BASH_KEYS = {"command", "description", "timeout", "run_in_background", "dangerouslyDisableSandbox"}
+# Programs that run other code given as arguments or input: shells, language
+# interpreters, package runners and command wrappers. A version suffix such as
+# python3.14 or perl5.40 matches the base name.
+INTERPRETER_NAME = re.compile(
+    r"(?:sh|bash|rbash|zsh|fish|dash|ash|ksh|mksh|oksh|csh|tcsh|nu|elvish|xonsh|busybox|toybox"
+    r"|python|pypy|ipython|node|nodejs|perl|ruby|irb|php|lua|luajit|tclsh|wish|expect"
+    r"|awk|gawk|mawk|nawk|rscript|julia|guile|racket|java|jshell|pwsh"
+    r"|env|uv|uvx|pipx|npx|npm|pnpm|pnpx|yarn|deno|bun|bunx|mise|asdf|pyenv|rbenv|nodenv"
+    r"|xargs|nice|nohup|timeout|stdbuf|setsid|sudo|doas|su|pkexec|runuser|chroot|flock"
+    r"|strace|ltrace|unshare|nsenter|systemd-run|watch)"
+    r"(?:[0-9][0-9.]*[a-z]?)?")
+INTERPRETER_DIRS = ("/usr/local/sbin", "/usr/local/bin", "/usr/sbin", "/usr/bin", "/sbin", "/bin")
 
 
 class Refused(ValueError):
@@ -365,7 +377,8 @@ def registered_script(inputs, *, scripts, state=None):
         return False
     path = tokens[0][1]
     expected = next((s["sha256"] for s in scripts if s["path"] == path), None)
-    if expected is None or not _safe_file(path):
+    # An interpreter registered before this check existed is refused here too.
+    if expected is None or not _safe_file(path) or interpreter(path):
         return False
     protected = [Path(os.path.realpath(s["path"])) for s in scripts]
     if state is not None:
@@ -415,8 +428,81 @@ def script_digest(path):
         os.close(fd)
 
 
+def interpreter_name(name):
+    """True when a file name is an interpreter's, ignoring case, a version
+    suffix, a ``-cli`` suffix and a JavaScript or ``.exe`` extension."""
+    name = name.lower()
+    for suffix in (".exe", ".js", ".mjs", ".cjs", "-cli"):
+        name = name.removesuffix(suffix)
+    return bool(INTERPRETER_NAME.fullmatch(name))
+
+
+def _interpreter_files():
+    """Real paths of interpreter-named entries on PATH and the standard directories."""
+    directories = [d for d in os.environ.get("PATH", "").split(os.pathsep) if os.path.isabs(d)]
+    directories += [*INTERPRETER_DIRS, os.path.expanduser("~/.local/bin")]
+    found = set()
+    for directory in dict.fromkeys(directories):
+        try:
+            entries = list(os.scandir(directory))
+        except OSError:
+            continue
+        for entry in entries:
+            if interpreter_name(entry.name):
+                found.add(os.path.realpath(entry.path))
+    return found
+
+
+def interpreter(path):
+    """True when ``path`` is an interpreter or shell rather than a script.
+
+    It matches the basename of the path and of its resolved real path, then
+    the file's identity (same inode, or same size and SHA-256) against the
+    interpreter-named programs on PATH and in the standard directories. That
+    covers a renamed copy of an ELF interpreter and a shebang wrapper such as
+    ``npx-cli.js``. A script whose shebang names an interpreter is a script.
+    A copy of an interpreter found on neither is not detected.
+    """
+    real = os.path.realpath(path)
+    if interpreter_name(os.path.basename(path)) or interpreter_name(os.path.basename(real)):
+        return True
+    try:
+        info = os.stat(real)
+    except OSError:
+        return False
+    sha256 = None
+    for candidate in _interpreter_files():
+        try:
+            other = os.stat(candidate)
+        except OSError:
+            continue
+        if (other.st_dev, other.st_ino) == (info.st_dev, info.st_ino):
+            return True
+        if stat.S_ISREG(other.st_mode) and other.st_size == info.st_size:
+            sha256 = sha256 or script_digest(real)
+            if sha256 is not None and script_digest(candidate) == sha256:
+                return True
+    return False
+
+
+def registered_interpreter(inputs, *, scripts):
+    """True when a Bash command starts with a registered path that is an interpreter."""
+    command = inputs.get("command") if isinstance(inputs, dict) else None
+    if not scripts or not isinstance(command, str):
+        return False
+    try:
+        tokens = _tokens(command)
+    except Refused:
+        return False
+    if not tokens or tokens[0][0] != "word":
+        return False
+    return any(s["path"] == tokens[0][1] for s in scripts) and interpreter(tokens[0][1])
+
+
 def script_path(value):
     """Validate an operator script path for registration; raises ValueError."""
+    if isinstance(value, str) and os.path.isabs(value) and interpreter(value):
+        raise ValueError("script_is_interpreter")
     if not _safe_file(value):
         raise ValueError("registered_script_invalid")
     return value
