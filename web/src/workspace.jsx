@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
-  childrenMap, conversationFor, decisionsFor, getSession, projects, rootsFor, sessionsFor,
+  ancestors, childrenMap, conversationFor, decisionsFor, getSession, projects, rootsFor, sessionsFor,
 } from './data.js';
 import { loadPrefs, savePrefs } from './prefs.js';
 import { projectHref, sessionHref } from './route.js';
@@ -33,12 +33,9 @@ export function Workspace({ project, sid }) {
   const selectedInProject = selected && selected.project_id === pid ? selected : null;
   const mode = narrow ? 'list' : prefs.mode;
 
-  const update = (patch) => setPrefs((p) => {
-    const next = { ...p, ...patch };
-    savePrefs(next);
-    return next;
-  });
-  const setCollapsed = (ids) => update({ collapsed: { ...prefs.collapsed, [pid]: [...ids] } });
+  useEffect(() => { savePrefs(prefs); }, [prefs]);
+  const update = (patch) => setPrefs((p) => ({ ...p, ...patch }));
+  const setCollapsed = (ids) => setPrefs((p) => ({ ...p, collapsed: { ...p.collapsed, [pid]: [...ids] } }));
   const toggle = (id) => {
     const next = new Set(collapsed);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -51,7 +48,7 @@ export function Workspace({ project, sid }) {
     if (!selectedInProject) return;
     const next = new Set(collapsed);
     let changed = false;
-    for (let p = selectedInProject.parent_session_id; p; p = getSession(p)?.parent_session_id) {
+    for (const p of ancestors(selectedInProject)) {
       if (next.delete(p)) changed = true;
     }
     if (changed) setCollapsed(next);

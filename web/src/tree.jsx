@@ -16,6 +16,7 @@ function layout(roots, childMap, collapsed) {
   const root = hierarchy(forest, (d) => (d.virtual ? d.kids : (collapsed.has(d.id) ? null : childMap.get(d.id))));
   tree().nodeSize([CARD_W + GAP_X, CARD_H + GAP_Y]).separation((a, b) => (a.parent === b.parent ? 1 : 1.2))(root);
   const nodes = root.descendants().filter((n) => !n.data.virtual);
+  if (!nodes.length) return { nodes, pos: new Map(), width: PAD * 2, height: PAD * 2 };
   const minX = Math.min(...nodes.map((n) => n.x));
   const maxX = Math.max(...nodes.map((n) => n.x));
   const maxDepth = Math.max(...nodes.map((n) => n.depth));

@@ -2,12 +2,22 @@
 // branches and the relationship overlay. Records are never stored here.
 const KEY = 'odin-web-prefs:v1';
 
+// Keeps only { projectId: [sessionId, ...] } entries; anything else is dropped.
+function cleanCollapsed(value) {
+  const out = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return out;
+  for (const [pid, ids] of Object.entries(value)) {
+    if (Array.isArray(ids)) out[pid] = ids.filter((id) => typeof id === 'string');
+  }
+  return out;
+}
+
 export function loadPrefs() {
   try {
-    const value = JSON.parse(localStorage.getItem(KEY) || '{}');
+    const value = JSON.parse(localStorage.getItem(KEY) || '{}') || {};
     return {
       mode: value.mode === 'list' ? 'list' : 'tree',
-      collapsed: value.collapsed && typeof value.collapsed === 'object' ? value.collapsed : {},
+      collapsed: cleanCollapsed(value.collapsed),
       showRelations: value.showRelations !== false,
     };
   } catch {

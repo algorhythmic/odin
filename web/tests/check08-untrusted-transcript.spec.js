@@ -13,8 +13,28 @@ test('hostile transcript markup renders as literal text', async ({ page }) => {
   await expect(transcript.locator('img, script, a, iframe, object')).toHaveCount(0);
   await page.waitForTimeout(200);
   expect(dialogs).toEqual([]);
-  // The browser stores layout preferences only.
-  const keys = await page.evaluate(() => Object.keys(localStorage));
-  expect(keys.every((k) => k.startsWith('odin-web-prefs'))).toBe(true);
   await shot(page, 'untrusted-transcript');
+  // The browser stores layout preferences only, and does store them.
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+  const keys = await page.evaluate(() => Object.keys(localStorage));
+  expect(keys).toEqual(['odin-web-prefs:v1']);
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('odin-web-prefs:v1')));
+  expect(Object.keys(stored).sort()).toEqual(['collapsed', 'mode', 'showRelations']);
+  expect(stored.mode).toBe('list');
+});
+
+test('tampered layout preferences are ignored rather than breaking the app', async ({ page }) => {
+  await page.goto('/#/');
+  await page.evaluate(() => localStorage.setItem('odin-web-prefs:v1',
+    JSON.stringify({ mode: 'tree', collapsed: { 'proj-odin-webapp': 42, other: { x: 1 } }, showRelations: 'yes' })));
+  await page.goto(sessionUrl('ses-helper-01'));
+  await expect(page.getByTestId('workspace')).toBeVisible();
+  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-helper-01"]')).toBeVisible();
+});
+
+test('the built app has no websocket allowance in its CSP', async ({ page }) => {
+  await page.goto('/#/');
+  const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
+  expect(csp).toContain("script-src 'self'");
+  expect(csp).not.toContain('ws:');
 });
