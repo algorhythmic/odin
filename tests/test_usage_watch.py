@@ -5,10 +5,12 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from jsonschema import ValidationError
 
 from odin import executive_runtime as runtime
+from odin import usage_watch
 from odin.contracts import Contracts
 from odin.coordination import Actor
 from odin.executive_service import prepare_project
@@ -54,6 +56,27 @@ class WatchTests(unittest.TestCase):
     def append(self, path, row, *, newline=True):
         with path.open('a') as stream:
             stream.write(json.dumps(row) + ('\n' if newline else ''))
+
+    def test_cursor_outside_both_code_and_repository_roots(self):
+        code, repository = self.root / 'code', self.root / 'repository'
+        code.mkdir(mode=0o700)
+        repository.mkdir(mode=0o700)
+        alias = self.root / 'alias'
+        alias.symlink_to(repository, target_is_directory=True)
+        with patch.object(usage_watch, 'ROOT', code), \
+                patch.object(usage_watch, 'REPOSITORY_ROOT', repository):
+            for root in (code, repository, alias):
+                for cursor in (root, root / 'cursor.sqlite3'):
+                    self.config['cursor_path'] = str(cursor)
+                    with self.subTest(cursor=cursor), self.assertRaisesRegex(
+                            ValueError, 'outside the repository'):
+                        with self.watcher():
+                            pass
+                    self.assertFalse(Path(str(cursor) + '.lock').exists())
+                self.assertEqual(list(root.iterdir()), [])
+            self.config['cursor_path'] = str(self.root / 'cursor.sqlite3')
+            with self.watcher():
+                pass
 
     def test_partial_line_child_discovery_and_metadata_only(self):
         encoded = json.dumps(self.row('main'))

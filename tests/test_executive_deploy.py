@@ -36,7 +36,8 @@ class DeployBase(Base):
             os.chmod(directory, 0o700)
 
     def configure(self, migrate=True, **options):
-        value = copies.configure(self.state, repository=self.repository, branch="integration", **options)
+        with patch.object(copies, "REPOSITORY_ROOT", self.repository):
+            value = copies.configure(self.state, repository=self.repository, branch="integration", **options)
         if migrate:
             # The one-time migration's first copy: an earlier revision is current.
             copies.export(self.temp / "deploy", self.repository, self.revisions[0])

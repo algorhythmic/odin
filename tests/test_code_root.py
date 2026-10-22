@@ -131,6 +131,24 @@ class CodeRootTests(unittest.TestCase):
         self.assertNotEqual(refused.returncode, 0)
         self.assertIn("pilot repository scope differs", refused.stderr)
 
+    def test_configure_deploy_from_a_copy_uses_the_repository_root(self):
+        repository = self.temp / "repository"
+        (repository / ".git").mkdir(parents=True)
+        code = self.temp / "copy"
+        copy_code(code, repository)
+        alias = self.temp / "alias"
+        alias.symlink_to(self.temp, target_is_directory=True)
+        configured = self.run_from(code, "executive-configure-deploy", "--repository",
+                                   str(alias / repository.name), "--branch", "integration")
+        self.assertEqual(configured.returncode, 0, configured.stderr)
+        self.assertEqual(strict_loads(configured.stdout)["repository"], str(repository))
+        other = self.temp / "other"
+        (other / ".git").mkdir(parents=True)
+        refused = self.run_from(code, "executive-configure-deploy", "--repository",
+                                str(other), "--branch", "integration")
+        self.assertEqual(refused.returncode, 2)
+        self.assertIn("deploy_repository_mismatch", refused.stderr)
+
     def test_prepared_files_follow_the_launching_code(self):
         runtime.enable_development(self.state)
         with runtime._owned_runtime(self.state):

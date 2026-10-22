@@ -18,7 +18,7 @@ import subprocess
 import tarfile
 from pathlib import Path
 
-from .contracts import DEPLOYMENT_FILE, canonical, deployment
+from .contracts import DEPLOYMENT_FILE, REPOSITORY_ROOT, canonical, deployment
 from .store import now
 
 CURRENT = "current"
@@ -160,10 +160,11 @@ def copies(root):
 
 
 def prune(root, keep, *, protect=()):
-    """Remove all but the newest ``keep`` copies; never ``current`` or ``protect``."""
+    """Keep the newest ``keep`` previous copies, plus ``current`` and ``protect``."""
     root = Path(root)
-    protected = {current_revision(root), *protect} - {None}
-    names = copies(root)
+    current = current_revision(root)
+    protected = {current, *protect} - {None}
+    names = [name for name in copies(root) if name != current]
     removable = [name for name in names[:max(0, len(names) - keep)] if name not in protected]
     for name in removable:
         _writable(root / name)
@@ -187,6 +188,9 @@ def configure(state, *, repository, branch, deploy_root=None, keep=3, drain_time
     repository = Path(repository)
     if not repository.is_absolute() or not (repository / ".git").exists():
         raise DeployError("deploy_repository_invalid")
+    repository = repository.resolve()
+    if repository != REPOSITORY_ROOT:
+        raise DeployError("deploy_repository_mismatch")
     root = Path(deploy_root) if deploy_root else state.parent / "deploy"
     for other in (repository, state):
         if root == other or root.is_relative_to(other) or other.is_relative_to(root):

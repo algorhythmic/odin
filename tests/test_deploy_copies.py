@@ -7,11 +7,12 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from jsonschema import ValidationError
 from odin import deploy_copies as copies
 from odin import executive_runtime as runtime
-from odin.contracts import DEPLOYMENT_FILE, ROOT, Contracts, deployment, strict_loads
+from odin.contracts import DEPLOYMENT_FILE, Contracts, deployment, strict_loads
 from odin.executive_service import prepare_project
 
 
@@ -129,10 +130,29 @@ class CopyTests(Base):
         self.assertEqual(sorted(copies.copies(self.root)),
                          sorted([self.revisions[0], self.revisions[1], self.revisions[3]]))
 
+    def test_prune_keeps_previous_copies_in_addition_to_current(self):
+        for revision in self.revisions:
+            copies.export(self.root, self.repository, revision)
+        copies.switch(self.root, self.revisions[-1])
+        removed = copies.prune(self.root, 1, protect=[self.revisions[0]])
+        self.assertEqual(removed, [self.revisions[1]])
+        self.assertEqual(set(copies.copies(self.root)),
+                         {self.revisions[0], self.revisions[-2], self.revisions[-1]})
+
+    def test_prune_keeps_three_rollback_targets(self):
+        for revision in self.revisions:
+            copies.export(self.root, self.repository, revision)
+        copies.switch(self.root, self.revisions[-1])
+        self.assertEqual(copies.prune(self.root, 3), [])
+        self.assertEqual(set(copies.copies(self.root)), set(self.revisions))
+
 
 class ConfigurationTests(Base):
     def setUp(self):
         super().setUp()
+        repository_root = patch.object(copies, "REPOSITORY_ROOT", self.repository)
+        repository_root.start()
+        self.addCleanup(repository_root.stop)
         self.state = self.temp / "state"
         self.project = prepare_project(self.state)
         runtime.prepare(self.state, config_dir=self.temp / "login", project=self.project,
@@ -169,11 +189,34 @@ class ConfigurationTests(Base):
             copies.prepare(self.state, head=self.revisions[0])
         self.assertEqual(str(caught.exception), "deploy_not_configured")
 
+    def test_configure_refuses_another_checkout(self):
+        other = self.temp / "other"
+        synthetic_repository(other)
+        with self.assertRaises(copies.DeployError) as caught:
+            copies.configure(self.state, repository=other, branch="integration")
+        self.assertEqual(str(caught.exception), "deploy_repository_mismatch")
+        self.assertIsNone(copies.read_config(self.state))
+        self.assertFalse(self.root.exists())
+
+    def test_configure_resolves_a_symlinked_parent(self):
+        parent = self.temp / "alias"
+        parent.symlink_to(self.temp, target_is_directory=True)
+        value = copies.configure(self.state, repository=parent / self.repository.name,
+                                 branch="integration")
+        self.assertEqual(value["repository"], str(self.repository))
+        copies.prepare(self.state, head=self.revisions[-1])
+        self.assertEqual(deployment(self.root / self.revisions[-1])["repository"],
+                         str(self.repository))
+
     def test_operator_cli(self):
+        from test_code_root import copy_code
+
+        code = self.temp / "code"
+        copy_code(code, self.repository)
         def run(*argv):
             return subprocess.run([sys.executable, "-m", "odin", "--state", str(self.state), *argv],
                                   capture_output=True, text=True, timeout=60, check=False,
-                                  env=os.environ | {"PYTHONPATH": str(ROOT / "python")})
+                                  env=os.environ | {"PYTHONPATH": str(code / "python")})
         done = run("executive-configure-deploy", "--repository", str(self.repository),
                    "--branch", "integration", "--keep", "2")
         self.assertEqual(done.returncode, 0, done.stderr)

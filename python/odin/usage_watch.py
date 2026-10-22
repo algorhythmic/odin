@@ -15,7 +15,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .contracts import ROOT, Contracts, canonical, strict_loads
+from .contracts import REPOSITORY_ROOT, ROOT, Contracts, canonical, strict_loads
 from jsonschema import ValidationError
 from .development_loop import _ulid_from_digest
 from .usage import (normalize_claude_status, probe_claude_limits, probe_codex_limits,
@@ -135,7 +135,8 @@ class UsageWatcher:
         self.max_files = config.get("max_files", 128)
         cursor = Path(config["cursor_path"]).absolute()
         resolved_cursor = cursor.resolve(strict=False)
-        if resolved_cursor == ROOT or ROOT in resolved_cursor.parents:
+        if any(resolved_cursor == root or root in resolved_cursor.parents
+               for root in (ROOT, REPOSITORY_ROOT)):
             raise ValueError("usage watcher cursor must be outside the repository")
         _directory(cursor.parent)
         if cursor.parent.stat().st_mode & 0o077:
