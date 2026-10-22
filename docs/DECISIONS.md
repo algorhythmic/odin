@@ -2310,13 +2310,20 @@ remain available in every profile.
   resolved list, and every claude-code turn, both start and resume, then
   passes `--disallowedTools` with the names joined by commas. The built-in
   default is off. The Codex harness refuses the option with
-  `claude_options_unsupported_by_harness`. `disallowed_tools`,
-  `subagent_model` and `subagent_model_force` are fixed at creation: a
-  resume or stop request for a known session that carries any of them, on
-  either harness and whatever the session's state, is refused with
-  `session_options_fixed_at_create` before anything changes, so the recorded
-  options stay as they were. An unknown session is still refused as
-  `unknown_session`, and the tool schema rejects a `null` value. Claude Code
+  `claude_options_unsupported_by_harness`. Every session setting, these
+  options included, is fixed at creation. A resume or stop request may carry
+  only `operation_id`, `action`, `session_id` and `reason`
+  (`SESSION_LIFECYCLE_FIELDS` in `python/odin/delegation.py`). For a known
+  session, on either harness and whatever its state, any other field with a
+  value is refused before anything changes: `workstream` or `role` alone
+  with `session_identity_fixed_at_create`, anything else (including a field
+  the schema does not define) with `session_options_fixed_at_create`, which
+  wins when both kinds are present. The recorded options stay as they were,
+  and no runner is signalled. An unknown session is still refused as
+  `unknown_session`. The service treats a `null` value as absent; the tool
+  schema rejects `null` for every such field except `budget_usd`. A test
+  derives the refusal matrix from the tool schema, so a field later added to
+  session creation cannot pass resume or stop unnoticed. Claude Code
   2.1.308's help
   documents the flag; its binary names the subagent tool `Agent` and still
   accepts the legacy name `Task`. To switch the denial on, the operator adds
