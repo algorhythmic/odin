@@ -66,6 +66,7 @@ def _rows(store, project, states=None):
 
 
 def _save(store, item):
+    initialize(store)
     deploy = item["kind"] == "deploy"
     store.contracts.validate("executive-deploy" if deploy else "executive-restart", item)
     table = "executive_deploys" if deploy else "executive_restarts"

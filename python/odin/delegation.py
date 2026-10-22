@@ -1216,6 +1216,11 @@ class Delegation:
         """
         if not self.enabled():
             return []
+        from .executive_supervision import draining
+
+        if draining(self.store):
+            # A pending deploy drains (ODIN-ADR-039): queued turns stay queued.
+            return []
         launched = []
         busy = set()
         busy_locks = {}

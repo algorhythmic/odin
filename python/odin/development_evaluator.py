@@ -688,6 +688,9 @@ class EvaluatorRunner:
             )
         ]
         lineage_busy = False
+        from .executive_supervision import draining
+
+        held_by_deploy = draining(self.store)
         for candidate in jobs:
             owner_loop = self.loop.get(candidate["loop_id"])
             if candidate["state"] in {"running", "unknown"} and owner_loop[
@@ -735,6 +738,10 @@ class EvaluatorRunner:
                 if not self.config or loop["status"] == "paused":
                     continue
                 if job["state"] == "pending" and loop["status"] == "evaluator_pending":
+                    if held_by_deploy:
+                        # A pending deploy drains (ODIN-ADR-039): the job stays pending.
+                        summary["held"].append(job["id"])
+                        continue
                     from .usage_policy import UsagePolicy
                     admission = UsagePolicy(self.store).check(
                         loop["project"], purpose="evaluator:" + job["id"], loop_id=loop["id"])

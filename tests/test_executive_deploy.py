@@ -4,14 +4,19 @@ Synthetic evidence: an in-process service gateway and a synthetic git
 repository standing in for the canonical checkout.
 """
 import json
+import unittest
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
+import test_delegation
+import test_development_evaluator
 from odin import deploy_copies as copies
 from odin import executive_supervision as supervision
 from odin.contracts import Contracts, identifier, strict_loads
+from odin.development_evaluator import configure
 from odin.service_activation import record_service_revision
 from test_deploy_copies import git, synthetic_repository
+from test_development_evaluator import P
 from test_executive_supervisor import Base
 
 
@@ -162,3 +167,78 @@ class DrainTests(DeployBase):
         first = next(d for d in self.deploys() if d["id"] == request["id"])
         self.assertEqual((first["state"], first["code"]), ("failed", "drain_timeout"))
         self.assertIn("executive.deploy_failed", self.history("executive.deploy_"))
+
+
+def drain_record(store, project, state="pending", seconds=600):
+    """A deploy record written directly, as the service would hold it."""
+    stamp = datetime.now(UTC)
+    item = {"schema_version": 1, "id": identifier(), "kind": "deploy", "project": project,
+            "session_id": "00000000-0000-4000-8000-000000000000", "requested_head": "a" * 40,
+            "previous_revision": None,
+            "requested_at": stamp.isoformat().replace("+00:00", "Z"),
+            "updated_at": stamp.isoformat().replace("+00:00", "Z"),
+            "drain_deadline": (stamp + timedelta(seconds=seconds)).isoformat().replace("+00:00", "Z"),
+            "state": state, "code": None, "timings": {}, "activation_id": None,
+            "rollback_activation_id": None, "pending_outcome": None,
+            "clean_exit_observed": None, "exit_code": None}
+    with store.transaction():
+        supervision._save(store, item)
+    return item
+
+
+class DelegationDrainTests(unittest.TestCase):
+    """Item 6: queued delegated turns stay queued; running turns are not touched."""
+
+    setUp = test_delegation.DelegationCycleTests.setUp
+    open_session = test_delegation.DelegationCycleTests.open_session
+    assign = test_delegation.DelegationCycleTests.assign
+
+    def test_queued_turn_waits_for_the_drain(self):
+        h = self.harness
+        session = self.open_session()["session"]["id"]
+        assigned = self.assign(session)
+        item = drain_record(h.service.store, h.project)
+        self.assertEqual(h.gateway.delegation.launch_pending(), [])
+        self.assertEqual(h.assignment_state(assigned["assignment"])["turns"][0]["state"], "queued")
+        with h.service.store.transaction():
+            supervision._save(h.service.store, item | {"state": "cancelled"})
+        self.assertEqual(h.gateway.delegation.launch_pending(), [assigned["turn"]])
+
+    def test_restarting_executive_no_longer_drains(self):
+        h = self.harness
+        session = self.open_session()["session"]["id"]
+        assigned = self.assign(session)
+        drain_record(h.service.store, h.project, state="restarting_executive")
+        self.assertEqual(h.gateway.delegation.launch_pending(), [assigned["turn"]])
+
+    def test_expired_drain_releases_queued_work(self):
+        h = self.harness
+        session = self.open_session()["session"]["id"]
+        assigned = self.assign(session)
+        drain_record(h.service.store, h.project, seconds=-1)
+        self.assertEqual(h.gateway.delegation.launch_pending(), [assigned["turn"]])
+
+
+class EvaluatorDrainTests(unittest.TestCase):
+    """Item 6: a pending evaluator job is held, not started, during a drain."""
+
+    setUp = test_development_evaluator.DevelopmentEvaluatorTests.setUp
+    tearDown = test_development_evaluator.DevelopmentEvaluatorTests.tearDown
+    runner = test_development_evaluator.DevelopmentEvaluatorTests.runner
+    start = test_development_evaluator.DevelopmentEvaluatorTests.start
+    wait = test_development_evaluator.DevelopmentEvaluatorTests.wait
+    count = test_development_evaluator.DevelopmentEvaluatorTests.count
+
+    def test_pending_job_is_held_then_started(self):
+        configure(self.state, self.config)
+        job, runner = self.start(), self.runner()
+        item = drain_record(self.store, P)
+        result = runner.tick()
+        self.assertEqual((result["started"], result["held"]), ([], [job["id"]]))
+        self.assertEqual(self.loop.job(job["id"])["state"], "pending")
+        self.assertEqual(self.count(), 0)
+        with self.store.transaction():
+            supervision._save(self.store, item | {"state": "failed", "code": "drain_timeout"})
+        self.assertEqual(runner.tick()["started"], [job["id"]])
+        self.wait(runner, lambda: self.loop.job(job["id"])["state"] == "completed")
+
