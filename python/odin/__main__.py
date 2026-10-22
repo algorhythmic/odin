@@ -70,6 +70,8 @@ def main():
             "executive-login",
             "executive-start",
             "executive-supervise",
+            "executive-configure-deploy",
+            "executive-deploy-prepare",
             "executive-new-session",
             "executive-enable-repository-reads",
             "executive-enable-development",
@@ -168,6 +170,9 @@ def main():
     parser.add_argument("--stage", help="stage identity for explicitly attributed usage")
     parser.add_argument("--head", help="reviewed full commit the service must run after activation")
     parser.add_argument("--branch", help="branch the canonical checkout must be on")
+    parser.add_argument("--deploy-root", help="private directory for pinned deploy copies (executive-configure-deploy)")
+    parser.add_argument("--keep", type=int, default=3, help="previous deploy copies to keep, 1-10")
+    parser.add_argument("--drain-timeout", type=int, default=3600, help="seconds a deploy waits for running work, 60-86400")
     parser.add_argument("--activation-timeout", type=float, default=60.0, help="seconds to wait for the restarted service")
     args = parser.parse_args()
     from pathlib import Path
@@ -274,6 +279,25 @@ def main():
                               head=args.head, timeout=args.activation_timeout)
             print(canonical(record))
             sys.exit({"activated": 0, "refused": 2}.get(record["outcome"], 1))
+        elif args.action in ("executive-configure-deploy", "executive-deploy-prepare"):
+            from jsonschema import ValidationError
+
+            from .deploy_copies import DeployError, configure, prepare
+
+            try:
+                if args.action == "executive-configure-deploy":
+                    if not (args.repository and args.branch):
+                        parser.error("executive-configure-deploy requires --repository and --branch")
+                    result = configure(state, repository=args.repository, branch=args.branch,
+                                       deploy_root=args.deploy_root, keep=args.keep,
+                                       drain_timeout_seconds=args.drain_timeout)
+                else:
+                    if not args.head:
+                        parser.error("executive-deploy-prepare requires --head")
+                    result = prepare(state, head=args.head)
+            except (DeployError, ValidationError, PermissionError, ValueError) as error:
+                parser.exit(2, f"odin: {getattr(error, 'message', error)}\n")
+            print(canonical(result))
         elif args.action == "executive-supervise":
             from .executive_supervisor import supervise
 
