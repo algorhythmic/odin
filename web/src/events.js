@@ -16,15 +16,29 @@ export const RUN_OUTCOMES = new Set(['verified', 'unverified', 'failed', 'unknow
 
 const isId = (v) => typeof v === 'string' && v.length > 0;
 
+// The keys of the draft $defs/run shape; a run record may carry no
+// others (the schema's additionalProperties is false).
+export const RUN_FIELDS = new Set(['id', 'project_id', 'assignment_id', 'session_id', 'outcome', 'summary']);
+
 // A run record riding on a session.lifecycle_changed event (the draft
 // carries a run's recorded outcome with the lifecycle change that ended
-// it, so a failure appears in one update, not two). Returns a reason, or
-// null when the record is usable.
-function runProblem(run, sessionId) {
+// it, so a failure appears in one update, not two). Checked against the
+// $defs/run shape plus the referential rules the schema cannot express:
+// the run must name the event's session and project, and its id must be
+// new to the snapshot. Returns a reason, or null when the record is
+// usable.
+function runProblem(run, session, runs) {
   if (!run || typeof run !== 'object' || Array.isArray(run)) return 'run is not an object';
   if (!isId(run.id)) return 'run id is not a string';
-  if (run.session_id !== sessionId) return 'run names a different session';
+  const extra = Object.keys(run).filter((k) => !RUN_FIELDS.has(k));
+  if (extra.length) return `undocumented run field ${JSON.stringify(extra[0])}`;
+  if (!isId(run.project_id)) return 'run project_id is not a string';
+  if (run.project_id !== session.project_id) return 'run names a different project';
+  if (run.assignment_id !== null && !isId(run.assignment_id)) return 'run assignment_id is not a string or null';
+  if (run.session_id !== session.id) return 'run names a different session';
   if (!RUN_OUTCOMES.has(run.outcome)) return 'unknown run outcome';
+  if (typeof run.summary !== 'string') return 'run summary is not a string';
+  if (runs.some((r) => r.id === run.id)) return 'duplicate run id';
   return null;
 }
 
@@ -83,7 +97,7 @@ export function reduceEvent(snapshot, seen, evt) {
       case 'session.lifecycle_changed': {
         if (!LIFECYCLES.has(p.lifecycle)) return reject('unknown lifecycle');
         if (p.run !== undefined) {
-          const problem = runProblem(p.run, sessionId);
+          const problem = runProblem(p.run, byId.get(sessionId), snapshot.runs);
           if (problem) return reject(`malformed run: ${problem}`);
           runs = [...snapshot.runs, p.run];
         }

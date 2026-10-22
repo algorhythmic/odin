@@ -167,13 +167,74 @@ test('a malformed run on a lifecycle change rejects the whole event', () => {
     ...byId('evt-001')[0], event_id: 'run-bad', revision: 5,
     payload: { session_id: 'ses-docs-01', lifecycle: 'ended', observed_at: '2026-10-21T12:00:00Z', run },
   });
-  const base = { id: 'run-x', session_id: 'ses-docs-01', outcome: 'failed' };
+  const base = {
+    id: 'run-x', project_id: 'proj-odin-webapp', assignment_id: 'asg-docs',
+    session_id: 'ses-docs-01', outcome: 'failed', summary: 'checks failed',
+  };
   assert.equal(rejected(usage(null), snap), 'malformed run: run is not an object');
   assert.equal(rejected(usage({}), snap), 'malformed run: run id is not a string');
   assert.equal(rejected(usage({ ...base, session_id: 'ses-other' }), snap), 'malformed run: run names a different session');
   assert.equal(rejected(usage({ ...base, outcome: 'billed' }), snap), 'malformed run: unknown run outcome');
   // A rejected run changes nothing, runs included.
   assert.equal(snap.runs.length, snapshot.runs.length);
+});
+
+test('a run is checked against every $defs/run field', () => {
+  const snap = atRevision4();
+  const usage = (run, event_id = 'run-bad') => ({
+    ...byId('evt-001')[0], event_id, revision: 5,
+    payload: { session_id: 'ses-docs-01', lifecycle: 'ended', observed_at: '2026-10-21T12:00:00Z', run },
+  });
+  const base = {
+    id: 'run-x', project_id: 'proj-odin-webapp', assignment_id: 'asg-docs',
+    session_id: 'ses-docs-01', outcome: 'failed', summary: 'checks failed',
+  };
+  const missing = (key) => { const run = { ...base }; delete run[key]; return run; };
+  // project_id: required non-empty string naming the session's project.
+  assert.equal(rejected(usage(missing('project_id')), snap), 'malformed run: run project_id is not a string');
+  assert.equal(rejected(usage({ ...base, project_id: '' }), snap), 'malformed run: run project_id is not a string');
+  assert.equal(rejected(usage({ ...base, project_id: 7 }), snap), 'malformed run: run project_id is not a string');
+  assert.equal(rejected(usage({ ...base, project_id: 'proj-contract-pins' }), snap), 'malformed run: run names a different project');
+  // assignment_id: required, non-empty string or null.
+  assert.equal(rejected(usage(missing('assignment_id')), snap), 'malformed run: run assignment_id is not a string or null');
+  assert.equal(rejected(usage({ ...base, assignment_id: '' }), snap), 'malformed run: run assignment_id is not a string or null');
+  assert.equal(rejected(usage({ ...base, assignment_id: 7 }), snap), 'malformed run: run assignment_id is not a string or null');
+  // null assignment_id is the documented no-assignment shape; it applies.
+  const ok = usage({ ...base, id: 'run-null-asg', assignment_id: null }, 'run-null-asg');
+  assert.equal(reduceEvent(snap, new Set(), ok).result.status, 'applied');
+  // summary: required string.
+  assert.equal(rejected(usage(missing('summary')), snap), 'malformed run: run summary is not a string');
+  assert.equal(rejected(usage({ ...base, summary: 42 }), snap), 'malformed run: run summary is not a string');
+  assert.equal(rejected(usage({ ...base, summary: null }), snap), 'malformed run: run summary is not a string');
+  // No keys outside the schema's properties.
+  assert.equal(rejected(usage({ ...base, cost: { amount_usd: 1 } }), snap), 'malformed run: undocumented run field "cost"');
+  // The snapshot object itself is untouched by every rejection.
+  assert.equal(snap.runs.length, snapshot.runs.length);
+  assert.equal(snap.sessions.find((s) => s.id === 'ses-docs-01').lifecycle, 'running');
+  assert.equal(snap.revision, 4);
+});
+
+test('a run id already in the snapshot is rejected', () => {
+  const snap = atRevision4();
+  const usage = (run) => ({
+    ...byId('evt-001')[0], event_id: 'run-dupe', revision: 5,
+    payload: { session_id: 'ses-docs-01', lifecycle: 'ended', observed_at: '2026-10-21T12:00:00Z', run },
+  });
+  const run = {
+    id: snapshot.runs[0].id, project_id: 'proj-odin-webapp', assignment_id: 'asg-docs',
+    session_id: 'ses-docs-01', outcome: 'failed', summary: 'checks failed',
+  };
+  assert.equal(rejected(usage(run), snap), 'malformed run: duplicate run id');
+  // An id carried by an earlier applied event is also a duplicate.
+  const snapAfter = replay(events.slice(0, 24)).snap; // through evt-012 (run-live-a1)
+  const again = {
+    ...byId('evt-001')[0], event_id: 'run-dupe-2', revision: 14,
+    payload: {
+      session_id: 'ses-live-a1', lifecycle: 'ended', observed_at: '2026-10-21T12:00:00Z',
+      run: { ...run, id: 'run-live-a1', session_id: 'ses-live-a1' },
+    },
+  };
+  assert.equal(rejected(again, snapAfter), 'malformed run: duplicate run id');
 });
 
 test('lifecycle_changed outside the documented set is rejected', () => {

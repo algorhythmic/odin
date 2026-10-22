@@ -125,10 +125,14 @@ Event types used by the prototype:
 `run` on `session.lifecycle_changed` carries a run record (`{id,
 project_id, assignment_id, session_id, outcome, summary}`, the section 2
 run shape) whose outcome is recorded with the lifecycle change that
-ended it, so an ending and its outcome arrive as one update. A run whose
-`session_id` does not match the event's `session_id`, without a string
-`id`, or with an `outcome` outside `{verified, unverified, failed,
-unknown}` is malformed and rejects the whole event.
+ended it, so an ending and its outcome arrive as one update. A run is
+malformed — and rejects the whole event — when it is not an object, has
+no non-empty string `id`, carries a key outside the six above, has a
+`project_id` that is not a non-empty string or differs from the
+session's, has an `assignment_id` that is neither a non-empty string nor
+null, names a `session_id` different from the event's, has an `outcome`
+outside `{verified, unverified, failed, unknown}`, has a non-string
+`summary`, or reuses an `id` already in the snapshot's `runs`.
 
 Client rules, checked in this order:
 
@@ -147,9 +151,12 @@ Client rules, checked in this order:
    - any other type whose `session_id` is missing or not in the
      snapshot;
    - `session.lifecycle_changed` with a `lifecycle` outside the
-     documented set, or with a `run` record that is not an object, has a
-     non-string `id`, names a different `session_id` than the event's,
-     or carries an `outcome` outside the documented set;
+     documented set, or with a `run` record that fails the run shape
+     above: not an object, a non-string `id`, a key outside the
+     documented six, a missing or mismatched `project_id`, an
+     `assignment_id` that is neither string nor null, a `session_id`
+     different from the event's, an `outcome` outside the documented
+     set, a non-string `summary`, or an `id` already in `runs`;
    - `session.usage_updated` whose `tokens` record fails the section 7
      shape, or `session.started` whose session record's `tokens` fails the
      same shape: a counter missing, the counters half-null, a counter
