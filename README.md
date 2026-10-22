@@ -57,6 +57,10 @@ protocol mocks and offline evaluation. See
 [product implementation status](docs/PRODUCT-IMPLEMENTATION-STATUS.md) for
 current commands, evidence and outstanding launch gates.
 
+ODIN-ADR-037 makes a web app with an agent tree Odin's primary human view.
+A synthetic prototype is in `web/`; it is not connected to
+the service. See the [web app work plan](docs/design/WEB-APP-WORKPLAN.md).
+
 On 2026-10-16, ODIN-ADR-006 to 015 recorded the operator's consolidation
 direction for the inherited clauses Odin owns
 ([decisions §4](docs/DECISIONS.md#4-odin-decisions-odin-adr)). A

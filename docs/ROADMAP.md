@@ -86,6 +86,36 @@ scoping Saga's record and is carried the same way.
 | G7 | Unsettled defaults: the billing and auth re-test; the Console spend cap not applying under a subscription login; wake, interrupt and review caps and the coalescing window; memory evaluation run parameters | Operator (re-test, Phase A; G-5); Odin (caps and window from I3's first week of records; spend-cap behaviour before I3; freeze run parameters under ODIN-ADR-003 before I5) | As stated per owner |
 | R-S1 | Whether D7 redaction reaches Bragi's outputs compiled from Odin's chat logs (Saga's record §7) | Saga (Bragi's outputs); Odin (redaction propagation, I/O contract §8) | Bragi is given Odin's history projections (cutover, I/O contract §14 step 3); Saga tracks it as SB-08 |
 
+## Human-view track (ODIN-ADR-037)
+
+The web app is Odin's primary human view. Its packages run inside the
+increments below and add none; the [work plan](design/WEB-APP-WORKPLAN.md)
+gives owners, prerequisites, acceptance checks and target passes. Results
+are labelled as one of: synthetic prototype, fake-backend integration,
+service integration, validated desktop behaviour.
+
+- [ ] **Documentation alignment:** ODIN-ADR-037 and dependent documents
+      agree; every behavioural requirement has an enforcement check.
+- [ ] **Synthetic UI prototype** (no gate): overview, project workspace,
+      agent tree, details and list view on clearly labelled synthetic data.
+      A first slice exists in `web/`; it is a synthetic
+      prototype only.
+- [ ] **Record and projection foundation** (I0 schema work): stable
+      identities, ancestry and provenance, typed relationships, browser
+      projection and update schemas with validated synthetic fixtures.
+- [ ] **Service read integration** (I1/I2 fake backend): initial load,
+      incremental updates, history, transcript gaps and reconnect, labelled
+      fake-backend evidence (proposed AC-51–AC-54).
+- [ ] **Operator command integration:** conversation input and supported
+      lifecycle and decision actions through the recorded command path,
+      after the web surface's authentication and request-protection rules;
+      Saga-touching commands keep the I3 live gates (proposed AC-55).
+- [ ] **Desktop delivery:** Chromium app window on Omarchy with a launcher
+      entry; launch, window identity, deep links, restart and reconnection
+      verified (proposed AC-57).
+
+Historical import (I4, G-10) is not a prerequisite for any of these.
+
 ## Phase A — reset (Saga phase; Odin documentation handoff)
 
 - [x] Odin design documents adapted for this repository, with the
@@ -241,14 +271,15 @@ session host, child dispatch or any live Saga gate.
       bindings, scoped planning owners, adopt and takeover (EC-03). Exit:
       projects remain separate, bindings are explicit, no pane state is
       mistaken for completion. (Skald enrollment is I6.)
-- [ ] **I4 heimdall import and human view v0** (ODIN-ADR-007; requires
+- [ ] **I4 heimdall import** (ODIN-ADR-007; requires
       G-10): standalone heimdall's task, checkpoint and decision records
       imported once into commitments, with original identities and
       revisions as provenance and a receipt, and later heimdall-side
-      edits refused (I/O contract §14); one human view shows
-      commitments, runs and transcripts with their owners attributed.
-      Exit: the import is idempotent with a receipt and no second
-      editable task store remains (proposed AC-38).
+      edits refused (I/O contract §14); imported records then appear in
+      the human view with their provenance. The human view itself moved
+      to the human-view track below Phase A (ODIN-ADR-037) and does not
+      wait for this import. Exit: the import is idempotent with a receipt
+      and no second editable task store remains (proposed AC-38).
 - Phase exit (D15): the CLI and Odin encounter identical policy (G-6).
 
 ## Phase E — workers and portability

@@ -21,7 +21,9 @@ STABLE_ID_DOCUMENTS = {
 }
 # These identifiers existed when the registry was introduced. The registry may
 # grow, but removing an existing entry must not make its definition optional.
-BASELINE_ID_COUNTS = {"AC": 50, "DC": 8, "EC": 16}
+BASELINE_ID_COUNTS = {"AC": 57, "DC": 8, "EC": 16}
+# Installed frontend dependencies and browsers are not repository documents.
+UNTRACKED_DEPENDENCY_DIRS = {"node_modules", ".playwright-browsers"}
 FROZEN_RESEARCH_DIRS = {
     Path("docs/research/harness-research-2026-10"),
     Path("docs/research/consolidation-2026-10"),
@@ -237,7 +239,7 @@ def main() -> int:
     checked = 0
     for path in sorted(ROOT.rglob("*.md")):
         relative = path.relative_to(ROOT)
-        if ".git" in relative.parts or path in snapshots:
+        if ".git" in relative.parts or path in snapshots or UNTRACKED_DEPENDENCY_DIRS & set(relative.parts):
             continue
         if relative.parent in FROZEN_RESEARCH_DIRS and relative.name != "README.md":
             continue  # Dated evidence links are inventoried in the editable wrappers.

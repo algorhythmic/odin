@@ -312,13 +312,13 @@ joint Saga and Odin decision record frozen at
 | D20.2 | One service; several planning sessions, one owner per project; many worker sessions; Mimir sessions on demand; routine events handled by code | Odin | IO §2, §4; BP §2 | locked | ODIN-ADR-009: sessions may be hosted on the workstation; records and ownership stay in the one service |
 | D20.3 | Another planning owner only for separable responsibility or measured bottleneck; separate service instances later | Odin | BP §2 | locked | — |
 | D20.4 | Ownership rules for multiple planners | Odin | IO §2; AC-04, AC-16 | locked | — |
-| D20.5 | Two operator interfaces, one command path; approvals bound to the proposal whatever the channel; stop works when the model is unresponsive | Odin | IO §10 operator; AC-05, AC-06, AC-10 | locked | **Superseded in part by ODIN-ADR-010**: operator surfaces are adapters on one service API (workspace, Telegram, summoned terminal, bar, notifications, voice later); one command path, binding and stop rules unchanged |
+| D20.5 | Two operator interfaces, one command path; approvals bound to the proposal whatever the channel; stop works when the model is unresponsive | Odin | IO §10 operator; AC-05, AC-06, AC-10 | locked | **Superseded in part by ODIN-ADR-010**: operator surfaces are adapters on one service API (workspace, Telegram, summoned terminal, bar, notifications, voice later); one command path, binding and stop rules unchanged. **Amended by ODIN-ADR-037**: the remaining desk-overview description moves to the web app; worker terminals open only where the adapter supports attachment |
 | D20.6 | Native vs interactive terminal integration; capabilities tested and published; workspace "done"/"wait" do not establish completion | Odin | IO §11; EI §4; AC-13 | locked | Herdr API not reviewed (§5.8) |
 | D20.7 | Adopt into supervision; take control | Odin | IO §10 operator; AC-11 | locked | — |
 | D20.8 | Service path vs model path; handling table | Odin | IO §4 | locked | ODIN-ADR-002 replaces unconditional journal-report wake with typed outcomes and bounded digest. **Amended by ODIN-ADR-010**: workstation observations and capture lifecycle as state-only/log-only sources; attention prompt as a typed outbound effect with caps |
 | D20.9 | Structured requests go directly to the operator queue; planner joins only when the answer changes the plan | Odin | IO §4, §10; AC-07 | locked | — |
 | D20.10 | Ownership bridge with standalone heimdall: projection, edits route to owner, no second editable copy; new work scheduled with the workspace integration | Odin + heimdall | EI §5; EC-05 | locked | Heimdall's side is heimdall's to adopt. **Superseded for Odin by ODIN-ADR-007**: no bridge; heimdall's task layer imported once and retired. Heimdall's side is heimdall's to record (EC-13) |
-| D20.11 | First configuration; then a second project before any further supervisory layer | Odin | ROADMAP; IO §13 | locked | — |
+| D20.11 | First configuration; then a second project before any further supervisory layer | Odin | ROADMAP; IO §13 | locked | **Amended by ODIN-ADR-037**: the web app replaces the terminal workspace as the overview and inspection surface; Herdr becomes an optional inspection and attachment adapter; the rest of the configuration is unchanged |
 
 ### SAGA-2026-10-D21 — Desktop capability and computer-use work (default; Odin coordination, WCU capability)
 
@@ -451,6 +451,7 @@ formal handoff. See [DECISIONS.md §4](../DECISIONS.md#4-odin-decisions-odin-adr
 | ODIN-ADR-033 | operator-authorized executive delegation | Amends ADR-026 direct implementation for the selected executive role and ADR-031 existing-loop routing; preserves D7 authority, bounds, identity and all producer/review guarantees | [Usage and routing](../USAGE-AND-ROUTING.md) |
 | ODIN-ADR-030 | operator-authorized visibility and attention | Adds durable notices, model-attributed acknowledgement and deadline attention to ADR-028's loop; preserves D9.5 operator routing, controller/native-process distinction and every review boundary | [Development loop](../DEVELOPMENT-LOOP.md#notices-and-attention), `schemas/development-loop-notice.schema.json` |
 | ODIN-ADR-029 | operator-authorized evidence format | Adds structured execution receipts and their validation to ADR-028's evidence workflow; preserves D7.11 commitment truth, D19.4 capability statements and every Saga/review boundary | [Development loop](../DEVELOPMENT-LOOP.md#execution-receipts), `schemas/execution-receipt.schema.json` |
+| ODIN-ADR-037 | operator direction accepted; layout and rollout defaults are default design; synthetic prototype only | Amends D20.11 first configuration, the remaining D20.5 desk-overview description, ADR-010's surface list and D20.11 preservation, ADR-007's human-view consequence and D15's "(D20's first configuration)" parenthetical; preserves D20.5 command path/binding/stop, D20.6, D20.7, D20.9, ADR-007 task authority, ADR-009 | IO §10, §13; BP §5, §7; ROADMAP human-view track; proposed AC-51–AC-57; [web app work plan](../design/WEB-APP-WORKPLAN.md) |
 
 ODIN-ADR-015 replaces the earlier Codex adapter proposal in ROADMAP Phase C
 with a fixture-only Pi RPC control; full second-adapter delivery remains I5.
@@ -516,6 +517,12 @@ channel until the executive acknowledges them, plus optional per-loop
 deadlines whose attention observations never redispatch or terminate work; see
 [ADR-030](../DECISIONS.md#odin-adr-030--durable-loop-notices-and-conservative-attention).
 
+ODIN-ADR-037 records the operator's direction that a web app with an agent
+tree is Odin's primary human view, presented in a Chromium app window on
+Omarchy, with Herdr reduced to an optional inspection and attachment adapter.
+It renumbers no inherited decision; see
+[ADR-037](../DECISIONS.md#odin-adr-037--web-app-as-the-primary-human-view-with-an-agent-tree).
+
 ODIN-ADR-034 amends ADR-033's blanket native-tool removal only for the
 operator-enabled delegated development executive, adding bounded per-call
 intervention permits and concise bridge views. It changes no Saga-owned
@@ -544,6 +551,8 @@ carry the same supersession in their last column.
 | D20.5 "two operator interfaces" | superseded in part | ODIN-ADR-010 |
 | D20.8 handling table | amended | ODIN-ADR-010 |
 | D20.10 | superseded for Odin | ODIN-ADR-007 |
+| D20.11 first configuration; D20.5 remaining desk-overview description | amended | ODIN-ADR-037 |
+| ODIN-ADR-010 surface list and D20.11 preservation; ODIN-ADR-007 human-view consequence; D15 "(D20's first configuration)" parenthetical | amended | ODIN-ADR-037 |
 | D22.3, D22.5 | superseded for Odin | ODIN-ADR-012 |
 | D24.3 (Odin's classes) | amended | ODIN-ADR-009 |
 | D15.Eb timing | amended (control only; D7.6 honoured) | ODIN-ADR-015 |

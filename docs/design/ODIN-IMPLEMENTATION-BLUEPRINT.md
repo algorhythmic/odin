@@ -179,13 +179,50 @@ Operator surfaces are adapters on one service API, and every one enters the
 same recorded command path (ODIN-ADR-010): the terminal workspace, Telegram (on
 the homelab, so approvals and stop work when the workstation is off), a
 summoned terminal conversation, a status bar, desktop notifications with typed
-actions, and later voice. Herdr and Telegram remain the first configuration;
-the other surfaces are not part of the restrained initial product (D19.6). The
-terminal workspace exposes projects, sessions, pending decisions, evidence, and
-budgets; Telegram supports asynchronous questions, corrections, summaries, and
-approvals. One human view shows commitments, runs and transcripts with their
-owners attributed. No surface becomes a separate Odin, and no harness gateway
-faces the operator directly.
+actions, later voice, and the web app. Under ODIN-ADR-037 the web app is the
+primary human view and, with Telegram, the first configuration; the other
+surfaces are not part of the restrained initial product (D19.6). The web app
+exposes projects, commitments, sessions as an agent tree, pending decisions,
+evidence, runs and budgets, with their owners attributed (the one human view of
+ODIN-ADR-007); Telegram supports asynchronous questions, corrections,
+summaries, and approvals. Herdr is an optional inspection and attachment
+adapter where a harness adapter supports it. No surface becomes a separate
+Odin, and no harness gateway faces the operator directly.
+
+### Web app and service boundary (ODIN-ADR-037)
+
+- **Boundary.** The browser is a client. The service owns records,
+  projections, command validation and access checks; the browser keeps only
+  layout preferences and the current selection. It is never a task store and
+  never decides session lifecycle. The workstation daemon stays the session
+  host; the web app hosts nothing.
+- **Delivery.** The frontend lives in the repository's top-level `web/`
+  directory and builds to static assets. The service deployment serves them,
+  or they are served alongside it under the same authenticated origin. In
+  development a local dev server and synthetic fixtures run without the
+  service. No model credential or service secret is compiled into or handed
+  to the browser.
+- **Tree projection.** The service projects sessions with their recorded
+  ancestry (`parent_session_id`, provenance) and separate typed relationships
+  (ownership, review, delegation, run association), lifecycle identity
+  (resumption versus new attempt), session lifecycle, assignment progress, run
+  outcome, freshness, cost basis and budget. The browser lays out the
+  ancestry forest automatically and never derives edges from other
+  relationships. Large trees load collapsed; details and transcripts are
+  paginated and fetched on selection. The projection and update semantics
+  are in I/O contract §10 (web operator surface).
+- **Session details.** Selecting a node opens its assignment, transcript (as
+  untrusted text with visible gaps), related run with its own outcome,
+  evidence with owner and source, budget and cost, typed relationships and
+  the commands the service says are available, each with its
+  acknowledgement state.
+- **Terminal attachment.** Offered only where the session's adapter
+  publishes attachment in its capability matrix (§11 of the I/O contract);
+  an embedded terminal is optional for v0. Closing the browser or the
+  desktop window never stops a session.
+- **Desktop.** On Omarchy the same app opens in a dedicated Chromium app
+  window with a launcher entry and its own window identity; packaging is a
+  launcher and documented start commands, not a native wrapper.
 
 Use typed events before semantic classification:
 
@@ -351,8 +388,8 @@ non-production, is labelled as fixture work, and does not delay the core proof.
 | I0: contracts and fixtures | B (non-production) | Versioned event envelope and namespaces (EC-01, ODIN-ADR-006); record schemas with the ODIN-ADR-007, 009, 013 and 014 changes, workload-class configuration schema, and the mapping from heimdall's record types; fixtures for the duplicate, stale and unknown cases, validated by the Go and the Python implementation against the same set (ODIN-ADR-008). Envelope and unaffected schemas can start while X-7 remains open | Both implementations validate the same fixtures; duplicate/stale/unknown cases have explicit semantics; X-7 is resolved before Review/guidance schemas are written; no peer API is invented as implemented |
 | I1: service foundation | B (non-production) | Transactional state, event intake/cursors, outbox, scheduling, direct stop, CLI; moved from I0: capability matrix, fake Saga backend, synthetic three-document fixture, ownership mapping | Restart/replay produces one logical action and retains unknown outcomes; the execution-ledger mirror stays read-only (X-11) |
 | I2: first harness | C (non-production) | Claude Code adapter and integration package; briefing/zoom; session lifecycle; capability profiles with the planner tool-isolation check; workstation daemon v0: session host, environment probe, `host_offline`, compositor and Herdr observers, capture module with a local durable spool | One bounded assignment survives replacement of its session; unsupported operations are explicit; an offline host leaves its sessions unavailable, not failed, and resume reconciles first (proposed AC-37); captured batches append atomically per checkpoint with gaps visible (proposed AC-41) |
-| I3: governed project | C (requires Phase B exit) | Saga Phase B boundary, operator channel, selective Mimir, verification; read-only Herdr inspection (overview, attachable sessions where supported) | One real project passes admission and finishes with evidence; CLI and Odin face the same refusal rules |
-| I4: parallel workspace | D | Second project, full Herdr adapter with explicit bindings, scoped planning owners, adopt and takeover; one-time import of heimdall's task layer into commitments; human view v0 | Projects remain separate, bindings are explicit, no pane state is mistaken for completion; the import is idempotent with a receipt, and source-side edits are enforceably refused under EC-13/G-10 (proposed AC-38) |
+| I3: governed project | C (requires Phase B exit) | Saga Phase B boundary, operator channel, selective Mimir, verification; read-only Herdr inspection (attachable sessions where supported; the overview is the web app's, ODIN-ADR-037) | One real project passes admission and finishes with evidence; CLI and Odin face the same refusal rules |
+| I4: parallel workspace | D | Second project, full Herdr adapter with explicit bindings, scoped planning owners, adopt and takeover; one-time import of heimdall's task layer into commitments | Projects remain separate, bindings are explicit, no pane state is mistaken for completion; the import is idempotent with a receipt, and source-side edits are enforceably refused under EC-13/G-10 (proposed AC-38) |
 | I5: portability and context | E | Second harness adapter; controlled memory comparison with identical fixture retrieval | Capability differences and unavailable-peer behavior pass the acceptance scenarios; memory evidence labelled fixture-based |
 | I6: optional optimizations and integrations | F | Braid `recall` as an in-process library; the capture module, built on skald's capture library, as the transcript-namespace module (source enrollment, archive ingestion) and history (`archive` scope); repeat memory comparison with live retrieval; shadow evaluator, controlled activation; attention prompts out of shadow on outcome evidence; Odin's own package export with receipts (ODIN-ADR-012) | Routing benefit measured; export receipts distinguish copied locally, committed and confirmed on the remote; archive coverage gaps visible; integrated memory evidence recorded |
 | I7: desktop workflow | G, by operator decision | Guarded desktop input as a gated process of the workstation daemon holding the seat lease (EC-10's shared seat broker; ODIN-ADR-011); dedicated desktop worker; human takeover; bounded textual classifier experiment | No cooperating agents input concurrently; uncertain effects reconcile; end-to-end outcomes measured |
@@ -375,6 +412,15 @@ inspection stays I3, skald enrollment and archive ingestion stay I6); and code
 imported from heimdall or skald waits on the roadmap's gates G-9 and G-10.
 Heimdall's import (I4), capture and braid as modules (I6) and the move of
 WCU's guarded input (I7) also wait on G-10.
+
+Human-view work (ODIN-ADR-037) runs as packages inside these increments,
+not as new ones: a synthetic UI prototype with no gate; identities, ancestry
+and browser projection schemas in I0; read integration against the I1/I2
+fake backend, labelled as such; operator commands after the web surface's
+security definitions and, where they reach Saga, the live gates; desktop
+delivery after read integration. None of it waits for the I4 heimdall
+import, and the import keeps its G-10 prerequisite. The
+[web app work plan](WEB-APP-WORKPLAN.md) holds the package detail.
 
 After I2's exit, a minimal Pi RPC adapter runs the same bounded assignment and
 session replacement against the fake backend, as a control for the Claude Code

@@ -552,6 +552,8 @@ D15.Ea, D15.Fb) are Saga's and appear in Odin's roadmap as dependencies.
 
 Ownership notes (2026-10-16): ODIN-ADR-008 reorders work within I0 and I1 under D14.4 without changing a phase or gate; ODIN-ADR-015 places a fixture-only Pi RPC control after I2 without moving D15.Eb's full second adapter from Phase E. The phases, gates and D15.8 are unchanged; X-1 stays open.
 
+Ownership note (2026-10-21): ODIN-ADR-037 amends only the parenthetical "(D20's first configuration)" in the sequencing interpretation above; read-only Herdr inspection stays an I3 peer integration, and human-view work proceeds as packages within the existing increments. Phases, gates and X-1 are unchanged.
+
 ### SAGA-2026-10-D16 — Documentation (locked; mostly historical)
 
 Saga's documentation actions (D16.1) are Saga's and complete. Odin's
@@ -792,6 +794,8 @@ Ownership notes: heimdall owns its side of the ownership bridge
 (§5.8).
 
 Ownership notes (2026-10-16): ODIN-ADR-007 supersedes D20.10 (the heimdall ownership bridge) for Odin; ODIN-ADR-010 supersedes the "two operator interfaces" clause of D20.5 while keeping its one-command-path, binding and stop rules, and amends D20.8's handling table with new inbound sources and the attention-prompt effect; ODIN-ADR-009 clarifies D20.1 and D20.2 with the workstation daemon and session host. D20.3, D20.4, D20.6, D20.7, D20.9 and D20.11 are unchanged.
+
+Ownership notes (2026-10-21): ODIN-ADR-037 amends D20.11's first configuration (the web app replaces the terminal workspace as the overview and inspection surface; the rest of the configuration is unchanged) and the remaining desk-overview description of D20.5, which ODIN-ADR-010 had already superseded in part. D20.5's one command path, binding and stop rules, D20.6, D20.7 and D20.9 are unchanged.
 
 ### SAGA-2026-10-D21 — Desktop capability and computer-use work (default)
 
@@ -1220,6 +1224,8 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
   amendment has changed (that needs a decision recorded in those
   repositories); authority over delegations or approvals (D17, D2.1);
   that imported checkpoints corroborate anything independently (D22.4).
+- **Cross-reference:** amended by ODIN-ADR-037: the one human view is the web
+  app and is delivered independently of the I4 heimdall import.
 
 ### ODIN-ADR-008 — I0 narrowed to the event log and record schemas
 
@@ -1349,6 +1355,10 @@ conditional ADRs the plan drafts for Saga-owned clauses (016 to 019) are
 - **Must not claim:** voice approvals; a fifth evaluator hook; that
   observations change commitments; that the extra surfaces are part of
   the restrained initial product (D19.6).
+- **Cross-reference:** amended by ODIN-ADR-037: the web app is an adapter on
+  the one service API and the primary desk surface, and replaces Herdr in
+  D20.11's first configuration; Herdr remains an optional inspection and
+  attachment adapter.
 
 ### ODIN-ADR-011 — Desktop input as a gated capability of the workstation daemon
 
@@ -2475,6 +2485,115 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
     holds `interface_decision_owner`. A workstream session is a delegation
     session record without planning ownership.
 
+### ODIN-ADR-037 — Web app as the primary human view, with an agent tree
+
+- **Date/status:** 2026-10-21; operator direction recorded from the
+  [web app handoff](design/WEB-APP-HANDOFF.md). The direction (web app as
+  the primary human view, the agent tree, Chromium app presentation and the
+  revised role of terminal surfaces) is accepted. The layout, rollout and
+  implementation defaults below are default design. Only a synthetic
+  prototype exists; no service integration, operator command, update
+  stream or desktop packaging is implemented. The
+  [work plan](design/WEB-APP-WORKPLAN.md) tracks each package.
+- **Context:** D20.5 and D20.11 made the terminal workspace (Herdr) the
+  desk overview and part of the first configuration. ODIN-ADR-010 kept that
+  first configuration while turning surfaces into adapters, and
+  ODIN-ADR-007 promised one human view, scheduled with the I4 heimdall
+  import. The operator works across many concurrent sessions and wants one
+  navigable place to see who started whom, what each session is doing and
+  where to intervene, without a terminal workspace.
+- **Decision:**
+  - **Primary human view.** A purpose-built web app is Odin's primary human
+    view. It combines commitments, planning conversations, sessions, runs,
+    review results and evidence. It opens on an overview (projects,
+    commitments needing attention, pending decisions and approvals, active
+    work, blocked distinguished from running) and offers a project workspace
+    with navigation, a planning conversation or activity area, an agent
+    tree and a detail panel. History keeps completed and retired sessions
+    inspectable with their original relationships and evidence.
+  - **Agent tree.** The primary tree edge is session ancestry only: which
+    recorded session started which. Assignment ownership, review,
+    delegation and run association are separate typed relationships and
+    never parent edges; a reviewer is never drawn as started by the worker
+    it reviews. Multiple roots are shown. A session with no recorded parent,
+    including an imported one, stays unparented; ancestry is never inferred
+    from timing, layout or transcript wording. Resumption and new attempts
+    follow the recorded lifecycle identity rules. A compact keyboard-usable
+    list is the equivalent of the tree and replaces it on narrow screens.
+  - **States.** The view keeps session activity, assignment progress and run
+    outcome separate. A session ending or saying "done" never marks a run
+    verified (D20.6). `host_offline`, unknown outcomes, transcript gaps,
+    stale observations and unknown cost stay visible; unknown cost is never
+    shown as zero, estimates are labelled, and a parent's aggregate is not
+    counted again when descendants are summed.
+  - **Browser and service.** The browser is a client of Odin's service. The
+    service supplies projections of its records as a snapshot plus a
+    resumable update stream with an explicit cursor or revision, and
+    accepts commands only through the recorded command path shared by all
+    operator surfaces. The browser may hold layout preferences and current
+    selection; it never holds an editable task store or lifecycle authority
+    (ODIN-ADR-007). The app is served by the service deployment or alongside
+    it under the same authenticated origin. Model credentials and service
+    secrets never reach browser code or frontend storage. Authentication,
+    authorization, request validation and protection of state-changing
+    requests are defined before any real command is enabled; project and
+    record access checks run in the service. Transcript content is rendered
+    as untrusted data.
+  - **Desktop presentation.** On Omarchy the same app runs in a dedicated
+    Chromium app window with a launcher entry and its own window identity;
+    an ordinary browser tab reaches the same service and records. No
+    Electron or native wrapper is needed for v0. Closing the window never
+    stops sessions or loses work.
+  - **Terminal surfaces.** Herdr and other terminal workspaces become
+    optional inspection and attachment adapters where a harness adapter
+    supports them; embedding a terminal in the web app is optional for v0.
+    The operator does not need a terminal workspace to understand overall
+    progress. Telegram stays the remote surface. The workstation daemon
+    still hosts sessions and local integrations (ODIN-ADR-009); the web app
+    is not a session host.
+  - **Rollout.** Human-view work proceeds as packages inside the existing
+    increments, not as new increments: documentation alignment; synthetic UI
+    prototype (no gate); record and projection foundation (I0 schema work);
+    service read integration (I1/I2, fake backend, labelled); operator
+    command integration (after the security definitions above, and for
+    Saga-touching commands after the existing live gates); desktop delivery.
+    Human-view delivery does not wait for the I4 heimdall import, whose
+    G-10 prerequisites stay attached to the import. Runtime features appear
+    only when their records and service operations exist; a visual
+    prototype never stands in for them.
+- **Consequences:** I/O contract §10 gains the web operator surface with
+  relationship semantics, query/update behaviour, freshness, reconnect,
+  command acknowledgements and approval content binding. Blueprint §5 and §7
+  describe the browser/service boundary and drop the Herdr-first overview.
+  The roadmap adds a human-view track and separates it from the I4 import.
+  Acceptance scenarios AC-51 to AC-57 are proposed. The repository gains a
+  top-level `web/` directory for the frontend.
+- **Inherited relationship:** amends D20.11's first configuration: the web
+  app replaces "the terminal workspace for inspection" as the overview and
+  inspection surface; one Odin service, one project-scoped planning
+  session, a small worker pool, Telegram and the second-project step are
+  unchanged. Amends the remaining desk-overview description in D20.5 ("the
+  terminal workspace (Herdr) shows an overview … and each worker's
+  terminal"), already superseded in part by ODIN-ADR-010: the overview and
+  per-project view move to the web app, and a worker's terminal is opened
+  only where its adapter supports attachment. Amends ODIN-ADR-010's
+  surface list (the web app is an adapter on the one service API and the
+  primary desk surface) and its "Preserves … D20.11 (Herdr and Telegram
+  remain the first configuration)" clause. Amends ODIN-ADR-007's
+  consequence "One human view shows commitments, runs and transcripts with
+  their owners attributed": that view is this web app and is delivered
+  independently of the I4 import. Amends D15's parenthetical reading of
+  read-only Herdr inspection in I3 as "D20's first configuration"; that
+  inspection stays an I3 peer integration. Preserves D20.5's one command
+  path, approval binding and direct stop; D20.6 (workspace "done" and
+  "wait" do not establish completion); D20.7; D20.9; ODIN-ADR-007's single
+  task authority; ODIN-ADR-009's daemon; ODIN-ADR-010's remaining rules;
+  every Saga-owned clause.
+- **Must not claim:** that a service-backed web app, operator commands, an
+  update stream, authentication or desktop packaging exists; that synthetic
+  prototype evidence is fake-backend, service or desktop evidence; that
+  Herdr's automation API has been reviewed (§5.8); any change to Saga's
+  records, approvals or guarantees.
 
 ## 5. Issues raised by the extraction
 

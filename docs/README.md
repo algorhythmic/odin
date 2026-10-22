@@ -50,6 +50,12 @@ Alongside them:
   first Odin delivery under the three-repository work plan, with exact local
   evidence reads, continuity checks, a synthetic demonstration and peer
   dependencies kept explicit.
+- [Web app handoff](design/WEB-APP-HANDOFF.md) (operator input, verbatim),
+  [web app work plan](design/WEB-APP-WORKPLAN.md) and
+  [library choice](design/WEB-APP-LIBRARIES.md): ODIN-ADR-037's primary
+  human view and agent tree, its dependency-ordered packages with acceptance
+  and enforcement checks, and the frontend library comparison. Only a
+  synthetic prototype exists in `web/`.
 - [Odin Heimdall and Skald consolidated work plan](design/ODIN-HEIMDALL-SKALD-WORK-PLAN.md):
   proposed delivery sequence for task-authority migration, shared capture,
   retained Skald browsing and one continuity experience. It identifies the
@@ -63,7 +69,7 @@ Alongside them:
   memory provenance and then governed orchestration. Its execution status
   distinguishes local evidence from live capabilities and remaining gates.
 - [`design/ODIN-ACCEPTANCE-SCENARIOS.md`](design/ODIN-ACCEPTANCE-SCENARIOS.md):
-  AC-01 to AC-50 (AC-37 to AC-50 proposed), DC-01 to DC-08 and the
+  AC-01 to AC-57 (AC-37 to AC-57 proposed), DC-01 to DC-08 and the
   evaluation design. It must agree with documents 1 and 2; a conflict
   is resolved before a scenario is claimed to pass.
 - [`design/ODIN-ECOSYSTEM-INTEGRATION.md`](design/ODIN-ECOSYSTEM-INTEGRATION.md):
