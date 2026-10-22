@@ -166,6 +166,45 @@ class DrainTests(DeployBase):
         return self.service.store.db.execute(
             "SELECT 1 FROM sqlite_master WHERE name=?", (table,)).fetchone() is not None
 
+    def test_drain_uses_service_wide_quiescence_and_evaluator_jobs(self):
+        from odin.service_activation import quiescence
+
+        store = self.service.store
+        future = (datetime.now(UTC) + timedelta(minutes=5)).isoformat()
+        past = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
+        store.db.execute("CREATE TABLE IF NOT EXISTS executive_interventions "
+                         "(id TEXT PRIMARY KEY, project TEXT NOT NULL, session TEXT NOT NULL, body TEXT NOT NULL)")
+        for identity, expires, permits in (
+            ("other-live", future, []),
+            ("other-unknown", past, [{"state": "admitted"}]),
+            ("other-finished", past, [{"state": "consumed"}]),
+        ):
+            store.db.execute("INSERT INTO executive_interventions VALUES(?, 'other-project', 'S', ?)",
+                             (identity, json.dumps({"id": identity, "state": "active",
+                                                    "expires_at": expires, "permits": permits})))
+        for state in ("claimed", "completed"):
+            store.db.execute("INSERT INTO development_loop_stages VALUES(?, 'L', ?)",
+                             (state, json.dumps({"id": state, "state": state})))
+        for state in ("running", "unknown", "pending", "completed"):
+            store.db.execute("INSERT INTO development_loop_jobs VALUES(?, 'L', ?)",
+                             (state, json.dumps({"id": state, "state": state})))
+
+        view = supervision.drain_view(store, self.project)
+        blockers = quiescence(self.state, include_queued=False)["blockers"]
+        self.assertEqual(view, {
+            "active": False,
+            "waiting_for": {"delegated_turns": [], "evaluator_jobs": ["running"],
+                            "live_interventions": ["other-live", "other-unknown"],
+                            "claimed_loop_stages": ["claimed"]},
+            "drained": False, "queued_turns_held": 0, "evaluator_jobs_unknown": ["unknown"],
+        })
+        self.assertEqual(view["waiting_for"]["live_interventions"], blockers["live_interventions"])
+        self.assertEqual(view["waiting_for"]["claimed_loop_stages"], blockers["claimed_loop_stages"])
+        store.db.execute("DELETE FROM executive_interventions")
+        store.db.execute("DELETE FROM development_loop_stages")
+        store.db.execute("DELETE FROM development_loop_jobs WHERE id='running'")
+        self.assertTrue(supervision.drain_view(store, self.project)["drained"])
+
     def test_deadline_ends_the_drain_and_fails_the_request(self):
         store = self.service.store
         request = self.ok(self.deploy())["request"]

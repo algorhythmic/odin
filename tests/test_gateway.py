@@ -115,6 +115,34 @@ class GatewayTest(unittest.TestCase):
             self.astra,
         )
 
+    def test_status_poll_does_not_grow_history_and_stays_current(self):
+        def counts():
+            return tuple(self.service.store.db.execute(
+                "SELECT (SELECT COUNT(*) FROM history), "
+                "(SELECT COUNT(*) FROM gateway_commands)"
+            ).fetchone())
+
+        operation = identifier()
+        before = counts()
+        for context in (self.operator, self.voice):
+            for _ in range(5):
+                self.assertFalse(self.command("status", {}, context)["result"]["stopped"])
+        self.assertFalse(self.command("status", {}, operation_id=operation)["result"]["stopped"])
+        self.assertEqual(counts(), before)
+
+        self.command("stop", {"reason": "synthetic poll check"})
+        after_stop = counts()
+        self.assertGreater(after_stop[0], before[0])
+        self.assertEqual(after_stop[1], before[1] + 1)
+        self.assertTrue(self.command("status", {}, operation_id=operation)["result"]["stopped"])
+        self.assertEqual(counts(), after_stop)
+        for context in (
+            self.fable,
+            GatewayContext("terminal", self.operator.actor, (self.project["id"],)),
+        ):
+            with self.subTest(context=context), self.assertRaises(PermissionError):
+                self.command("status", {}, context)
+
     def test_nested_rollback_removes_command_receipt_record_and_history(self):
         store = self.service.store
         before = store.db.execute("SELECT count(*) FROM history").fetchone()[0]

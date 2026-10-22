@@ -106,7 +106,7 @@ def quiescence(state, *, include_queued=True):
         tables = {row[0] for row in db.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
         if "delegation_turns" in tables:
-            states = ACTIVE_TURN_STATES if include_queued else ACTIVE_TURN_STATES[1:]
+            states = tuple(state for state in ACTIVE_TURN_STATES if include_queued or state != "queued")
             marks = ",".join("?" * len(states))
             blockers["delegated_turns"] = [
                 {"turn": row[0], "session": row[1], "state": row[2]}

@@ -10,6 +10,7 @@ import tempfile
 import unittest
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 from odin import executive_runtime as runtime
 from odin import service_activation as activation
@@ -150,6 +151,18 @@ class ServiceActivationTests(unittest.TestCase):
                         (json.dumps({"id": "G1", "state": "completed"}),))
         self.db.commit()
         self.assertEqual(activation.quiescence(self.state)["quiescent"], True)
+
+    def test_non_queued_states_are_selected_by_name(self):
+        for index, state in enumerate(("queued", "launching", "running", "interrupting", "returned")):
+            self.db.execute("INSERT INTO delegation_turns VALUES (?,?, 'A','P',? ,?,'{}')",
+                            (state, "S", index, state))
+        self.db.commit()
+        with patch.object(activation, "ACTIVE_TURN_STATES", ("launching", "queued", "running", "interrupting")):
+            view = activation.quiescence(self.state, include_queued=False)
+        self.assertFalse(view["quiescent"])
+        self.assertEqual([turn["state"] for turn in view["blockers"]["delegated_turns"]],
+                         ["interrupting", "launching", "running"])
+        self.assertEqual(len(activation.quiescence(self.state)["blockers"]["delegated_turns"]), 4)
 
     def test_checkout_preconditions_refuse_without_acting(self):
         unit = self.unit()

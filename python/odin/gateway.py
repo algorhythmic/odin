@@ -124,13 +124,12 @@ class Gateway:
             if command["action"] in USAGE_ACTIONS:
                 from .usage_gateway import scope
                 scope(self, command["payload"])
-            if command["action"] == "loop_inbox":
-                # This internal transport poll observes durable stages; it is
-                # not an acknowledgement or a model command. Do not append a
-                # receipt and history entry every second while the channel is
-                # idle. Claims and every actual transition remain recorded.
-                if context.surface == "voice":
-                    raise PermissionError("voice cannot read the development inbox")
+            if command["action"] in {"loop_inbox", "status", "executive_restart_status"}:
+                # Transport and supervisor polls only observe current state.
+                # Do not append a receipt and history entry on every idle poll.
+                # Claims and every actual transition remain recorded.
+                if context.surface == "voice" and command["action"] != "status":
+                    raise PermissionError("voice cannot read the development inbox or supervisor status")
                 value = self._dispatch(
                     command["action"], command["payload"], context, command["operation_id"]
                 )

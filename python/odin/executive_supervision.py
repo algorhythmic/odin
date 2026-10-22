@@ -38,7 +38,6 @@ DEPLOY_TRANSITIONS = {
 DEPLOYING_GRACE_SECONDS = 900
 # Until the service is restarted on the new revision it launches nothing new.
 DRAIN_STATES = ("pending", "draining", "deploying")
-RUNNING_TURN_STATES = ("launching", "running", "interrupting")
 # Loop statuses in which the executive holds a development stage.
 HELD_STAGE_STATUSES = ("executive_claimed", "executive_ready")
 DEPLOY_NOTICE_HEADER = ("Odin runtime deploy notice {notice_id} (informational; acknowledge with "
@@ -149,27 +148,21 @@ def _ids(store, query, arguments=()):
 
 def drain_view(store, project):
     """What a drain waits for: work already running. Queued work stays queued."""
-    from .executive_intervention import _live
-    from .executive_intervention import _rows as interventions
+    from .service_activation import quiescence
 
-    marks = ",".join("?" * len(RUNNING_TURN_STATES))
-    turns = _ids(store, f"SELECT id FROM delegation_turns WHERE state IN ({marks}) ORDER BY id",
-                 RUNNING_TURN_STATES)
+    quiet = quiescence(store.path.parent, include_queued=False)
+    blockers = quiet["blockers"]
     queued = len(_ids(store, "SELECT id FROM delegation_turns WHERE state='queued'"))
     bodies = [strict_loads(body) for body in _ids(store, "SELECT body FROM development_loop_jobs ORDER BY rowid")]
     jobs = [job["id"] for job in bodies if job["state"] == "running"]
     # An unknown job needs operator reconciliation; it cannot finish by
     # itself, so it is shown but does not hold the drain.
     unknown = [job["id"] for job in bodies if job["state"] == "unknown"]
-    stages = [strict_loads(body)["id"] for body in _ids(
-        store, "SELECT body FROM development_loop_stages ORDER BY rowid")
-        if strict_loads(body)["state"] == "claimed"]
-    live = [item["id"] for item in interventions(store, project)
-            if _live(item) or any(p["state"] == "admitted" for p in item["permits"])]
-    waiting = {"delegated_turns": turns[:32], "evaluator_jobs": jobs[:32],
-               "live_interventions": live[:32], "claimed_loop_stages": stages[:32]}
+    waiting = {"delegated_turns": [turn["turn"] for turn in blockers["delegated_turns"]],
+               "evaluator_jobs": jobs[:32], "live_interventions": blockers["live_interventions"],
+               "claimed_loop_stages": blockers["claimed_loop_stages"]}
     return {"active": draining(store), "waiting_for": waiting,
-            "drained": not any(waiting.values()), "queued_turns_held": queued,
+            "drained": quiet["quiescent"] and not jobs, "queued_turns_held": queued,
             "evaluator_jobs_unknown": unknown[:32]}
 
 

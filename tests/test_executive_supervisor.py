@@ -142,6 +142,39 @@ class Base(unittest.TestCase):
 
 
 class RestartRequestTests(Base):
+    def test_status_poll_does_not_grow_history_and_transitions_stay_recorded(self):
+        store = self.service.store
+        def counts():
+            return tuple(store.db.execute(
+                "SELECT (SELECT COUNT(*) FROM history), "
+                "(SELECT COUNT(*) FROM gateway_commands)"
+            ).fetchone())
+
+        request = self.ok(self.request())["request"]
+        before = counts()
+        for _ in range(10):
+            self.assertEqual(self.client.status()["open"][0]["id"], request["id"])
+        executive = GatewayContext("harness", Actor("coordinator", "fable-executive"), (self.project,))
+        command = {"schema_version": 1, "operation_id": identifier(),
+                   "action": "executive_restart_status", "payload": {"project": self.project}}
+        self.gateway.submit(command, context=executive)
+        self.assertEqual(counts(), before)
+
+        self.client.transition(request["id"], "cancelled")
+        after_transition = counts()
+        self.assertGreater(after_transition[0], before[0])
+        self.assertEqual(after_transition[1], before[1] + 1)
+        self.assertIn("executive.restart_cancelled", self.history("executive.restart_"))
+        self.assertEqual(self.gateway.submit(command, context=executive)["result"]["open"], [])
+        self.assertEqual(counts(), after_transition)
+        for context in (
+            GatewayContext("voice", OPERATOR.actor),
+            GatewayContext("terminal", OPERATOR.actor, (identifier(),)),
+            GatewayContext("harness", executive.actor, (identifier(),)),
+        ):
+            with self.subTest(context=context), self.assertRaises(PermissionError):
+                self.gateway.submit(command, context=context)
+
     def test_request_is_recorded_and_idempotent(self):
         operation = identifier()
         first = self.ok(self.request(operation=operation))
