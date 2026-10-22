@@ -48,6 +48,10 @@ class SupervisorRefused(PermissionError):
     """A fixed refusal code; the supervisor did not start a child."""
 
 
+class ServiceRefused(OSError):
+    """The service answered and refused; retrying the same report cannot help."""
+
+
 class ServiceClient:
     """Operator-socket client for restart status, transitions and events."""
 
@@ -68,10 +72,17 @@ class ServiceClient:
                 raw = stream.readline(1048577)
         if len(raw) > 1048576 or not raw.endswith(b"\n"):
             raise OSError("invalid service response")
-        response = strict_loads(raw)
-        if not isinstance(response, dict) or "error" in response:
-            detail = response.get("detail") if isinstance(response, dict) else None
-            raise OSError(detail if isinstance(detail, str) else "service_refused")
+        try:
+            response = strict_loads(raw)
+        except (ValueError, RecursionError) as error:
+            raise OSError("invalid service response") from error
+        if not isinstance(response, dict):
+            raise OSError("invalid service response")
+        if "error" in response:
+            detail = response.get("detail")
+            raise ServiceRefused(detail if isinstance(detail, str) else "service_refused")
+        if not isinstance(response.get("result"), dict):
+            raise OSError("invalid service response")
         return response["result"]
 
     def status(self):
@@ -115,6 +126,7 @@ class Supervisor:
         self.outbox = []
         self.carry = None        # request being carried out across a relaunch
         self.stopped_for = None  # request whose stop ended the last child
+        self.late_signal = False  # SIGTERM sent, exit not seen before the timeout
 
     # -- records ---------------------------------------------------------
 
@@ -149,11 +161,12 @@ class Supervisor:
                     self.client.transition(*args, **fields)
                 else:
                     self.client.event(*args, **fields)
-            except OSError as error:
-                if str(error) in ("restart_transition_invalid", "restart_request_not_found"):
-                    self.journal("report_refused", code=str(error))
-                    self.outbox.pop(0)
-                    continue
+            except ServiceRefused as error:
+                # An answered refusal is final for this report; keep the rest flowing.
+                self.journal("report_refused", code=_code(error))
+                self.outbox.pop(0)
+                continue
+            except (OSError, KeyError, TypeError, ValueError):
                 return False
             self.outbox.pop(0)
         return True
@@ -162,16 +175,24 @@ class Supervisor:
         """A transition whose answer decides what happens next; None when unreachable."""
         try:
             return self.client.transition(request["id"], state, **fields)
-        except OSError as error:
+        except (OSError, KeyError, TypeError, ValueError) as error:
             self.journal("service_unavailable", code=_code(error))
             return None
 
     def _open_request(self):
+        return next((item for item in self._open() if item["state"] == "pending"), None)
+
+    def _open(self):
+        """Open requests as the service reports them; empty when it cannot answer."""
         try:
-            status = self.client.status()
-        except OSError:
-            return None
-        return next((item for item in status.get("open", []) if item["state"] == "pending"), None)
+            items = self.client.status()["open"]
+            if not isinstance(items, list) or not all(
+                    isinstance(item, dict) and isinstance(item.get("id"), str) and
+                    item.get("state") in ("pending", "stopping", "relaunching") for item in items):
+                return []
+            return items
+        except (OSError, KeyError, TypeError, ValueError):
+            return []
 
     # -- launch ----------------------------------------------------------
 
@@ -224,13 +245,19 @@ class Supervisor:
         marker = read_marker(self.state)
         return marker is not None and marker["event"] == "SessionEnd" and _parse(marker["at"]) >= signalled_at - 1
 
-    def _stop(self, process, request, requested_at):
+    def _stop(self, process, request, requested_at, launched_at):
         """SIGTERM at idle, then wait. Never escalates to a kill."""
         moved = self._transition_now(request, "stopping")
         if moved is None or moved["state"] != "stopping":
             if moved is not None:
                 self.journal("restart_refused", request_id=request["id"], code=moved.get("code"))
             return None
+        # Recheck after the round trip, so a turn that began meanwhile is not cut.
+        while not self.idle(launched_at):
+            code = process.poll()
+            if code is not None:
+                return self._stopped(request, requested_at, None, code)
+            self.sleep(self.poll_seconds)
         signalled = self.clock()
         self.journal("stop_signalled", request_id=request["id"])
         try:
@@ -240,14 +267,10 @@ class Supervisor:
         while self.clock() - signalled < self.stop_timeout:
             code = process.poll()
             if code is not None:
-                ended = self.clock()
-                self.stopped_for = request | {"timings": {
-                    "wait_idle_seconds": _seconds(requested_at, signalled),
-                    "stop_seconds": _seconds(signalled, ended)},
-                    "exit_code": code, "clean_exit_observed": self._ended_cleanly(signalled),
-                    "stopped_at": ended}
-                return code
+                return self._stopped(request, requested_at, signalled, code)
             self.sleep(min(self.poll_seconds, 0.2))
+        # A later exit is this SIGTERM taking effect, not a crash or an operator exit.
+        self.late_signal = True
         self.journal("stop_timeout", request_id=request["id"])
         self._send(("transition", (request["id"], "failed"), {"code": "stop_timeout", "timings": {
             "wait_idle_seconds": _seconds(requested_at, signalled),
@@ -255,6 +278,17 @@ class Supervisor:
         self.say("Claude Code did not exit after SIGTERM; it keeps running. The restart failed "
                  "(stop_timeout); nothing was killed.")
         return None
+
+    def _stopped(self, request, requested_at, signalled, code):
+        ended = self.clock()
+        start = signalled if signalled is not None else ended
+        self.stopped_for = request | {"timings": {
+            "wait_idle_seconds": _seconds(requested_at, start),
+            "stop_seconds": _seconds(start, ended)},
+            "exit_code": code,
+            "clean_exit_observed": self._ended_cleanly(start) if signalled is not None else None,
+            "stopped_at": ended}
+        return code
 
     def watch(self, process):
         launched_at = self.clock()
@@ -293,7 +327,7 @@ class Supervisor:
                     elif request is None:
                         seen_at = None
                 if request is not None and self.carry is None and self.idle(launched_at):
-                    code = self._stop(process, request, seen_at or self.clock())
+                    code = self._stop(process, request, seen_at or self.clock(), launched_at)
                     if code is not None:
                         return code
                     request, seen_at = None, None
@@ -305,15 +339,22 @@ class Supervisor:
     # -- main loop -------------------------------------------------------
 
     def _carry_pending_at_start(self):
-        """A request pending before any child runs: nothing to stop, so relaunch is the restart."""
-        request = self._open_request()
+        """An open request before any child runs: nothing to stop, so the launch is the restart.
+
+        A request left ``stopping`` or ``relaunching`` by a supervisor that
+        ended mid-restart is carried the same way, so it cannot block every
+        later request. The lease guarantees no other supervisor owns it.
+        """
+        request = next(iter(self._open()), None)
         if request is None:
             return
-        moved = self._transition_now(request, "stopping")
-        if moved is None or moved["state"] != "stopping":
-            return
+        if request["state"] == "pending":
+            moved = self._transition_now(request, "stopping")
+            if moved is None or moved["state"] != "stopping":
+                return
         self.journal("restart_at_supervisor_start", request_id=request["id"])
-        self._send(("transition", (request["id"], "relaunching"), {}))
+        if request["state"] != "relaunching":
+            self._send(("transition", (request["id"], "relaunching"), {}))
         self.carry = request | {"timings": {"wait_idle_seconds": 0, "stop_seconds": 0},
                                 "stopped_at": self.clock(), "exit_code": None,
                                 "clean_exit_observed": None}
@@ -326,9 +367,18 @@ class Supervisor:
             while True:
                 resume = (self.base / "launch.json").exists()
                 self.stopped_for = None
+                self.late_signal = False
                 try:
                     code = self.launcher(resume, self.watch)
-                except PermissionError as error:
+                except Exception as error:
+                    if not isinstance(error, PermissionError):
+                        # Unexpected: record what is known, then let it surface.
+                        self.journal("supervisor_error", code=_code(error))
+                        if self.carry is not None:
+                            self._send(("transition", (self.carry["id"], "failed"),
+                                        {"code": "supervisor_error"}))
+                        self._flush()
+                        raise
                     # The ordinary start path refused before launching a child.
                     self.journal("launch_failed", code=_code(error))
                     if self.carry is not None:
@@ -345,6 +395,10 @@ class Supervisor:
                         "clean_exit_observed": stopped["clean_exit_observed"]}))
                     self.carry = stopped
                     self.journal("relaunching", request_id=stopped["id"], exit_code=code)
+                    continue
+                if self.late_signal:
+                    # The timed-out SIGTERM took effect after all: relaunch, no crash.
+                    self.journal("late_exit", exit_code=_exit(code))
                     continue
                 if self.carry is not None:
                     # The relaunch itself ended before the session started.

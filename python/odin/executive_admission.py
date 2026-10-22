@@ -56,15 +56,18 @@ LAUNCHER_FLAGS = {"--project", "--loop", "--stage", "--native-session"}
 LAUNCHER_VALUE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}")
 BASH_KEYS = {"command", "description", "timeout", "run_in_background", "dangerouslyDisableSandbox"}
 # Programs that run other code given as arguments or input: shells, language
-# interpreters, package runners and command wrappers. A version suffix such as
-# python3.14 or perl5.40 matches the base name.
+# interpreters, package runners, command wrappers and tools with a command
+# escape (find -exec, sed e, git aliases, make, editors and pagers). A version
+# suffix such as python3.14 or perl5.40 matches the base name. A name list is
+# not complete; a script named like one of these is refused too.
 INTERPRETER_NAME = re.compile(
     r"(?:sh|bash|rbash|zsh|fish|dash|ash|ksh|mksh|oksh|csh|tcsh|nu|elvish|xonsh|busybox|toybox"
     r"|python|pypy|ipython|node|nodejs|perl|ruby|irb|php|lua|luajit|tclsh|wish|expect"
     r"|awk|gawk|mawk|nawk|rscript|julia|guile|racket|java|jshell|pwsh"
     r"|env|uv|uvx|pipx|npx|npm|pnpm|pnpx|yarn|deno|bun|bunx|mise|asdf|pyenv|rbenv|nodenv"
     r"|xargs|nice|nohup|timeout|stdbuf|setsid|sudo|doas|su|pkexec|runuser|chroot|flock"
-    r"|strace|ltrace|unshare|nsenter|systemd-run|watch)"
+    r"|strace|ltrace|unshare|nsenter|systemd-run|watch"
+    r"|find|sed|git|make|tar|less|more|vi|vim|nvim|ed|emacs|ssh|gdb|parallel|socat)"
     r"(?:[0-9][0-9.]*[a-z]?)?")
 INTERPRETER_DIRS = ("/usr/local/sbin", "/usr/local/bin", "/usr/sbin", "/usr/bin", "/sbin", "/bin")
 

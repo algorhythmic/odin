@@ -297,7 +297,10 @@ class SocketGateway:
                     raw = stream.readline(MAX_RESPONSE_BYTES + 1)
             if len(raw) > MAX_RESPONSE_BYTES or not raw.endswith(b"\n"):
                 raise ToolFailure("Invalid executive service response.")
-            return strict_loads(raw.decode("utf-8"))
+            try:
+                return strict_loads(raw.decode("utf-8"))
+            except (ValueError, RecursionError) as error:
+                raise ToolFailure("Invalid executive service response.") from error
         except ToolFailure:
             raise
         except (OSError, ValueError, RecursionError) as error:

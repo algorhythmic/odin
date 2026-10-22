@@ -27,8 +27,12 @@ def marker_path(state):
     return Path(state) / "executive-pilot" / MARKER_FILE
 
 
-def read_marker(state):
-    """The validated marker, or None when absent or unusable (no exception)."""
+def read_marker(state, *, validate=True):
+    """The validated marker, or None when absent or unusable (no exception).
+
+    The hook itself reads only the previous sequence number and skips the
+    schema load; the supervisor always validates.
+    """
     path = marker_path(state)
     try:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
@@ -39,7 +43,11 @@ def read_marker(state):
         if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
             return None
         value = strict_loads(os.read(fd, 4097))
-        Contracts().validate("executive-turn-marker", value)
+        if validate:
+            Contracts().validate("executive-turn-marker", value)
+        elif not (isinstance(value, dict) and type(value.get("sequence")) is int and
+                  isinstance(value.get("session_id"), str)):
+            return None
         return value
     except Exception:  # noqa: BLE001 - an unusable marker is no idle evidence
         return None
@@ -63,7 +71,7 @@ def record(event, *, state, session):
         raise ValueError("turn_marker_session_mismatch")
     if event.get("agent_id"):
         return None  # A subagent's stop is not the executive's turn end.
-    previous = read_marker(state)
+    previous = read_marker(state, validate=False)
     name = event["hook_event_name"]
     label = event.get(LABEL_FIELDS.get(name, ""), None)
     marker = {
@@ -72,7 +80,8 @@ def record(event, *, state, session):
         "label": label if isinstance(label, str) and len(label) <= 64 and label.isidentifier() else None,
         "background_tasks": _count(event.get("background_tasks")),
     }
-    Contracts().validate("executive-turn-marker", marker)
+    # Built from fixed fields only. Loading every schema here would cost about
+    # a second per turn end; the supervisor validates the marker when it reads it.
     base = Path(state) / "executive-pilot"
     if base.is_symlink() or not base.is_dir():
         raise OSError("turn_marker_directory_unavailable")

@@ -2496,14 +2496,16 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
     content-free audit. Live native behavior needs observation after the
     operator's activation.
 - **Amendment (2026-10-22, operator decision, permit follow-ups):** two of
-  the known limits above are closed; redirection writes, read-only `cat` and
+  the known limits above are narrowed; redirection writes, read-only `cat` and
   background invisibility stay documented limits.
   - *Interpreter refusal.* `executive-register-script` refuses an
     interpreter or shell with the fixed code `script_is_interpreter`. It
     matches the basename of the given path and of its real path (shells,
-    language interpreters, package runners such as `uv`/`uvx`/`npx` and
-    command wrappers such as `env`, `xargs` and `sudo`, with version
-    suffixes) and the file's identity (inode, or size and SHA-256) against the
+    language interpreters, package runners such as `uv`/`uvx`/`npx`,
+    command wrappers such as `env`, `xargs` and `sudo`, and tools with a
+    command escape such as `find`, `sed`, `git`, `make`, editors and pagers,
+    with version suffixes; a name list is not complete, and a script named
+    like one of them is refused too) and the file's identity (inode, or size and SHA-256) against the
     interpreter-named programs on `PATH` and the standard directories. A
     script whose shebang names an interpreter remains registrable. The hook
     rechecks at admission, so an earlier registration of an interpreter is
@@ -2516,15 +2518,21 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
     place atomically, refused if unsafe) and a key id derived from the key.
     The key is stable across restarts and never logged, shown or exported.
     Version 1 records stay as written and are reported as unkeyed. The key
-    protects copies of the audit file, not against a local reader of the
-    state directory.
+    protects copies of the audit file only. Anyone who can read the state
+    directory can read the key, and that includes the executive itself through
+    a read-only `cat`, so it does not stop a local reader from confirming
+    guesses.
   - *Refusal codes.* The hook no longer reports a call that matched no path
     as `intervention_admission_unavailable`. It relays the service's fixed
     code (`intervention_permit_required`, `delegated_work_active`), or
-    `intervention_not_admitted`, and reserves
-    `intervention_service_unreachable` and
-    `intervention_service_response_invalid` for a permit path that did not
-    answer.
+    `intervention_not_admitted`. It reserves
+    `intervention_service_unreachable` for a permit path that did not answer
+    and `intervention_service_response_invalid` for a reply that arrived
+    malformed.
+  - *Known gap.* A configured memory directory may contain a registered
+    script. Write/Edit there can replace it; the hash check refuses the
+    changed script, except for a write that lands between the hook's check
+    and execution.
   - *Checks.* `tests/test_executive_admission.py` covers symlinked
     interpreters, versioned names, a renamed ELF copy, a shebang script that
     is allowed, an earlier interpreter registration refused at admission,
@@ -2933,9 +2941,13 @@ tab.
   time, sequence, background-task count; no prompt or response text). The
   executive is idle when the latest marker is a Stop or StopFailure of the
   current session, written after this launch, with no background task
-  reported, unchanged for 15 s, and the session transcript has not changed
-  for 15 s. A turn started by a channel message or Remote Control changes the
-  transcript, so it is not idle. A subagent's stop is ignored.
+  reported (a Stop event without the field counts as none reported),
+  unchanged for 15 s, and the session transcript has not changed for 15 s.
+  The supervisor checks this again after the service accepts `stopping`,
+  just before the signal. A turn started by a channel message or Remote
+  Control changes the transcript, so it is not idle. A subagent's stop is
+  ignored. The hook skips the schema load (about 0.09 s per event, measured
+  locally) and the supervisor validates the marker when it reads it.
 - *Clean exit.* Claude Code 2.1.308 handles SIGTERM by calling its graceful
   shutdown routine (`shutdown(143)`), which runs SessionEnd hooks and prints the
   resume hint, with its own failsafe; this was read from the installed
@@ -2948,9 +2960,14 @@ tab.
   the stop. An unexpected non-zero exit relaunches after 10, 30 and 90 s, at
   most three times in ten minutes; the next crash stops supervision and
   records `crash_limit`. A request pending when the supervisor starts is
-  carried out by the first launch. Supervisor observations (`started`,
-  `ended`, `crash`, `crash_limit`, `launch_failed`,
-  `awaiting_operator_confirmation`) are history events, and a private
+  carried out by the first launch, and so is one left `stopping` or
+  `relaunching` by a supervisor that ended mid-restart, so it cannot block
+  later requests. A child that exits after a `stop_timeout` is taken as that
+  SIGTERM taking effect: it relaunches and is not counted as a crash. An
+  unanswered or malformed service reply never ends supervision; reports are
+  retried, and a refused report is journalled and dropped. Supervisor observations (`started`,
+  `supervision_started`, `supervision_ended`, `crash`, `crash_limit`,
+  `launch_failed`, `awaiting_operator_confirmation`) are history events, and a private
   content-free journal (`executive-pilot/supervisor-journal.jsonl`) keeps them
   when the service is unreachable; reports are retried on each poll.
 - *Development-channel confirmation.* In 2.1.308 the
@@ -2970,9 +2987,8 @@ tab.
   Herdr tab; Herdr restores the shell, not the command. Systemd cannot host
   the supervisor, because the session needs a terminal.
 
-**Limits.** A turn that starts between the last idle check and the signal can
-be stopped near its start; the transcript check makes the window about one
-poll. Scheduled session wakeups and background work that Claude Code does not
+**Limits.** A turn that starts between the final idle check and the signal
+can be stopped near its start; the window is one poll at most. Scheduled session wakeups and background work that Claude Code does not
 report in the Stop event do not survive a restart. Without a running supervisor
 a request stays pending and nothing happens. The supervisor runs with the
 operator's authority; it is not isolation.

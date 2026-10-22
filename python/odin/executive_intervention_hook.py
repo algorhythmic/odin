@@ -145,8 +145,11 @@ def handle(event, *, state, project, session, gateway=None, memory=None, scripts
                         "cwd": event["cwd"], "tool_use_id": event["tool_use_id"],
                         "tool": event["tool_name"], "input": event["tool_input"]}})
     except ToolFailure as error:
-        raise ValueError("intervention_service_unreachable" if str(error) == "Executive service unavailable."
-                         else "intervention_service_response_invalid") from None
+        # Unreachable means no answer; an oversized request is also the permit
+        # path not answering. Only a reply that arrived and was malformed is invalid.
+        raise ValueError("intervention_service_response_invalid"
+                         if str(error) == "Invalid executive service response."
+                         else "intervention_service_unreachable") from None
     if not isinstance(response, dict):
         raise ValueError("intervention_service_response_invalid")
     if "error" in response:

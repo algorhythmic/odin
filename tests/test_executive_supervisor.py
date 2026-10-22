@@ -380,10 +380,35 @@ class SupervisorTests(Base):
         self.client.on_status = mid_turn
         code = self.supervisor([[["ignore_term"], ["start"], ["turn", 0.2], ["sleep", 2.0], ["exit", 0]]],
                                stop_timeout=0.5).run()
-        # The child ran to its own exit status; nothing killed it.
+        # The child ran to its own exit status; nothing killed it. That late
+        # exit is the SIGTERM taking effect, so it relaunches without a crash;
+        # the second session then exits normally.
         self.assertEqual(code, 0)
+        self.assertEqual(len(self.launches()), 2)
         (request,) = self.requests()
         self.assertEqual((request["state"], request["code"]), ("failed", "stop_timeout"))
+        journal = [json.loads(line)["kind"] for line in
+                   (self.state / "executive-pilot" / JOURNAL_FILE).read_text().splitlines()]
+        self.assertIn("late_exit", journal)
+        self.assertNotIn("crash", self.client.events)
+
+    def test_request_left_stopping_by_a_lost_supervisor_is_carried(self):
+        request = self.ok(self.request())["request"]
+        self.client.transition(request["id"], "stopping")
+        code = self.supervisor([[["start"], ["sleep", 0.3], ["exit", 0]]]).run()
+        self.assertEqual(code, 0)
+        (request,) = self.requests()
+        self.assertEqual(request["state"], "restarted")
+        # A new request is accepted afterwards.
+        self.ok(self.request(reason="next"))
+
+    def test_service_failures_do_not_end_supervision(self):
+        class Broken(GatewayClient):
+            def status(self):
+                raise ValueError("garbled")
+        self.client = Broken(self)
+        code = self.supervisor([[["start"], ["turn", 0.1], ["sleep", 0.3], ["exit", 0]]]).run()
+        self.assertEqual(code, 0)
 
     def test_relaunch_that_never_starts_waits_for_the_operator(self):
         self.ok(self.request())

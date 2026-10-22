@@ -412,8 +412,10 @@ shell runs it; they are a workflow boundary, not OS isolation.
    registered `python` or `sh` would admit any program in its arguments. It
    matches the basename of the path and of its real path (shells, `python*`,
    `node`, `perl*`, `ruby*`, `env`, `uv`/`uvx`, `npx`, `deno`, `bun` and
-   command wrappers such as `xargs`, `sudo` or `timeout`, with any version
-   suffix such as `python3.14`), then the file's identity (same inode, or same
+   command wrappers such as `xargs`, `sudo` or `timeout`, and tools with a
+   command escape such as `find`, `sed`, `git`, `make`, editors and pagers,
+   with any version suffix such as `python3.14`; a script named like one of
+   these is refused too), then the file's identity (same inode, or same
    size and SHA-256) against the interpreter-named programs on `PATH` and in
    the standard directories, which catches a renamed copy of an ELF
    interpreter or a wrapper such as `npx-cli.js`. A script whose shebang names
@@ -457,8 +459,8 @@ before this change (schema version 1, a plain `input_digest`) stay as they
 are; `executive-status` reports `intervention_audit` with keyed and unkeyed
 counts and the current key id, and `audit_records` marks each record
 `keyed: true` or `false`. Anyone who can read the state directory can read
-the key, so this protects exported or copied audit files, not a local reader
-with the operator's authority. Deleting the key starts a new key id; older
+the key, including the executive through a read-only `cat`, so this protects
+exported or copied audit files, not against a local reader. Deleting the key starts a new key id; older
 fingerprints can then no longer be compared. If the record or the key cannot
 be written, the call is refused.
 
@@ -467,9 +469,11 @@ Its refusal code says why: `intervention_permit_required` (the service
 answered and found no matching permit), `delegated_work_active`,
 `script_is_interpreter`, another fixed code from the service, or
 `intervention_not_admitted` when the service refused without one.
-`intervention_service_unreachable` and
-`intervention_service_response_invalid` mean the permit path itself was not
-available; read-only diagnostics still work then. The file is not rotated. Allowed programs still run as the operator:
+`intervention_service_unreachable` means the permit path did not answer and
+`intervention_service_response_invalid` that its reply was malformed;
+read-only diagnostics still work in both cases. A registered script inside a
+configured memory directory can be replaced by Write/Edit; the hash check then
+refuses it, except for a write that lands between the check and execution. The file is not rotated. Allowed programs still run as the operator:
 git may run a configured pager, textconv or fsmonitor, the Claude Code shell
 may apply the operator's own aliases or functions, and `git -C` into a
 workspace reads that workspace's git configuration. The code is in
@@ -591,11 +595,15 @@ as a notice on the development channel; acknowledge it with `odin_loop_ack`.
 requests.
 
 **Stopping and crashes.** `/exit` with no pending request ends supervision,
-and the supervisor exits too. An unexpected non-zero exit relaunches after
+and the supervisor exits too. A request left `stopping` or `relaunching` by a
+supervisor that ended mid-restart is completed by the next supervisor's first
+launch. An unexpected non-zero exit relaunches after
 10, 30 and 90 s; a fourth crash within ten minutes stops supervision and
 records `crash_limit`. If Claude Code does not exit within 60 s of SIGTERM,
 the request fails with `stop_timeout` and the session keeps running; the
-supervisor never kills it. Ctrl+C in the tab goes to Claude Code as before.
+supervisor never kills it. If that session exits later, the supervisor treats
+the exit as the delayed effect of its signal and relaunches without counting
+a crash. Ctrl+C in the tab goes to Claude Code as before.
 The supervisor journal, `executive-pilot/supervisor-journal.jsonl`, records
 each step without content.
 

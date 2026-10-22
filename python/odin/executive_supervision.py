@@ -6,6 +6,8 @@ restart would be unsafe, and records the supervisor's reported transitions and
 outcome. Nothing here stops, starts or signals a process. A request is a record,
 not authority: the supervisor rechecks safety before it stops the executive.
 """
+import sqlite3
+
 from .contracts import canonical, identifier, strict_loads
 from .store import AccessRefused, Conflict, Refused, now
 
@@ -67,7 +69,10 @@ def unsafe_reason(store, project):
     try:
         rows = store.db.execute(
             "SELECT body FROM development_loops WHERE project=? AND active=1", (project,)).fetchall()
-    except Exception:  # noqa: BLE001 - no loop table yet means no loop stage
+    except sqlite3.OperationalError as error:
+        # Only a missing table means no loop stage; anything else fails closed.
+        if "no such table" not in str(error):
+            raise
         rows = []
     if any(strict_loads(row[0])["status"] in HELD_STAGE_STATUSES for row in rows):
         return "loop_stage_active"
