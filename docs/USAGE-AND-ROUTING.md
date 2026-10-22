@@ -73,6 +73,14 @@ harness behaviour is unverified, so session views report the status field
 `fork_subagent: "disabled_requested_not_verified"`. See
 [native subagent controls](https://code.claude.com/docs/en/sub-agents#run-every-subagent-on-one-model).
 
+Session creation also supports `disallowed_tools`, a list of plain tool names
+passed to every claude-code turn as `--disallowedTools`. The harness default is
+`default_disallowed_tools`, set with `delegation-configure
+--claude-disallowed-tools Agent,Task`. It is off unless configured; the session
+value wins, and an empty list turns it off for that session. Codex sessions
+refuse it. ODIN-ADR-031's 2026-10-22 amendment records why the operator denies
+`Agent` (and its legacy name `Task`) to delegated sessions.
+
 Delegation failures are surfaced, not left for the executive to find. When a
 turn ends `failed` (reported as `turn_timed_out` when the runner hit the
 wall-clock deadline, otherwise `turn_failed`), `interrupted` or `lost`, or when

@@ -2082,6 +2082,18 @@ remain available in every profile.
   D7.11's commitment truth and D24's retained refresh ownership stand. No
   producer contract, Saga guarantee, Mimir review requirement, managed
   session-host gate, X-12/X-15 disposition or handoff is closed.
+- **Amendment (2026-10-22, operator decision, relayed by odin-42 and
+  confirmed to the executive, evaluator model):** the development evaluator
+  runs on Codex `gpt-6.1-sol` at high reasoning effort. Implementers,
+  reviews and the evaluator share one Codex account and its quota, so a
+  fan-out of Codex runs can starve the evaluator. Check the Codex limits in
+  usage telemetry before a fan-out and pause new Codex work before the
+  evaluator would fail on quota. The cross-family roles, the rule against
+  Claude subagents and the concurrency and review-coverage rules are in
+  ODIN-ADR-031's and ODIN-ADR-036's amendments of the same date. The
+  evaluator's configuration takes effect at the operator's next service
+  restart; this record does not establish an observed evaluation on the new
+  model.
 - **Cross-reference:** ODIN-ADR-038 (accepted and implemented) lets the
   operator hand a non-terminal loop and its pending stage to a successor
   native session, for example after `executive-new-session`, instead of
@@ -2269,6 +2281,53 @@ remain available in every profile.
   Code 2.1.308 binary. Live behaviour is unverified, so session views report
   `fork_subagent: "disabled_requested_not_verified"`. Inherited skill models
   and provider fallbacks remain exceptions.
+- **Amendment (2026-10-22, operator decision, relayed by odin-42 and
+  confirmed to the executive, cross-family roles):** Claude models
+  coordinate and Codex models do the bounded work. The roles and reasoning
+  efforts are:
+
+  | Role | Harness and model | Effort |
+  | --- | --- | --- |
+  | Executive | Claude Code, Opus 5.5 | high |
+  | Integration owner | Claude Code, Opus 5.5 | medium |
+  | Workstream orchestrator | Claude Code, Opus 5.5 | medium; high for hook, permit, supervisor or security work |
+  | Implementer | Codex `gpt-6.1-sol`, `-s workspace-write` | high |
+  | Author self-review and non-author review | Codex `gpt-6.1-sol`, `-s read-only` | xhigh |
+  | Exploring and search | Codex `gpt-6.1-sol`, `-s read-only` | medium |
+  | Development evaluator | Codex `gpt-6.1-sol` (ODIN-ADR-028) | high |
+
+  Claude sessions do not start Claude subagents. Subagent-type work goes to
+  `codex exec`, and the orchestrator reviews and commits its diff, because
+  Codex cannot write `.git`. The forced subagent model
+  (`subagent_model: "claude-opus-5-5"` with `subagent_model_force`) stays
+  configured only as a fallback, should a subagent start anyway.
+  A new session option enforces the rule at the harness. `disallowed_tools`
+  in the `odin_delegation_session` payload, or the harness default
+  `default_disallowed_tools` in the delegation configuration, is a list of
+  plain tool names (at most 16, each matching
+  `^[A-Za-z][A-Za-z0-9_]{0,63}$`). The session value wins over the default,
+  and an explicit empty list turns it off. The session's options record the
+  resolved list, and every claude-code turn, both start and resume, then
+  passes `--disallowedTools` with the names joined by commas. The built-in
+  default is off. The Codex harness refuses the option with
+  `claude_options_unsupported_by_harness`. Claude Code 2.1.308's help
+  documents the flag; its binary names the subagent tool `Agent` and still
+  accepts the legacy name `Task`. To switch the denial on, the operator adds
+  `"default_disallowed_tools": ["Agent", "Task"]` to the `claude-code`
+  harness object in `delegation.json` (or passes
+  `--claude-disallowed-tools Agent,Task` to `delegation-configure`), and it
+  applies to sessions created after the next service restart. Sessions that
+  already exist keep the options they recorded. When `Agent` or `Task` is
+  denied, the briefing omits its sentence that invites native workers.
+  The tests are in `tests/test_delegation_profiles.py` and
+  `tests/test_routing_cli.py`; this record does not state their results.
+  Whether a live turn refuses the tool is unverified.
+- **Amendment (2026-10-22, operator decision, relayed by odin-42 and
+  confirmed to the executive, review coverage):** a non-author review lists
+  each changed file it read and names each one it skipped. The orchestrator
+  re-runs the review on any file left uncovered before it reports the work
+  as reviewed. No code checks the list yet; the evaluator and the
+  integration owner read it in the review evidence.
 - **Cross-reference:** ODIN-ADR-038 (accepted and implemented) lets the
   successor of a handed-over loop checkpoint against it and, on request, read
   its predecessor's latest checkpoint.
@@ -2637,6 +2696,24 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
   with `delegation-configure` and record it. Parallel turns use the
   five-hour window faster; ODIN-ADR-031's limit-band notices remain the
   warning. X-12 and D24.4a stay open.
+- **Amendment (2026-10-22, operator decision, relayed by odin-42 and
+  confirmed to the executive, Codex concurrency):** a workstream orchestrator
+  starts one Codex run per independent slice of work, meaning disjoint files
+  and no dependencies between them, with no fixed cap. It checks the shared
+  Codex quota (ODIN-ADR-028's amendment) before a fan-out. Each run executes
+  only the focused tests for the files it touches. The orchestrator runs the
+  full `make check` once, on the combined branch. At most two full suites
+  (`make check` or a full `unittest discover`) run host-wide at a time.
+  `make test` enforces that limit with a counting lock: `scripts/suite_lock.py`
+  holds one of two `flock` slot files in a private per-user directory
+  (`$XDG_RUNTIME_DIR/odin-suite-lock`, or `/tmp/odin-suite-lock-<uid>`, mode
+  0700) for the duration of the suite. It prints a line to standard error
+  while it waits and passes the suite's exit status through unchanged.
+  `ODIN_SUITE_LOCK=0` bypasses it. The lock covers only `make test`;
+  a full `unittest discover` started by hand is not counted. The roles and
+  efforts of the integration owner and the workstream orchestrators are in
+  ODIN-ADR-031's amendment of the same date, which also states the
+  review-coverage rule.
 
 ### ODIN-ADR-037 — Web app as the primary human view, with an agent tree
 
