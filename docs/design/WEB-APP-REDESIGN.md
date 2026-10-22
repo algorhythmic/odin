@@ -97,6 +97,19 @@ section conflicts with later sections, this section wins.
    unavailable probe reads "unavailable", never 0, and there are no
    prices. The prototype uses synthetic samples.
 
+8. **The canvas always fits, and the user can move it** (operator, after
+   R3a). The Fit all, Actual size and Fit branch buttons and the zoom
+   readout are removed. The tree is laid out and scaled to fit the
+   viewport by default, and it fits narrow viewports by **re-arranging**
+   rather than shrinking: deeper levels and wide sibling sets stack
+   vertically (an indented column with elbow connectors, as in the
+   reference video) until the tree fits at a readable scale. The user can
+   zoom (wheel, pinch, keyboard) and pan (drag, keyboard) and still click
+   and select cards; once they have moved the view, automatic fitting
+   pauses until they reset it. The relationship key is stacked vertically
+   with clearly different line styles, and typed-relationship labels are
+   never hidden behind session cards.
+
 ADR-037 records its layout (an overview page, a planning conversation or
 activity area) as default design rather than accepted direction; this
 revision replaces that layout for the prototype. Its accepted parts (the
@@ -309,6 +322,7 @@ Playwright specs for what it adds.
 | R2 | `fixtures/setup.json`, the onboarding wizard (`#/setup`), settings pages and synthetic in-memory apply; the overview's setup guide card | R1 |
 | R3a | Portfolio tree (revised direction 1–5): single executive root, project grouping nodes, sidebar branch with highlight and scope, one-line header, removal of the overview page, conversation panel, Projects toggle and deferred views; fixtures, draft schema and Python test for `executive_session_id` | R2 |
 | R3c | Sidebar dashboard (revised direction 7): overview content, provider usage meters, Setup and Settings at the bottom, collapse to a rail, drag to resize | R3a |
+| R3d | Canvas (revised direction 8): fit to viewport, responsive vertical stacking, zoom and pan, stacked legend with distinct line styles, unobstructed relationship labels | R3c |
 | R3b | Live simulation (revised direction 6): continuous create, work, finish and remove through the event rules, with the observed Agent Tree motion; card presentation pass (harness tag, fold to one line) | R3a |
 | Deferred | Decision Tree, Agent Queue and Delegate Board, Agent Lanes, Agent Graph (formerly R4–R7) | operator decision |
 
