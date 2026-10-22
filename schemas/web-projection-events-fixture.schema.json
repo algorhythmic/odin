@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "DRAFT (ODIN-ADR-037 web app projection, pass 3, 2026-10-22): shape used by the synthetic prototype; not an accepted contract. See docs/design/WEB-APP-PROJECTION.md.",
+  "title": "Odin web app projection update delivery log (synthetic prototype draft)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "synthetic",
+    "dataset",
+    "base_revision",
+    "note",
+    "events"
+  ],
+  "properties": {
+    "schema": {
+      "const": "odin.web.projection.events/v0-draft"
+    },
+    "synthetic": {
+      "type": "boolean"
+    },
+    "dataset": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "note": {
+      "type": "string"
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/envelope"
+      }
+    }
+  },
+  "$defs": {
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "revision",
+        "cursor",
+        "at",
+        "type",
+        "summary",
+        "payload"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "number"
+        },
+        "cursor": {
+          "type": "string"
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "type": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "payload": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

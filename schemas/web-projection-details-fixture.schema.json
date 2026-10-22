@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "DRAFT (ODIN-ADR-037 web app projection, pass 3, 2026-10-22): shape used by the synthetic prototype; not an accepted contract. See docs/design/WEB-APP-PROJECTION.md.",
+  "title": "Odin web app session details fixture (synthetic prototype draft)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "synthetic",
+    "dataset",
+    "page_size",
+    "transcripts",
+    "evidence"
+  ],
+  "properties": {
+    "schema": {
+      "const": "odin.web.projection.session-details/v0-draft"
+    },
+    "synthetic": {
+      "type": "boolean"
+    },
+    "dataset": {
+      "type": "string",
+      "minLength": 1
+    },
+    "page_size": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "transcripts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/transcript_item"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/evidence"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "transcript_item": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "seq",
+            "at",
+            "speaker",
+            "text"
+          ],
+          "properties": {
+            "seq": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "speaker": {
+              "type": "string",
+              "minLength": 1
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "from_seq",
+            "to_seq",
+            "reason"
+          ],
+          "properties": {
+            "kind": {
+              "const": "gap"
+            },
+            "from_seq": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "to_seq": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "reason": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "source",
+        "owner"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

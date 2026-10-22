@@ -1,0 +1,603 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "DRAFT (ODIN-ADR-037 web app projection, pass 3, 2026-10-22): shape used by the synthetic prototype; not an accepted contract. See docs/design/WEB-APP-PROJECTION.md.",
+  "title": "Odin web app projection snapshot (synthetic prototype draft)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "synthetic",
+    "dataset",
+    "revision",
+    "cursor",
+    "generated_at",
+    "projects",
+    "commitments",
+    "assignments",
+    "runs",
+    "sessions",
+    "relationships",
+    "decisions",
+    "conversations",
+    "activity"
+  ],
+  "properties": {
+    "schema": {
+      "const": "odin.web.projection.snapshot/v0-draft"
+    },
+    "synthetic": {
+      "type": "boolean"
+    },
+    "dataset": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "cursor": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "host"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "commitments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "project_id",
+          "title",
+          "status",
+          "owner"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "at_risk",
+              "blocked",
+              "in_progress"
+            ]
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "assignments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "project_id",
+          "commitment_id",
+          "owner_session_id",
+          "summary",
+          "progress"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "commitment_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "owner_session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "summary": {
+            "type": "string"
+          },
+          "progress": {
+            "enum": [
+              "awaiting_review",
+              "blocked",
+              "done_unverified",
+              "in_progress",
+              "unknown"
+            ]
+          },
+          "blocked_reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "project_id",
+          "assignment_id",
+          "session_id",
+          "outcome",
+          "summary"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "assignment_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1
+          },
+          "session_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "outcome": {
+            "enum": [
+              "failed",
+              "unknown",
+              "unverified",
+              "verified"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "sessions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/session"
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "from",
+          "to"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "enum": [
+              "review",
+              "delegation",
+              "run_association",
+              "assignment_owner"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "minLength": 1
+          },
+          "to": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "project_id",
+          "kind",
+          "status",
+          "requested_by",
+          "title",
+          "proposal"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "project_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "approval",
+              "decision"
+            ]
+          },
+          "status": {
+            "enum": [
+              "pending"
+            ]
+          },
+          "requested_by": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "proposal": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "revision",
+              "digest"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "digest": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "conversations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "at",
+            "speaker",
+            "text"
+          ],
+          "properties": {
+            "at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "speaker": {
+              "type": "string",
+              "minLength": 1
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "activity": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "at",
+            "kind",
+            "session_id",
+            "text"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "kind": {
+              "type": "string",
+              "minLength": 1
+            },
+            "session_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "project_id",
+        "parent_session_id",
+        "provenance",
+        "role",
+        "assignment_id",
+        "model",
+        "lifecycle",
+        "needs_operator_input",
+        "observed_at",
+        "stale",
+        "cost",
+        "elapsed_s",
+        "budget"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parent_session_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "provenance": {
+          "enum": [
+            "recorded",
+            "imported"
+          ]
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assignment_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "lifecycle": {
+          "enum": [
+            "running",
+            "idle",
+            "waiting_for_input",
+            "ended",
+            "retired",
+            "host_offline"
+          ]
+        },
+        "needs_operator_input": {
+          "type": "boolean"
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "stale": {
+          "type": "boolean"
+        },
+        "cost": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "amount_usd",
+            "basis"
+          ],
+          "properties": {
+            "amount_usd": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "basis": {
+              "enum": [
+                "measured",
+                "estimate",
+                "unknown"
+              ]
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "required": [
+                  "basis"
+                ],
+                "properties": {
+                  "basis": {
+                    "const": "unknown"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "amount_usd": {
+                    "type": "null"
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "required": [
+                  "amount_usd"
+                ],
+                "properties": {
+                  "amount_usd": {
+                    "type": "null"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "basis": {
+                    "const": "unknown"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "elapsed_s": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "budget": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "limit_usd",
+            "basis"
+          ],
+          "properties": {
+            "limit_usd": {
+              "type": "number"
+            },
+            "basis": {
+              "enum": [
+                "requested"
+              ]
+            }
+          }
+        },
+        "attempt_of": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "previous_attempt": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "resumption": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "count",
+            "resumed_from_host_session",
+            "resumed_at"
+          ],
+          "properties": {
+            "count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resumed_from_host_session": {
+              "type": "string",
+              "minLength": 1
+            },
+            "resumed_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    }
+  }
+}
