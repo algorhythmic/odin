@@ -67,6 +67,8 @@ partial and synthetic.
   delegation, run association and assignment ownership are typed
   relationships, drawn as dashed overlays and listed in details.
 - An imported session with no known parent stays a root.
+- A session whose recorded parent is outside the project view is shown as
+  a labelled root; no parent is guessed.
 - A resumption keeps the same session; a new attempt is a distinct
   session linked to the previous attempt.
 - Cost covers a session's own turns. Unknown cost reads "cost unknown";

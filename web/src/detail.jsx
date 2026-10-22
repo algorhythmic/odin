@@ -3,6 +3,7 @@ import {
   OUTCOME_LABELS, PROGRESS_LABELS, RELATION_LABELS, branchCost, formatCost, formatElapsed, getAssignment,
   getSession, lifecycleLabel, lineageLabel, loadSessionDetail, relationshipsOf, runsForSession,
 } from './data.js';
+import { sessionHref } from './route.js';
 
 const ENDED = new Set(['ended', 'retired']);
 
@@ -29,6 +30,12 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
   const assignment = getAssignment(s.assignment_id);
   const parent = s.parent_session_id ? getSession(s.parent_session_id) : null;
   const lineage = lineageLabel(s);
+  // A target in another project opens in that project's workspace.
+  const goTo = (target) => {
+    if (!target) return;
+    if (target.project_id === s.project_id) onSelect(target.id);
+    else location.hash = sessionHref(target.project_id, target.id);
+  };
   const runs = runsForSession(s.id);
   const relations = relationshipsOf(s.id);
 
@@ -46,6 +53,7 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
         <dt>Started by</dt>
         <dd data-testid="started-by">
           {parent ? recordLabel(parent.id)
+            : s.parent_session_id ? `${s.parent_session_id} (not in this view; not inferred)`
             : s.provenance === 'imported' ? 'Parent unknown (imported; not inferred)' : 'No recorded parent (root)'}
         </dd>
         {lineage && <><dt>Lifecycle identity</dt><dd data-testid="detail-lineage">{lineage}
@@ -53,8 +61,8 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
         </dd></>}
       </dl>
       <div class="actions-row">
-        <button type="button" disabled={!parent} onClick={() => parent && onSelect(parent.id)}>Go to parent</button>
-        {s.previous_attempt && <button type="button" onClick={() => onSelect(s.previous_attempt)}>Previous attempt</button>}
+        <button type="button" disabled={!parent} onClick={() => parent && goTo(parent)}>Go to parent</button>
+        {s.previous_attempt && <button type="button" onClick={() => goTo(getSession(s.previous_attempt))}>Previous attempt</button>}
       </div>
 
       <section aria-labelledby="asg-h">

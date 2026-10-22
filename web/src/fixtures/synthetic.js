@@ -137,6 +137,20 @@ export const sessions = [
     needs_operator_input: true, observed_at: `${T}10:19:00Z`, stale: false,
     cost: { amount_usd: 0.25, basis: 'estimate' }, elapsed_s: 1200, budget: null,
   },
+  // Recorded parent outside this data set: shown as a labelled root, never
+  // attached to a guessed parent. Its branch has no known cost at all.
+  {
+    id: 'ses-pin-audit', project_id: 'proj-contract-pins', parent_session_id: 'ses-pin-archived', provenance: 'recorded',
+    role: 'audit worker', assignment_id: null, model: null, lifecycle: 'ended',
+    needs_operator_input: false, observed_at: `${T}08:40:00Z`, stale: false,
+    cost: { amount_usd: null, basis: 'unknown' }, elapsed_s: 900, budget: null,
+  },
+  {
+    id: 'ses-pin-audit-helper', project_id: 'proj-contract-pins', parent_session_id: 'ses-pin-audit', provenance: 'recorded',
+    role: 'audit helper', assignment_id: null, model: null, lifecycle: 'ended',
+    needs_operator_input: false, observed_at: `${T}08:35:00Z`, stale: false,
+    cost: { amount_usd: null, basis: 'unknown' }, elapsed_s: 300, budget: null,
+  },
 ];
 
 // Typed relationships other than ancestry. `from` and `to` are record ids.

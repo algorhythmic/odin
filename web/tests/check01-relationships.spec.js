@@ -7,9 +7,9 @@ const projectSessions = sessions.filter((s) => s.project_id === PID);
 const byId = new Map(sessions.map((s) => [s.id, s]));
 
 test('fixture keeps ancestry separate from typed relationships', () => {
-  for (const s of sessions) {
-    if (s.parent_session_id) expect(byId.has(s.parent_session_id), `${s.id} parent exists`).toBe(true);
-  }
+  // Exactly one session records a parent outside the data set, on purpose.
+  const outside = sessions.filter((s) => s.parent_session_id && !byId.has(s.parent_session_id));
+  expect(outside.map((s) => s.id)).toEqual(['ses-pin-audit']);
   const roots = projectSessions.filter((s) => !s.parent_session_id);
   expect(roots.length).toBeGreaterThanOrEqual(2);
   expect(roots.some((s) => s.provenance === 'imported')).toBe(true);
@@ -22,7 +22,32 @@ test('fixture keeps ancestry separate from typed relationships', () => {
   expect(new Set(reviews.map((r) => byId.get(r.from).parent_session_id)).size).toBe(2);
   expect(projectSessions.some((s) => s.resumption)).toBe(true);
   expect(projectSessions.some((s) => s.attempt_of && s.attempt > 1)).toBe(true);
-  expect(assignments.every((a) => a.id)).toBe(true);
+  // Ownership points at a recorded session or is explicitly unknown.
+  for (const a of assignments) {
+    if (a.owner_session_id) expect(byId.has(a.owner_session_id), `${a.id} owner exists`).toBe(true);
+  }
+});
+
+test('a recorded parent outside the view stays a labelled root, never a guessed edge', async ({ page }) => {
+  const pid = 'proj-contract-pins';
+  const count = sessions.filter((s) => s.project_id === pid).length;
+  await page.goto(`/#/projects/${pid}`);
+  await expect(page.getByTestId('session-card')).toHaveCount(count);
+  await expect(page.getByText(`${count} sessions, 2 roots`)).toBeVisible();
+  const audit = page.locator('[data-testid="session-card"][data-session-id="ses-pin-audit"]');
+  await expect(audit).toHaveAttribute('data-parent', 'ses-pin-archived');
+  await expect(audit.getByTestId('lineage-label')).toHaveText('Parent not in this project view');
+  const edges = await page.locator('path.ancestry-edge').evaluateAll((els) => els.map((e) => `${e.dataset.from}>${e.dataset.to}`));
+  expect(edges.sort()).toEqual(['ses-pin-audit>ses-pin-audit-helper', 'ses-pin-exec>ses-pin-worker']);
+  // A branch with no known cost shows no dollar figure, not $0.00.
+  await expect(audit.getByText('branch unknown (2)', { exact: true })).toBeVisible();
+  await expect(audit).not.toContainText('$');
+  await audit.click();
+  await expect(page.getByTestId('started-by')).toHaveText('ses-pin-archived (not in this view; not inferred)');
+  await expect(page.getByRole('button', { name: 'Go to parent' })).toBeDisabled();
+  await shot(page, 'parent-outside-view');
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+  await expect(page.locator('[role="treeitem"]')).toHaveCount(count);
 });
 
 test('tree renders the ancestry forest and typed relationships distinctly', async ({ page }) => {

@@ -55,11 +55,19 @@ export const relationshipsFor = (pid) => {
 };
 export const relationshipsOf = (id) => fx.relationships.filter((r) => r.from === id || r.to === id);
 
+// A recorded parent that is not among this project's sessions (not loaded,
+// another project, or no access). The session is shown as a root, labelled.
+export function parentOutsideProject(s) {
+  if (!s.parent_session_id) return false;
+  const parent = getSession(s.parent_session_id);
+  return !parent || parent.project_id !== s.project_id;
+}
+
 // Ancestry only: children keyed by parent_session_id.
 export function childrenMap(pid) {
   const map = new Map();
   for (const s of sessionsFor(pid)) {
-    if (s.parent_session_id) {
+    if (s.parent_session_id && !parentOutsideProject(s)) {
       if (!map.has(s.parent_session_id)) map.set(s.parent_session_id, []);
       map.get(s.parent_session_id).push(s);
     }
@@ -67,13 +75,28 @@ export function childrenMap(pid) {
   return map;
 }
 
-export const rootsFor = (pid) => sessionsFor(pid).filter((s) => !s.parent_session_id);
+export const rootsFor = (pid) => sessionsFor(pid).filter((s) => !s.parent_session_id || parentOutsideProject(s));
+
+// Ancestor ids, nearest first. Stops at a repeated id so a malformed
+// parent cycle cannot hang the page.
+export function ancestors(s) {
+  const out = [];
+  const seen = new Set([s.id]);
+  for (let p = s.parent_session_id; p && !seen.has(p); p = getSession(p)?.parent_session_id) {
+    seen.add(p);
+    out.push(p);
+  }
+  return out;
+}
 
 export function descendants(id, children) {
   const out = [];
+  const seen = new Set([id]);
   const stack = [...(children.get(id) || [])];
   while (stack.length) {
     const s = stack.pop();
+    if (seen.has(s.id)) continue;
+    seen.add(s.id);
     out.push(s);
     stack.push(...(children.get(s.id) || []));
   }
@@ -89,15 +112,19 @@ export function formatCost(cost) {
 // Sums each session's OWN cost once. Unknown stays visible; estimates are marked.
 export function branchCost(session, children) {
   let known = 0;
+  let knownCount = 0;
   let unknown = 0;
   let estimate = false;
   for (const s of [session, ...descendants(session.id, children)]) {
     if (s.cost?.amount_usd == null || s.cost?.basis === 'unknown') unknown += 1;
     else {
       known += s.cost.amount_usd;
+      knownCount += 1;
       if (s.cost.basis === 'estimate') estimate = true;
     }
   }
+  // With no known cost there is no figure to show; unknown is never zero.
+  if (!knownCount) return `unknown (${unknown})`;
   let text = `${estimate ? 'est. ' : ''}$${known.toFixed(2)}`;
   if (unknown) text += ` + unknown (${unknown})`;
   return text;
@@ -112,6 +139,7 @@ export function formatElapsed(seconds) {
 
 export function lineageLabel(s) {
   if (s.provenance === 'imported' && !s.parent_session_id) return 'Imported — parent unknown';
+  if (parentOutsideProject(s)) return 'Parent not in this project view';
   if (s.attempt_of) return `Attempt ${s.attempt}${s.previous_attempt ? ` (after ${s.previous_attempt})` : ''}`;
   if (s.resumption) return `Resumed ×${s.resumption.count} (same session)`;
   return null;
