@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import * as fx from './fixtures/synthetic.js';
 import { reduceEvent } from './events.js';
+import { attentionCounts, cleanSpeed, failedSessionIds, intervalFor } from './live.js';
 
 export const isSynthetic = fx.synthetic === true;
 export const datasetName = new URLSearchParams(location.search).get('dataset') === 'large' ? 'large' : 'default';
@@ -231,41 +232,67 @@ export function formatTokens(tokens) {
   return `${h.estimate ? 'est. ' : ''}${compactTokens(h.value)} tok`;
 }
 
-// Sums each session's OWN headline tokens once. Unknown stays visible;
-// estimates are marked.
-function tokenSum(list) {
-  let known = 0;
-  let knownCount = 0;
-  let unknown = 0;
-  let estimate = false;
+// Sums each session's OWN headline tokens once. Returns the parts so the
+// header and cards can animate the known figure; formatTokenSum renders
+// the text. Unknown stays visible; estimates are marked.
+export function tokenSum(list) {
+  const sum = { known: 0, knownCount: 0, unknown: 0, estimate: false };
   for (const s of list) {
     const h = headlineTokens(s.tokens);
-    if (!h) unknown += 1;
+    if (!h) sum.unknown += 1;
     else {
-      known += h.value;
-      knownCount += 1;
-      estimate = estimate || h.estimate;
+      sum.known += h.value;
+      sum.knownCount += 1;
+      sum.estimate = sum.estimate || h.estimate;
     }
   }
+  return sum;
+}
+
+export function formatTokenSum(t) {
   // With no known tokens there is no figure to show; unknown is never zero.
-  if (!knownCount) return `unknown (${unknown})`;
-  let text = `${estimate ? 'est. ' : ''}${compactTokens(known)} tok`;
-  if (unknown) text += ` + unknown (${unknown})`;
+  if (!t.knownCount) return `unknown (${t.unknown})`;
+  let text = `${t.estimate ? 'est. ' : ''}${compactTokens(t.known)} tok`;
+  if (t.unknown) text += ` + unknown (${t.unknown})`;
   return text;
 }
 
+export const branchSum = (session, children) => tokenSum([session, ...descendants(session.id, children)]);
 export function branchTokens(session, children) {
-  return tokenSum([session, ...descendants(session.id, children)]);
+  return formatTokenSum(branchSum(session, children));
 }
 
 // The project's header total: every session's own tokens summed once.
-export const projectTokens = (pid) => tokenSum(sessionsFor(pid));
+export const projectSum = (pid) => tokenSum(sessionsFor(pid));
+export const projectTokens = (pid) => formatTokenSum(projectSum(pid));
 
 export function formatElapsed(seconds) {
   if (seconds == null) return 'elapsed unknown';
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`;
+}
+
+// Seconds added to running sessions' displayed elapsed while the
+// synthetic player runs. Display only; the recorded elapsed_s is never
+// rewritten.
+let elapsedTick = 0;
+export const liveElapsed = (s) =>
+  (s.lifecycle === 'running' && s.elapsed_s != null ? s.elapsed_s + elapsedTick : s.elapsed_s);
+
+// Card footer elapsed: a running session ticks each second while the
+// player runs, so it shows seconds; anything else keeps the recorded
+// minute format.
+export function cardElapsed(s) {
+  const sec = liveElapsed(s);
+  if (sec == null) return 'elapsed unknown';
+  if (s.lifecycle !== 'running') return formatElapsed(sec);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const ss = sec % 60;
+  return h
+    ? `${h}h ${String(m).padStart(2, '0')}m ${String(ss).padStart(2, '0')}s`
+    : m ? `${m}m ${String(ss).padStart(2, '0')}s` : `${ss}s`;
 }
 
 export function lineageLabel(s) {
@@ -295,6 +322,18 @@ export function attentionItems() {
 }
 
 export const activeWork = () => snap.sessions.filter((s) => ['running', 'waiting_for_input'].includes(s.lifecycle));
+
+// Live header summary for one project (live.js holds the counting rule):
+// agents, running, needs-you and failed counts.
+export const projectSummary = (pid) => attentionCounts(sessionsFor(pid), failedSessionIds(snap.runs));
+
+// Sessions behind the header attention chips, live from the snapshot.
+export const needsYouSessions = (pid) =>
+  sessionsFor(pid).filter((s) => s.lifecycle === 'waiting_for_input' || s.needs_operator_input);
+export const failedSessions = (pid) =>
+  sessionsFor(pid).filter((s) => sessionStatus(s).key === 'failed');
+// The failed run behind a session's Failed status, for its listed reason.
+export const failedRunFor = (s) => runsForSession(s.id).find((r) => r.outcome === 'failed') || null;
 
 // "HH:MM UTC" for a recorded observation time; the raw value if unparsable.
 export function observedLabel(at) {
@@ -328,4 +367,54 @@ export function applyNextSyntheticEvent() {
   lastResult = applyEvent(evt);
   if (lastResult.status !== 'applied') bump();
   return lastResult;
+}
+
+// --- Synthetic autoplay --------------------------------------------------
+// Applies the queued fixture events on a timer through the same path as
+// the manual driver, and ticks running sessions' displayed elapsed each
+// second while it plays. Interval math lives in live.js for unit tests.
+
+let playing = false;
+let speed = 1;
+let eventTimer = null;
+let tickTimer = null;
+
+export const autoplayState = () => ({ playing, speed, pending: queue.length });
+
+function scheduleEvent() {
+  clearTimeout(eventTimer);
+  eventTimer = setTimeout(autoplayStep, intervalFor(speed));
+}
+
+function autoplayStep() {
+  applyNextSyntheticEvent();
+  if (queue.length) scheduleEvent();
+  else stopAutoplay();
+}
+
+function stopAutoplay() {
+  playing = false;
+  clearTimeout(eventTimer);
+  eventTimer = null;
+  clearInterval(tickTimer);
+  tickTimer = null;
+  bump();
+}
+
+export function playAutoplay() {
+  if (playing || !queue.length) return;
+  playing = true;
+  scheduleEvent();
+  tickTimer = setInterval(() => { elapsedTick += 1; bump(); }, 1000);
+  bump();
+}
+
+export function pauseAutoplay() {
+  if (playing) stopAutoplay();
+}
+
+export function setAutoplaySpeed(next) {
+  speed = cleanSpeed(next);
+  if (playing) scheduleEvent();
+  bump();
 }

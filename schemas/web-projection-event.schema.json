@@ -94,6 +94,9 @@
               },
               "stale": {
                 "type": "boolean"
+              },
+              "run": {
+                "$ref": "#/$defs/run"
               }
             }
           }
@@ -206,6 +209,50 @@
     }
   ],
   "$defs": {
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "project_id",
+        "assignment_id",
+        "session_id",
+        "outcome",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assignment_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outcome": {
+          "enum": [
+            "failed",
+            "unknown",
+            "unverified",
+            "verified"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        }
+      }
+    },
     "session": {
       "type": "object",
       "additionalProperties": false,

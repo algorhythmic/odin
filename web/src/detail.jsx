@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   OUTCOME_LABELS, PROGRESS_LABELS, RELATION_LABELS, branchTokens, compactTokens, formatElapsed, formatTokens,
-  getAssignment, getSession, inParentCycle, lineageLabel, loadSessionDetail, observedLabel,
+  getAssignment, getSession, inParentCycle, lineageLabel, liveElapsed, loadSessionDetail, observedLabel,
   relationshipsOf, runsForSession, treeParent,
 } from './data.js';
 import { ModelName, StatusChip } from './status.jsx';
@@ -142,7 +142,7 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
           <dt>Output</dt><dd data-testid="detail-output">{tokenCounter(s.tokens, 'output')}</dd>
           <dt>Basis</dt><dd>{s.tokens?.basis || 'unknown'}</dd>
           {(childMap.get(s.id) || []).length > 0 && <><dt>Branch (own tokens summed)</dt><dd data-testid="detail-branch-tokens">{branchTokens(s, childMap)}</dd></>}
-          <dt>Elapsed</dt><dd>{formatElapsed(s.elapsed_s)}</dd>
+          <dt>Elapsed</dt><dd>{formatElapsed(liveElapsed(s))}</dd>
           <dt>Budget</dt><dd>{s.budget ? `${compactTokens(s.budget.limit_tokens)} tok (${s.budget.basis}, not enforced by this view)` : 'No budget recorded'}</dd>
         </dl>
       </section>

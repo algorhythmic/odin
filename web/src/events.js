@@ -12,8 +12,21 @@ export const LIFECYCLES = new Set(['running', 'idle', 'waiting_for_input', 'ende
 export const EVENT_TYPES = new Set(['session.lifecycle_changed', 'session.started', 'session.usage_updated', 'session.retired']);
 export const TOKEN_COUNTERS = ['uncached_input', 'cache_read', 'cache_write', 'output'];
 export const TOKEN_BASES = new Set(['measured', 'estimate', 'unknown']);
+export const RUN_OUTCOMES = new Set(['verified', 'unverified', 'failed', 'unknown']);
 
 const isId = (v) => typeof v === 'string' && v.length > 0;
+
+// A run record riding on a session.lifecycle_changed event (the draft
+// carries a run's recorded outcome with the lifecycle change that ended
+// it, so a failure appears in one update, not two). Returns a reason, or
+// null when the record is usable.
+function runProblem(run, sessionId) {
+  if (!run || typeof run !== 'object' || Array.isArray(run)) return 'run is not an object';
+  if (!isId(run.id)) return 'run id is not a string';
+  if (run.session_id !== sessionId) return 'run names a different session';
+  if (!RUN_OUTCOMES.has(run.outcome)) return 'unknown run outcome';
+  return null;
+}
 
 // The tokens record's documented shape (projection draft section 7): the
 // four counters are all non-negative integers or all null, and `basis` is
@@ -47,6 +60,7 @@ export function reduceEvent(snapshot, seen, evt) {
   const p = evt.payload || {};
   const byId = new Map(snapshot.sessions.map((s) => [s.id, s]));
   let sessions = snapshot.sessions;
+  let runs = snapshot.runs;
   let sessionId = p.session_id;
   const patch = (fields) => snapshot.sessions.map((s) => (s.id === sessionId ? { ...s, ...fields } : s));
 
@@ -66,6 +80,11 @@ export function reduceEvent(snapshot, seen, evt) {
     switch (evt.type) {
       case 'session.lifecycle_changed': {
         if (!LIFECYCLES.has(p.lifecycle)) return reject('unknown lifecycle');
+        if (p.run !== undefined) {
+          const problem = runProblem(p.run, sessionId);
+          if (problem) return reject(`malformed run: ${problem}`);
+          runs = [...snapshot.runs, p.run];
+        }
         const fields = { lifecycle: p.lifecycle, observed_at: p.observed_at };
         if ('needs_operator_input' in p) fields.needs_operator_input = p.needs_operator_input;
         if ('stale' in p) fields.stale = p.stale;
@@ -88,6 +107,6 @@ export function reduceEvent(snapshot, seen, evt) {
   }] };
   return {
     result: { ...base, status: 'applied' },
-    snapshot: { ...snapshot, sessions, activity, revision: evt.revision, cursor: evt.cursor },
+    snapshot: { ...snapshot, sessions, runs, activity, revision: evt.revision, cursor: evt.cursor },
   };
 }

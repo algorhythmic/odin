@@ -111,7 +111,7 @@ class ProjectionSchemaTests(unittest.TestCase):
 
     def test_event_partition_by_position(self):
         events = self.load("default-events.json")["events"]
-        self.assertEqual(len(events), 16)
+        self.assertEqual(len(events), 29)
         event_schema = self.validator("web-projection-event")
         invalid = [(i, e["event_id"]) for i, e in enumerate(events) if not event_schema.is_valid(e)]
         self.assertEqual(invalid, SCHEMA_INVALID_EVENTS)
@@ -175,6 +175,11 @@ class ProjectionSchemaTests(unittest.TestCase):
         snapshot = self.schema_file("web-projection-snapshot")
         event = self.schema_file("web-projection-event")
         self.assertEqual(event["$defs"]["session"], snapshot["$defs"]["session"])
+
+    def test_event_run_definition_matches_snapshot(self):
+        snapshot = self.schema_file("web-projection-snapshot")
+        event = self.schema_file("web-projection-event")
+        self.assertEqual(event["$defs"]["run"], snapshot["properties"]["runs"]["items"])
 
     def test_projection_schemas_are_marked_draft(self):
         names = {path.name.removesuffix(".schema.json") for path in SCHEMAS.glob("web-projection-*.schema.json")}

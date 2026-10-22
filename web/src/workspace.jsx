@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
   activityFor, ancestors, childrenMap, conversationFor, decisionsFor, getProjects, getSession, observedLabel,
-  projectTokens, rootsFor, sessionsFor,
+  projectSum, projectSummary, rootsFor, sessionsFor,
 } from './data.js';
 import { updatePrefs, usePrefs } from './prefs.js';
 import { historyHref, projectHref, sessionHref } from './route.js';
@@ -9,6 +9,8 @@ import { TreeView } from './tree.jsx';
 import { ListTree } from './list.jsx';
 import { DetailPanel } from './detail.jsx';
 import { NotFound } from './notfound.jsx';
+import { AttentionChips } from './attention.jsx';
+import { TokenSum } from './tokencount.jsx';
 
 const NARROW = '(max-width: 759px)';
 // Large projects open collapsed to their roots until the user expands them.
@@ -69,7 +71,9 @@ export function Workspace({ project, sid }) {
     <div class={`workspace ${narrow ? 'narrow' : ''} ${sid ? 'has-detail' : ''}`} data-testid="workspace" data-mode={mode}>
       <div class="toolbar">
         <h1>{project.name}</h1>
-        <span class="muted">{sessionsFor(pid).length} sessions, {roots.length} roots · <span data-testid="project-tokens">total {projectTokens(pid)}</span></span>
+        <span class="muted">{sessionsFor(pid).length} sessions, {roots.length} roots</span>
+        <AgentSummary pid={pid} />
+        <AttentionChips pid={pid} />
         <a href={historyHref(pid)}>History</a>
         <button type="button" aria-expanded={showProjects} onClick={() => setShowProjects((v) => !v)}>Projects</button>
         <button type="button" aria-expanded={showConv} onClick={() => setShowConv((v) => !v)}>Conversation</button>
@@ -127,6 +131,18 @@ export function Workspace({ project, sid }) {
         </aside>
       )}
     </div>
+  );
+}
+
+// Live header summary: agent and attention counts plus the project token
+// total, all re-derived from the snapshot on every applied update.
+function AgentSummary({ pid }) {
+  const c = projectSummary(pid);
+  return (
+    <span class="agent-summary" data-testid="agent-summary" aria-live="polite">
+      {c.agents} agents · {c.running} running · {c.needsYou} needs you · {c.failed} failed ·{' '}
+      <TokenSum sum={projectSum(pid)} prefix="total " testid="project-tokens" />
+    </span>
   );
 }
 

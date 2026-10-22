@@ -111,6 +111,8 @@ function pinnedTop(el) {
   return (chrome?.offsetHeight || 0) + (toolbar?.offsetHeight || 0);
 }
 
+const edgeKey = (e) => `${e.from}>${e.to}`;
+
 export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect, onToggle, showRelations }) {
   const { ordered, pos, edges, dots, width, height } = useMemo(
     () => layout(roots, childMap, collapsed), [roots, childMap, collapsed]);
@@ -121,6 +123,22 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
   const viewport = useRef(null);
   const [scale, setScale] = useState(1);
   const pendingScroll = useRef(null);
+
+  // Cards and connectors that mount after the first render — sessions a
+  // delivered event added, or children an expand reveals — enter with an
+  // animation. The first paint never animates.
+  const seen = useRef(null);
+  const seenEdges = useRef(null);
+  if (seen.current === null) {
+    seen.current = new Set(ordered);
+    seenEdges.current = new Set(edges.map(edgeKey));
+  }
+  const entering = new Set(ordered.filter((id) => !seen.current.has(id)));
+  const enteringEdges = new Set(edges.map(edgeKey).filter((k) => !seenEdges.current.has(k)));
+  useEffect(() => {
+    seen.current = new Set(ordered);
+    seenEdges.current = new Set(edges.map(edgeKey));
+  });
 
   // The canvas grows with the tree and the page scrolls, so the usable
   // region is the window minus the pinned chrome and the side padding —
@@ -210,7 +228,8 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
               </marker>
             </defs>
             {edges.map((e) => (
-              <path key={`a-${e.to}`} class={`ancestry-edge ${e.kind}`} data-from={e.from} data-to={e.to}
+              <path key={`a-${e.to}`} class={`ancestry-edge ${e.kind}${enteringEdges.has(edgeKey(e)) ? ' edge-enter' : ''}`}
+                data-from={e.from} data-to={e.to} pathLength={1}
                 d={(e.kind === 'fan' ? fanPath : stackPath)(pos.get(e.from), pos.get(e.to))} />
             ))}
             {showRelations && relations.map((r) => {
@@ -232,7 +251,7 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
             return (
               <SessionCard key={id} session={p.s} childMap={childMap} style={{ left: p.x, top: p.y, width: CARD_W, height: CARD_H }}
                 selected={id === selectedId} expanded={!collapsed.has(id)} childCount={kids.length}
-                onSelect={onSelect} onToggle={onToggle} />
+                entering={entering.has(id)} onSelect={onSelect} onToggle={onToggle} />
             );
           })}
         </div>

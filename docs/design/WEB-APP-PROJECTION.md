@@ -117,10 +117,18 @@ Event types used by the prototype:
 
 | `type` | `payload` |
 |---|---|
-| `session.lifecycle_changed` | `{session_id, lifecycle, needs_operator_input?, observed_at, stale?}` |
+| `session.lifecycle_changed` | `{session_id, lifecycle, needs_operator_input?, observed_at, stale?, run?}` |
 | `session.started` | `{session: <full session record>}` |
 | `session.usage_updated` | `{session_id, tokens}` |
 | `session.retired` | `{session_id, observed_at}` |
+
+`run` on `session.lifecycle_changed` carries a run record (`{id,
+project_id, assignment_id, session_id, outcome, summary}`, the section 2
+run shape) whose outcome is recorded with the lifecycle change that
+ended it, so an ending and its outcome arrive as one update. A run whose
+`session_id` does not match the event's `session_id`, without a string
+`id`, or with an `outcome` outside `{verified, unverified, failed,
+unknown}` is malformed and rejects the whole event.
 
 Client rules, checked in this order:
 
@@ -139,7 +147,9 @@ Client rules, checked in this order:
    - any other type whose `session_id` is missing or not in the
      snapshot;
    - `session.lifecycle_changed` with a `lifecycle` outside the
-     documented set;
+     documented set, or with a `run` record that is not an object, has a
+     non-string `id`, names a different `session_id` than the event's,
+     or carries an `outcome` outside the documented set;
    - `session.usage_updated` whose `tokens` record fails the section 7
      shape: a counter missing, the counters half-null, a counter
      non-integer or negative, or `basis` disagreeing with the counters.
@@ -261,7 +271,7 @@ them unchanged.
 |---|---|
 | `web/fixtures/default-snapshot.json` | Snapshot: 4 projects, 20 sessions, 8 relationships. Roots, nested children, reviewers, a resumption, attempts, an imported root, `host_offline`, unknown token usage, malformed ancestry. Token counters and budgets are arbitrary synthetic values. |
 | `web/fixtures/default-details.json` | Transcript for `ses-worker-a2` only (34 entries, two pages, with a gap and raw markup) and evidence for `ses-worker-a1` and `ses-worker-a2`. Other sessions get a one-line generated placeholder transcript. |
-| `web/fixtures/default-events.json` | Sixteen deliveries: `evt-001` to `evt-004` (state change, new child, usage update, retirement); `evt-002` delivered twice (duplicate); `evt-bad-1` to `evt-bad-9`, each rejected for one reason in rule 5 or rule 2 (unknown session, unknown type, non-integer revision, no session record, existing id, unknown lifecycle, no `session_id`, numeric id, unknown project); `evt-bad-6` re-delivered corrected, which applies at revision 5; and `evt-005` at revision 9 (gap). |
+| `web/fixtures/default-events.json` | Twenty-nine deliveries: `evt-001` to `evt-004` (state change, new child, usage update, retirement); `evt-002` delivered twice (duplicate); `evt-bad-1` to `evt-bad-9`, each rejected for one reason in rule 5 or rule 2 (unknown session, unknown type, non-integer revision, no session record, existing id, unknown lifecycle, no `session_id`, numeric id, unknown project); `evt-bad-6` re-delivered corrected, which applies at revision 5; `evt-005` at revision 9 (gap); then the live-run block `evt-006` to `evt-017` — sessions appear, run, need the operator, fail (`lifecycle_changed` carrying a failed run), are stopped and retried as a new sibling attempt, and finish — with `evt-005` re-delivered at position 19 after the missed revisions arrive, applying late at revision 9. |
 | `web/src/fixtures/large.js` | Seeded generator (seed 20261022) for the W2c set: 2,000 sessions, 40 roots, depth 8, 20 transcript pages of 50 entries per session. Generated at load time; no large file is committed. |
 
 Draft JSON Schemas (2020-12) describe these shapes as the prototype

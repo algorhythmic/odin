@@ -1,13 +1,16 @@
-import { branchTokens, compactTokens, formatElapsed, formatTokens, getAssignment, isSuperseded, lineageLabel, observedLabel } from './data.js';
+import { branchSum, cardElapsed, compactTokens, descendants, getAssignment, isSuperseded, lineageLabel, observedLabel } from './data.js';
 import { ModelName, ProviderLogo, StatusChip, ToolIcons } from './status.jsx';
+import { TokenCount, TokenSum } from './tokencount.jsx';
 
-export function SessionCard({ session: s, childMap, style, selected, expanded, childCount, onSelect, onToggle }) {
+export function SessionCard({ session: s, childMap, style, selected, expanded, childCount, entering, onSelect, onToggle }) {
   const assignment = getAssignment(s.assignment_id);
   const lineage = lineageLabel(s);
   // Stopped sessions and attempts a later attempt replaced are dimmed.
   const dimmed = s.lifecycle === 'retired' || isSuperseded(s);
+  // Collapsing hides the whole subtree, so the chip counts descendants.
+  const hidden = childCount ? descendants(s.id, childMap).length : 0;
   return (
-    <div class={`card ${selected ? 'selected' : ''} ${dimmed ? 'card-dimmed' : ''}`} style={style}
+    <div class={`card ${selected ? 'selected' : ''} ${dimmed ? 'card-dimmed' : ''} ${entering ? 'card-enter' : ''}`} style={style}
       data-testid="session-card" data-session-id={s.id} data-parent={s.parent_session_id || ''}
       data-lifecycle={s.lifecycle} data-role={s.role} data-dimmed={dimmed || undefined} onClick={() => onSelect(s.id)}>
       <div class="card-head">
@@ -34,18 +37,18 @@ export function SessionCard({ session: s, childMap, style, selected, expanded, c
       {lineage && <div class="card-row lineage" data-testid="lineage-label">{lineage}</div>}
       <div class="card-row card-foot muted">
         <span class="foot-metrics">
-          <span data-testid="own-tokens">{formatTokens(s.tokens)}</span> · <span>{formatElapsed(s.elapsed_s)}</span>
+          <TokenCount tokens={s.tokens} testid="own-tokens" /> · <span data-testid="elapsed">{cardElapsed(s)}</span>
           {s.budget && <span> · budget {compactTokens(s.budget.limit_tokens)} tok ({s.budget.basis})</span>}
         </span>
         {childCount > 0 && (
           <button type="button" class="toggle child-chip" aria-expanded={expanded}
-            aria-label={`${expanded ? 'Collapse' : 'Expand'} ${childCount} started session${childCount > 1 ? 's' : ''} of ${s.role}`}
+            aria-label={`${expanded ? 'Collapse' : 'Expand'} ${hidden} session${hidden > 1 ? 's' : ''} under ${s.role}`}
             onClick={(e) => { e.stopPropagation(); onToggle(s.id); }}>
-            {expanded ? '▾' : '▸'} {childCount}
+            {expanded ? `▾ ${hidden}` : `+${hidden} ›`}
           </button>
         )}
         {childCount > 0 && (
-          <span class="branch-tokens" data-testid="branch-tokens" title="Own tokens of this session and its descendants, cache reads excluded">branch {branchTokens(s, childMap)}</span>
+          <TokenSum sum={branchSum(s, childMap)} prefix="branch " testid="branch-tokens" />
         )}
       </div>
     </div>

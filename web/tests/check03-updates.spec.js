@@ -57,10 +57,38 @@ test('update events apply once, report duplicates and gaps, and change the views
   await expect(status(page)).toHaveText('Not applied evt-005: revision 9 skips ahead of 5; a fresh snapshot is needed.');
   await expect(page.getByTestId('revision')).toHaveText('5');
   await expect(page.locator('[data-testid="session-card"][data-session-id="ses-docs-01"]').getByTestId('state-label')).toHaveText('Running');
+  // The live-run deliveries follow. evt-005 is re-delivered once the
+  // missed revisions have arrived and applies late, so the gap repairs.
+  await applyNext(page); // evt-006: a scout appears under the executive
+  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-live-scout"]')).toHaveAttribute('data-parent', 'ses-exec-01');
+  await applyNext(page); // evt-007: ops worker attempt 1 under the integration owner
+  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-live-a1"]')).toHaveAttribute('data-parent', 'ses-integ-01');
+  await applyNext(page); // evt-008: attempt 1 needs the operator
+  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-live-a1"]').getByTestId('state-label')).toHaveText('Needs you');
+  await applyNext(page); // evt-005 re-delivered: the missed revisions are in, it applies
+  await expect(status(page)).toHaveText('Applied evt-005 (session.lifecycle_changed) at revision 9.');
+  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-docs-01"]').getByTestId('state-label')).toHaveText('Idle');
+  await applyNext(page); // evt-009: running again
+  await applyNext(page); // evt-010: scout usage
+  await applyNext(page); // evt-011: attempt 1 usage
+  await applyNext(page); // evt-012: attempt 1 ended; run recorded failed
+  const liveA1 = page.locator('[data-testid="session-card"][data-session-id="ses-live-a1"]');
+  await expect(liveA1.getByTestId('state-label')).toHaveText('Failed');
+  await applyNext(page); // evt-013: the failed attempt is stopped
+  await expect(liveA1.getByTestId('state-label')).toHaveText('Stopped');
+  await applyNext(page); // evt-014: retry — a sibling attempt 2 appears
+  const liveA2 = page.locator('[data-testid="session-card"][data-session-id="ses-live-a2"]');
+  await expect(liveA2).toHaveAttribute('data-parent', 'ses-integ-01');
+  await expect(liveA2.getByTestId('lineage-label')).toHaveText('Attempt 2 (after ses-live-a1)');
+  await applyNext(page); // evt-015: attempt 2 usage
+  await applyNext(page); // evt-016: scout needs the operator
+  await applyNext(page); // evt-017: attempt 2 finishes
+  await expect(liveA2.getByTestId('state-label')).toHaveText('Done');
+  await expect(page.getByTestId('revision')).toHaveText('18');
   await expect(page.getByRole('button', { name: 'Apply next synthetic update' })).toBeDisabled();
   // Activity lists the applied events, newest first.
   const activity = page.getByTestId('activity-item');
-  await expect(activity.first()).toContainText('integration reviewer retired');
+  await expect(activity.first()).toContainText('ops worker attempt 2 finished');
   await expect(activity.filter({ hasText: 'docs helper started by documentation' })).toHaveCount(1);
   await shot(page, 'updates-applied');
 });
@@ -80,15 +108,15 @@ test('selection and collapsed branches survive updates', async ({ page }) => {
   // apply events inside and outside it: the branch stays collapsed.
   await page.goto(`/#/projects/${PID}`);
   await page.reload();
-  await integ.getByRole('button', { name: /Collapse 3 started sessions/ }).click();
+  await integ.getByRole('button', { name: /Collapse 4 sessions under/ }).click();
   await applyNext(page); // evt-001
   await applyNext(page); // evt-002 adds a child elsewhere
-  await expect(integ.getByRole('button', { name: /Expand 3/ })).toHaveAttribute('aria-expanded', 'false');
+  await expect(integ.getByRole('button', { name: /Expand 4/ })).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('[data-testid="session-card"][data-session-id="ses-worker-a2"]')).toHaveCount(0);
   await applyNext(page); // duplicate
   await applyNext(page); // evt-003 changes a hidden session
   await applyNext(page); // evt-004 retires a hidden session
-  await expect(integ.getByRole('button', { name: /Expand 3/ })).toHaveAttribute('aria-expanded', 'false');
+  await expect(integ.getByRole('button', { name: /Expand 4/ })).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('the list keeps its reading position when a session is inserted above it', async ({ page }) => {

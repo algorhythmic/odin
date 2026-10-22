@@ -38,9 +38,22 @@ test('the fixture sequence yields the documented statuses', () => {
     'evt-bad-1:rejected', 'evt-bad-2:rejected', 'evt-bad-3:rejected', 'evt-bad-4:rejected',
     'evt-bad-5:rejected', 'evt-bad-6:rejected', 'evt-bad-7:rejected', 'evt-bad-8:rejected',
     'evt-bad-9:rejected', 'evt-bad-6:applied', 'evt-005:gap',
+    'evt-006:applied', 'evt-007:applied', 'evt-008:applied', 'evt-005:applied',
+    'evt-009:applied', 'evt-010:applied', 'evt-011:applied', 'evt-012:applied', 'evt-013:applied',
+    'evt-014:applied', 'evt-015:applied', 'evt-016:applied', 'evt-017:applied',
   ]);
-  assert.equal(snap.revision, 5);
-  assert.equal(snap.sessions.length, snapshot.sessions.length + 1);
+  assert.equal(snap.revision, 18);
+  assert.equal(snap.sessions.length, snapshot.sessions.length + 4);
+  // evt-005's first delivery gapped; its re-delivery applied once the
+  // missed revisions had arrived, so docs went idle late.
+  assert.equal(snap.sessions.find((s) => s.id === 'ses-docs-01').lifecycle, 'idle');
+  // The live run: a failed attempt retired, its retry a sibling attempt.
+  assert.equal(snap.sessions.find((s) => s.id === 'ses-live-a1').lifecycle, 'retired');
+  const a2 = snap.sessions.find((s) => s.id === 'ses-live-a2');
+  assert.deepEqual([a2.previous_attempt, a2.parent_session_id, a2.lifecycle],
+    ['ses-live-a1', 'ses-integ-01', 'ended']);
+  assert.equal(snap.runs.find((r) => r.session_id === 'ses-live-a1').outcome, 'failed');
+  assert.equal(snap.runs.find((r) => r.session_id === 'ses-live-a2').outcome, 'unverified');
 });
 
 test('non-integer revision is rejected', () => {
@@ -104,6 +117,36 @@ test('session.usage_updated rejects malformed tokens payloads', () => {
   assert.equal(rejected(usage({ ...unknown, basis: 'measured' }), snap), 'malformed tokens: null token counters require basis "unknown"');
   assert.equal(rejected(usage({ ...valid, basis: 'billed' }), snap), 'malformed tokens: tokens basis is not documented');
   assert.equal(rejected(usage(undefined), snap), 'malformed tokens: tokens is not an object');
+});
+
+test('a lifecycle change can carry a run record that lands in the snapshot runs', () => {
+  const run = {
+    id: 'run-x', project_id: 'proj-odin-webapp', assignment_id: 'asg-docs',
+    session_id: 'ses-docs-01', outcome: 'failed', summary: 'checks failed',
+  };
+  const evt = {
+    ...byId('evt-001')[0], event_id: 'run-ok', revision: 5,
+    payload: { session_id: 'ses-docs-01', lifecycle: 'ended', observed_at: '2026-10-21T12:00:00Z', run },
+  };
+  const { result, snapshot: after } = reduceEvent(atRevision4(), new Set(), evt);
+  assert.equal(result.status, 'applied');
+  assert.equal(after.sessions.find((s) => s.id === 'ses-docs-01').lifecycle, 'ended');
+  assert.deepEqual(after.runs.at(-1), run);
+});
+
+test('a malformed run on a lifecycle change rejects the whole event', () => {
+  const snap = atRevision4();
+  const usage = (run) => ({
+    ...byId('evt-001')[0], event_id: 'run-bad', revision: 5,
+    payload: { session_id: 'ses-docs-01', lifecycle: 'ended', observed_at: '2026-10-21T12:00:00Z', run },
+  });
+  const base = { id: 'run-x', session_id: 'ses-docs-01', outcome: 'failed' };
+  assert.equal(rejected(usage(null), snap), 'malformed run: run is not an object');
+  assert.equal(rejected(usage({}), snap), 'malformed run: run id is not a string');
+  assert.equal(rejected(usage({ ...base, session_id: 'ses-other' }), snap), 'malformed run: run names a different session');
+  assert.equal(rejected(usage({ ...base, outcome: 'billed' }), snap), 'malformed run: unknown run outcome');
+  // A rejected run changes nothing, runs included.
+  assert.equal(snap.runs.length, snapshot.runs.length);
 });
 
 test('lifecycle_changed outside the documented set is rejected', () => {

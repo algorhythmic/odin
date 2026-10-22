@@ -43,17 +43,20 @@ for the seeded 2,000-session tree, generated in the browser from
 The bar under the header is a synthetic update driver: "Apply next
 synthetic update" applies the next event from
 `fixtures/default-events.json` to the loaded snapshot and reports
-whether it was applied, a duplicate, a revision gap or rejected.
-Nothing changes for a rejected event, and its id is not remembered, so
-a corrected re-delivery can apply. Rejected: a non-integer revision; an
-unknown event type; a missing or unknown `session_id`; a
-`session.started` without a record, with a non-string `id` or
-`project_id`, for an unknown project, with an unknown lifecycle or for
-an existing id; a `session.lifecycle_changed` with a lifecycle outside
-the documented set; a `session.usage_updated` whose `tokens` record is
-missing, half-null, non-integer or negative, or has a `basis` that
-disagrees with the counters. Reloading the page starts from the snapshot
-again.
+whether it was applied, a duplicate, a revision gap or rejected. Play
+and a speed selector (0.5×/1×/2×/4×) apply the same queue on a timer so
+the tree runs live: sessions appear with a drawn-in connector, running
+elapsed ticks each second and token figures count up. Pausing freezes
+both. Nothing changes for a rejected event, and its id is not
+remembered, so a corrected re-delivery can apply. Rejected: a
+non-integer revision; an unknown event type; a missing or unknown
+`session_id`; a `session.started` without a record, with a non-string
+`id` or `project_id`, for an unknown project, with an unknown lifecycle
+or for an existing id; a `session.lifecycle_changed` with a lifecycle
+outside the documented set or a malformed `run` record; a
+`session.usage_updated` whose `tokens` record is missing, half-null,
+non-integer or negative, or has a `basis` that disagrees with the
+counters. Reloading the page starts from the snapshot again.
 
 The event rules live in `src/events.js`, without browser or fixture
 imports, and have Node unit tests (built-in runner, no extra
@@ -101,13 +104,15 @@ not service or desktop measurements.
 |---|---|
 | `fixtures/*.json` | Shared synthetic projection fixtures: snapshot, session details, update events ([draft shape](../docs/design/WEB-APP-PROJECTION.md)) |
 | `src/fixtures/synthetic.js`, `src/fixtures/large.js` | Fixture loading and paged detail requests; seeded large-dataset generator |
-| `src/data.js` | Versioned store over the snapshot: views, ancestry analysis (cycles, outside parents), indexes by session and assignment |
+| `src/data.js` | Versioned store over the snapshot: views, ancestry analysis (cycles, outside parents), indexes by session and assignment; the autoplay timers |
 | `src/events.js` | Update-event rules (pure; unit-tested in `tests-unit/`) |
+| `src/live.js` | Autoplay scheduling and header summary counts (pure; unit-tested) |
 | `src/driver.jsx`, `src/history.jsx` | Synthetic update driver bar; project history |
 | `src/route.js`, `src/prefs.js` | Hash routes; layout preferences (`odin-web-prefs:v1` in localStorage): view mode, collapsed branches, relationship overlay, colour theme |
 | `src/models.js`, `src/status.jsx` | Friendly model names and providers; the status chip, provider monogram and tool icons |
 | `src/overview.jsx`, `src/workspace.jsx` | Overview and project workspace |
 | `src/tree.jsx`, `src/card.jsx` | d3-hierarchy tidy-tree layout, SVG edges, session cards |
+| `src/tokencount.jsx`, `src/attention.jsx` | Animated token figures; the header attention chips and popovers |
 | `src/list.jsx` | ARIA treeview list alternative with roving tabindex |
 | `src/detail.jsx` | Detail panel; transcripts render as plain text |
 | `tests/`, `tests-perf/`, `tests-unit/` | Playwright specs; the check 9 timing scenarios; Node unit tests |
@@ -158,6 +163,16 @@ not service or desktop measurements.
   when the record carries `tools` or `integrations`, and a footer with
   own tokens, elapsed time, budget, a child-count chip and the branch
   token total.
+- While the player runs, applied updates animate: new sessions
+  fade/slide in and their connector draws itself, running sessions tick
+  elapsed each second and token figures count up to the new value (an
+  unknown is shown immediately, never through an intermediate number).
+  The workspace header carries a live summary (`N agents · N running ·
+  N needs you · N failed · total`) and attention chips whose popovers
+  list each session needing you or failed, its task and the reason;
+  their command controls are disabled because commands are not
+  connected. A collapsed branch chip reads `+N ›` for the hidden
+  descendants. All of it is instant under `prefers-reduced-motion`.
 
 ## Not implemented
 

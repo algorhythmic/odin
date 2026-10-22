@@ -110,11 +110,11 @@ test('tree renders the ancestry forest and typed relationships distinctly', asyn
 test('collapse hides descendants and fit branch scales to the selection', async ({ page }) => {
   await page.goto(sessionUrl('ses-integ-01'));
   const integ = page.locator('[data-session-id="ses-integ-01"]');
-  await integ.getByRole('button', { name: /Collapse 3 started sessions/ }).click();
+  await integ.getByRole('button', { name: /Collapse 4 sessions under/ }).click();
   await expect(page.locator('[data-session-id="ses-worker-a2"]')).toHaveCount(0);
   await expect(page.locator('[data-session-id="ses-helper-01"]')).toHaveCount(0);
-  await expect(integ.getByRole('button', { name: /Expand 3/ })).toHaveAttribute('aria-expanded', 'false');
-  await integ.getByRole('button', { name: /Expand 3/ }).click();
+  await expect(integ.getByRole('button', { name: /Expand 4/ })).toHaveAttribute('aria-expanded', 'false');
+  await integ.getByRole('button', { name: /Expand 4/ }).click();
   await expect(page.locator('[data-session-id="ses-helper-01"]')).toHaveCount(1);
   await page.getByRole('button', { name: 'Fit branch' }).click();
   const view = await page.getByTestId('tree-view').boundingBox();

@@ -86,8 +86,23 @@ button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-
 .status-host-offline { --st: var(--status-failed); }
 .status-icon.spin { animation: odin-spin 0.9s linear infinite; transform-origin: 50% 50%; }
 @keyframes odin-spin { to { transform: rotate(360deg); } }
+
+/* Live updates: sessions that appear after the first paint fade/slide
+   in, and their square connector draws itself along its path. Cards
+   also slide to their new positions when collapse/expand or a new
+   sibling re-lays the tree out. All of it is instant under
+   prefers-reduced-motion. */
+.card { transition: left 0.25s ease, top 0.25s ease, box-shadow 0.15s ease; }
+.card-enter { animation: card-in 0.35s ease-out; }
+@keyframes card-in { from { opacity: 0; transform: translateY(10px); } }
+.edge-enter { stroke-dasharray: 1; stroke-dashoffset: 1; animation: edge-draw 0.4s ease-out forwards; }
+@keyframes edge-draw { to { stroke-dashoffset: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
   .status-icon.spin { animation: none; }
+  .card { transition: none; }
+  .card-enter, .edge-enter { animation: none; }
+  .edge-enter { stroke-dashoffset: 0; }
 }
 
 .tag { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; border: 1px solid currentColor; margin-left: 4px; }
@@ -121,6 +136,28 @@ button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-
 .segmented button:first-child { border-radius: 6px 0 0 6px; }
 .segmented button:last-child { border-radius: 0 6px 6px 0; }
 .check { display: inline-flex; gap: 4px; align-items: center; }
+.agent-summary { font-weight: 600; }
+
+/* Header attention chips and their popovers. */
+.attention-chips { display: inline-flex; gap: 6px; align-items: center; }
+.attention-wrap { position: relative; }
+.attention-chip { border-radius: 999px; font-size: 0.8rem; }
+.attention-needs { color: var(--status-needs); }
+.attention-failed { color: var(--status-failed); }
+.attention-pop {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 70;
+  min-width: 300px; max-width: min(380px, 80vw); padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: 0 10px 26px rgb(0 0 0 / 35%);
+}
+.attention-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.attention-items li { border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+.attention-items li:last-child { border-bottom: 0; padding-bottom: 0; }
+.attention-task { font-size: 0.85rem; }
+.attention-reason { font-size: 0.8rem; }
+.attention-pop p { margin: 8px 0 0; font-size: 0.8rem; }
+.autoplay { display: inline-flex; gap: 6px; align-items: center; }
+.autoplay-speed { display: inline-flex; gap: 4px; align-items: center; }
 
 .tree-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 6px; }
 .legend { display: inline-flex; gap: 6px; align-items: center; font-size: 0.8rem; color: var(--muted); }
