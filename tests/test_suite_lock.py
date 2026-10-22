@@ -27,6 +27,7 @@ class SuiteLockTests(unittest.TestCase):
         self.directory = self.root / "locks"
         self.environment = os.environ | {
             "ODIN_SUITE_LOCK_DIR": str(self.directory),
+            "ODIN_SUITE_LOCK_TEST": "1",
             "ODIN_SUITE_LOCK": "1",
         }
 
@@ -106,6 +107,33 @@ class SuiteLockTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse(self.directory.exists())
 
+    def test_directory_override_without_test_marker_is_refused(self):
+        self.environment.pop("ODIN_SUITE_LOCK_TEST")
+        result = self.run_command("print('must not run')")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(
+            result.stderr,
+            "odin suite lock: ODIN_SUITE_LOCK_DIR is test-only; "
+            "set ODIN_SUITE_LOCK_TEST=1 with it, or unset it\n",
+        )
+        self.assertFalse(self.directory.exists())
+
+    def test_directory_override_with_test_marker_is_used(self):
+        result = self.run_command("print('ran')")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "ran\n")
+        self.assertEqual(result.stderr, "")
+        self.assertTrue((self.directory / "slot-0.lock").is_file())
+
+    def test_bypass_ignores_directory_override_without_test_marker(self):
+        self.environment.pop("ODIN_SUITE_LOCK_TEST")
+        result = self.run_command("print('ran'); raise SystemExit(3)", ODIN_SUITE_LOCK="0")
+        self.assertEqual(result.returncode, 3, result.stderr)
+        self.assertEqual(result.stdout, "ran\n")
+        self.assertEqual(result.stderr, "")
+        self.assertFalse(self.directory.exists())
+
     def test_waits_once_then_runs_when_a_slot_is_released(self):
         slots = self.hold_slots()
         process = self.start_command("print('ran')")
@@ -183,6 +211,16 @@ class SuiteLockTests(unittest.TestCase):
         self.assertEqual(result.stdout, "")
         self.assertIn("not a directory", result.stderr)
 
+    def test_directory_symlink_is_refused(self):
+        target = self.root / "private"
+        target.mkdir(mode=0o700)
+        self.directory.symlink_to(target, target_is_directory=True)
+        result = self.run_command("print('must not run')")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("not a directory", result.stderr)
+        self.assertEqual(list(target.iterdir()), [])
+
     def test_directory_override_takes_precedence(self):
         with patch.dict(os.environ, self.environment | {"XDG_RUNTIME_DIR": str(self.root)}):
             self.assertEqual(suite_lock.lock_directory(), self.directory)
@@ -213,6 +251,27 @@ class SuiteLockTests(unittest.TestCase):
         self.assertEqual(result.stdout, "")
         self.assertIn("odin suite lock:", result.stderr)
         self.assertEqual(target.read_text(), "unchanged")
+
+    def test_slot_fifo_is_refused_without_hanging(self):
+        self.directory.mkdir(mode=0o700)
+        os.mkfifo(self.directory / "slot-0.lock", mode=0o600)
+        # run_command's timeout also catches a blocking FIFO open.
+        result = self.run_command("print('must not run')")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("slot-0.lock is not a regular file owned by the current uid", result.stderr)
+
+    def test_slot_owned_by_another_uid_is_refused(self):
+        self.directory.mkdir(mode=0o700)
+        (self.directory / "slot-0.lock").touch(mode=0o600)
+        uid = os.getuid()
+        # Accept the directory's real owner, then simulate a foreign slot owner.
+        with patch.object(suite_lock.os, "getuid", side_effect=[uid, uid + 1]) as getuid:
+            with self.assertRaisesRegex(
+                ValueError, "slot-0.lock is not a regular file owned by the current uid"
+            ):
+                suite_lock.acquire_slot(self.directory)
+        self.assertEqual(getuid.call_count, 2)
 
 
 if __name__ == "__main__":

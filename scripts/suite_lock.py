@@ -13,10 +13,15 @@ SLOTS = 2
 
 
 def lock_directory():
-    # One directory for every caller of this user, whatever its environment,
-    # so that the two slots are counted host-wide.
+    # One directory per user keeps the two slots host-wide; private test
+    # directories require an explicit test-only marker.
     override = os.environ.get("ODIN_SUITE_LOCK_DIR")
     if override is not None:
+        if os.environ.get("ODIN_SUITE_LOCK_TEST") != "1":
+            raise ValueError(
+                "ODIN_SUITE_LOCK_DIR is test-only; "
+                "set ODIN_SUITE_LOCK_TEST=1 with it, or unset it"
+            )
         return Path(override)
     return Path(f"/tmp/odin-suite-lock-{os.getuid()}")
 

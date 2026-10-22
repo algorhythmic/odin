@@ -61,6 +61,37 @@ class DelegationProfileTests(unittest.TestCase):
                          self.h.gateway.delegation.config["harnesses"]["claude-code"])
         self._assert_disallowed_turns(self._open(), [])
 
+    def test_legacy_options_without_disallowed_tools_launch_start_and_resume(self):
+        opened = self._open(subagent_model="haiku")
+        session = opened["session"]["id"]
+        options = self.h.gateway.delegation._options(session)
+        del options["disallowed_tools"]
+        with self.h.service.store.db:
+            self.h.service.store.db.execute(
+                "UPDATE delegation_sessions SET options=? WHERE id=?",
+                (json.dumps(options), session),
+            )
+        self.h.restart()
+        resumed = self.h.call("delegation_session", {"action": "resume", "session_id": session})
+        self.assertNotIn("disallowed_tools", resumed["options"])
+        first = self._spec(session)
+        earlier = {"id": identifier(), "state": "returned",
+                   "result": {"native_session_id": opened["session"]["native_session_id"]}}
+        with patch.object(self.h.gateway.delegation, "_turns", return_value=[earlier]):
+            second = self._spec(session)
+        for spec, marker in ((first, "--session-id"), (second, "--resume")):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, spec["argv"])
+                self.assertNotIn("--disallowedTools", spec["argv"])
+                directory = self.h.root / spec["turn"]
+                directory.mkdir(mode=0o700)
+                (directory / "spec.json").write_text(json.dumps(spec))
+                self.assertEqual(run(directory), 0)
+                result = json.loads((directory / "result.json").read_text())
+                self.assertEqual(result["exit_code"], 0)
+                self.assertFalse(result["is_error"])
+                self.assertEqual(result["native_session_id"], opened["session"]["native_session_id"])
+
     def test_disallowed_tools_default_survives_restart_and_applies_to_every_turn(self):
         names = ["Agent", "Bash"]
         self.h.write_config(claude_disallowed_tools=names)
