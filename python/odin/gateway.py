@@ -18,6 +18,7 @@ from .development_gateway import ACTIONS as LOOP_ACTIONS
 from .development_gateway import EXECUTIVE_ACTIONS as EXECUTIVE_LOOP_ACTIONS
 from .development_loop import DevelopmentLoop
 from .executive_intervention import ACTIONS as INTERVENTION_ACTIONS, EXECUTIVE_ACTIONS as EXECUTIVE_INTERVENTION_ACTIONS
+from .executive_supervision import ACTIONS as SUPERVISION_ACTIONS, EXECUTIVE_ACTIONS as EXECUTIVE_SUPERVISION_ACTIONS
 from .memory import Memory
 from .orchestration_config import OrchestrationConfig
 from .store import Conflict, Refusal, Refused, digest, event, now
@@ -203,7 +204,7 @@ class Gateway:
                         "response_digest": digest(command["payload"]["response"]),
                     }
                 }
-            elif action in LOOP_ACTIONS | USAGE_ACTIONS | INTERVENTION_ACTIONS:
+            elif action in LOOP_ACTIONS | USAGE_ACTIONS | INTERVENTION_ACTIONS | SUPERVISION_ACTIONS:
                 audit_command = command | {
                     "payload": {
                         "project": command["payload"].get("project"),
@@ -234,6 +235,7 @@ class Gateway:
                 "delegation_result",
                 "loop_status",
                 "loop_inbox", "usage_status", "context_status", "intervention_status",
+                "executive_restart_status",
             }:
                 stored_result = result | {"result": {"projection_not_cached": True}}
             self.store.db.execute(
@@ -253,6 +255,7 @@ class Gateway:
                 "resume", "memory_snapshot", "memory_source_read",
                 "executive_report", "executive_reports", *DELEGATION_ACTIONS,
                 *EXECUTIVE_LOOP_ACTIONS, *EXECUTIVE_USAGE_ACTIONS, *EXECUTIVE_INTERVENTION_ACTIONS,
+                *EXECUTIVE_SUPERVISION_ACTIONS,
             }
             or payload.get("project") not in context.projects
         ):
@@ -275,6 +278,7 @@ class Gateway:
         if action in {
             "resume", "memory_snapshot", "memory_source_read", "executive_reports",
             "repository_import", *DELEGATION_ACTIONS, *LOOP_ACTIONS, *USAGE_ACTIONS, *INTERVENTION_ACTIONS,
+            *SUPERVISION_ACTIONS,
         }:
             project = payload.get("project")
         elif action == "prepare_decision":
@@ -402,6 +406,11 @@ class Gateway:
             return dispatch(self, action, payload, context, operation)
         if action in USAGE_ACTIONS:
             from .usage_gateway import dispatch
+            return dispatch(self, action, payload, context, operation)
+        if action in SUPERVISION_ACTIONS:
+            if actor.subject != "fable-executive":
+                self._operator(context)
+            from .executive_supervision import dispatch
             return dispatch(self, action, payload, context, operation)
         if action in LOOP_ACTIONS:
             from .development_gateway import dispatch

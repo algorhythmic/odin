@@ -235,9 +235,28 @@
           "$ref": "#/$defs/odin_intervention_status"
         }
       }
+    },
+    {
+      "properties": {
+        "name": {
+          "const": "odin_executive_restart"
+        },
+        "arguments": {
+          "$ref": "#/$defs/odin_executive_restart"
+        }
+      }
     }
   ],
   "$defs": {
+    "odin_executive_restart": {
+      "type": "object",
+      "properties": {
+        "reason": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "operation_id": {"type": "string", "pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"}
+      },
+      "required": ["reason", "operation_id"],
+      "additionalProperties": false
+    },
     "odin_resume": {
       "type": "object",
       "additionalProperties": false,

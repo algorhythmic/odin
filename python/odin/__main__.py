@@ -69,6 +69,7 @@ def main():
             "executive-activate-service",
             "executive-login",
             "executive-start",
+            "executive-supervise",
             "executive-new-session",
             "executive-enable-repository-reads",
             "executive-enable-development",
@@ -273,6 +274,13 @@ def main():
                               head=args.head, timeout=args.activation_timeout)
             print(canonical(record))
             sys.exit({"activated": 0, "refused": 2}.get(record["outcome"], 1))
+        elif args.action == "executive-supervise":
+            from .executive_supervisor import supervise
+
+            try:
+                sys.exit(supervise(state))
+            except PermissionError as error:
+                parser.exit(2, f"odin: {error}\n")
         elif args.action == "executive-login":
             sys.exit(executive_runtime.login(state))
         elif args.action == "executive-new-session":

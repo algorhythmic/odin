@@ -57,9 +57,11 @@ TOOL_ACTIONS = {
     "odin_intervention_begin": "intervention_begin",
     "odin_intervention_end": "intervention_end",
     "odin_intervention_status": "intervention_status",
+    "odin_executive_restart": "executive_restart_request",
 }
 LOOP_TOOLS = frozenset(
-    {"odin_loop_claim", "odin_loop_ready", "odin_loop_status", "odin_loop_ack", "odin_loop_delegate", "odin_context_checkpoint", "odin_intervention_begin", "odin_intervention_end", "odin_intervention_status"}
+    {"odin_loop_claim", "odin_loop_ready", "odin_loop_status", "odin_loop_ack", "odin_loop_delegate", "odin_context_checkpoint", "odin_intervention_begin", "odin_intervention_end", "odin_intervention_status",
+     "odin_executive_restart"}
 )
 READ_ONLY_TOOLS = frozenset(
     {
@@ -120,6 +122,17 @@ def _checkpoint_validation_error(error):
     return ("Input not dispatched: " + (".".join(parts) or "arguments")[:120]
             + ": " + reason + ".")[:220]
 TOOL_DESCRIPTIONS = {
+    "odin_executive_restart": (
+        "Ask the operator's supervisor (executive-supervise) to restart this executive session, for "
+        "example to load staged model, mode, permit or prompt changes. Records a request only; the "
+        "supervisor stops Claude Code at the next idle turn end, relaunches it through the normal start "
+        "path and resumes this same session, then a notice reports the outcome. Refused with a fixed "
+        "code while an intervention call has an unknown outcome (intervention_outcome_unknown), while a "
+        "development stage is claimed or ready (loop_stage_active) or while another request is open "
+        "(restart_request_pending). Delegated turns do not block it. Without a running supervisor "
+        "nothing happens. End your turn after a successful request. Supply a new ULID operation_id; "
+        "replaying identical arguments is idempotent."
+    ),
     "odin_intervention_begin": "Temporarily authorize up to 32 exact native Bash/Write/Edit/NotebookEdit inputs for an operator-authorized diagnostic or repair, for at most 3600 seconds, only while delegated work is idle. Read-only allowlisted Bash and operator-registered scripts need no permit. State purpose; no credentials in commands. The hook consumes each permit use once; optional uses (1-20) repeats an identical call. Copy the exact executable inputs, including timeout; description is ignored. Optional background: true binds a Bash call to run_in_background; that permit closes at launch and Odin does not observe its outcome. No sandbox override. This records local pilot authority, not OS isolation. Prefer orchestrators for implementation.",
     "odin_intervention_end": "Close an intervention and return to executive mode. Refuses while a native call has no observed completion; inspect status and resolve uncertainty before new work.",
     "odin_intervention_status": "Read executive/intervention mode, exact-input permit digests, expiration and any native calls whose completion is unknown.",

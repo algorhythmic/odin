@@ -70,7 +70,11 @@
         "intervention_status",
         "intervention_authorize",
         "intervention_finish",
-        "intervention_reconcile"
+        "intervention_reconcile",
+        "executive_restart_request",
+        "executive_restart_status",
+        "executive_restart_transition",
+        "executive_supervisor_event"
       ]
     },
     "payload": {

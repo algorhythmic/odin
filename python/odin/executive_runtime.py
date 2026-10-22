@@ -108,6 +108,7 @@ DEVELOPMENT_REQUIRED_FLAGS = (
 INTERVENTION_DISALLOWED_TOOLS = (
     "PowerShell", "Agent", "Task", "Monitor", "Workflow", "EnterWorktree", "ExitWorktree",
 )
+TURN_HOOK_EVENTS = ("SessionStart", "UserPromptSubmit", "Stop", "StopFailure", "SessionEnd")
 DELEGATED_DISALLOWED_TOOLS = (
     "Bash", "PowerShell", "Write", "Edit", "NotebookEdit",
     "Agent", "Task", "Monitor", "Workflow", "EnterWorktree", "ExitWorktree",
@@ -491,13 +492,13 @@ def _prompt(project, *, repository_root=None):
     return prompt
 
 
-def launch_spec(state, *, resume=False, auto_compact_window_tokens=None):
+def launch_spec(state, *, resume=False, auto_compact_window_tokens=None, supervised=False):
     """Return exact argv/cwd/environment without connecting or starting Claude."""
     manifest, base = _load(state)
     manifest = _pending_development(manifest, base) or manifest
     if auto_compact_window_tokens is not None:
         manifest = manifest | {"auto_compact_window_tokens": _auto_compact_window(auto_compact_window_tokens)}
-    return _launch_spec(manifest, base, resume=resume)
+    return _launch_spec(manifest, base, resume=resume, supervised=supervised)
 
 
 def _launch_cwd(manifest, base):
@@ -507,7 +508,29 @@ def _launch_cwd(manifest, base):
     return str(base / "workspace")
 
 
-def _launch_spec(manifest, base, *, resume=False):
+def _turn_hooks(manifest):
+    """Turn-marker hooks the supervisor reads as its idle signal (ODIN-ADR-039)."""
+    handler = {"type": "command", "command": "/usr/bin/env", "timeout": 5,
+               "args": [f"PYTHONPATH={ROOT / 'python'}", "PYTHONNOUSERSITE=1",
+                        manifest["python_executable"], "-m", "odin.executive_turn_hook",
+                        "--state", manifest["state"], "--session-id", manifest["native_session_id"]]}
+    return {name: [{"hooks": [handler]}] for name in TURN_HOOK_EVENTS}
+
+
+def _supervised_settings(manifest):
+    """The normal launch's inline settings plus the supervisor's turn markers."""
+    settings = _loop_settings(manifest) if manifest.get("development_loop") else {"hooks": {}}
+    if manifest.get("native_peer_messaging"):
+        settings["crossSessionInbound"] = "accept"
+    if manifest.get("intervention_enabled"):
+        settings["hooks"].update(_intervention_hooks(manifest))
+    for name, groups in _turn_hooks(manifest).items():
+        settings["hooks"][name] = settings["hooks"].get(name, []) + groups
+    Contracts().validate("executive-supervised-settings", settings)
+    return settings
+
+
+def _launch_spec(manifest, base, *, resume=False, supervised=False):
     if manifest["version"] == 3:
         argv = [
             manifest["claude_binary"],
@@ -564,6 +587,14 @@ def _launch_spec(manifest, base, *, resume=False):
                 argv[argv.index("--settings") + 1] = canonical(settings)
             else:
                 argv.extend(["--settings", canonical(settings)])
+        if supervised:
+            # Same flags and order as an ordinary start; only the inline
+            # settings value gains the turn-marker hooks.
+            settings = canonical(_supervised_settings(manifest))
+            if "--settings" in argv:
+                argv[argv.index("--settings") + 1] = settings
+            else:
+                argv.extend(["--settings", settings])
         return {
             "argv": argv,
             "cwd": _launch_cwd(manifest, base),
@@ -1131,10 +1162,13 @@ def probe(state):
     }
 
 
-def _foreground(spec, locks):
+def _foreground(spec, locks, watch=None):
     with subprocess.Popen(
         spec["argv"], cwd=spec["cwd"], env=spec["env"], pass_fds=tuple(locks)
     ) as process:
+        if watch is not None:
+            # The supervisor polls, decides and returns the exit status.
+            return watch(process)
         while True:
             try:
                 return process.wait()
@@ -1148,9 +1182,15 @@ class ResumeRequired(PermissionError):
     """A saved launch needs the explicit resume command, not a new session."""
 
 
-def start(state, *, resume=False, auto_compact_window_tokens=None):
-    """Run a foreground pilot. Its native UI reports login/model/RC outcomes."""
-    if not sys.stdin.isatty() or not sys.stdout.isatty():
+def start(state, *, resume=False, auto_compact_window_tokens=None, supervised=False, watch=None,
+          require_terminal=True):
+    """Run a foreground pilot. Its native UI reports login/model/RC outcomes.
+
+    ``executive-supervise`` passes ``supervised`` (turn-marker hooks) and
+    ``watch``, a callable that receives the child process and returns its exit
+    status; every other step is the ordinary start path.
+    """
+    if require_terminal and (not sys.stdin.isatty() or not sys.stdout.isatty()):
         raise PermissionError("start the executive pilot in a foreground terminal")
     with _owned_runtime(state) as (manifest, base, runtime_lock, credential_lock):
         receipt = base / "launch.json"
@@ -1180,9 +1220,10 @@ def start(state, *, resume=False, auto_compact_window_tokens=None):
                 "native_peer_messaging": bool(launch_manifest.get("native_peer_messaging")),
             },
         )
-        result = _foreground(
-            _launch_spec(launch_manifest, base, resume=resume), (runtime_lock, credential_lock)
-        )
+        spec = _launch_spec(launch_manifest, base, resume=resume, supervised=supervised)
+        locks = (runtime_lock, credential_lock)
+        # The ordinary start keeps its exact call; only the supervisor watches.
+        result = _foreground(spec, locks) if watch is None else _foreground(spec, locks, watch)
         _write(
             receipt,
             "executive-pilot-launch",

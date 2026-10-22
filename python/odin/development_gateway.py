@@ -77,6 +77,13 @@ def check_scope(gateway, action, payload):
             if limit["project"] != payload.get("project"):
                 raise PermissionError("notice belongs to another project")
             return
+        from .executive_supervision import notice as supervision_notice
+
+        supervised = supervision_notice(gateway.store, payload["notice_id"])
+        if supervised is not None:
+            if supervised["project"] != payload.get("project"):
+                raise PermissionError("notice belongs to another project")
+            return
         notice = gateway.development_loop.notice(payload["notice_id"])
         if notice["project"] != payload.get("project"):
             raise PermissionError("notice belongs to another project")
@@ -721,6 +728,18 @@ def dispatch(gateway, action, payload, context, operation):
             )
         if limits and context.actor.subject == "fable-executive":
             gateway.limit_notices.mark_offered([notice["id"] for notice in limits])
+        # Executive restart outcomes (ODIN-ADR-039) take the slots left.
+        from . import executive_supervision as supervision
+
+        room = min(4, INBOX_LIMIT - len(messages))
+        restarts = (supervision.pending_notices(gateway.store, payload["project"], limit=room)
+                    if "notice" in accept and room > 0 else [])
+        for notice in restarts:
+            messages.append({"kind": "notice", "message_id": notice["id"], "notice_id": notice["id"],
+                             "loop_id": None, "stage_id": None,
+                             "content": supervision.render_notice(gateway.store, notice)})
+        if restarts and context.actor.subject == "fable-executive":
+            supervision.mark_offered(gateway.store, [notice["id"] for notice in restarts])
         return {"messages": messages}
     if action == "loop_ack":
         if gateway.delegation.notice(payload["notice_id"]) is not None:
@@ -731,6 +750,11 @@ def dispatch(gateway, action, payload, context, operation):
             return gateway.limit_notices.acknowledge(
                 payload["notice_id"], payload["project"], actor=context.actor.subject
             )
+        from . import executive_supervision as supervision
+
+        if supervision.notice(gateway.store, payload["notice_id"]) is not None:
+            return supervision.acknowledge(gateway.store, payload["notice_id"], payload["project"],
+                                           actor=context.actor.subject)
         return controller.acknowledge(
             payload["notice_id"],
             payload["project"],
