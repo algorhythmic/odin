@@ -747,6 +747,7 @@ class _lease:
         inherited = os.environ.pop(LEASE_FD_VARIABLE, None)
         if inherited is not None:
             # A re-exec handed over the descriptor that already holds the lock.
+            fd = None
             try:
                 fd = int(inherited)
                 held, expected = os.fstat(fd), os.stat(self.path, follow_symlinks=False)
@@ -757,6 +758,13 @@ class _lease:
                     return self
             except (OSError, ValueError):
                 pass
+            # Not adopted: close the stray descriptor and any lock it holds,
+            # never a standard stream.
+            if fd is not None and fd > 2:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
         self.fd = os.open(self.path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
         info = os.fstat(self.fd)
         if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:

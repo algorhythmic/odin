@@ -589,11 +589,47 @@ class LeaseHandoverTests(DeployBase):
                 adopted = module._lease(path).__enter__()
                 self.assertNotIn(module.LEASE_FD_VARIABLE, os.environ)
             self.assertEqual(adopted.fd, held.fd)
-            # A descriptor for another file is not adopted.
+            # A descriptor for another file is not adopted, and it is closed.
             other = os.open(self.temp / "other.lock", os.O_CREAT | os.O_RDWR, 0o600)
-            self.addCleanup(os.close, other)
             with patch.dict(os.environ, {module.LEASE_FD_VARIABLE: str(other)}), \
                     self.assertRaises(module.SupervisorRefused):
                 module._lease(path).__enter__()
+            with self.assertRaises(OSError):
+                os.fstat(other)
+            # Standard streams are never closed, whatever the variable names.
+            for value in ("0", "2", "not-a-number"):
+                with patch.dict(os.environ, {module.LEASE_FD_VARIABLE: value}), \
+                        self.assertRaises(module.SupervisorRefused):
+                    module._lease(path).__enter__()
+            os.fstat(0)
+            os.fstat(2)
         finally:
             os.close(held.fd)
+
+    def test_replaced_lease_file_closes_the_inherited_descriptor(self):
+        import fcntl
+        import os
+
+        from odin import executive_supervisor as module
+        path = self.state / "executive-pilot" / module.LEASE_FILE
+        held = module._lease(path).__enter__()  # the pre-exec lease, on the old file
+        old = self.temp / "old-lease"
+        os.link(path, old)
+        # The lease file is replaced between exec and adoption.
+        path.unlink()
+        fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)
+        os.close(fd)
+        with patch.dict(os.environ, {module.LEASE_FD_VARIABLE: str(held.fd)}):
+            lease = module._lease(path).__enter__()
+        try:
+            # The new lease is taken normally on the new file.
+            info, expected = os.fstat(lease.fd), os.stat(path)
+            self.assertEqual((info.st_dev, info.st_ino), (expected.st_dev, expected.st_ino))
+            # The inherited descriptor was closed, so its lock on the old file is gone.
+            probe = os.open(old, os.O_RDWR)
+            try:
+                fcntl.flock(probe, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            finally:
+                os.close(probe)
+        finally:
+            os.close(lease.fd)
