@@ -51,11 +51,13 @@ Alongside them:
   evidence reads, continuity checks, a synthetic demonstration and peer
   dependencies kept explicit.
 - [Web app handoff](design/WEB-APP-HANDOFF.md) (operator input, verbatim),
-  [web app work plan](design/WEB-APP-WORKPLAN.md) and
-  [library choice](design/WEB-APP-LIBRARIES.md): ODIN-ADR-037's primary
-  human view and agent tree, its dependency-ordered packages with acceptance
-  and enforcement checks, and the frontend library comparison. Only a
-  synthetic prototype exists in [`web/`](../web/README.md).
+  [web app work plan](design/WEB-APP-WORKPLAN.md),
+  [library choice](design/WEB-APP-LIBRARIES.md) and the
+  [browser projection draft](design/WEB-APP-PROJECTION.md): ODIN-ADR-037's
+  primary human view and agent tree, its dependency-ordered packages with
+  acceptance and enforcement checks, the frontend library comparison, and a
+  DRAFT (not adopted) snapshot and update-event shape. Only a synthetic
+  prototype exists in [`web/`](../web/README.md).
 - [Odin Heimdall and Skald consolidated work plan](design/ODIN-HEIMDALL-SKALD-WORK-PLAN.md):
   proposed delivery sequence for task-authority migration, shared capture,
   retained Skald browsing and one continuity experience. It identifies the
