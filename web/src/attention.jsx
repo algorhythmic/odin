@@ -24,7 +24,7 @@ const GROUPS = {
   },
 };
 
-export function AttentionChips({ pid }) {
+export function AttentionChips({ pid, view = 'tree' }) {
   const counts = projectSummary(pid);
   const [open, setOpen] = useState(null); // 'needs' | 'failed' | null
   const chipsRef = useRef({ needs: null, failed: null });
@@ -72,7 +72,7 @@ export function AttentionChips({ pid }) {
                 <ul class="attention-items">
                   {sessions.map((s) => (
                     <li key={s.id} data-testid="attention-pop-item" data-session-id={s.id}>
-                      <a href={sessionHref(pid, s.id)}><strong>{s.role}</strong> <code>{s.id}</code></a>
+                      <a href={sessionHref(pid, s.id, view)}><strong>{s.role}</strong> <code>{s.id}</code></a>
                       <div class="attention-task">{getAssignment(s.assignment_id)?.summary || 'Assignment unknown'}</div>
                       <div class="muted attention-reason">{g.reason(s)}</div>
                       <div class="actions-row">

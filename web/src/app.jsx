@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { parseHash, overviewHref } from './route.js';
 import { getProject, isSynthetic, useDataVersion } from './data.js';
-import { updatePrefs, usePrefs } from './prefs.js';
+import { Sidebar, useSidebarNarrow } from './shell.jsx';
+import { SetupPlaceholder } from './placeholders.jsx';
 import { Overview } from './overview.jsx';
 import { Workspace } from './workspace.jsx';
 import { NotFound } from './notfound.jsx';
@@ -18,25 +19,12 @@ function useRoute() {
   return route;
 }
 
-// Dark is the default whatever the system setting; the stored preference
-// is the only override.
-function ThemeToggle() {
-  const prefs = usePrefs();
-  useLayoutEffect(() => {
-    document.documentElement.dataset.theme = prefs.theme;
-  }, [prefs.theme]);
-  return (
-    <button type="button" class="theme-toggle" data-testid="theme-toggle"
-      aria-pressed={prefs.theme === 'light'} title="Toggle between the dark and light themes"
-      onClick={() => updatePrefs({ theme: prefs.theme === 'light' ? 'dark' : 'light' })}>
-      Theme: {prefs.theme === 'light' ? 'Light' : 'Dark'}
-    </button>
-  );
-}
-
 export function App() {
   const route = useRoute();
   useDataVersion();
+  const narrow = useSidebarNarrow();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  useEffect(() => { setDrawerOpen(false); }, [route, narrow]);
   const appRef = useRef(null);
   const chromeRef = useRef(null);
   // The pinned header's real height, published as --chrome-h so the toolbar
@@ -54,10 +42,11 @@ export function App() {
   let body;
   const project = route.pid ? getProject(route.pid) : null;
   if (route.view === 'overview') body = <Overview />;
+  else if (route.view === 'setup' || route.view === 'settings') body = <SetupPlaceholder step={route.step} section={route.section} />;
   else if (route.view === 'history' && project) body = <History project={project} />;
   else if (route.view === 'project' || route.view === 'history') {
     body = project
-      ? <Workspace key={project.id} project={project} sid={route.sid} />
+      ? <Workspace key={project.id} project={project} sid={route.sid} view={route.projectView} />
       : <NotFound title="Project not found"
           message={`No project "${route.pid}" exists in this data set, or you do not have access to it.`}
           href={overviewHref()} linkText="Back to the overview" />;
@@ -67,21 +56,20 @@ export function App() {
   }
   return (
     <div class="app" ref={appRef}>
-      <div class="chrome" ref={chromeRef}>
-        <header class="topbar">
-          <a class="brand" href={overviewHref()}>Odin</a>
-          <nav aria-label="Primary"><a href={overviewHref()}>Overview</a></nav>
-          <span class="topbar-space" />
-          {isSynthetic && (
-            <span class="synthetic-badge" role="note" data-testid="synthetic-badge"
-              aria-label="Synthetic data — prototype, not connected to Odin's service"
-              title="Prototype, not connected to Odin's service">Synthetic data</span>
+      <Sidebar route={route} narrow={narrow} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <div class="page">
+        <div class="chrome" ref={chromeRef}>
+          {narrow && (
+            <header class="topbar">
+              <button type="button" aria-label="Open menu" aria-controls="app-sidebar" aria-expanded={drawerOpen}
+                onClick={() => setDrawerOpen(true)}>☰ Menu</button>
+              <a class="brand" href={overviewHref()}>Odin</a>
+            </header>
           )}
-          <ThemeToggle />
-        </header>
-        {isSynthetic && <UpdateDriver />}
+          {isSynthetic && <UpdateDriver />}
+        </div>
+        <main class="content">{body}</main>
       </div>
-      <main class="content">{body}</main>
     </div>
   );
 }

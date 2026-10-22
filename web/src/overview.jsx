@@ -1,6 +1,6 @@
 import { activeWork, attentionItems, commitmentsFor, getAssignment, getProjects, sessionsFor } from './data.js';
 import { StatusChip } from './status.jsx';
-import { projectHref, sessionHref } from './route.js';
+import { projectHref, sessionHref, setupHref } from './route.js';
 
 export function Overview() {
   const attention = attentionItems();
@@ -8,6 +8,13 @@ export function Overview() {
   return (
     <div class="overview" data-testid="overview">
       <h1>Overview</h1>
+      <section class="setup-guide" data-testid="setup-guide" aria-labelledby="setup-guide-h">
+        <div>
+          <h2 id="setup-guide-h">Finish setup</h2>
+          <p class="muted">Connect providers, choose harnesses and models, and configure Odin’s roles.</p>
+        </div>
+        <a class="setup-link" href={setupHref()}>Finish setup <span aria-hidden="true">→</span></a>
+      </section>
       <section aria-labelledby="attention-h">
         <h2 id="attention-h">Needs attention</h2>
         <ul class="attention-list">

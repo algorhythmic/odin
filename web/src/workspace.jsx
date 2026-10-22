@@ -4,13 +4,14 @@ import {
   projectSum, projectSummary, rootsFor, sessionsFor,
 } from './data.js';
 import { updatePrefs, usePrefs } from './prefs.js';
-import { historyHref, projectHref, sessionHref } from './route.js';
+import { historyHref, projectHref, projectViewHref, sessionHref, PROJECT_VIEWS } from './route.js';
 import { TreeView } from './tree.jsx';
 import { ListTree } from './list.jsx';
 import { DetailPanel } from './detail.jsx';
 import { NotFound } from './notfound.jsx';
 import { AttentionChips } from './attention.jsx';
 import { TokenSum } from './tokencount.jsx';
+import { ViewPlaceholder, VIEW_LABELS } from './placeholders.jsx';
 
 const NARROW = '(max-width: 759px)';
 // Large projects open collapsed to their roots until the user expands them.
@@ -31,7 +32,7 @@ function useNarrow() {
   return narrow;
 }
 
-export function Workspace({ project, sid }) {
+export function Workspace({ project, sid, view = 'tree' }) {
   const pid = project.id;
   const prefs = usePrefs();
   const narrow = useNarrow();
@@ -54,7 +55,7 @@ export function Workspace({ project, sid }) {
     if (next.has(id)) next.delete(id); else next.add(id);
     setCollapsed(next);
   };
-  const select = (id) => { location.hash = sessionHref(pid, id); };
+  const select = (id) => { location.hash = sessionHref(pid, id, view); };
 
   // A deep link to a hidden session expands its ancestors.
   useEffect(() => {
@@ -73,11 +74,17 @@ export function Workspace({ project, sid }) {
         <h1>{project.name}</h1>
         <span class="muted">{sessionsFor(pid).length} sessions, {roots.length} roots</span>
         <AgentSummary pid={pid} />
-        <AttentionChips pid={pid} />
+        <AttentionChips pid={pid} view={view} />
         <a href={historyHref(pid)}>History</a>
         <button type="button" aria-expanded={showProjects} onClick={() => setShowProjects((v) => !v)}>Projects</button>
         <button type="button" aria-expanded={showConv} onClick={() => setShowConv((v) => !v)}>Conversation</button>
-        {mode === 'tree' && (
+        <nav class="view-switcher" aria-label="Project views">
+          {PROJECT_VIEWS.map((v) => (
+            <a key={v} href={sid ? sessionHref(pid, sid, v) : projectViewHref(pid, v)}
+              aria-current={view === v ? 'page' : undefined}>{VIEW_LABELS[v]}</a>
+          ))}
+        </nav>
+        {view === 'tree' && mode === 'tree' && (
           <label class="check">
             <input type="checkbox" checked={prefs.showRelations}
               onChange={(e) => update({ showRelations: e.currentTarget.checked })} />
@@ -86,8 +93,8 @@ export function Workspace({ project, sid }) {
         )}
         {/* Segmented is last: Tab from List must reach the list's roving
             treeitem before any other control. */}
-        {!narrow && (
-          <div class="segmented" role="group" aria-label="View">
+        {view === 'tree' && !narrow && (
+          <div class="segmented" role="group" aria-label="Layout">
             <button type="button" aria-pressed={mode === 'tree'} onClick={() => update({ mode: 'tree' })}>Tree</button>
             <button type="button" aria-pressed={mode === 'list'} onClick={() => update({ mode: 'list' })}>List</button>
           </div>
@@ -108,26 +115,28 @@ export function Workspace({ project, sid }) {
         </nav>
       )}
 
-      <section class="tree-area" aria-label="Agent tree">
-        {mode === 'tree'
-          ? <TreeView pid={pid} roots={roots} childMap={childMap} collapsed={collapsed} selectedId={selectedInProject?.id}
-              onSelect={select} onToggle={toggle} showRelations={prefs.showRelations} />
-          : <ListTree roots={roots} childMap={childMap} collapsed={collapsed} selectedId={selectedInProject?.id}
-              onSelect={select} onToggle={toggle} />}
-      </section>
+      {view === 'tree' ? (
+        <section class="tree-area" aria-label="Agent tree">
+          {mode === 'tree'
+            ? <TreeView pid={pid} roots={roots} childMap={childMap} collapsed={collapsed} selectedId={selectedInProject?.id}
+                onSelect={select} onToggle={toggle} showRelations={prefs.showRelations} />
+            : <ListTree roots={roots} childMap={childMap} collapsed={collapsed} selectedId={selectedInProject?.id}
+                onSelect={select} onToggle={toggle} />}
+        </section>
+      ) : <ViewPlaceholder view={view} />}
 
-      {showConv && <Conversation pid={pid} />}
+      {showConv && <Conversation pid={pid} view={view} />}
 
       {sid && (
         <aside class="detail" aria-label="Session details">
           <div class="drawer-bar">
-            <button type="button" onClick={() => { location.hash = projectHref(pid); }}>Close</button>
+            <button type="button" onClick={() => { location.hash = projectViewHref(pid, view); }}>Close</button>
           </div>
           {selectedInProject
             ? <DetailPanel key={selectedInProject.id} session={selectedInProject} childMap={childMap} onSelect={select} />
             : <NotFound title="Session not found"
                 message={`Session "${sid}" is not in ${project.name}. It may not exist, may belong to another project, or you may not have access.`}
-                href={projectHref(pid)} linkText="Back to the project" />}
+                href={projectViewHref(pid, view)} linkText="Back to the project" />}
         </aside>
       )}
     </div>
@@ -146,7 +155,7 @@ function AgentSummary({ pid }) {
   );
 }
 
-function Conversation({ pid }) {
+function Conversation({ pid, view }) {
   const entries = conversationFor(pid);
   const activity = activityFor(pid);
   const decisions = decisionsFor(pid).filter((d) => d.status === 'pending');
@@ -171,7 +180,7 @@ function Conversation({ pid }) {
         <ol class="activity" aria-labelledby="activity-h" data-testid="activity">
           {activity.map((a) => (
             <li key={a.id} data-testid="activity-item" data-kind={a.kind}>
-              <time class="muted">{observedLabel(a.at)}</time> <a href={sessionHref(pid, a.session_id)}>{a.text}</a>
+              <time class="muted">{observedLabel(a.at)}</time> <a href={sessionHref(pid, a.session_id, view)}>{a.text}</a>
             </li>
           ))}
         </ol>

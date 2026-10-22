@@ -32,7 +32,15 @@ npm run preview      # http://127.0.0.1:5318/
 
 Routes are hash based so a static build deep-links without server
 rewrites: `#/`, `#/projects/<project>`, `#/projects/<project>/history`,
-`#/projects/<project>/sessions/<session>`.
+`#/projects/<project>/sessions/<session>`, and from the redesign
+([WEB-APP-REDESIGN.md](../docs/design/WEB-APP-REDESIGN.md)) the project
+views `#/projects/<project>/<view>` and
+`#/projects/<project>/<view>/sessions/<session>` (`queue`, `lanes`,
+`graph`, `decisions`, `board`; the tree is the default), `#/setup`,
+`#/setup/<step>` and `#/settings/<section>`. A sidebar carries the
+overview, the projects with their views, setup, the theme toggle and the
+synthetic-data badge; below 900 px it is a modal drawer. The five
+non-tree views and the setup pages are placeholders until slices R2–R7.
 
 Data sets: the default loads the shared fixtures in `fixtures/`. Add
 `?dataset=large` before the hash (for example
