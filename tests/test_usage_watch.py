@@ -6,12 +6,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from jsonschema import ValidationError
+
 from odin import executive_runtime as runtime
+from odin.contracts import Contracts
 from odin.coordination import Actor
 from odin.executive_service import prepare_project
 from odin.gateway import Gateway, GatewayContext
 from odin.service import Service
-from odin.usage_watch import UsageWatcher
+from odin.usage_watch import UsageWatcher, claude_project_dir
 
 
 class WatchTests(unittest.TestCase):
@@ -331,6 +334,61 @@ class WatchTests(unittest.TestCase):
         self.config['cursor_path'] = str(self.root / 'other-cursor.sqlite3')
         with self.watcher() as watch:
             self.assertEqual(watch.poll()['unavailable'], 1)
+
+    def test_source_bound_to_executive_state_follows_rotation(self):
+        executive = self.root / 'executive'
+        runtime.prepare(executive, config_dir=self.root / 'login', project=self.project,
+                        claude_binary=sys.executable, python_executable=sys.executable)
+        self.config['sources'] = [{'provider': 'claude', 'executive_state': str(executive),
+            'agent_id': 'executive', 'discover_children': True}]
+        first, transcript = runtime.current_transcript(executive)
+        children = transcript.with_suffix('') / 'subagents'
+        children.mkdir(parents=True)
+        self.append(children / 'agent-beta.jsonl', self.row('child', session='child-native'))
+        self.append(transcript, self.row('main', session=first))
+        with self.watcher() as watch:
+            self.assertEqual(watch.poll()['imported'], 2)
+            rotated = runtime.new_session(executive)['native_session_id']
+            self.assertEqual(runtime.current_transcript(executive)[0], rotated)
+            rotated_transcript = runtime.current_transcript(executive)[1]
+            self.append(rotated_transcript, self.row('rotated-main', session=rotated))
+            # The rotated-out file is no longer resolved, so growth there is not read.
+            self.append(transcript, self.row('stale', session=first))
+            self.assertEqual(watch.poll()['imported'], 1)
+        rows = [json.loads(row[0]) for row in self.service.store.db.execute(
+            'SELECT body FROM usage_requests')]
+        bodies = {row['request_id']: row for row in rows}
+        self.assertEqual(bodies['main']['session_id'], first)
+        self.assertEqual(bodies['rotated-main']['session_id'], rotated)
+        self.assertIn('child-native', bodies['child']['agent_id'])
+        self.assertNotIn('stale', bodies)
+
+    def test_source_bound_to_missing_executive_state_is_unavailable(self):
+        self.config['sources'] = [{'provider': 'claude',
+            'executive_state': str(self.root / 'missing'), 'agent_id': 'executive'}]
+        with self.watcher() as watch:
+            self.assertEqual(watch.poll()['unavailable'], 1)
+        self.assertEqual(self.gateway.usage.summary(project_id=self.project)['request_count'], 0)
+
+    def test_claude_project_dir_encodes_every_non_alnum_as_dash(self):
+        directory = claude_project_dir(
+            '/config', '/home/david/.local/state/x/workspaces/odin-worker-claude')
+        self.assertEqual(directory, Path('/config/projects'
+            '/-home-david--local-state-x-workspaces-odin-worker-claude'))
+        self.assertEqual(claude_project_dir('/config', '/a.b/c_d').name, '-a-b-c-d')
+        with self.assertRaises(ValueError):
+            claude_project_dir('/config', '/' + 'x' * 300)
+
+    def test_executive_state_source_shape_is_schema_checked(self):
+        source = {'provider': 'claude', 'executive_state': str(self.root / 'executive'),
+                  'agent_id': 'executive'}
+        config = dict(self.config, sources=[source])
+        Contracts().validate('usage-watch-config', config)
+        for extra in ({'session_id': 'native'}, {'session_file': str(self.file)},
+                      {'sessions_dir': str(self.root)}, {'spool_dir': str(self.root)},
+                      {'provider': 'codex'}):
+            with self.subTest(extra=extra), self.assertRaises(ValidationError):
+                Contracts().validate('usage-watch-config', dict(config, sources=[source | extra]))
 
     def test_limit_probes_import_label_keyed_samples_through_the_gateway(self):
         secret = 'SYNTHETIC-WATCH-TOKEN-51c2'

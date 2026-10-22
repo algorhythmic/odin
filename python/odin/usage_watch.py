@@ -66,6 +66,19 @@ def _spool_entries(directory, max_files):
     return sorted(result)
 
 
+def claude_project_dir(config_dir, cwd):
+    # Claude Code names each project directory after the launch cwd with every
+    # character outside [A-Za-z0-9] replaced by '-' (verified from real Claude
+    # project directory names).
+    encoded = "".join(
+        character if character.isascii() and character.isalnum() else "-"
+        for character in str(cwd)
+    )
+    if len(encoded) > 200:
+        raise ValueError("Claude project directory encoding exceeds 200 characters")
+    return Path(config_dir) / "projects" / encoded
+
+
 def _status_time(info):
     return datetime.fromtimestamp(info.st_mtime, timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -178,14 +191,19 @@ class UsageWatcher:
         for spec in self.config["sources"]:
             try:
                 candidates = []
-                if "session_file" in spec:
-                    main = Path(spec["session_file"]).absolute()
-                    candidates.append((main, spec, spec["session_id"], spec["agent_id"], False))
+                if "executive_state" in spec or "session_file" in spec:
+                    if "executive_state" in spec:
+                        from .executive_runtime import current_transcript
+
+                        session_id, main = current_transcript(spec["executive_state"])
+                    else:
+                        session_id, main = spec["session_id"], Path(spec["session_file"]).absolute()
+                    candidates.append((main, spec, session_id, spec["agent_id"], False))
                     if spec.get("discover_children"):
                         children = main.with_suffix("") / "subagents"
                         if children.exists():
                             for path in _entries(children, self.max_files):
-                                candidates.append((path, spec, spec["session_id"], path.stem, True))
+                                candidates.append((path, spec, session_id, path.stem, True))
                 elif "spool_dir" in spec:
                     for path in _spool_entries(Path(spec["spool_dir"]).absolute(), self.max_files):
                         candidates.append((path, spec, None, "evaluator", False))
@@ -203,7 +221,7 @@ class UsageWatcher:
                             raise ValueError("usage watch source count exceeds max_files")
                 if len(result) + len(candidates) > self.max_files:
                     raise ValueError("usage watch source count exceeds max_files")
-            except (OSError, ValueError):
+            except (OSError, ValueError, ValidationError):
                 unavailable += 1
                 continue
             result.extend(candidates)

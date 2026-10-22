@@ -500,6 +500,13 @@ def launch_spec(state, *, resume=False, auto_compact_window_tokens=None):
     return _launch_spec(manifest, base, resume=resume)
 
 
+def _launch_cwd(manifest, base):
+    # The transcript's Claude project directory is derived from this same cwd.
+    if manifest["version"] == 3:
+        return manifest["repository_root"]
+    return str(base / "workspace")
+
+
 def _launch_spec(manifest, base, *, resume=False):
     if manifest["version"] == 3:
         argv = [
@@ -559,7 +566,7 @@ def _launch_spec(manifest, base, *, resume=False):
                 argv.extend(["--settings", canonical(settings)])
         return {
             "argv": argv,
-            "cwd": manifest["repository_root"],
+            "cwd": _launch_cwd(manifest, base),
             "env": _environment(manifest, base),
         }
     argv = [
@@ -597,7 +604,7 @@ def _launch_spec(manifest, base, *, resume=False):
         argv.extend(["--add-dir", manifest["repository_root"]])
     return {
         "argv": argv,
-        "cwd": str(base / "workspace"),
+        "cwd": _launch_cwd(manifest, base),
         "env": _environment(manifest, base),
     }
 
@@ -859,19 +866,42 @@ def configure_execution_role(state, *, implementation_mode):
         }
 
 
-def current_session_id(state):
-    """The executive's current native UUID, read from its manifest.
-
-    Telemetry bound to the executive this way follows ``executive-new-session``
-    instead of keeping a rotated UUID.
-    """
+def _current_manifest(state):
     state = Path(state)
     if not state.is_absolute():
         raise ValueError("executive state path must be absolute")
     manifest = _read(state / "executive-pilot" / "manifest.json", "executive-pilot")
     if manifest["state"] != str(state):
         raise PermissionError("pilot state identity changed")
+    return state, manifest
+
+
+def current_session_id(state):
+    """The executive's current native UUID, read from its manifest.
+
+    Telemetry bound to the executive this way follows ``executive-new-session``
+    instead of keeping a rotated UUID.
+    """
+    _state, manifest = _current_manifest(state)
     return manifest["native_session_id"]
+
+
+def current_transcript(state):
+    """The executive's current native UUID and its Claude transcript path.
+
+    The path uses the same launch cwd ``launch_spec`` chooses for the
+    manifest's version, so telemetry resolved through it follows
+    ``executive-new-session`` instead of polling a rotated file.
+    """
+    from .usage_watch import claude_project_dir
+
+    state, manifest = _current_manifest(state)
+    session_id = manifest["native_session_id"]
+    project = claude_project_dir(
+        manifest["config_dir"],
+        _launch_cwd(manifest, state / "executive-pilot"),
+    )
+    return session_id, project / (session_id + ".jsonl")
 
 
 def configure_model(state, *, model):

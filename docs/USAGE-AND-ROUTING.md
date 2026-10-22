@@ -545,8 +545,13 @@ A status file names either a fixed `session_id` or `executive_state`, which
 resolves the executive's current native UUID at each poll. An unreadable
 manifest counts the file as `unavailable`. Changing an existing entry changes
 its cursor identity, so point the new entry at a new status file path. For
-token usage across rotations, a `sessions_dir` source with `discover_sessions`
-already picks up new session files.
+token usage across rotations, a claude source may name `executive_state` with
+`agent_id` (and optional `discover_children`) instead of `session_file` and
+`session_id`: each poll resolves the manifest's current native session ID and
+reads `<config_dir>/projects/<launch cwd encoded as a Claude project
+directory>/<session>.jsonl`, so rotation moves to a new path with its own
+cursor and the old file is no longer polled. Alternatively, a `sessions_dir`
+source with `discover_sessions` picks up new session files in one directory.
 
 Run one poll with `python -m odin --state "$ODIN_PILOT_STATE" usage-watch
 --request /private/watch-config.json --once`; omit `--once` to poll at the
