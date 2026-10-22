@@ -15,7 +15,7 @@ from datetime import datetime
 
 from .contracts import ALPHABET, canonical, identifier, strict_loads
 from .execution_receipt import validate_references
-from .store import Conflict, digest, now
+from .store import Conflict, Refused, digest, now
 
 FINAL = {"complete", "stopped"}
 # Loop statuses that end the loop or need the operator produce a durable notice.
@@ -745,6 +745,7 @@ class DevelopmentLoop:
                 "id": identifier(),
                 "project": project,
                 "session_id": session_id,
+                "previous_session_ids": [],
                 "goal": goal,
                 "status": "evaluator_pending",
                 "revision": 1,
@@ -1327,6 +1328,116 @@ class DevelopmentLoop:
             return {"loop": loop, "external_process_stop_required": action == "stop"}
 
         return self._mutate(operation_id, "control", arguments, apply)
+
+    def handover(
+        self,
+        loop_id,
+        from_session,
+        to_session,
+        reason,
+        operation_id,
+        *,
+        expected_revision,
+        actor,
+    ):
+        """Operator transfer of a loop's native-session ownership, in one commit.
+
+        Only the operator gateway supplies the authority; this method checks the
+        record. A claimed, ready or unknown executive stage is never moved: its
+        native process may still hold it, so the operator reconciles or stops
+        first. A handover grants no rounds, resumes no paused loop and answers
+        no needs_operator.
+        """
+        if not isinstance(reason, str) or not reason.strip() or len(reason) > 4096:
+            raise Conflict("explicit handover reason required")
+        if type(expected_revision) is not int or expected_revision < 1:
+            raise Conflict("positive expected development loop revision required")
+        try:
+            if (
+                not isinstance(to_session, str)
+                or str(uuid.UUID(to_session)) != to_session
+            ):
+                raise ValueError("noncanonical UUID")
+        except (ValueError, AttributeError) as error:
+            raise Conflict("canonical native session UUID required") from error
+        arguments = {
+            "loop_id": loop_id,
+            "from_session": from_session,
+            "to_session": to_session,
+            "expected_revision": expected_revision,
+            "reason": reason,
+            "actor": actor,
+        }
+
+        def apply():
+            loop = self.get(loop_id)
+            if loop["status"] in FINAL:
+                raise Refused("loop_terminal")
+            if loop["revision"] != expected_revision:
+                raise Refused("stale_loop_revision")
+            if loop["session_id"] != from_session:
+                raise Refused("handover_source_mismatch")
+            if to_session == from_session:
+                raise Refused("handover_same_session")
+            if any(
+                strict_loads(row[0])["session_id"] == to_session
+                for row in self.store.db.execute(
+                    "SELECT body FROM development_loops WHERE active=1 AND id<>?",
+                    (loop_id,),
+                )
+            ):
+                raise Refused("target_session_has_active_loop")
+            # A stage the old native process may still be running is never
+            # moved; reconcile it first (loop_hold + loop_reconcile) or stop.
+            in_progress = {"executive_claimed", "executive_ready", "unknown"}
+            if loop["status"] in in_progress or (
+                loop["status"] == "paused" and loop["paused_from"] in in_progress
+            ):
+                raise Refused("executive_stage_in_progress")
+            # History is the authority for prior owners; the bounded list is
+            # a convenience view, oldest first.
+            loop["previous_session_ids"] = (
+                (loop.get("previous_session_ids") or []) + [from_session]
+            )[-16:]
+            loop.update(session_id=to_session, revision=loop["revision"] + 1, updated_at=now())
+            self._save_loop(loop)
+            stage = None
+            if loop["current_stage"]:
+                candidate = self.stage(loop["current_stage"])
+                if candidate["state"] == "pending":
+                    # Re-addressed, never re-created: the new revision makes the
+                    # successor's delivery identity fresh and the old offer stale.
+                    candidate["session_id"] = to_session
+                    self._save_stage(candidate)
+                    stage = candidate
+            notices = []
+            for row in self.store.db.execute(
+                "SELECT body FROM development_loop_notices "
+                "WHERE loop_id=? AND state='pending' ORDER BY rowid",
+                (loop_id,),
+            ):
+                notice = strict_loads(row[0])
+                notice.update(session_id=to_session, first_offered_at=None)
+                self.store.contracts.validate("development-loop-notice", notice)
+                self.store.db.execute(
+                    "UPDATE development_loop_notices SET session_id=?,body=? WHERE id=?",
+                    (to_session, canonical(notice), notice["id"]),
+                )
+                notices.append(notice["id"])
+            self.store._history(
+                "development_loop.handed_over",
+                {
+                    "loop_id": loop_id,
+                    "from_session": from_session,
+                    "to_session": to_session,
+                    "revision": loop["revision"],
+                    "actor": actor,
+                    "reason": reason,
+                },
+            )
+            return {"loop": loop, "stage": stage, "reoffered_notices": notices}
+
+        return self._mutate(operation_id, "handover", arguments, apply)
 
     def configure_delegation(
         self, loop_id, stage_id, session_id, profile, operation_id, *, expected_revision

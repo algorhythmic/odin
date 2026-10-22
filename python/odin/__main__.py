@@ -80,13 +80,14 @@ def main():
             "development-continue",
             "development-status",
             "development-control",
+            "development-handover",
             "usage-import", "usage-collect", "usage-watch", "usage-configure", "usage-status",
             "context-checkpoint", "context-status",
             "receipt-run",
             "receipt-validate",
         ],
     )
-    parser.add_argument("--reason", default="operator requested stop")
+    parser.add_argument("--reason", default=None)
     parser.add_argument("--request", help="gateway command or evaluation request JSON")
     parser.add_argument(
         "--fixture-evidence",
@@ -109,6 +110,9 @@ def main():
     )
     parser.add_argument("--delivery", help="delivered view ID to acknowledge")
     parser.add_argument("--loop", help="exact development loop ID")
+    parser.add_argument("--from-session", help="native session UUID currently owning the development loop")
+    parser.add_argument("--to-session", help="successor native session UUID for development-handover")
+    parser.add_argument("--expected-revision", type=int, help="expected development loop revision for development-handover")
     parser.add_argument("--control", choices=["pause", "resume", "stop", "deadlines", "configure_delegation"])
     parser.add_argument(
         "--deadlines",
@@ -400,6 +404,49 @@ def main():
         if "error" in response:
             sys.exit(1)
         return
+    if args.action == "development-handover":
+        from .contracts import Contracts
+
+        missing = [
+            name
+            for name, value in (
+                ("--loop", args.loop),
+                ("--from-session", args.from_session),
+                ("--to-session", args.to_session),
+                ("--expected-revision", args.expected_revision),
+                ("--reason", args.reason),
+            )
+            if value is None
+        ]
+        if missing:
+            parser.error("development-handover requires " + ", ".join(missing))
+        payload = {
+            "loop_id": args.loop,
+            "from_session": args.from_session,
+            "to_session": args.to_session,
+            "expected_revision": args.expected_revision,
+            "reason": args.reason,
+        }
+        if args.project:
+            payload["project"] = args.project
+        Contracts().validate_definition("development-loop-command", "loop_handover", payload)
+        command = {
+            "schema_version": 1, "operation_id": args.operation_id or identifier(),
+            "action": "loop_handover", "payload": payload,
+        }
+        Contracts().validate("gateway-command", command)
+        try:
+            response = _socket_command(address, {"surface": "terminal", "command": command})
+        except (OSError, ValueError):
+            parser.exit(
+                2, "odin: development command outcome unavailable; inspect status or "
+                "retry identical arguments with --operation-id "
+                + command["operation_id"] + "\n",
+            )
+        print(canonical(response))
+        if "error" in response:
+            sys.exit(1)
+        return
     if args.action == "delegation-configure":
         from .delegation import default_config, write_config
 
@@ -518,7 +565,7 @@ def main():
                 "schema_version": 1,
                 "operation_id": identifier(),
                 "action": args.action,
-                "reason": args.reason,
+                "reason": args.reason or "operator requested stop",
             }
         response = _socket_command(address, command)
         print(canonical(response))

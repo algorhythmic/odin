@@ -58,6 +58,7 @@
         "loop_reconcile",
         "loop_ack",
         "loop_hold",
+        "loop_handover",
         "loop_delegate",
         "usage_import",
         "usage_status",

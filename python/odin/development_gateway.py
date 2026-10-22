@@ -34,6 +34,7 @@ OPERATOR_ACTIONS = {
     "loop_reconcile",
     "loop_hold",
     "loop_continue",
+    "loop_handover",
 }
 ACTIONS = EXECUTIVE_ACTIONS | OPERATOR_ACTIONS
 
@@ -84,7 +85,12 @@ def check_scope(gateway, action, payload):
             raise AccessRefused("notice_owned_by_other_session")
     elif "loop_id" in payload:
         loop = gateway.development_loop.get(payload["loop_id"])
-        if loop["project"] != payload.get("project"):
+        expected = payload.get("project")
+        if expected is None and action == "loop_handover":
+            # The operator addresses one loop by identity; a restricted scope
+            # with no project was already denied before this check.
+            expected = loop["project"]
+        if loop["project"] != expected:
             raise PermissionError("development loop belongs to another project")
         if "session_id" in payload and payload["session_id"] != loop["session_id"]:
             raise AccessRefused("loop_owned_by_other_session")
@@ -547,7 +553,8 @@ def dispatch(gateway, action, payload, context, operation):
         gateway._operator(context)
     elif action not in EXECUTIVE_ACTIONS:
         raise PermissionError("operator development command required")
-    gateway.coordination._project(payload.get("project"))
+    if payload.get("project") is not None:
+        gateway.coordination._project(payload["project"])
     if action == "loop_capture":
         gateway.store.contracts.validate(
             "executive-pilot-loop-capture",
@@ -804,6 +811,16 @@ def dispatch(gateway, action, payload, context, operation):
             for key, value in result.items()
         }
     loop = controller.get(payload["loop_id"])
+    if action == "loop_handover":
+        return controller.handover(
+            loop["id"],
+            payload["from_session"],
+            payload["to_session"],
+            payload["reason"],
+            operation,
+            expected_revision=payload["expected_revision"],
+            actor=context.actor.subject,
+        )
     if action == "loop_continue":
         return controller.continue_after_intervention(
             loop["id"],
