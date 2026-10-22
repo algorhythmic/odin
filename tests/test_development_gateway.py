@@ -138,7 +138,7 @@ class DevelopmentGatewayTest(unittest.TestCase):
         self.assertEqual(result["job"]["packet"]["operator_response"]["source_job"], source["id"])
         self.assertEqual(result["job"]["packet"]["previous_assessment"], source["result"])
         for changes in ({"response": "changed"}, {"expected_revision": before["revision"] + 1}):
-            with self.subTest(changes=changes), self.assertRaisesRegex(Conflict, "identity conflict"):
+            with self.subTest(changes=changes), self.assertRaisesRegex(Conflict, "operation_id_reused"):
                 self.send("loop_continue", payload | changes, operation)
         with self.assertRaisesRegex(Conflict, "stale"):
             self.send("loop_continue", payload)

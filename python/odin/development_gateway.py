@@ -16,7 +16,7 @@ from .development_loop import (
     MARKER,
     clip_bytes,
 )
-from .store import Conflict, digest
+from .store import AccessRefused, Conflict, digest
 
 EXECUTIVE_ACTIONS = {
     "loop_status", "loop_inbox", "loop_claim", "loop_ready", "loop_capture", "loop_ack", "loop_delegate",
@@ -75,13 +75,14 @@ def check_scope(gateway, action, payload):
         if notice["project"] != payload.get("project"):
             raise PermissionError("notice belongs to another project")
         if notice["session_id"] != payload.get("session_id"):
-            raise PermissionError("notice belongs to another native session")
+            # Same project: the code tells a rotated executive why, never whose.
+            raise AccessRefused("notice_owned_by_other_session")
     elif "loop_id" in payload:
         loop = gateway.development_loop.get(payload["loop_id"])
         if loop["project"] != payload.get("project"):
             raise PermissionError("development loop belongs to another project")
         if "session_id" in payload and payload["session_id"] != loop["session_id"]:
-            raise PermissionError("development loop belongs to another native session")
+            raise AccessRefused("loop_owned_by_other_session")
         if action in {"loop_claim", "loop_ready", "loop_delegate"}:
             # A recorded acknowledgement is historical evidence. It must never
             # revive permission to execute after pause, stop or supersession.

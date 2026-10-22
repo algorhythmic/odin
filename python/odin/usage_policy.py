@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import hashlib
 
 from .contracts import Contracts, canonical, strict_loads
-from .store import Conflict, now
+from .store import Conflict, Refused, now
 from .usage import UsageLedger
 
 POLICY_LIMITS = (
@@ -337,7 +337,7 @@ class ContinuityCheckpoints:
                                 ("loop_id", expected_loop_id),
                                 ("stage_id", expected_stage_id)):
             if expected is not _UNSET and item.get(field) != expected:
-                raise Conflict(f"checkpoint {field} differs from trusted binding")
+                raise Refused("checkpoint_binding_mismatch")
         body = canonical(item)
         if len(body.encode("utf-8")) > 16 * 1024:
             raise ValueError("checkpoint exceeds 16 KiB")
@@ -345,37 +345,40 @@ class ContinuityCheckpoints:
         if type(item["revision"]) is not int:
             raise ValueError("checkpoint revision must be integer")
         if item.get("stage_id") is not None and item.get("loop_id") is None:
-            raise Conflict("checkpoint stage requires a loop")
+            raise Refused("checkpoint_stage_requires_loop")
         if item.get("loop_id") is not None:
             row = self.store.db.execute(
                 "SELECT body FROM development_loops WHERE id=?", (item["loop_id"],)
             ).fetchone() if self.store.db.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='development_loops'"
             ).fetchone() else None
-            if row is None:
-                raise Conflict("checkpoint loop identity unavailable")
-            loop = strict_loads(row[0])
-            if loop["project"] != project_id or loop["session_id"] != item["session_id"]:
-                raise Conflict("checkpoint loop belongs to another project or session")
+            loop = strict_loads(row[0]) if row is not None else None
+            # An unknown loop and another project's loop are indistinguishable.
+            if loop is None or loop["project"] != project_id:
+                raise Refused("checkpoint_loop_unavailable")
+            if loop["session_id"] != item["session_id"]:
+                raise Refused("checkpoint_loop_owned_by_other_session")
             if item.get("stage_id") is not None:
                 row = self.store.db.execute(
                     "SELECT body FROM development_loop_stages WHERE id=?",
                     (item["stage_id"],),
                 ).fetchone()
-                if row is None:
-                    raise Conflict("checkpoint stage identity unavailable")
-                stage = strict_loads(row[0])
-                if stage["loop_id"] != item["loop_id"] or stage["session_id"] != item["session_id"]:
-                    raise Conflict("checkpoint stage belongs to another loop or session")
+                stage = strict_loads(row[0]) if row is not None else None
+                if stage is None or stage["loop_id"] != item["loop_id"]:
+                    raise Refused("checkpoint_stage_unavailable")
+                if stage["session_id"] != item["session_id"]:
+                    raise Refused("checkpoint_stage_owned_by_other_session")
         with self.store.transaction():
             prior = self.store.db.execute("SELECT project_id,body FROM context_checkpoints WHERE operation_id=?", (operation_id,)).fetchone()
             if prior:
-                if prior[0] != project_id or prior[1] != body:
+                if prior[0] != project_id:
                     raise Conflict("checkpoint operation id reused")
+                if prior[1] != body:
+                    raise Refused("operation_id_reused")
                 return strict_loads(prior[1])
             previous = self.latest_checkpoint(project_id, session_id=item["session_id"])
             if previous and item["revision"] <= previous["revision"]:
-                raise Conflict("checkpoint revision must advance")
+                raise Refused("checkpoint_revision_not_advanced")
             self.store.db.execute("INSERT INTO context_checkpoints VALUES(?,?,?,?,?,?)", (operation_id, project_id, item["session_id"], item["revision"], now(), body))
             self.store._history("context.checkpoint_recorded", {"operation_id": operation_id, "checkpoint": item})
         return item

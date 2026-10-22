@@ -2069,6 +2069,10 @@ remain available in every profile.
   D7.11's commitment truth and D24's retained refresh ownership stand. No
   producer contract, Saga guarantee, Mimir review requirement, managed
   session-host gate, X-12/X-15 disposition or handoff is closed.
+- **Cross-reference:** ODIN-ADR-038 (proposed) would let the operator hand a
+  non-terminal loop and its pending stage to a successor native session, for
+  example after `executive-new-session`, instead of binding the loop to its
+  starting session for life.
 
 ### ODIN-ADR-029 — Structured execution receipts as attributed local evidence
 
@@ -2190,6 +2194,8 @@ remain available in every profile.
   wrong-session refusal, unrelated replies not captured, operator deadline
   control). These are synthetic; live acceptance requires an observed
   activation of the service and bridge.
+- **Cross-reference:** ODIN-ADR-038 (proposed) would re-address a handed-over
+  loop's unacknowledged notices to the successor native session.
 
 ### ODIN-ADR-031 — Measured usage and accountable development orchestration
 
@@ -2226,6 +2232,9 @@ remain available in every profile.
   remaining live acceptance work are in [USAGE-AND-ROUTING.md](USAGE-AND-ROUTING.md).
   This is not proof of nested native delegation, automatic collection coverage,
   cheaper accepted changes, or Saga isolation and limit guarantees.
+- **Cross-reference:** ODIN-ADR-038 (proposed) would let the successor of a
+  handed-over loop checkpoint against it and read its predecessor's latest
+  checkpoint for that loop.
 
 ### ODIN-ADR-032 — Native peer messaging for live coordination
 
@@ -2474,6 +2483,123 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
     the project's planning owner of ODIN-ADR-022 and ODIN-ADR-027 and alone
     holds `interface_decision_owner`. A workstream session is a delegation
     session record without planning ownership.
+
+### ODIN-ADR-038 — Operator handover of a development loop to a successor native session
+
+- **Date/status:** 2026-10-21; proposed by operator direction ("we need a way
+  to hand a loop from one session to another"). Not implemented: no handover
+  command, schema field or test exists. The fixed refusal codes under
+  *Diagnosis* are implemented separately and transfer nothing.
+- **Problem:** a development loop, its stages and its notices carry the native
+  session UUID that started the loop (ODIN-ADR-028, ODIN-ADR-030). A context
+  checkpoint that names a loop must come from that session (ODIN-ADR-031).
+  `executive-new-session` (ODIN-ADR-024, ODIN-ADR-026) rotates the executive's
+  UUID and keeps native history, but the store has no transfer. The successor
+  cannot read, claim, ready or checkpoint against its predecessor's loop. A
+  project allows one active loop (`development_loop_active_project`), so the
+  stranded loop also blocks the successor from starting a new one. Today the
+  only remedy is an operator stop, which ends the loop's run of rounds,
+  evidence and notices.
+- **Observed case:** on 2026-10-22 (UTC) the pilot executive was rotated during
+  recovery at `36c0f5d`, from `12c959f5-…` to `c51e6ace-…`. Loop
+  `01M5DS0FY4C7KTWY3D3J3TF1XH` (`needs_operator`, round 8 of 8, revision 58)
+  stayed with the old UUID. `odin_loop_status` was denied, and two checkpoints
+  naming the loop returned the generic unknown-write error, which invited
+  identical retries that could never succeed.
+- **Decision:** add an operator-only transition, gateway action
+  `loop_handover`, on the terminal surface:
+  `odin development-handover --loop ID --from-session UUID --to-session UUID --expected-revision N --reason TEXT [--operation-id ID]`.
+  It moves ownership of one loop from one native session to another in one
+  transaction. The executive bridge gets no handover tool, and the voice
+  surface is refused. A successor asks for a handover only by reporting to the
+  operator; model-relayed text never authorizes it (ODIN-ADR-010).
+- **Preconditions,** each refused with a fixed code:
+  - the operation ID was not used with other arguments
+    (`operation_id_reused`); an identical replay returns the first receipt;
+  - the loop is not terminal (`loop_terminal`);
+  - `expected_revision` equals the loop's revision (`stale_loop_revision`);
+  - `from_session` is the loop's current owner (`handover_source_mismatch`),
+    so two handovers cannot race;
+  - `to_session` is a canonical UUID other than `from_session`
+    (`handover_same_session`);
+  - `to_session` owns no other active loop (`target_session_has_active_loop`);
+  - no executive stage is in progress: neither the status nor, when paused,
+    `paused_from` is `executive_claimed`, `executive_ready` or `unknown`
+    (`executive_stage_in_progress`). A claimed or ready stage may still be
+    running in the old native process, and its completion capture would be
+    refused after the move. The operator resolves it first through the
+    existing ODIN-ADR-028 reconciliation or a stop (open question Q1).
+- **Effect,** in one transaction with its history event:
+  - the loop's `session_id` becomes `to_session` and its revision advances.
+    The loop record gains `previous_session_ids`, the earlier owners oldest
+    first, at most 16;
+  - a `pending` current stage is re-addressed to the successor. Its delivery
+    ID depends on the loop revision, so the predecessor's offer becomes stale
+    and the successor receives a fresh offer;
+  - the loop's unacknowledged notices are re-addressed to the successor and
+    offered again. Acknowledged notices stay with the session that
+    acknowledged them;
+  - rounds, `max_rounds`, no-progress counters, deadlines, the delegation
+    profile, evaluator jobs and delegation turns are unchanged; jobs and turns
+    are not bound to the executive session. A handover grants no rounds,
+    resumes no paused loop and answers no `needs_operator`;
+  - history records `development_loop.handed_over` with the loop, both
+    sessions, the new revision, the operator actor and the reason. The
+    history event, not the loop field, is the authority.
+- **After the handover:**
+  - the predecessor's loop calls are refused with
+    `loop_owned_by_other_session`. Its late completion capture finds no
+    active loop and creates no work, as for an ordinary native Stop;
+  - the successor may read the loop, claim the re-offered stage and
+    checkpoint with the loop's `loop_id`;
+  - checkpoints stay attributed to the session that wrote them and are never
+    rewritten. `odin_context_status` for the successor also returns the
+    predecessor's latest checkpoint naming the loop, read-only and labelled
+    `predecessor_checkpoint` (open question Q2).
+- **Runtime:** `executive-new-session` stays a runtime-only recovery command.
+  It neither contacts the service nor moves loops. Its output already names
+  `previous_native_session_id`; the pilot runbook adds the handover as the
+  next operator step when that session owned an active loop (open question
+  Q3).
+- **Not changed:** delegation sessions and turns, which are project-scoped;
+  the workstream rules of ODIN-ADR-036; native peer names, which follow the
+  new UUID; commitments; and every Saga-owned interface, approval or
+  guarantee. A handover is a local record change. It proves nothing about the
+  old native process.
+- **Diagnosis (implemented 2026-10-21, separately):** deterministic refusals
+  now reach the executive as fixed codes instead of the unknown-write error:
+  `operation_id_reused`, `loop_owned_by_other_session`,
+  `notice_owned_by_other_session` and the `checkpoint_*` codes listed in
+  [usage and routing](USAGE-AND-ROUTING.md#compact-executive-responses-and-checkpoint-diagnostics).
+  A loop in another project still returns the generic access-denied read
+  error, and an unknown loop and another project's loop share one checkpoint
+  code. Tests are in `tests/test_usage_gateway.py`. This record does not
+  state their results.
+- **Planned checks:** `tests/test_development_handover.py`: each refusal;
+  identical and conflicting replay; the predecessor refused afterwards; the
+  successor's status, claim and checkpoint; a pending stage re-offered under a
+  new delivery ID; unacknowledged notices re-addressed and acknowledged ones
+  kept; the history event; persistence across a service restart; no handover
+  tool on the executive bridge; the voice surface refused. Live acceptance
+  needs an observed rotation and handover on the pilot.
+- **Open questions:**
+  - Q1: may a claimed or ready stage move once the operator records that the
+    old native process has exited (the runtime's leases were free at
+    rotation and its launch observation is retained), or must it always be
+    reconciled first?
+  - Q2: should the successor read the predecessor's loop checkpoint, as
+    proposed, or start from loop status alone?
+  - Q3: should `executive-new-session` offer an opt-in handover that runs
+    when the service is reachable?
+  - Q4: loop `01M5DS0FY4C7KTWY3D3J3TF1XH` has used all eight rounds. A
+    handover restores status and checkpoint access but no rounds. The
+    operator chooses between handover then stop, which keeps the successor as
+    the recorded owner, and a plain stop.
+- **Amends and cross-references:** the lifetime session binding of
+  ODIN-ADR-028, notice addressing in ODIN-ADR-030 and the checkpoint loop
+  binding in ODIN-ADR-031. ODIN-ADR-024 and ODIN-ADR-026's
+  `executive-new-session` is referenced, not changed. Each amended record
+  carries a cross-reference bullet.
 
 
 ## 5. Issues raised by the extraction

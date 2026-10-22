@@ -1,6 +1,6 @@
 """Project-scoped metadata imports and non-authoritative context checkpoints."""
 from .contracts import canonical, strict_loads
-from .store import Conflict
+from .store import Refused
 
 EXECUTIVE_ACTIONS = {"usage_status", "context_status", "context_checkpoint"}
 ACTIONS = EXECUTIVE_ACTIONS | {"usage_import", "usage_configure"}
@@ -78,7 +78,7 @@ def dispatch(gateway, action, payload, context, operation):
     if action == "context_checkpoint":
         item = payload["checkpoint"]
         if item.get("session_id", payload["session_id"]) != payload["session_id"]:
-            raise Conflict("checkpoint native session mismatch")
+            raise Refused("checkpoint_session_mismatch")
         normalized = {"schema_version": 1, "project_id": project,
                       "loop_id": None, "stage_id": None, **item,
                       "session_id": payload["session_id"]}

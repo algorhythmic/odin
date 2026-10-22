@@ -20,7 +20,7 @@ from .development_loop import DevelopmentLoop
 from .executive_intervention import ACTIONS as INTERVENTION_ACTIONS, EXECUTIVE_ACTIONS as EXECUTIVE_INTERVENTION_ACTIONS
 from .memory import Memory
 from .orchestration_config import OrchestrationConfig
-from .store import Conflict, digest, event, now
+from .store import Conflict, Refusal, Refused, digest, event, now
 from .usage import UsageLedger
 from .usage_policy import UsagePolicy, ContinuityCheckpoints
 from .usage_gateway import ACTIONS as USAGE_ACTIONS, EXECUTIVE_ACTIONS as EXECUTIVE_USAGE_ACTIONS
@@ -42,6 +42,14 @@ class GatewayContext:
     # Populated by the trusted service authentication layer, never message data.
     # None means all local projects for the private operator socket only.
     projects: tuple[str, ...] | None = None
+
+
+def error_result(error, label):
+    """A bounded socket reply: the error type and, if fixed, its refusal code."""
+    result = {"error": type(error).__name__, "label": label}
+    if isinstance(error, Refusal):
+        result["detail"] = str(error)
+    return result
 
 
 def fields(payload, required, optional=()):
@@ -136,7 +144,8 @@ class Gateway:
             ).fetchone()
             if prior:
                 if prior[0] != fingerprint:
-                    raise Conflict("command identity conflict")
+                    # Deterministic: the same ID with other arguments never succeeds.
+                    raise Refused("operation_id_reused")
                 receipt = strict_loads(prior[1])
                 if receipt["result"].get("held"):
                     # No claim was made. Preserve argument identity, then

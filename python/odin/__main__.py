@@ -583,11 +583,9 @@ def main():
                         service.mirror.refresh(service.backend)
                 except Exception as error:
                     # Keep protocol errors bounded; never dump a schema or input body.
-                    result = {"error": type(error).__name__, "label": service.label}
-                    from .delegation import DelegationRefused
+                    from .gateway import error_result
 
-                    if isinstance(error, DelegationRefused):
-                        result["detail"] = str(error)
+                    result = error_result(error, service.label)
                 self.wfile.write((canonical(result) + "\n").encode())
                 self.wfile.flush()
                 # Runner launches follow the recorded command and its reply;

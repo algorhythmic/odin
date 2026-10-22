@@ -550,3 +550,25 @@ Invalid arguments return a field-specific `not dispatched` error. Transport
 uncertainty still requires reconciliation or an identical retry with the same
 operation ID. Checkpoints are attributed handoffs; native auto compaction is
 separate and is not the planned OptChat/UniiChat memory compactor.
+
+A deterministic refusal reaches the executive as
+`Executive service refused the request: <code>.`, never as an unknown write
+outcome. An identical retry is refused again, so the executive must change
+something first. Each code is fixed text with no input, path or foreign record:
+
+| Code | Meaning |
+|---|---|
+| `operation_id_reused` | The operation ID was already used with other arguments; any write tool |
+| `loop_owned_by_other_session` | The loop belongs to another native session in this project, as after `executive-new-session` |
+| `notice_owned_by_other_session` | The same, for a loop notice |
+| `checkpoint_loop_owned_by_other_session` | The checkpoint names a loop owned by another native session; omit `loop_id` and `stage_id` |
+| `checkpoint_stage_owned_by_other_session` | The same, for the named stage |
+| `checkpoint_loop_unavailable` | The loop is unknown, or belongs to another project; the two are indistinguishable |
+| `checkpoint_stage_unavailable` | The stage is unknown or not part of the named loop |
+| `checkpoint_stage_requires_loop` | A `stage_id` was given without `loop_id` |
+| `checkpoint_revision_not_advanced` | The revision does not exceed this session's latest checkpoint |
+| `checkpoint_binding_mismatch`, `checkpoint_session_mismatch` | A field differs from the bridge's trusted binding |
+
+A loop in another project still returns the generic `access denied` read
+error. A rotated executive session cannot yet take over its predecessor's loop.
+The proposed transfer is ODIN-ADR-038.
