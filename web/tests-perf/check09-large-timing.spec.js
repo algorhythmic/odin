@@ -2,7 +2,8 @@
 // (2,000 sessions, 40 roots, depth 8) opened collapsed to its roots. Records
 // first render, expand and select times in headless Chromium on this machine
 // and writes them before comparing with the proposed targets. The targets
-// are proposals (W2c); the values are reported whether or not they pass.
+// are proposals (W2c); the values are written whether or not they pass,
+// and a missed target then fails the run.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -20,17 +21,20 @@ const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[Math.
 const summary = (xs) => ({ samples: xs.map((x) => Math.round(x * 10) / 10), median: Math.round(median(xs) * 10) / 10, max: Math.round(Math.max(...xs) * 10) / 10 });
 
 // Time from a click to the frame after the expected DOM change, in the page.
-const timedClick = (page, selector, doneExpr) => page.evaluate(([sel, done]) => new Promise((resolve, reject) => {
+// `done` is data, not code: either { cards: n } or { detail: sessionId }.
+const timedClick = (page, selector, done) => page.evaluate(([sel, want]) => new Promise((resolve, reject) => {
   const target = document.querySelector(sel);
   if (!target) { reject(new Error(`missing ${sel}`)); return; }
-  const check = new Function(`return (${done});`);
+  const check = () => ('cards' in want
+    ? document.querySelectorAll('[data-testid="session-card"]').length === want.cards
+    : document.querySelector('[data-testid="detail-panel"]')?.dataset.sessionId === want.detail);
   const t0 = performance.now();
   const finish = () => requestAnimationFrame(() => resolve(performance.now() - t0));
   const obs = new MutationObserver(() => { if (check()) { obs.disconnect(); finish(); } });
   obs.observe(document.body, { childList: true, subtree: true, attributes: true });
   target.click();
   if (check()) { obs.disconnect(); finish(); }
-}), [selector, doneExpr]);
+}), [selector, done]);
 
 test('large synthetic tree: first render, expand and select timings', async ({ page, browserName }) => {
   test.setTimeout(120_000);
@@ -61,7 +65,7 @@ test('large synthetic tree: first render, expand and select timings', async ({ p
   for (const id of expandIds) {
     const n = kids.get(id) || 0;
     const sel = `[data-testid="session-card"][data-session-id="${id}"] button.toggle`;
-    expand.push(await timedClick(page, sel, `document.querySelectorAll('[data-testid="session-card"]').length === ${roots.length + n}`));
+    expand.push(await timedClick(page, sel, { cards: roots.length + n }));
     await page.locator(sel).click();
     await expect(page.getByTestId('session-card')).toHaveCount(roots.length);
   }
@@ -69,8 +73,7 @@ test('large synthetic tree: first render, expand and select timings', async ({ p
   // Select: root cards across the forest; done when the detail panel shows it.
   const select = [];
   for (const id of roots.filter((_, i) => i % 5 === 0).slice(0, SAMPLES)) {
-    select.push(await timedClick(page, `[data-testid="session-card"][data-session-id="${id}"] .card-title`,
-      `document.querySelector('[data-testid="detail-panel"]')?.dataset.sessionId === '${id}'`));
+    select.push(await timedClick(page, `[data-testid="session-card"][data-session-id="${id}"] .card-title`, { detail: id }));
   }
   await page.screenshot({ path: path.join(outDir, 'large-selected.png') }).catch(() => {});
 

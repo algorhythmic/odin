@@ -82,7 +82,10 @@ export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onT
             data-lifecycle={s.lifecycle} class={`list-row ${s.id === selectedId ? 'selected' : ''}`}
             style={{ paddingLeft: `${(level - 1) * 1.25 + 0.5}rem` }}
             onClick={() => { setFocusId(s.id); onSelect(s.id); }} onFocus={() => setFocusId(s.id)}>
-            <span class="twisty" aria-hidden="true">{kids.length ? (collapsed.has(s.id) ? '▸' : '▾') : '·'}</span>
+            {/* Pointer path for expand and collapse; keyboard users have the arrow keys. */}
+            <span class={`twisty ${kids.length ? 'twisty-toggle' : ''}`} aria-hidden="true" data-testid={kids.length ? 'list-toggle' : undefined}
+              onClick={kids.length ? (e) => { e.stopPropagation(); moved.current = true; setFocusId(s.id); onToggle(s.id); } : undefined}>
+              {kids.length ? (collapsed.has(s.id) ? '▸' : '▾') : '·'}</span>
             <span class="role">{s.role}</span>
             <span class="assignment-short">{getAssignment(s.assignment_id)?.summary}</span>
             <span class={`state state-${s.lifecycle}`} data-testid="state-label">{lifecycleLabel(s.lifecycle)}</span>

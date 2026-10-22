@@ -36,7 +36,7 @@ export function Workspace({ project, sid }) {
   // Derived per data version, so update events show without a reload.
   const childMap = childrenMap(pid);
   const roots = rootsFor(pid);
-  const collapsed = useMemo(() => new Set(prefs.collapsed[pid] ?? defaultCollapsed(pid, childMap)), [prefs, pid]);
+  const collapsed = useMemo(() => new Set(prefs.collapsed[pid] ?? defaultCollapsed(pid, childMap)), [prefs, pid, childMap]);
   const selected = sid ? getSession(sid) : null;
   const selectedInProject = selected && selected.project_id === pid ? selected : null;
   const mode = narrow ? 'list' : prefs.mode;

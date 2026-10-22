@@ -33,6 +33,13 @@ test('update events apply once, report duplicates and gaps, and change the views
   await expect(page.locator('[data-testid="session-card"][data-session-id="ses-worker-a2"]')).toContainText('$2.45');
   await applyNext(page); // evt-004: retired
   await expect(page.locator('[data-testid="session-card"][data-session-id="ses-review-integ"]').getByTestId('state-label')).toHaveText('Retired');
+  // Malformed events change nothing and keep the revision.
+  await applyNext(page); // evt-bad-1: unknown session
+  await expect(status(page)).toHaveText('Rejected evt-bad-1: unknown session.');
+  await expect(page.getByTestId('revision')).toHaveText('4');
+  await applyNext(page); // evt-bad-2: unknown event type
+  await expect(status(page)).toHaveText('Rejected evt-bad-2: unknown event type.');
+  await expect(page.getByTestId('revision')).toHaveText('4');
   await applyNext(page); // evt-005: skips revisions
   await expect(status(page)).toHaveText('Not applied evt-005: revision 9 skips ahead of 4; a fresh snapshot is needed.');
   await expect(page.getByTestId('revision')).toHaveText('4');
@@ -78,6 +85,7 @@ test('the list keeps its reading position when a session is inserted above it', 
   // The synthetic project has only 11 rows; a short list box lets the row
   // below the insertion point be the first visible row, as in a long list.
   await page.addStyleTag({ content: '.list-tree { max-height: 90px !important; }' });
+  await expect.poll(() => list.evaluate((el) => el.scrollHeight > el.clientHeight), 'the short list box scrolls').toBe(true);
   const row = page.locator('[role="treeitem"][data-session-id="ses-ops-01"]');
   // Scroll the list so the operations row is the first visible row.
   await list.evaluate((el) => {

@@ -105,6 +105,32 @@
       }
     },
     {
+      "event_id": "evt-bad-1",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:50:00Z",
+      "type": "session.cost_updated",
+      "summary": "names a session the snapshot does not have",
+      "payload": {
+        "session_id": "ses-not-in-snapshot",
+        "cost": {
+          "amount_usd": 1.0,
+          "basis": "measured"
+        }
+      }
+    },
+    {
+      "event_id": "evt-bad-2",
+      "revision": 5,
+      "cursor": "cur-default-0005",
+      "at": "2026-10-21T10:51:00Z",
+      "type": "session.renamed",
+      "summary": "event type the prototype does not know",
+      "payload": {
+        "session_id": "ses-docs-01"
+      }
+    },
+    {
       "event_id": "evt-005",
       "revision": 9,
       "cursor": "cur-default-0009",

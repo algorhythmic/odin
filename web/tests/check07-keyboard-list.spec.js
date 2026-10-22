@@ -85,3 +85,23 @@ test('narrow layout defaults to the list and keeps actions usable', async ({ pag
   expect(overflow).toBeLessThanOrEqual(0);
   await shot(page, 'narrow-list');
 });
+
+test('list view rows expand and collapse with the pointer on the large synthetic set', async ({ page }) => {
+  await page.goto('/?dataset=large#/projects/proj-large-synthetic');
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+  const tree = page.getByRole('tree', { name: 'Sessions by ancestry' });
+  const items = tree.getByRole('treeitem');
+  // Branches start collapsed above 200 sessions: only the 40 roots show.
+  await expect(items).toHaveCount(40);
+  const first = items.first();
+  await expect(first).toHaveAttribute('aria-expanded', 'false');
+  await first.getByTestId('list-toggle').click();
+  await expect(first).toHaveAttribute('aria-expanded', 'true');
+  const id = await first.getAttribute('data-session-id');
+  await expect(tree.locator(`[role="treeitem"][data-parent="${id}"]`).first()).toBeVisible();
+  // The toggle does not select the row.
+  await expect(first).toHaveAttribute('aria-selected', 'false');
+  await first.getByTestId('list-toggle').click();
+  await expect(first).toHaveAttribute('aria-expanded', 'false');
+  await expect(tree.locator(`[role="treeitem"][data-parent="${id}"]`)).toHaveCount(0);
+});

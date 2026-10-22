@@ -248,13 +248,24 @@ const replaceSession = (id, patch) => {
   index = null;
 };
 
+const EVENT_TYPES = new Set(['session.lifecycle_changed', 'session.started', 'session.cost_updated', 'session.retired']);
+
+// Rejected events change nothing and are not remembered, so a corrected
+// re-delivery under the same id can still apply.
 export function applyEvent(evt) {
   const base = { event_id: evt.event_id, type: evt.type, revision: evt.revision };
   if (seenEvents.has(evt.event_id)) return { ...base, status: 'duplicate' };
+  if (!Number.isInteger(evt.revision)) return { ...base, status: 'rejected', reason: 'revision is not an integer' };
+  if (!EVENT_TYPES.has(evt.type)) return { ...base, status: 'rejected', reason: 'unknown event type' };
   if (evt.revision > snap.revision + 1) return { ...base, status: 'gap', current: snap.revision };
   if (evt.revision <= snap.revision) return { ...base, status: 'stale', current: snap.revision };
   const p = evt.payload || {};
   let sessionId = p.session_id;
+  if (evt.type === 'session.started') {
+    if (!p.session?.id) return { ...base, status: 'rejected', reason: 'missing session record' };
+  } else if (sessionId === undefined || !getSession(sessionId)) {
+    return { ...base, status: 'rejected', reason: 'unknown session' };
+  }
   switch (evt.type) {
     case 'session.lifecycle_changed': {
       const patch = { lifecycle: p.lifecycle, observed_at: p.observed_at };
