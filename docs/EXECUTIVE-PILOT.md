@@ -647,7 +647,8 @@ on that branch. It refuses with `deploy_not_configured`,
 `deploy_request_pending`, `deploy_head_not_integration_head`,
 `deploy_tree_dirty`, `deploy_checkout_not_on_integration_branch`,
 `deploy_checkout_unreadable`, `deploy_head_already_current`,
-`restart_request_pending` or a restart safety code. The code cannot tell
+`deploy_not_migrated` (no `current` yet), `restart_request_pending` or a
+restart safety code. The code cannot tell
 whether a head was accepted; never deploy an unaccepted head.
 
 **Drain.** From the request until the service restart, no new delegated turn
@@ -656,7 +657,10 @@ nothing is killed. `executive_restart_status` on the operator socket shows
 `drain` with `waiting_for` (running turns, running evaluator jobs, live
 interventions, claimed stages) and `queued_turns_held`. The drain ends at
 `drain_timeout_seconds` (default 3600) even without a supervisor, and the
-request then fails with `drain_timeout`.
+request then fails with `drain_timeout`. Evaluator jobs in `unknown` are
+listed but do not hold the drain, since they need operator reconciliation.
+A `deploying` step that stops reporting for 900 s is failed with
+`supervisor_lost`.
 
 **What the supervisor does.** Once nothing is running and the executive is
 idle, it stops the executive (as for a restart), exports the commit to
@@ -666,10 +670,15 @@ idle, it stops the executive (as for a restart), exports the commit to
 `executive-pilot/service-activations/`), and checks that the socket
 answers, the service reports the new revision and a status call works. On
 failure it switches `current` back and restarts the service on the previous
-revision (`rolled_back`; `rollback_failed` if that also fails;
-`rollback_unavailable` with no previous copy, which removes `current`). It
-then restarts `odin-executive-telemetry`, and re-execs itself so the deployed
-code supervises, and resumes the executive. The executive gets a notice
+revision (`rolled_back`; `rollback_failed` if that also fails, after
+pointing `current` at what the service reports; `rollback_unavailable` with
+no previous copy, which removes `current`). A refused activation switches
+`current` back without any restart. An executive that is busy again for
+300 s after the deploy began fails it with `executive_not_idle`. Any
+unexpected error records `deploy_error` and the executive is still
+relaunched. It then restarts `odin-executive-telemetry`, and re-execs itself,
+handing over its locked lease, so the deployed code supervises, and resumes
+the executive. The executive gets a notice
 saying `deployed`, `rolled_back` or `failed`, with timings. The deploy record,
 history events (`executive.deploy_*`) and the supervisor journal keep each
 step.

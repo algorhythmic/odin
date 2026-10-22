@@ -434,18 +434,37 @@ def _load(state):
     return manifest, base
 
 
+def _known_code(path):
+    """True for this code root's or the checkout's ``python`` directory, or a
+    deployed copy's of this repository (ODIN-ADR-039). Any other code location
+    stays a mismatch."""
+    from .contracts import deployment
+
+    if path in (str(ROOT / "python"), str(REPOSITORY_ROOT / "python")):
+        return True
+    candidate = Path(path)
+    if candidate.name != "python" or not candidate.is_absolute():
+        return False
+    try:
+        marker = deployment(candidate.parent)
+    except (OSError, ValueError):
+        return False
+    return marker is not None and marker["repository"] == str(REPOSITORY_ROOT)
+
+
 def _code_neutral(value):
-    """A prepared file with the code location removed (ODIN-ADR-039).
+    """A prepared file with a known code location removed (ODIN-ADR-039).
 
     The bridge and hook commands name the code root's ``python`` directory,
-    which changes with each deployed copy. Everything else must match exactly.
+    which changes with each deployed copy. Only this checkout's or a deployed
+    copy's directory is tolerated; everything else must match exactly.
     """
     if isinstance(value, dict):
-        return {key: "<code>" if key == "PYTHONPATH" else _code_neutral(item)
-                for key, item in value.items()}
+        return {key: "<code>" if key == "PYTHONPATH" and isinstance(item, str) and _known_code(item)
+                else _code_neutral(item) for key, item in value.items()}
     if isinstance(value, list):
         return [_code_neutral(item) for item in value]
-    if isinstance(value, str) and value.startswith("PYTHONPATH="):
+    if isinstance(value, str) and value.startswith("PYTHONPATH=") and _known_code(value[len("PYTHONPATH="):]):
         return "PYTHONPATH=<code>"
     return value
 

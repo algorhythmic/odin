@@ -35,8 +35,13 @@ class DeployBase(Base):
         for directory, _names, _files in os.walk(self.temp):
             os.chmod(directory, 0o700)
 
-    def configure(self, **options):
-        return copies.configure(self.state, repository=self.repository, branch="integration", **options)
+    def configure(self, migrate=True, **options):
+        value = copies.configure(self.state, repository=self.repository, branch="integration", **options)
+        if migrate:
+            # The one-time migration's first copy: an earlier revision is current.
+            copies.export(self.temp / "deploy", self.repository, self.revisions[0])
+            copies.switch(self.temp / "deploy", self.revisions[0])
+        return value
 
     def deploy(self, head=None, operation=None):
         return self.bridge.call("odin_runtime_deploy", {"head": head or self.head,
@@ -61,9 +66,8 @@ class DeployRequestTests(DeployBase):
         request = self.ok(self.deploy(operation=operation))["request"]
         self.assertEqual((request["state"], request["requested_head"]), ("pending", self.head))
         self.assertIsNotNone(request["drain_deadline"])
-        # The previous revision is current's target, else the service's own report.
-        self.assertEqual(request["previous_revision"],
-                         strict_loads((self.state / "service-revision.json").read_text())["revision"])
+        # The previous revision is current's target: the rollback target.
+        self.assertEqual(request["previous_revision"], self.revisions[0])
         Contracts().validate("executive-deploy", strict_loads(self.service.store.db.execute(
             "SELECT body FROM executive_deploys").fetchone()[0]))
         again = self.ok(self.deploy(operation=operation))["request"]
@@ -86,6 +90,11 @@ class DeployRequestTests(DeployBase):
         self.configure()
         copies.prepare(self.state, head=self.head)
         self.refused(self.deploy(), "deploy_head_already_current")
+
+    def test_not_migrated(self):
+        # Without current there is no rollback target; the first copy is by hand.
+        self.configure(migrate=False)
+        self.refused(self.deploy(), "deploy_not_migrated")
 
     def test_restart_and_deploy_exclude_each_other(self):
         self.configure()
@@ -276,19 +285,20 @@ class FakeUnit:
         current = copies.current_revision(self.test.temp / "deploy")
         self.restarts.append(current)
         if current in self.broken:
-            self.pid += 1  # the unit restarted but the service never reports
+            self.pid = 0  # the service failed to start and the unit is down
             return
         self.pid += 1
         self._report(current)
 
 
-class DeployExecutorTests(DeployBase):
-    """Item 8, end to end with a fake service unit and the fake claude binary."""
+class ExecutorBase(DeployBase):
+    """A fake service unit, the fake claude binary and a stand-in for re-exec."""
 
     def setUp(self):
         super().setUp()
         self.configure(keep=1, drain_timeout_seconds=600)
-        copies.prepare(self.state, head=self.revisions[1])  # the migration's first copy
+        copies.export(self.temp / "deploy", self.repository, self.revisions[1])
+        copies.switch(self.temp / "deploy", self.revisions[1])  # the last deploy
         self.unit = FakeUnit(self)
         self.telemetry = []
 
@@ -318,6 +328,11 @@ class DeployExecutorTests(DeployBase):
         """The re-exec'd supervisor: relaunch and record the final state."""
         self.client.on_status = None
         return self.deploy_supervisor(plans).run()
+
+
+
+class DeployExecutorTests(ExecutorBase):
+    """Item 8, end to end with a fake service unit and the fake claude binary."""
 
     def test_drain_switch_activate_and_resume(self):
         self.ask_mid_turn()
@@ -463,3 +478,122 @@ class PromptGuidanceTests(DeployBase):
                 without = runtime._development_prompt(manifest | {"implementation_mode": mode,
                                                                   "development_loop": False})
                 self.assertNotIn("odin_runtime_deploy", without)
+
+
+class DeployFailureTests(ExecutorBase):
+    """Review follow-ups: errors, refusals, the lease and the bounds."""
+
+    def test_error_during_activation_relaunches_and_aligns_current(self):
+        def broken(state, **kwargs):
+            raise RuntimeError("synthetic activation crash")
+        self.activator = broken
+        self.ask_mid_turn()
+        with self.assertRaises(Reexec):
+            self.deploy_supervisor([[["start"], ["turn", 0.3], ["wait"]]]).run()
+        (deploy,) = self.deploys()
+        self.assertEqual((deploy["state"], deploy["code"]), ("restarting_executive", "deploy_error"))
+        # current follows what the service reports (the previous revision).
+        self.assertEqual(copies.current_revision(self.temp / "deploy"), self.revisions[1])
+        self.finish([[["start"], ["sleep", 0.4], ["exit", 0]]])
+        (deploy,) = self.deploys()
+        self.assertEqual((deploy["state"], deploy["code"]), ("failed", "deploy_error"))
+
+    def test_refused_activation_restores_current_without_a_restart(self):
+        from odin.service_activation import activate
+        def refused(state, **kwargs):
+            return activate(state, controller=self.unit, reachable=lambda s: False, timeout=1,
+                            **(kwargs | {"head": "0" * 40}))
+        self.activator = refused  # refused: checkout_wrong_head
+        self.ask_mid_turn()
+        code = self.deploy_supervisor([[["start"], ["turn", 0.3], ["wait"]],
+                                       [["start"], ["sleep", 0.4], ["exit", 0]]]).run()
+        self.assertEqual(code, 0)
+        self.assertEqual(len(self.launches()), 2)  # relaunched in-process, no re-exec
+        self.assertEqual(self.unit.restarts, [])
+        self.assertEqual(copies.current_revision(self.temp / "deploy"), self.revisions[1])
+        (deploy,) = self.deploys()
+        self.assertEqual((deploy["state"], deploy["code"]), ("failed", "checkout_wrong_head"))
+
+    def test_rollback_starts_a_unit_left_down(self):
+        self.unit.broken.add(self.head)
+        self.ask_mid_turn()
+        with self.assertRaises(Reexec):
+            self.deploy_supervisor([[["start"], ["turn", 0.3], ["wait"]]]).run()
+        first, second = self.activations()
+        self.assertEqual(first["outcome"], "failed")
+        self.assertEqual(second["previous_pid"], None)
+        self.assertEqual(second["outcome"], "activated")
+
+    def test_executive_busy_after_deploying_fails_without_a_stop(self):
+        from odin import executive_supervisor as module
+        supervisor = self.deploy_supervisor([[["start"], ["turn", 0.3], ["sleep", 1.5], ["exit", 0]]])
+        original = supervisor.idle
+        def idle(launched_at):
+            # Idle until the deploy began, then busy (a turn started meanwhile).
+            states = [d["state"] for d in self.deploys()]
+            return original(launched_at) and "deploying" not in states
+        supervisor.idle = idle
+        self.ask_mid_turn()
+        with patch.object(module, "DEPLOY_IDLE_WAIT_SECONDS", 0.3):
+            self.assertEqual(supervisor.run(), 0)
+        (deploy,) = self.deploys()
+        self.assertEqual((deploy["state"], deploy["code"]), ("failed", "executive_not_idle"))
+        self.assertEqual(self.unit.restarts, [])
+        self.assertEqual(len(self.launches()), 1)
+
+    def test_deploying_is_bounded_without_a_supervisor(self):
+        store = self.service.store
+        request = self.ok(self.deploy())["request"]
+        for state in ("draining", "deploying"):
+            self.client.transition(request["id"], state, kind="deploy")
+        self.assertTrue(supervision.draining(store))
+        body = strict_loads(store.db.execute("SELECT body FROM executive_deploys").fetchone()[0])
+        stale = (datetime.now(UTC) - timedelta(seconds=supervision.DEPLOYING_GRACE_SECONDS + 1))
+        store.db.execute("UPDATE executive_deploys SET body=?", (json.dumps(
+            body | {"updated_at": stale.isoformat().replace("+00:00", "Z")}),))
+        self.assertFalse(supervision.draining(store))
+        self.assertEqual(supervision.expire(store, self.project), [request["id"]])
+        self.assertEqual((self.deploys()[0]["state"], self.deploys()[0]["code"]), ("failed", "supervisor_lost"))
+
+    def test_restarting_executive_found_later_is_finished(self):
+        request = self.ok(self.deploy())["request"]
+        for state in ("draining", "deploying"):
+            self.client.transition(request["id"], state, kind="deploy")
+        self.client.transition(request["id"], "restarting_executive", kind="deploy", pending_outcome="deployed")
+        # The service did not answer at start, so nothing was carried then.
+        calls = []
+        original = self.client.status
+        def flaky():
+            calls.append(1)
+            if len(calls) == 1:
+                raise OSError("unreachable")
+            return original()
+        self.client.status = flaky
+        self.assertEqual(self.finish([[["start"], ["sleep", 0.6], ["exit", 0]]]), 0)
+        self.assertEqual(self.deploys()[0]["state"], "deployed")
+
+
+class LeaseHandoverTests(DeployBase):
+    def test_reexec_hands_over_the_locked_descriptor(self):
+        import os
+
+        from odin import executive_supervisor as module
+        path = self.state / "executive-pilot" / module.LEASE_FILE
+        held = module._lease(path).__enter__()
+        try:
+            # Another supervisor cannot take the lease.
+            with self.assertRaises(module.SupervisorRefused):
+                module._lease(path).__enter__()
+            # The re-exec'd process adopts the descriptor named in its environment.
+            with patch.dict(os.environ, {module.LEASE_FD_VARIABLE: str(held.fd)}):
+                adopted = module._lease(path).__enter__()
+                self.assertNotIn(module.LEASE_FD_VARIABLE, os.environ)
+            self.assertEqual(adopted.fd, held.fd)
+            # A descriptor for another file is not adopted.
+            other = os.open(self.temp / "other.lock", os.O_CREAT | os.O_RDWR, 0o600)
+            self.addCleanup(os.close, other)
+            with patch.dict(os.environ, {module.LEASE_FD_VARIABLE: str(other)}), \
+                    self.assertRaises(module.SupervisorRefused):
+                module._lease(path).__enter__()
+        finally:
+            os.close(held.fd)

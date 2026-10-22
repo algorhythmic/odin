@@ -116,7 +116,9 @@ class CodeRootTests(unittest.TestCase):
         manifest, base = runtime._load(self.state)
         mcp_path = runtime._mcp_path(manifest, base)
         loop_path = runtime._loop_settings_path(manifest, base)
-        old = "/old/deploy/" + REVISION + "/python"
+        # A real deployed copy of this repository: the tolerated code location.
+        copy_code(self.temp / "old" / REVISION, ROOT)
+        old = str(self.temp / "old" / REVISION / "python")
         mcp = runtime._read(mcp_path, "executive-pilot-mcp")
         mcp["mcpServers"]["odin"]["env"]["PYTHONPATH"] = old
         runtime._write(mcp_path, "executive-pilot-mcp", mcp)
@@ -131,12 +133,52 @@ class CodeRootTests(unittest.TestCase):
         self.assertEqual(runtime._read(mcp_path, "executive-pilot-mcp"), runtime._mcp(manifest))
         self.assertEqual(runtime._read(loop_path, "executive-pilot-loop-settings"),
                          runtime._loop_settings(manifest))
+        # An arbitrary code location is not tolerated.
+        mcp = runtime._read(mcp_path, "executive-pilot-mcp")
+        mcp["mcpServers"]["odin"]["env"]["PYTHONPATH"] = "/somewhere/else/python"
+        runtime._write(mcp_path, "executive-pilot-mcp", mcp)
+        with self.assertRaises(PermissionError):
+            runtime._load(self.state)
+        runtime._write(mcp_path, "executive-pilot-mcp", runtime._mcp(manifest))
         # Any other difference is still refused.
         mcp = runtime._read(mcp_path, "executive-pilot-mcp")
         mcp["mcpServers"]["odin"]["args"][3] = "/tmp/another-state"
         runtime._write(mcp_path, "executive-pilot-mcp", mcp)
         with self.assertRaises(PermissionError):
             runtime._load(self.state)
+
+    def test_current_symlink_pins_hooks_and_later_imports(self):
+        deploy = self.temp / "deploy"
+        first, second = "1" * 40, "2" * 40
+        copy_code(deploy / first, ROOT, first)
+        copy_code(deploy / second, ROOT, second)
+        os.symlink(first, deploy / "current")
+        staged = self.run_from(deploy / "current", "executive-enable-development")
+        self.assertEqual(staged.returncode, 0, staged.stderr)
+        with runtime._owned_runtime(self.state):
+            pass
+        probe = self.run_from(deploy / "current", script=(
+            "import json, os\n"
+            "import odin\n"
+            "from odin import executive_runtime as r\n"
+            f"spec = r.launch_spec({str(self.state)!r}, resume=True, supervised=True)\n"
+            "a = spec['argv']; settings = json.loads(a[a.index('--settings') + 1])\n"
+            "hook = settings['hooks']['Stop'][-1]['hooks'][0]['args'][0]\n"
+            f"os.replace({str(deploy / 'next')!r}, {str(deploy / 'current')!r})\n"
+            "import odin.deploy_copies as later\n"
+            "print(json.dumps({'hook': hook, 'path': odin.__path__, 'later': later.__file__}))\n"))
+        # Prepare the switch the script performs once it has imported Odin.
+        self.assertEqual(probe.returncode, 1)  # deploy/next does not exist yet
+        os.symlink(second, deploy / "next")
+        probe = self.run_from(deploy / "current", script=probe.args[2])
+        self.assertEqual(probe.returncode, 0, probe.stderr)
+        observed = json.loads(probe.stdout)
+        # Hooks name the revision directory, not current; a module imported
+        # after current moved still comes from the launching revision.
+        self.assertEqual(observed["hook"], f"PYTHONPATH={deploy / first / 'python'}")
+        self.assertEqual(observed["path"], [str(deploy / first / "python" / "odin")])
+        self.assertTrue(observed["later"].startswith(str(deploy / first)))
+        self.assertEqual(os.readlink(deploy / "current"), second)
 
     def test_invalid_marker_fails_loudly(self):
         code = self.temp / "bad"

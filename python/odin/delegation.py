@@ -237,7 +237,10 @@ def write_config(state, config):
         path = Path(root)
         if not path.is_absolute() or not path.is_dir():
             raise ValueError("workspace roots must be absolute existing directories")
-        if path == ROOT or ROOT.is_relative_to(path) or path.is_relative_to(ROOT):
+        from .contracts import REPOSITORY_ROOT  # the checkout, also from a deployed copy
+
+        if any(path == root or root.is_relative_to(path) or path.is_relative_to(root)
+               for root in (ROOT, REPOSITORY_ROOT)):
             raise ValueError("workspace roots must not contain or be the checkout")
     if (
         config.get("max_concurrent_turns_per_lineage", 1) > 1

@@ -81,6 +81,23 @@ class CopyTests(Base):
             copies.export(self.root, self.temp / "elsewhere", self.revisions[0])
         self.assertEqual(str(caught.exception), "deploy_copy_mismatch")
 
+    def test_committed_marker_name_is_refused(self):
+        # A link out of the tree is refused by the archive filter; an in-tree
+        # link or file of the marker's name is refused before the marker is written.
+        for target, code in [("/tmp/elsewhere-marker", "deploy_export_unsafe"),
+                             ("python/marker.txt", "deploy_marker_invalid")]:
+            marker = self.repository / DEPLOYMENT_FILE
+            marker.unlink(missing_ok=True)
+            marker.symlink_to(target)
+            git(self.repository, "add", "-A")
+            git(self.repository, "commit", "-q", "-m", "plant")
+            with self.subTest(target=target), self.assertRaises(copies.DeployError) as caught:
+                copies.export(self.root, self.repository, git(self.repository, "rev-parse", "HEAD"))
+            self.assertEqual(str(caught.exception), code)
+        self.assertFalse(Path("/tmp/elsewhere-marker").exists())
+        self.assertEqual((self.repository / "python" / "marker.txt").read_text(), "synthetic 3\n")
+        self.assertEqual([p.name for p in self.root.iterdir()], [])
+
     def test_root_must_be_private(self):
         loose = self.temp / "loose"; loose.mkdir(mode=0o755); loose.chmod(0o755)
         with self.assertRaises(copies.DeployError):
@@ -126,10 +143,18 @@ class ConfigurationTests(Base):
         Contracts().validate("executive-deploy-config", value)
         self.assertEqual(value["deploy_root"], str(self.temp / "deploy"))
         self.assertEqual(copies.read_config(self.state), value)
-        result = copies.prepare(self.state, head=self.revisions[1])
+        result = copies.prepare(self.state, head=self.revisions[-1])
         self.assertEqual((result["current"], result["previous"], result["restarted"]),
-                         (self.revisions[1], None, False))
-        self.assertEqual(copies.current_revision(self.temp / "deploy"), self.revisions[1])
+                         (self.revisions[-1], None, False))
+        self.assertEqual(copies.current_revision(self.temp / "deploy"), self.revisions[-1])
+        # Only the clean integration head, as for a deploy.
+        with self.assertRaises(copies.DeployError) as caught:
+            copies.prepare(self.state, head=self.revisions[1])
+        self.assertEqual(str(caught.exception), "deploy_head_not_integration_head")
+        (self.repository / "python" / "marker.txt").write_text("dirty\n")
+        with self.assertRaises(copies.DeployError) as caught:
+            copies.prepare(self.state, head=self.revisions[-1])
+        self.assertEqual(str(caught.exception), "deploy_tree_dirty")
 
     def test_configuration_refusals(self):
         for kwargs in [{"repository": self.temp / "missing"},
@@ -153,13 +178,13 @@ class ConfigurationTests(Base):
                    "--branch", "integration", "--keep", "2")
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(strict_loads(done.stdout)["keep"], 2)
-        prepared = run("executive-deploy-prepare", "--head", self.revisions[2])
+        prepared = run("executive-deploy-prepare", "--head", self.revisions[-1])
         self.assertEqual(prepared.returncode, 0, prepared.stderr)
-        self.assertEqual(json.loads(prepared.stdout)["current"], self.revisions[2])
-        self.assertTrue((self.temp / "deploy" / self.revisions[2] / DEPLOYMENT_FILE).exists())
+        self.assertEqual(json.loads(prepared.stdout)["current"], self.revisions[-1])
+        self.assertTrue((self.temp / "deploy" / self.revisions[-1] / DEPLOYMENT_FILE).exists())
         refused = run("executive-deploy-prepare", "--head", "f" * 40)
         self.assertEqual(refused.returncode, 2)
-        self.assertIn("deploy_export_failed", refused.stderr)
+        self.assertIn("deploy_head_not_integration_head", refused.stderr)
 
 
 if __name__ == "__main__":

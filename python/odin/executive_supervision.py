@@ -9,7 +9,6 @@ before it acts. While a deploy is open before the service restart, the
 service drains: queued delegated turns and evaluator jobs stay queued.
 """
 import sqlite3
-import subprocess
 from datetime import datetime, timedelta
 
 from .contracts import canonical, identifier, strict_loads
@@ -35,6 +34,8 @@ DEPLOY_TRANSITIONS = {
     "deploying": {"restarting_executive", "failed"},
     "restarting_executive": {"deployed", "rolled_back", "failed"},
 }
+# A deploy step that has not reported for this long is taken as lost.
+DEPLOYING_GRACE_SECONDS = 900
 # Until the service is restarted on the new revision it launches nothing new.
 DRAIN_STATES = ("pending", "draining", "deploying")
 RUNNING_TURN_STATES = ("launching", "running", "interrupting")
@@ -89,9 +90,18 @@ def _deploys(store, project=None, states=None):
 
 
 def _expired(item, at=None):
-    """A pending or draining deploy past its drain deadline no longer drains."""
-    return (item["state"] in ("pending", "draining") and
-            datetime.fromisoformat(at or now()) >= datetime.fromisoformat(item["drain_deadline"]))
+    """A deploy that may no longer drain.
+
+    Pending and draining end at the drain deadline. Deploying is bounded by
+    DEPLOYING_GRACE_SECONDS after it began (its last update), so a supervisor
+    lost mid-deploy cannot hold queued work indefinitely.
+    """
+    stamp = datetime.fromisoformat(at or now())
+    if item["state"] in ("pending", "draining"):
+        return stamp >= datetime.fromisoformat(item["drain_deadline"])
+    if item["state"] == "deploying":
+        return stamp >= datetime.fromisoformat(item["updated_at"]) + timedelta(seconds=DEPLOYING_GRACE_SECONDS)
+    return False
 
 
 def draining(store):
@@ -115,12 +125,13 @@ def draining(store):
 def expire(store, project):
     """Record drain_timeout for deploys past their deadline; returns their ids."""
     expired = []
-    for item in _deploys(store, project, ("pending", "draining")):
+    for item in _deploys(store, project, ("pending", "draining", "deploying")):
         if _expired(item):
-            item = item | {"state": "failed", "code": "drain_timeout", "updated_at": now()}
+            code = "supervisor_lost" if item["state"] == "deploying" else "drain_timeout"
+            item = item | {"state": "failed", "code": code, "updated_at": now()}
             _save(store, item)
             store._history("executive.deploy_failed", {"id": item["id"], "project": project,
-                                                        "code": "drain_timeout", "timings": item["timings"],
+                                                        "code": code, "timings": item["timings"],
                                                         "actor": "service"})
             _notice(store, item)
             expired.append(item["id"])
@@ -145,9 +156,11 @@ def drain_view(store, project):
     turns = _ids(store, f"SELECT id FROM delegation_turns WHERE state IN ({marks}) ORDER BY id",
                  RUNNING_TURN_STATES)
     queued = len(_ids(store, "SELECT id FROM delegation_turns WHERE state='queued'"))
-    jobs = [strict_loads(body)["id"] for body in _ids(
-        store, "SELECT body FROM development_loop_jobs ORDER BY rowid")
-        if strict_loads(body)["state"] in ("running", "unknown")]
+    bodies = [strict_loads(body) for body in _ids(store, "SELECT body FROM development_loop_jobs ORDER BY rowid")]
+    jobs = [job["id"] for job in bodies if job["state"] == "running"]
+    # An unknown job needs operator reconciliation; it cannot finish by
+    # itself, so it is shown but does not hold the drain.
+    unknown = [job["id"] for job in bodies if job["state"] == "unknown"]
     stages = [strict_loads(body)["id"] for body in _ids(
         store, "SELECT body FROM development_loop_stages ORDER BY rowid")
         if strict_loads(body)["state"] == "claimed"]
@@ -156,7 +169,8 @@ def drain_view(store, project):
     waiting = {"delegated_turns": turns[:32], "evaluator_jobs": jobs[:32],
                "live_interventions": live[:32], "claimed_loop_stages": stages[:32]}
     return {"active": draining(store), "waiting_for": waiting,
-            "drained": not any(waiting.values()), "queued_turns_held": queued}
+            "drained": not any(waiting.values()), "queued_turns_held": queued,
+            "evaluator_jobs_unknown": unknown[:32]}
 
 
 def unsafe_reason(store, project):
@@ -291,21 +305,9 @@ def _deploy_view(item):
 
 
 def _integration_problem(config, head):
-    """The fixed code refusing ``head``, or None when it is the clean integration head."""
-    from .service_activation import _checkout, _git
+    from .deploy_copies import integration_problem
 
-    try:
-        tip = _git(config["repository"], "rev-parse", "--verify", "--quiet",
-                   "refs/heads/" + config["branch"]).strip()
-    except (OSError, subprocess.SubprocessError):
-        return "deploy_checkout_unreadable"
-    if tip != head:
-        return "deploy_head_not_integration_head"
-    problem = _checkout(config["repository"], branch=config["branch"], head=head)
-    return {None: None, "checkout_not_clean": "deploy_tree_dirty",
-            "checkout_wrong_branch": "deploy_checkout_not_on_integration_branch",
-            "checkout_wrong_head": "deploy_head_not_integration_head"}.get(
-                problem, "deploy_checkout_unreadable")
+    return integration_problem(config, head)
 
 
 def _view(item):
@@ -419,7 +421,6 @@ def _request_deploy(gateway, payload, operation):
     """Item 5: record a deploy of the current, clean integration head, or refuse."""
     from .deploy_copies import DeployError, current_revision, read_config
     from .executive_runtime import _load
-    from .service_activation import service_revision
 
     store, project, head = gateway.store, payload["project"], payload["head"]
     manifest, _ = _load(gateway.service.directory)
@@ -438,10 +439,11 @@ def _request_deploy(gateway, payload, operation):
     try:
         previous = current_revision(config["deploy_root"])
     except (DeployError, OSError):
-        previous = None
+        raise Refused("deploy_current_unreadable") from None
     if previous is None:
-        reported = service_revision(gateway.service.directory)
-        previous = reported["revision"] if reported else None
+        # Without current there is no rollback target: the first copy is made
+        # by hand in the documented migration (executive-deploy-prepare).
+        raise Refused("deploy_not_migrated")
     if previous == head:
         raise Refused("deploy_head_already_current")
     stamp = now()

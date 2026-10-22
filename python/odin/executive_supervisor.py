@@ -36,6 +36,9 @@ from .executive_turn_hook import read_marker
 from .store import now
 
 LEASE_FILE = "supervisor.lock"
+LEASE_FD_VARIABLE = "ODIN_SUPERVISOR_LEASE_FD"
+# How long the idle executive may stay busy after a deploy began before it fails.
+DEPLOY_IDLE_WAIT_SECONDS = 300
 JOURNAL_FILE = "supervisor-journal.jsonl"
 CRASH_LIMIT = 3
 CRASH_WINDOW_SECONDS = 600
@@ -282,7 +285,7 @@ class Supervisor:
         marker = read_marker(self.state)
         return marker is not None and marker["event"] == "SessionEnd" and _parse(marker["at"]) >= signalled_at - 1
 
-    def _stop(self, process, request, requested_at, launched_at, first="stopping"):
+    def _stop(self, process, request, requested_at, launched_at, first="stopping", idle_limit=None):
         """SIGTERM at idle, then wait. Never escalates to a kill."""
         moved = self._transition_now(request, first)
         if moved is None or moved["state"] != first:
@@ -290,10 +293,16 @@ class Supervisor:
                 self.journal("restart_refused", request_id=request["id"], code=moved.get("code"))
             return None
         # Recheck after the round trip, so a turn that began meanwhile is not cut.
+        waited = self.clock()
         while not self.idle(launched_at):
             code = process.poll()
             if code is not None:
                 return self._stopped(request, requested_at, None, code)
+            if idle_limit is not None and self.clock() - waited >= idle_limit:
+                # A deploy holds the drain; give up rather than wait without bound.
+                self.journal("executive_not_idle", request_id=request["id"])
+                self._report(request, "failed", code="executive_not_idle")
+                return None
             self.sleep(self.poll_seconds)
         signalled = self.clock()
         self.journal("stop_signalled", request_id=request["id"])
@@ -391,6 +400,12 @@ class Supervisor:
                 self.journal("deploy_draining", request_id=deploy["id"])
                 self.drain_started = self.clock()
             return None
+        if deploy["state"] == "restarting_executive" and self.carry is None:
+            # Not carried at start (for example the service was unreachable then):
+            # this session is the relaunch, so record the outcome once it has started.
+            self.journal("deploy_relaunch", request_id=deploy["id"])
+            self.carry = deploy | {"stopped_at": self.clock()}
+            return None
         if deploy["state"] != "draining":
             return None
         if datetime.fromisoformat(now()) >= datetime.fromisoformat(deploy["drain_deadline"]):
@@ -403,7 +418,8 @@ class Supervisor:
         # Stop the executive at idle before the service goes away, so no turn
         # sees it restart; the service rechecks the head when deploying begins.
         started = getattr(self, "drain_started", None) or self.clock()
-        return self._stop(process, deploy, started, launched_at, first="deploying")
+        return self._stop(process, deploy, started, launched_at, first="deploying",
+                          idle_limit=DEPLOY_IDLE_WAIT_SECONDS)
 
     def _healthy(self):
         """A read-only status call through the operator socket succeeds."""
@@ -421,7 +437,8 @@ class Supervisor:
 
     def _activate(self, config, head, *, rollback=False):
         record = self.activator(self.state, repository=config["repository"], branch=config["branch"],
-                                head=head, verify_checkout=not rollback, include_queued=False)
+                                head=head, verify_checkout=not rollback, include_queued=False,
+                                allow_stopped=rollback)
         self.journal("deploy_rollback_activation" if rollback else "deploy_activation",
                      code=record.get("reason"))
         return record
@@ -437,61 +454,104 @@ class Supervisor:
     def _deploy(self, stopped):
         """Export, switch, activate, check health, roll back on failure.
 
-        Runs with no executive child. Returns True when ``current`` was
-        switched, so the caller re-execs and the new revision supervises.
+        Runs with no executive child. Returns the request to carry across the
+        executive's relaunch once ``current`` may have changed (the caller
+        re-execs so the deployed code supervises), or None when nothing
+        changed and the executive is simply relaunched. Never raises: an
+        unexpected error restores ``current`` to what the service reports,
+        records ``deploy_error`` and still relaunches the executive.
         """
         from . import deploy_copies as copies
 
-        head = stopped["requested_head"]
         timings = dict(stopped["timings"])
+        base = {"exit_code": _exit(stopped.get("exit_code")),
+                "clean_exit_observed": stopped.get("clean_exit_observed")}
         config = copies.read_config(self.state)
-        begun = self.clock()
         if config is None:
-            self._report(stopped, "failed", code="deploy_not_configured", timings=timings)
-            return False
+            self._report(stopped, "failed", code="deploy_not_configured", timings=timings, **base)
+            return None
+        begun = self.clock()
         try:
-            copies.export(config["deploy_root"], config["repository"], head)
-            exported = self.clock()
-            timings["export_seconds"] = _seconds(begun, exported)
-            previous = copies.switch(config["deploy_root"], head)
-        except (copies.DeployError, OSError) as error:
-            self.journal("deploy_export_failed", code=_code(error))
-            self._report(stopped, "failed", code=_code(error), timings=timings)
-            return False
+            copies.export(config["deploy_root"], config["repository"], stopped["requested_head"])
+        except Exception as error:  # noqa: BLE001 - nothing was switched; report and relaunch
+            code = str(error) if isinstance(error, copies.DeployError) else "deploy_export_failed"
+            self.journal("deploy_export_failed", code=code)
+            self._report(stopped, "failed", code=code, timings=timings, **base)
+            return None
+        timings["export_seconds"] = _seconds(begun, self.clock())
+        try:
+            fields = self._switch_and_activate(config, stopped, timings)
+        except Exception as error:  # noqa: BLE001 - the executive must be relaunched regardless
+            self.journal("deploy_error", code=_code(error))
+            self._align_current(config)
+            fields = {"pending_outcome": None, "code": "deploy_error"}
+        if fields.pop("unchanged", False):
+            self._report(stopped, "failed", timings=timings, **base, **fields)
+            return None
+        fields |= base | {"timings": timings}
+        if self._report_now(stopped, "restarting_executive", **fields) is None:
+            self.journal("deploy_report_pending", request_id=stopped["id"])
+        return stopped | fields | {"state": "restarting_executive", "stopped_at": self.clock()}
+
+    def _switch_and_activate(self, config, stopped, timings):
+        from . import deploy_copies as copies
+
+        head, root = stopped["requested_head"], config["deploy_root"]
+        previous = copies.switch(root, head)
+        switched = self.clock()
         self.journal("deploy_switched", request_id=stopped["id"])
         record = self._activate(config, head)
         activated = self.clock()
-        timings["activation_seconds"] = _seconds(exported, activated)
+        timings["activation_seconds"] = _seconds(switched, activated)
+        fields = {"activation_id": record.get("id")}
+        if record.get("outcome") == "refused":
+            # Refused before any restart: the service still runs the old code.
+            self._restore(root, previous)
+            return fields | {"unchanged": True, "code": record.get("reason") or "activation_refused"}
         healthy = record.get("outcome") == "activated" and self._healthy()
         timings["health_seconds"] = _seconds(activated, self.clock())
-        fields = {"activation_id": record.get("id"), "timings": timings,
-                  "exit_code": _exit(stopped.get("exit_code")),
-                  "clean_exit_observed": stopped.get("clean_exit_observed")}
         if healthy:
-            telemetry = self._restart_telemetry()
-            fields |= {"pending_outcome": "deployed", "code": telemetry}
+            return fields | {"pending_outcome": "deployed", "code": self._restart_telemetry()}
+        failure = (record.get("reason") if record.get("outcome") != "activated" else None) or "health_check_failed"
+        self.journal("deploy_unhealthy", request_id=stopped["id"], code=failure)
+        if previous is None:
+            self._restore(root, None)
+            self._restart_telemetry()
+            self.say(f"deploy of {head} failed ({failure}); no previous copy to roll back to.")
+            return fields | {"pending_outcome": None, "code": "rollback_unavailable"}
+        self._restore(root, previous)
+        back = self._activate(config, previous, rollback=True)
+        fields["rollback_activation_id"] = back.get("id")
+        restored = back.get("outcome") == "activated" and self._healthy()
+        self._restart_telemetry()
+        if not restored:
+            self._align_current(config)
+            self.say(f"deploy of {head} failed ({failure}) and the rollback to {previous} failed.")
+            return fields | {"pending_outcome": None, "code": "rollback_failed"}
+        self.say(f"deploy of {head} failed ({failure}); rolled back to {previous}.")
+        return fields | {"pending_outcome": "rolled_back", "code": failure}
+
+    def _restore(self, root, previous):
+        from . import deploy_copies as copies
+
+        if previous is None:
+            (Path(root) / copies.CURRENT).unlink(missing_ok=True)
         else:
-            failure = record.get("reason") if record.get("outcome") != "activated" else "health_check_failed"
-            failure = failure or "activation_failed"
-            self.journal("deploy_unhealthy", request_id=stopped["id"], code=failure)
-            if previous is None:
-                # Nothing to roll back to: restore the state before the deploy.
-                (Path(config["deploy_root"]) / copies.CURRENT).unlink(missing_ok=True)
-                self._restart_telemetry()
-                fields |= {"pending_outcome": None, "code": "rollback_unavailable"}
-            else:
-                copies.switch(config["deploy_root"], previous)
-                back = self._activate(config, previous, rollback=True)
-                fields["rollback_activation_id"] = back.get("id")
-                restored = back.get("outcome") == "activated" and self._healthy()
-                self._restart_telemetry()
-                fields |= ({"pending_outcome": "rolled_back", "code": failure} if restored
-                           else {"pending_outcome": None, "code": "rollback_failed"})
-            self.say(f"deploy of {head} failed ({failure}); {fields['code']}.")
-        moved = self._report_now(stopped, "restarting_executive", **fields)
-        if moved is None:
-            self.journal("deploy_report_pending", request_id=stopped["id"])
-        return True
+            copies.switch(root, previous)
+
+    def _align_current(self, config):
+        """Point ``current`` at the revision the service reports, when a copy exists."""
+        from . import deploy_copies as copies
+        from .service_activation import service_revision
+
+        try:
+            reported = service_revision(self.state)
+            revision = reported["revision"] if reported else None
+            if revision and revision in copies.copies(config["deploy_root"]):
+                copies.switch(config["deploy_root"], revision)
+                self.journal("deploy_current_aligned")
+        except Exception as error:  # noqa: BLE001 - best effort; journalled
+            self.journal("deploy_align_failed", code=_code(error))
 
     def _finish_deploy(self, carry, timings):
         """The relaunched executive started: record the deploy's final state and prune."""
@@ -519,8 +579,12 @@ class Supervisor:
         self._flush()
         sys.stdout.flush()
         sys.stderr.flush()
-        os.execv(sys.executable, [sys.executable, "-m", "odin", "--state", str(self.state),
-                                  "executive-supervise"])
+        # Hand the locked lease descriptor to the new process, so no other
+        # supervisor can take the lease in the gap.
+        os.set_inheritable(self.lease.fd, True)
+        environment = os.environ | {LEASE_FD_VARIABLE: str(self.lease.fd)}
+        os.execve(sys.executable, [sys.executable, "-m", "odin", "--state", str(self.state),
+                                   "executive-supervise"], environment)
 
     # -- main loop -------------------------------------------------------
 
@@ -562,6 +626,8 @@ class Supervisor:
             if current == deploy["requested_head"] and reported and reported["revision"] == current:
                 deploy = self._transition_now(deploy, "restarting_executive", pending_outcome="deployed")
             else:
+                if config:
+                    self._align_current(config)
                 self._report(deploy, "failed", code="supervisor_lost")
                 return
             if deploy is None:
@@ -570,7 +636,7 @@ class Supervisor:
         self.carry = deploy | {"stopped_at": self.clock()}
 
     def run(self):
-        with _lease(self.base / LEASE_FILE):
+        with _lease(self.base / LEASE_FILE) as self.lease:
             self.journal("supervision_started")
             self._send(("event", ("supervision_started",), {}))
             self._carry_pending_at_start()
@@ -601,9 +667,15 @@ class Supervisor:
                 if self.stopped_for is not None and self.stopped_for.get("kind") == "deploy":
                     stopped, self.stopped_for = self.stopped_for, None
                     stopped["timings"] |= {"drain_seconds": stopped["timings"].pop("wait_idle_seconds", 0)}
-                    if self._deploy(stopped):
-                        self.reexec()
-                        return 0  # reached only when re-exec is replaced (tests)
+                    carry = self._deploy(stopped)
+                    if carry is not None:
+                        try:
+                            self.reexec()
+                            return 0  # reached only when re-exec is replaced (tests)
+                        except OSError as error:
+                            # Relaunch from this process instead; the outcome is still recorded.
+                            self.journal("reexec_failed", code=_code(error))
+                            self.carry = carry
                     continue
                 if self.stopped_for is not None:
                     stopped, self.stopped_for = self.stopped_for, None
@@ -672,6 +744,19 @@ class _lease:
         self.path = path
 
     def __enter__(self):
+        inherited = os.environ.pop(LEASE_FD_VARIABLE, None)
+        if inherited is not None:
+            # A re-exec handed over the descriptor that already holds the lock.
+            try:
+                fd = int(inherited)
+                held, expected = os.fstat(fd), os.stat(self.path, follow_symlinks=False)
+                if (held.st_dev, held.st_ino) == (expected.st_dev, expected.st_ino):
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    os.set_inheritable(fd, False)
+                    self.fd = fd
+                    return self
+            except (OSError, ValueError):
+                pass
         self.fd = os.open(self.path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
         info = os.fstat(self.fd)
         if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:

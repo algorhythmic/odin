@@ -203,12 +203,14 @@ def validate_arguments(*, repository, branch, head):
 
 def activate(state, *, repository, branch, head, controller=None, reachable=None,
              timeout=60.0, clock=time.monotonic, sleep=time.sleep, verify_checkout=True,
-             include_queued=True):
+             include_queued=True, allow_stopped=False):
     """Restart only the service unit when quiescent and the checkout is reviewed.
 
     A deploy rollback (ODIN-ADR-039) passes ``verify_checkout=False``: the
     previous revision is no longer the checkout's head, and the record still
-    requires the service to report that revision afterwards.
+    requires the service to report that revision afterwards. It also passes
+    ``allow_stopped=True``, so a unit left down by the failed restart is
+    started rather than refused as ``unit_not_running``.
     """
     from .executive_runtime import _lease, _LeaseBusy
 
@@ -233,7 +235,8 @@ def activate(state, *, repository, branch, head, controller=None, reachable=None
                 return _activate(state, record, finish, repository=repository, branch=branch,
                                  head=head, controller=controller, reachable=reachable,
                                  timeout=timeout, clock=clock, sleep=sleep,
-                                 verify_checkout=verify_checkout, include_queued=include_queued)
+                                 verify_checkout=verify_checkout, include_queued=include_queued,
+                                 allow_stopped=allow_stopped)
             except Exception:
                 # An ordinary error never leaves an unexplained `restarting` record.
                 finish("failed", "activation_error")
@@ -243,14 +246,15 @@ def activate(state, *, repository, branch, head, controller=None, reachable=None
 
 
 def _activate(state, record, finish, *, repository, branch, head, controller,
-              reachable, timeout, clock, sleep, verify_checkout=True, include_queued=True):
+              reachable, timeout, clock, sleep, verify_checkout=True, include_queued=True,
+              allow_stopped=False):
     try:
         previous_pid = controller.main_pid()
     except (OSError, subprocess.SubprocessError, ValueError):
         return finish("refused", "unit_state_unreadable")
-    if not previous_pid:
+    if not previous_pid and not allow_stopped:
         return finish("refused", "unit_not_running")
-    record["previous_pid"] = previous_pid
+    record["previous_pid"] = previous_pid or None
     reported = service_revision(state)
     if reported and reported["pid"] == previous_pid:
         record["previous_revision"] = reported["revision"]

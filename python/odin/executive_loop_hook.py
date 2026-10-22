@@ -18,7 +18,7 @@ from pathlib import Path
 
 from jsonschema import ValidationError
 
-from .contracts import ALPHABET, ROOT, Contracts, canonical, strict_loads
+from .contracts import ALPHABET, REPOSITORY_ROOT, ROOT, Contracts, canonical, strict_loads
 from .executive_mcp import PROJECT_ID, SocketGateway, ToolFailure
 
 MAX_HOOK_BYTES = 1024 * 1024
@@ -40,7 +40,7 @@ OPTIONAL_FIELDS = (
 
 def _private_directory(path, *, create=False):
     path = Path(path).absolute()
-    if path != path.resolve() or path == ROOT or ROOT in path.parents:
+    if path != path.resolve() or any(path == root or root in path.parents for root in (ROOT, REPOSITORY_ROOT)):
         raise PermissionError("loop spool must be outside the repository")
     if create:
         path.mkdir(mode=0o700, exist_ok=True)

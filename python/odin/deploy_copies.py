@@ -35,6 +35,8 @@ def private_root(value):
     path = Path(value)
     if not path.is_absolute() or os.path.normpath(value) != str(value):
         raise DeployError("deploy_root_invalid")
+    if any(part.is_symlink() for part in (path, *path.parents)):
+        raise DeployError("deploy_root_invalid")
     path.mkdir(mode=0o700, parents=True, exist_ok=True)
     if any(part.is_symlink() for part in (path, *path.parents)):
         raise DeployError("deploy_root_invalid")
@@ -104,7 +106,13 @@ def export(root, repository, revision):
             raise DeployError("deploy_export_unsafe") from error
         marker = {"schema_version": 1, "revision": revision, "repository": str(repository),
                   "exported_at": now()}
-        (temporary / DEPLOYMENT_FILE).write_text(canonical(marker) + "\n")
+        # Never follow a committed file or link of the same name.
+        try:
+            fd = os.open(temporary / DEPLOYMENT_FILE, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o444)
+        except FileExistsError:
+            raise DeployError("deploy_marker_invalid") from None
+        with os.fdopen(fd, "w") as handle:
+            handle.write(canonical(marker) + "\n")
         if deployment(temporary) != marker:
             raise DeployError("deploy_marker_invalid")
         _read_only(temporary)
@@ -198,12 +206,34 @@ def read_config(state):
     return _read(path, "executive-deploy-config") if path.exists() else None
 
 
+def integration_problem(config, head):
+    """The fixed code refusing ``head``, or None when it is the clean integration head."""
+    from .service_activation import _checkout, _git
+
+    try:
+        tip = _git(config["repository"], "rev-parse", "--verify", "--quiet",
+                   "refs/heads/" + config["branch"]).strip()
+    except (OSError, subprocess.SubprocessError):
+        return "deploy_checkout_unreadable"
+    if tip != head:
+        return "deploy_head_not_integration_head"
+    problem = _checkout(config["repository"], branch=config["branch"], head=head)
+    return {None: None, "checkout_not_clean": "deploy_tree_dirty",
+            "checkout_wrong_branch": "deploy_checkout_not_on_integration_branch",
+            "checkout_wrong_head": "deploy_head_not_integration_head"}.get(
+                problem, "deploy_checkout_unreadable")
+
+
 def prepare(state, *, head):
     """Operator-only, for the one-time migration: export ``head`` and point
-    ``current`` at it without restarting anything."""
+    ``current`` at it without restarting anything. Only the clean integration
+    head is accepted, as for a deploy."""
     config = read_config(state)
     if config is None:
         raise DeployError("deploy_not_configured")
+    problem = integration_problem(config, head)
+    if problem:
+        raise DeployError(problem)
     export(config["deploy_root"], config["repository"], head)
     previous = switch(config["deploy_root"], head)
     return {"current": head, "previous": previous, "deploy_root": config["deploy_root"],

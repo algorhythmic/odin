@@ -24,7 +24,7 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
-from .contracts import ROOT, Contracts, FORMATS, canonical, identifier, strict_loads
+from .contracts import REPOSITORY_ROOT, ROOT, Contracts, FORMATS, canonical, identifier, strict_loads
 from .executive_projection import project_receipt
 
 MAX_REQUEST_BYTES = 65536
@@ -270,7 +270,7 @@ class SocketGateway:
 
     def __init__(self, state, *, timeout=30, max_request_bytes=MAX_REQUEST_BYTES):
         self.state = Path(state).resolve()
-        if self.state == ROOT or ROOT in self.state.parents:
+        if any(self.state == root or root in self.state.parents for root in (ROOT, REPOSITORY_ROOT)):
             raise ValueError("runtime state must be outside the repository")
         self.address = self.state / "executive.sock"
         self.timeout = timeout

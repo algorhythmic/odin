@@ -3019,8 +3019,10 @@ tab.
     `deploy_not_configured`, `deploy_request_pending`,
     `deploy_head_not_integration_head`, `deploy_tree_dirty`,
     `deploy_checkout_not_on_integration_branch`, `deploy_checkout_unreadable`,
-    `deploy_head_already_current`, `restart_request_pending` or a restart
-    safety code. Restart and deploy requests exclude each other. The
+    `deploy_head_already_current`, `deploy_not_migrated` (no `current` yet, so
+    no rollback target), `deploy_current_unreadable`,
+    `restart_request_pending` or a restart safety code. Restart and deploy
+    requests exclude each other. The
     operator-only `executive-configure-deploy` records the repository, the
     branch, the deploy root, the number of copies to keep and the drain
     timeout.
@@ -3028,17 +3030,25 @@ tab.
     `launch_pending` launches no delegated turn and the evaluator starts no
     job; queued work stays queued and running work finishes. Status shows the
     drain and what it waits for (running turns, running evaluator jobs, live
-    interventions, claimed stages) and how many queued turns it holds. The
-    drain ends at the deploy's deadline even without a supervisor; the
-    supervisor, or the next deploy action, records `drain_timeout`. Nothing
-    is killed.
+    interventions, claimed stages) and how many queued turns it holds;
+    evaluator jobs in `unknown` need operator reconciliation, so they are
+    listed without holding the drain. The drain ends at the deploy's deadline
+    even without a supervisor; the supervisor, or the next deploy action,
+    records `drain_timeout`. A `deploying` step that has not reported for 900 s
+    stops draining too and is failed with `supervisor_lost`. Nothing is
+    killed.
   - *Pinned copies.* The deploy root (default
     `~/.local/state/odin-executive-pilot/deploy`, 0700) holds read-only
     `git archive` exports at `<revision>` with their marker, and `current`, a
     symlink switched by one atomic rename. The configured number of copies is
     kept; `current` and the rollback target are never removed.
     `executive-deploy-prepare --head` exports and switches without restarting
-    anything, for the one-time migration. After the documented migration the
+    anything, for the one-time migration; it accepts only the clean
+    integration head, as a deploy does. The marker is created exclusively
+    without following links, so a committed file or link of its name is
+    refused. `odin/__init__.py` resolves the package path at import, so a
+    long-running process imported through `current` keeps loading modules
+    from the revision it started with after `current` moves. After the documented migration the
     service and telemetry units, the launcher and the status line run from
     `current`; the executive's hooks and bridge follow the launcher, pinned as
     stated above.
@@ -3048,20 +3058,36 @@ tab.
     so no turn sees the service restart. With no child running it exports the
     commit, switches `current`, restarts the service unit through
     `service_activation` (revision check and activation record; queued turns
-    held by the drain do not count against quiescence) and checks health:
+    held by the drain do not count against quiescence). If the activation is
+    refused before any restart, `current` is switched back and the deploy
+    fails with the refusal's code; the executive is relaunched without a
+    re-exec. If the executive starts a turn after `deploying` is recorded and
+    is not idle again within 300 s, the deploy fails with
+    `executive_not_idle` and nothing is stopped. Otherwise it checks health:
     the socket answers, the reported revision matches and a read-only status
     call works. On failure it switches `current` back, restarts the service on
     the previous revision (an activation without the checkout check, since the
-    checkout is ahead) and records `rolled_back`, or `rollback_failed` when
-    that fails too; with no previous copy it removes `current`
-    (`rollback_unavailable`). It restarts the telemetry unit after the service
+    checkout is ahead, which also starts a unit the failed restart left down)
+    and records `rolled_back`, or `rollback_failed` when that fails too, after
+    pointing `current` at whatever revision the service reports; with no
+    previous copy it removes `current` (`rollback_unavailable`). Any
+    unexpected error after the export does the same alignment, records
+    `deploy_error` and still relaunches the executive. It restarts the telemetry unit after the service
     in every case, records `restarting_executive`, and re-execs itself, so the
-    newly deployed code supervises and launches the executive. The new
+    newly deployed code supervises and launches the executive. The locked
+    lease descriptor is handed to the new process (`ODIN_SUPERVISOR_LEASE_FD`,
+    checked against the lease file), so no other supervisor can take the lease
+    in between; if the re-exec fails, the current process relaunches the
+    executive and still records the outcome. The new
     supervisor records `deployed`, `rolled_back` or `failed` once the session
     starts, prunes copies, and the executive gets a notice with the outcome.
     A deploy left between the switch and its report is carried at the next
     supervisor start when `current` and the service report the requested
-    head, and otherwise failed with `supervisor_lost`.
+    head, and otherwise failed with `supervisor_lost` after aligning `current`
+    with the service. A deploy found in `restarting_executive` later (for
+    example when the service did not answer at start) is finished once the
+    running session has started. An operator `/exit` while a deploy waits
+    for idle is taken as the stop, as for a restart.
   - *Executive flow.* Accepted change, then the integration owner merges,
     then the executive calls `odin_runtime_deploy(head)`, then the supervisor
     drains, deploys and verifies, then the executive resumes with the notice.

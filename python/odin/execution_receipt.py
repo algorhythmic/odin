@@ -27,7 +27,7 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from .contracts import DEPLOYMENT, ROOT, Contracts, canonical, identifier, strict_loads
+from .contracts import DEPLOYMENT, REPOSITORY_ROOT, ROOT, Contracts, canonical, identifier, strict_loads
 
 SCHEMA = "execution-receipt"
 SCHEMA_VERSION = 1
@@ -378,7 +378,7 @@ def _resolve_executable(argv, cwd):
 
 def _private_directory(path):
     path = Path(path).resolve()
-    if path == ROOT or ROOT in path.parents:
+    if any(path == root or root in path.parents for root in (ROOT, REPOSITORY_ROOT)):
         raise PermissionError("receipts must be retained outside the repository")
     path.mkdir(mode=0o700, parents=True, exist_ok=True)
     info = path.lstat()
