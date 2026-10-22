@@ -207,7 +207,10 @@ Completion must match the intended session and active round. A response to
 unrelated operator conversation, a subagent's closing message, a duplicate
 hook, a replaced session or an old round cannot advance the current loop.
 When work remains in the background or evidence is unavailable, preserve
-that distinction. The development evaluator can request a follow-up test;
+that distinction. A Stop that reports running background tasks is retained
+for retry and does not complete the stage. Scheduled session crons do not
+hold a completion: they are future prompts, possibly for another project or
+for work unrelated to committed code. The development evaluator can request a follow-up test;
 it must not turn a claimed result into independent verification.
 
 The current exchange captures the objective, round/session identity,

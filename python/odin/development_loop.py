@@ -1095,7 +1095,7 @@ class DevelopmentLoop:
             loop = self.get(stage["loop_id"])
             final_digest = digest(final_text)
             if stage["state"] == "completed":
-                if background_tasks or session_crons:
+                if background_tasks:
                     return {
                         "captured": False,
                         "superseded": True,
@@ -1113,7 +1113,11 @@ class DevelopmentLoop:
                 }
             if loop["status"] == "paused" and stage["state"] == "ready":
                 raise Conflict("development loop paused; retain completion for retry")
-            if background_tasks or session_crons:
+            # Running background tasks may still change this round's result.
+            # Scheduled session crons are future prompts, possibly for other
+            # projects or work unrelated to committed code, so they never hold
+            # a completion.
+            if background_tasks:
                 raise Conflict("pending background work; retain completion for retry")
             if (
                 loop["status"] != "executive_ready"

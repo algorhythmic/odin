@@ -290,16 +290,16 @@ class DevelopmentLoopTests(unittest.TestCase):
                     "captured"
                 ]
             )
-        for kwargs in (
-            {"background_tasks": [{"running": True}]},
-            {"session_crons": {"active": 1}},
-        ):
-            with self.assertRaises(Conflict):
-                self.loops.capture_stop(
-                    SESSION, text, identifier(), prompt_id="native-prompt", **kwargs
-                )
+        with self.assertRaises(Conflict):
+            self.loops.capture_stop(
+                SESSION, text, identifier(), prompt_id="native-prompt",
+                background_tasks=[{"running": True}],
+            )
+        # A scheduled cron is a future prompt, not running work: it never
+        # holds the completion.
         first = self.loops.capture_stop(
-            SESSION, text, identifier(), prompt_id="native-prompt"
+            SESSION, text, identifier(), prompt_id="native-prompt",
+            session_crons=[{"id": "767c904e", "prompt": "unrelated scheduled check"}],
         )
         repeated = self.loops.capture_stop(
             SESSION, text, identifier(), prompt_id="native-prompt"
