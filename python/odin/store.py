@@ -29,6 +29,23 @@ class Conflict(ValueError):
     """A mutation was rejected before commit."""
 
 
+class Refusal:
+    """Marks an error whose text is a fixed, safe code a surface may relay.
+
+    Use it only for a deterministic refusal: an identical retry is refused
+    again, so the caller must change something first. The code never carries
+    an input value, path or record from another project.
+    """
+
+
+class Refused(Refusal, Conflict):
+    """A relayable refusal of a mutation or its arguments."""
+
+
+class AccessRefused(Refusal, PermissionError):
+    """A relayable refusal of access within the caller's own project."""
+
+
 def now():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 

@@ -10,7 +10,7 @@ from jsonschema import ValidationError
 from odin.coordination import Actor
 from odin.executive_service import prepare_project, submit_executive
 from odin.executive_mcp import ExecutiveBridge
-from odin.gateway import Gateway, GatewayContext
+from odin.gateway import Gateway, GatewayContext, error_result
 from odin.service import Service
 from odin.store import Conflict
 from odin.usage import _tokens, request
@@ -155,6 +155,70 @@ class UsageGatewayTests(unittest.TestCase):
         self.gateway = Gateway(self.service)
         self.assertEqual(self.send('context_status', {'session_id': self.session})['checkpoint'], first['checkpoint'])
 
+    def test_rotated_session_gets_fixed_refusal_codes_not_unknown_write(self):
+        started = self.send('loop_start', {'goal': 'synthetic', 'session_id': self.session})
+        loop_id = started['loop']['id']
+        job = started['job']
+        core = self.gateway.development_loop
+        core.mark_evaluator_started(loop_id, job['id'], job['packet_digest'], identifier())
+        stage_id = core.accept_evaluation(loop_id, job['id'], job['packet_digest'],
+            {'decision': 'continue', 'assessment': 'synthetic', 'findings': [],
+             'next_prompt': 'Do work', 'evidence_refs': []}, identifier())['stage']['id']
+
+        def socket(project):
+            # Mirrors the serve handler's bounded error reply.
+            def gateway(command):
+                try:
+                    return submit_executive(self.gateway, {'command': command}, project)
+                except Exception as error:  # noqa: BLE001 - as the serve handler
+                    return error_result(error, 'synthetic')
+            return gateway
+
+        def bridge(session, project=None):
+            project = project or self.project
+            return ExecutiveBridge(project, socket(project), development_loop=True,
+                                   session_id=session)
+
+        def text(response):
+            self.assertTrue(response['isError'])
+            return response['content'][0]['text']
+
+        refused = 'Executive service refused the request: {}.'.format
+        checkpoint = {'revision': 1, 'branch': None, 'worktree': None,
+            'artifact_refs': [], 'open_obligations': [], 'pending_reviews': [],
+            'operation_ids': [], 'next_action': 'continue', 'summary': 'attributed'}
+        old, rotated = bridge(self.session), bridge(str(uuid.uuid4()))
+        self.assertEqual(text(rotated.call('odin_loop_status', {'loop_id': loop_id})),
+                         refused('loop_owned_by_other_session'))
+        self.assertEqual(text(rotated.call('odin_context_checkpoint', {'operation_id': identifier(),
+            'checkpoint': checkpoint | {'loop_id': loop_id}})),
+            refused('checkpoint_loop_owned_by_other_session'))
+        # Without a loop binding the rotated session's own checkpoint is accepted.
+        self.assertFalse(rotated.call('odin_context_checkpoint', {'operation_id': identifier(),
+            'checkpoint': checkpoint})['isError'])
+
+        bound = checkpoint | {'loop_id': loop_id, 'stage_id': stage_id}
+        operation = identifier()
+        self.assertFalse(old.call('odin_context_checkpoint',
+            {'operation_id': operation, 'checkpoint': bound})['isError'])
+        self.assertEqual(text(old.call('odin_context_checkpoint', {'operation_id': operation,
+            'checkpoint': bound | {'summary': 'changed'}})),
+            refused('operation_id_reused'))
+        self.assertEqual(text(old.call('odin_context_checkpoint', {'operation_id': identifier(),
+            'checkpoint': bound})), refused('checkpoint_revision_not_advanced'))
+        self.assertEqual(text(old.call('odin_context_checkpoint', {'operation_id': identifier(),
+            'checkpoint': bound | {'revision': 2, 'stage_id': identifier()}})),
+            refused('checkpoint_stage_unavailable'))
+
+        # Another project's loop is indistinguishable from an unknown one.
+        foreign = bridge(self.session, self.other)
+        unknown = text(foreign.call('odin_context_checkpoint', {'operation_id': identifier(),
+            'checkpoint': checkpoint | {'loop_id': identifier()}}))
+        self.assertEqual(unknown, refused('checkpoint_loop_unavailable'))
+        self.assertEqual(text(foreign.call('odin_context_checkpoint', {'operation_id': identifier(),
+            'checkpoint': checkpoint | {'revision': 2, 'loop_id': loop_id}})), unknown)
+        self.assertNotIn('refused', text(foreign.call('odin_loop_status', {'loop_id': loop_id})))
+
     def test_evaluator_dispatch_held_then_released_with_same_job(self):
         root = Path(self.temp.name)
         workspace = root / 'workspace'
@@ -197,7 +261,7 @@ class UsageGatewayTests(unittest.TestCase):
         held = self.send('loop_claim', claim, operation=operation, executive=True)
         self.assertTrue(held['held'])
         self.assertEqual(held['admission']['decision'], 'hold')
-        with self.assertRaisesRegex(Conflict, 'identity conflict'):
+        with self.assertRaisesRegex(Conflict, 'operation_id_reused'):
             self.send('loop_claim', claim | {'prompt_id': 'changed'}, operation=operation, executive=True)
         self.send('usage_configure', {'policy': {'mode': 'observe'}})
         result = self.send('loop_claim', claim, operation=operation, executive=True)

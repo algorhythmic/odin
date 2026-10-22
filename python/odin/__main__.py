@@ -63,6 +63,7 @@ def main():
             "executive-configure-context",
             "executive-configure-peer-messaging",
             "executive-configure-execution-role",
+            "executive-configure-model",
             "executive-configure-memory-directory",
             "executive-activate-service",
             "executive-login",
@@ -147,6 +148,7 @@ def main():
     parser.add_argument("--claude-subagent-model-force", action="store_true", help="request native model override for ordinary subagents; native exceptions remain")
     parser.add_argument("--native-peer-messaging", action=argparse.BooleanOptionalAction, default=None, help="opt into session-scoped native Claude peer messaging")
     parser.add_argument("--implementation-mode", choices=["direct", "delegated"], help="stage the executive's native implementation role for its next resume")
+    parser.add_argument("--model", help="stage the executive's claude-* model for its next resume")
     parser.add_argument("--memory-directory", help="absolute executive memory directory for Write/Edit; empty string clears it")
     parser.add_argument("--usage-semantics", choices=["per_turn", "session_cumulative"], default="per_turn", help="explicit Codex source counter semantics")
     parser.add_argument("--once", action="store_true", help="poll configured usage-watch sources once and exit")
@@ -234,6 +236,10 @@ def main():
             if args.implementation_mode is None:
                 parser.error("executive-configure-execution-role requires --implementation-mode")
             print(canonical(executive_runtime.configure_execution_role(state, implementation_mode=args.implementation_mode)))
+        elif args.action == "executive-configure-model":
+            if not args.model:
+                parser.error("executive-configure-model requires --model")
+            print(canonical(executive_runtime.configure_model(state, model=args.model)))
         elif args.action == "executive-configure-memory-directory":
             if args.memory_directory is None:
                 parser.error("executive-configure-memory-directory requires --memory-directory")
@@ -583,11 +589,9 @@ def main():
                         service.mirror.refresh(service.backend)
                 except Exception as error:
                     # Keep protocol errors bounded; never dump a schema or input body.
-                    result = {"error": type(error).__name__, "label": service.label}
-                    from .delegation import DelegationRefused
+                    from .gateway import error_result
 
-                    if isinstance(error, DelegationRefused):
-                        result["detail"] = str(error)
+                    result = error_result(error, service.label)
                 self.wfile.write((canonical(result) + "\n").encode())
                 self.wfile.flush()
                 # Runner launches follow the recorded command and its reply;

@@ -26,6 +26,8 @@ from .executive_mcp import ExecutiveBridge, SocketGateway
 from .native_peer import guidance as peer_guidance, peer_name
 
 DEFAULT_MODEL = "claude-fable-5-1"
+# Matches the executive-pilot schema's model pattern.
+MODEL = re.compile(r"claude-[a-z0-9][a-z0-9.-]{1,100}")
 MCP_TOOLS = (
     "odin_resume",
     "odin_memory_snapshot",
@@ -680,13 +682,11 @@ def _pending_development(manifest, base):
         return None
     pending = _read(path, "executive-pilot")
     expected = manifest | {"version": 3, "repository_root": str(ROOT)}
-    comparable = {key: value for key, value in pending.items()
-                  if key not in ("development_loop", "auto_compact_window_tokens", "native_peer_messaging", "implementation_mode", "intervention_enabled")}
-    expected.pop("development_loop", None)
-    expected.pop("auto_compact_window_tokens", None)
-    expected.pop("native_peer_messaging", None)
-    expected.pop("implementation_mode", None)
-    expected.pop("intervention_enabled", None)
+    staged = ("development_loop", "auto_compact_window_tokens", "native_peer_messaging",
+              "implementation_mode", "intervention_enabled", "model")
+    comparable = {key: value for key, value in pending.items() if key not in staged}
+    for key in staged:
+        expected.pop(key, None)
     if manifest.get("auto_compact_window_tokens") is not None and pending.get("auto_compact_window_tokens") is None:
         raise PermissionError("pending context configuration removed a configured window")
     if comparable != expected or (
@@ -841,6 +841,52 @@ def configure_execution_role(state, *, implementation_mode):
             "native_session_id": manifest["native_session_id"],
             "native_history_preserved": True,
             "native_tool_restriction": "requested_not_verified",
+        }
+
+
+def current_session_id(state):
+    """The executive's current native UUID, read from its manifest.
+
+    Telemetry bound to the executive this way follows ``executive-new-session``
+    instead of keeping a rotated UUID.
+    """
+    state = Path(state)
+    if not state.is_absolute():
+        raise ValueError("executive state path must be absolute")
+    manifest = _read(state / "executive-pilot" / "manifest.json", "executive-pilot")
+    if manifest["state"] != str(state):
+        raise PermissionError("pilot state identity changed")
+    return manifest["native_session_id"]
+
+
+def configure_model(state, *, model):
+    """Stage the executive's requested model for the next v3 launch or resume.
+
+    The native session ID, login and conversation are kept; only ``--model``
+    changes. A running session keeps its model until it exits and resumes.
+    """
+    if not isinstance(model, str) or not MODEL.fullmatch(model):
+        raise ValueError("model must be a claude-* model identifier")
+    state = _private_directory(state)
+    base = _private_directory(state / "executive-pilot")
+    with _lease(base / "prepare.lock"):
+        manifest, base = _load(state)
+        if manifest["version"] != 3:
+            raise PermissionError("model configuration requires the v3 development profile")
+        pending = dict(_pending_development(manifest, base) or manifest)
+        pending["model"] = model
+        if pending != manifest:
+            _write(base / "pending-development.json", "executive-pilot", pending)
+        else:
+            (base / "pending-development.json").unlink(missing_ok=True)
+        return {
+            "configured_model": manifest["model"],
+            "requested_model": model,
+            "pending_activation": pending != manifest,
+            "effective_on_next_start": True,
+            "native_session_id": manifest["native_session_id"],
+            "native_history_preserved": True,
+            "model": "requested_not_verified",
         }
 
 
@@ -1188,6 +1234,8 @@ def status(state):
         "pending_auto_compact_window_tokens": pending.get("auto_compact_window_tokens") if pending else None,
         "native_peer_messaging_configured": bool(manifest.get("native_peer_messaging")),
         "pending_native_peer_messaging": bool(pending.get("native_peer_messaging")) if pending else None,
+        "configured_model": manifest["model"],
+        "pending_model": pending["model"] if pending else None,
         "implementation_mode_configured": manifest.get("implementation_mode", "direct"),
         "intervention_configured": bool(manifest.get("intervention_enabled")),
         "pending_implementation_mode": pending.get("implementation_mode", "direct") if pending else None,

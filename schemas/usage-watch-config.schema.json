@@ -18,13 +18,18 @@
       }
     },
     "status_files": {"type": "array", "maxItems": 64, "items": {"type": "object", "additionalProperties": false,
-      "required": ["path", "session_id", "agent_id", "account_id"],
+      "required": ["path", "agent_id", "account_id"],
       "properties": {
         "path": {"type": "string", "minLength": 1},
         "session_id": {"type": "string", "minLength": 1},
+        "executive_state": {"type": "string", "minLength": 1},
         "agent_id": {"type": "string", "minLength": 1},
         "account_id": {"type": "string", "minLength": 1}
-      }
+      },
+      "oneOf": [
+        {"required": ["session_id"], "not": {"required": ["executive_state"]}},
+        {"required": ["executive_state"], "not": {"required": ["session_id"]}}
+      ]
     }}
   },
   "$defs": {

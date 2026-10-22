@@ -489,12 +489,20 @@ class UsageWatcher:
             return "idle"
         if len(raw) != info.st_size:
             return "changed"
+        session_id = item.get("session_id")
+        if session_id is None:
+            from .executive_runtime import current_session_id
+
+            try:
+                session_id = current_session_id(item["executive_state"])
+            except (OSError, ValueError, ValidationError):
+                return "unavailable"
         try:
             native = strict_loads(raw)
-            if not isinstance(native, dict) or native.get("session_id") != item["session_id"]:
+            if not isinstance(native, dict) or native.get("session_id") != session_id:
                 return "invalid"
             sample = normalize_claude_status(native, project_id=self.config["project_id"],
-                session_id=item["session_id"], agent_id=item["agent_id"],
+                session_id=session_id, agent_id=item["agent_id"],
                 account_id=item["account_id"], observed_at=_status_time(info))
         except (ValueError, ValidationError):
             # A partial/malformed status file must not refresh account quota.

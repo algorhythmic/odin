@@ -25,7 +25,7 @@ from pathlib import Path
 
 from .contracts import ALPHABET, ROOT, Contracts, canonical, identifier, strict_loads
 from .native_peer import guidance, peer_name
-from .store import Conflict, digest, now
+from .store import Conflict, Refused, digest, now
 
 HARNESSES = ("claude-code", "codex")
 PROVIDERS = {"claude-code": "anthropic", "codex": "openai"}
@@ -87,7 +87,7 @@ def _limit_enforcement(capabilities, limits):
     }
 
 
-class DelegationRefused(Conflict):
+class DelegationRefused(Refused):
     """A fixed, safe refusal code the bridge may relay verbatim."""
 
 

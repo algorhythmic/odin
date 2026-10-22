@@ -1,10 +1,12 @@
 """Synthetic incremental telemetry only; no model calls or home-directory scans."""
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from odin import executive_runtime as runtime
 from odin.coordination import Actor
 from odin.executive_service import prepare_project
 from odin.gateway import Gateway, GatewayContext
@@ -299,6 +301,36 @@ class WatchTests(unittest.TestCase):
         with self.watcher() as watch:
             self.assertEqual(watch.poll()['invalid'], 1)
         self.assertIsNone(self.gateway.usage.summary(project_id=self.project)['latest_quota'])
+
+    def test_status_file_bound_to_executive_state_follows_rotation(self):
+        executive = self.root / 'executive'
+        runtime.prepare(executive, config_dir=self.root / 'login', project=self.project,
+                        claude_binary=sys.executable, python_executable=sys.executable)
+        status = self.root / 'status.json'
+
+        def write(session, percent):
+            status.write_text(json.dumps({'session_id': session,
+                'rate_limits': {'seven_day': {'used_percentage': percent}}}))
+
+        self.config['sources'] = []
+        self.config['status_files'] = [{'path': str(status), 'executive_state': str(executive),
+            'agent_id': 'executive', 'account_id': 'account-a'}]
+        first = runtime.current_session_id(executive)
+        with self.watcher() as watch:
+            write(first, 40)
+            self.assertEqual(watch.poll()['imported'], 1)
+            rotated = runtime.new_session(executive)['native_session_id']
+            write(first, 41)
+            self.assertEqual(watch.poll()['invalid'], 1)
+            write(rotated, 42)
+            self.assertEqual(watch.poll()['imported'], 1)
+        quota = self.gateway.usage.summary(project_id=self.project)['latest_quota']
+        self.assertEqual(quota['session_id'], rotated)
+        self.assertEqual(quota['rate_limits']['seven_day']['used_percentage'], 42)
+        self.config['status_files'][0]['executive_state'] = str(self.root / 'missing')
+        self.config['cursor_path'] = str(self.root / 'other-cursor.sqlite3')
+        with self.watcher() as watch:
+            self.assertEqual(watch.poll()['unavailable'], 1)
 
     def test_limit_probes_import_label_keyed_samples_through_the_gateway(self):
         secret = 'SYNTHETIC-WATCH-TOKEN-51c2'
