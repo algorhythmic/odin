@@ -3009,11 +3009,94 @@ tab.
   within a session the hooks, bridge and prompt come from one revision. The
   pinned copy is never pruned while it is `current` or the rollback target.
 
+- *Deploy path (items 5–9, 2026-10-22, second pass).* Restarts exist to
+  deploy self-improvement, and most improvements live in the service, so the
+  same supervisor deploys.
+  - *Request.* `odin_runtime_deploy(head, operation_id)` records a deploy
+    (requested head, previous revision, state, timings, a typed code, a drain
+    deadline). The service accepts only the current head of the configured
+    integration branch from a clean checkout on that branch, and refuses with
+    `deploy_not_configured`, `deploy_request_pending`,
+    `deploy_head_not_integration_head`, `deploy_tree_dirty`,
+    `deploy_checkout_not_on_integration_branch`, `deploy_checkout_unreadable`,
+    `deploy_head_already_current`, `restart_request_pending` or a restart
+    safety code. Restart and deploy requests exclude each other. The
+    operator-only `executive-configure-deploy` records the repository, the
+    branch, the deploy root, the number of copies to keep and the drain
+    timeout.
+  - *Drain.* While a deploy is pending, draining or deploying,
+    `launch_pending` launches no delegated turn and the evaluator starts no
+    job; queued work stays queued and running work finishes. Status shows the
+    drain and what it waits for (running turns, running evaluator jobs, live
+    interventions, claimed stages) and how many queued turns it holds. The
+    drain ends at the deploy's deadline even without a supervisor; the
+    supervisor, or the next deploy action, records `drain_timeout`. Nothing
+    is killed.
+  - *Pinned copies.* The deploy root (default
+    `~/.local/state/odin-executive-pilot/deploy`, 0700) holds read-only
+    `git archive` exports at `<revision>` with their marker, and `current`, a
+    symlink switched by one atomic rename. The configured number of copies is
+    kept; `current` and the rollback target are never removed.
+    `executive-deploy-prepare --head` exports and switches without restarting
+    anything, for the one-time migration. After the documented migration the
+    service and telemetry units, the launcher and the status line run from
+    `current`; the executive's hooks and bridge follow the launcher, pinned as
+    stated above.
+  - *Carrying it out.* The supervisor moves the deploy to `draining`; once
+    nothing runs and the executive is idle it stops the executive by the
+    self-restart path (the service rechecks the head as `deploying` begins),
+    so no turn sees the service restart. With no child running it exports the
+    commit, switches `current`, restarts the service unit through
+    `service_activation` (revision check and activation record; queued turns
+    held by the drain do not count against quiescence) and checks health:
+    the socket answers, the reported revision matches and a read-only status
+    call works. On failure it switches `current` back, restarts the service on
+    the previous revision (an activation without the checkout check, since the
+    checkout is ahead) and records `rolled_back`, or `rollback_failed` when
+    that fails too; with no previous copy it removes `current`
+    (`rollback_unavailable`). It restarts the telemetry unit after the service
+    in every case, records `restarting_executive`, and re-execs itself, so the
+    newly deployed code supervises and launches the executive. The new
+    supervisor records `deployed`, `rolled_back` or `failed` once the session
+    starts, prunes copies, and the executive gets a notice with the outcome.
+    A deploy left between the switch and its report is carried at the next
+    supervisor start when `current` and the service report the requested
+    head, and otherwise failed with `supervisor_lost`.
+  - *Executive flow.* Accepted change, then the integration owner merges,
+    then the executive calls `odin_runtime_deploy(head)`, then the supervisor
+    drains, deploys and verifies, then the executive resumes with the notice.
+    The code accepts only the integration head; that the head was accepted is
+    the integration owner's merge discipline, not something the service can
+    check. Never deploy an unaccepted head. The executive's prompt states this
+    flow when the development loop is enabled.
+  - *Activation.* Live acceptance is the operator's: the first real deploy,
+    by hand with the operator present after the migration, and a forced
+    rollback. The supervisor never edits unit files, the launcher or settings.
+
 **Limits.** A turn that starts between the final idle check and the signal
-can be stopped near its start; the window is one poll at most. Scheduled session wakeups and background work that Claude Code does not
+can be stopped near its start; the window is one poll at most. A deployed
+copy's cleanliness is not verified after export (it is made read-only). The
+health check is the service's own revision report and one status call, not a
+functional test. The telemetry unit restart is attempted and recorded, but it
+never decides the outcome. While the supervised services run as the transient
+`systemd-run` units that exist today, a service restart keeps their worktree
+environment; the migration replaces them. Scheduled session wakeups and background work that Claude Code does not
 report in the Stop event do not survive a restart. Without a running supervisor
 a request stays pending and nothing happens. The supervisor runs with the
 operator's authority; it is not isolation.
+
+**Checks (deploy).** `tests/test_code_root.py` runs a deployed copy as a
+separate process against state prepared by the checkout.
+`tests/test_deploy_copies.py` covers export, the atomic switch, rollback of
+the link, pruning, configuration and the operator actions.
+`tests/test_executive_deploy.py` covers request refusals, the drain view and
+deadline, drain admission (a real queued delegated turn and a real evaluator
+job stay queued, running work is not touched), activation quiescence with
+held queued turns, and end to end with a fake service unit driving the real
+`service_activation` and the fake Claude binary: deploy and resume, rollback
+on a failing service with both activation records, a failed rollback, waiting
+for a running turn, the drain timeout without a stop, and a deploy carried
+after a lost supervisor.
 
 **Checks.** `tests/test_executive_supervisor.py` runs the supervisor on the
 real start path against a synthetic Claude binary (`tests/fake_claude.py`):

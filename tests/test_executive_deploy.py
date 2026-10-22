@@ -448,3 +448,18 @@ class ActivationQuiescenceTests(DeployBase):
         store.db.commit()
         self.assertFalse(quiescence(self.state)["quiescent"])
         self.assertTrue(quiescence(self.state, include_queued=False)["quiescent"])
+
+
+class PromptGuidanceTests(DeployBase):
+    def test_prompt_states_the_restart_and_deploy_flow_with_the_loop(self):
+        from odin import executive_runtime as runtime
+        manifest = runtime._load(self.state)[0]
+        for mode in ("direct", "delegated"):
+            with self.subTest(mode=mode):
+                with_loop = runtime._development_prompt(manifest | {"implementation_mode": mode,
+                                                                    "development_loop": True})
+                self.assertIn("odin_runtime_deploy", with_loop)
+                self.assertIn("never deploy an unaccepted head", with_loop)
+                without = runtime._development_prompt(manifest | {"implementation_mode": mode,
+                                                                  "development_loop": False})
+                self.assertNotIn("odin_runtime_deploy", without)

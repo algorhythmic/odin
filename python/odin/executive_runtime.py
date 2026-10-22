@@ -701,9 +701,25 @@ def _development_prompt(manifest):
         "an accepted or cancelled disposition; they carry no isolation or Saga "
         "guarantees."
     )
+    prompt += _supervision_guidance(manifest)
     if manifest.get("native_peer_messaging"):
         prompt += peer_guidance(manifest["native_session_id"], "executive")
     return prompt
+
+
+def _supervision_guidance(manifest):
+    """Restart and deploy flow (ODIN-ADR-039); the tools come with the development loop."""
+    if not manifest.get("development_loop"):
+        return ""
+    return (
+        " To load staged executive changes (model, mode, permits, prompt), call "
+        "odin_executive_restart with a reason. To put an accepted change into service, after "
+        "the integration owner has merged it, call odin_runtime_deploy with the integration "
+        "branch's head; never deploy an unaccepted head. Both only record a request for the "
+        "operator's supervisor and are refused with fixed codes when unsafe. End your turn "
+        "after either; the supervisor acts at the next idle turn end and a notice reports the "
+        "outcome when this session resumes. Without a running supervisor nothing happens."
+    )
 
 
 def _delegated_prompt(manifest):
@@ -756,6 +772,7 @@ def _delegated_prompt(manifest):
             "are for diagnostics and repair, not a replacement implementation workflow: "
             "delegate implementation. Do not put secrets in purpose or tool arguments."
         )
+    prompt += _supervision_guidance(manifest)
     if manifest.get("native_peer_messaging"):
         prompt += peer_guidance(manifest["native_session_id"], "executive")
     return prompt

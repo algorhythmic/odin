@@ -632,6 +632,118 @@ hooks (read from the 2.1.308 code), that the marker hooks fire as described
 session shows the staged change, and how the warning screen behaves on the
 first supervised relaunch.
 
+### Deploying accepted changes
+
+A restart only loads executive-side changes. Most improvements live in the
+service, so the supervisor also deploys
+([ODIN-ADR-039](DECISIONS.md#odin-adr-039--executive-self-restart-through-an-operator-run-supervisor),
+items 5–9). Nothing here is active until the one-time migration below is
+done and the supervisor runs.
+
+**Flow.** An accepted change is merged by the integration owner. The
+executive then calls `odin_runtime_deploy` with the integration branch's head
+and ends its turn. The service accepts only that head from a clean checkout
+on that branch. It refuses with `deploy_not_configured`,
+`deploy_request_pending`, `deploy_head_not_integration_head`,
+`deploy_tree_dirty`, `deploy_checkout_not_on_integration_branch`,
+`deploy_checkout_unreadable`, `deploy_head_already_current`,
+`restart_request_pending` or a restart safety code. The code cannot tell
+whether a head was accepted; never deploy an unaccepted head.
+
+**Drain.** From the request until the service restart, no new delegated turn
+or evaluator job starts: queued work stays queued, running work finishes, and
+nothing is killed. `executive_restart_status` on the operator socket shows
+`drain` with `waiting_for` (running turns, running evaluator jobs, live
+interventions, claimed stages) and `queued_turns_held`. The drain ends at
+`drain_timeout_seconds` (default 3600) even without a supervisor, and the
+request then fails with `drain_timeout`.
+
+**What the supervisor does.** Once nothing is running and the executive is
+idle, it stops the executive (as for a restart), exports the commit to
+`deploy/<revision>`, switches `deploy/current`, restarts
+`odin-executive-pilot-service` through the same activation logic as
+`executive-activate-service` (an activation record under
+`executive-pilot/service-activations/`), and checks that the socket
+answers, the service reports the new revision and a status call works. On
+failure it switches `current` back and restarts the service on the previous
+revision (`rolled_back`; `rollback_failed` if that also fails;
+`rollback_unavailable` with no previous copy, which removes `current`). It
+then restarts `odin-executive-telemetry`, and re-execs itself so the deployed
+code supervises, and resumes the executive. The executive gets a notice
+saying `deployed`, `rolled_back` or `failed`, with timings. The deploy record,
+history events (`executive.deploy_*`) and the supervisor journal keep each
+step.
+
+**Configure (operator, once):**
+
+```bash
+~/.local/state/odin-executive-pilot/run executive-configure-deploy \
+  --repository /home/david/.codex/worktrees/23e7/odin \
+  --branch codex/odin-continuity-integration --keep 3 --drain-timeout 3600
+```
+
+`--deploy-root` defaults to `~/.local/state/odin-executive-pilot/deploy`
+(created 0700; it must lie outside the repository and the state directory).
+
+### One-time migration to pinned deploy copies
+
+Today the runtime reads code from the live integration worktree, so a merge
+silently changes code for any newly started hook, CLI or bridge process while
+the service runs old code. These settings were read on 2026-10-22:
+
+| Component | Where | Current code path |
+|---|---|---|
+| Service unit | `~/.config/systemd/user/odin-executive-pilot-service.service` | `WorkingDirectory=/home/david/.codex/worktrees/23e7/odin`, `Environment=PYTHONPATH=/home/david/.codex/worktrees/23e7/odin/python`, `ExecStart=.../venv/bin/python -m odin --state .../state serve --executive-project 01M5BAGF5757NS4MA7PKANFTRH` |
+| Telemetry unit | `~/.config/systemd/user/odin-executive-telemetry.service` | the same `WorkingDirectory` and `PYTHONPATH`; `ExecStart=... usage-watch --request .../telemetry/watch.json` |
+| Running units | `/run/user/1000/systemd/transient/` | both units currently run as transient `systemd-run` units that shadow the files above, with the same worktree environment |
+| Launcher | `~/.local/state/odin-executive-pilot/run` | `export PYTHONPATH=/home/david/.codex/worktrees/23e7/odin/python` |
+| Status line | `~/.local/state/odin-executive-pilot/claude-login/settings.json`, `statusLine.command` | `/usr/bin/env PYTHONPATH=/home/david/.codex/worktrees/23e7/odin/python .../venv/bin/python -m odin.usage_statusline ...` |
+| Executive hooks and MCP bridge | built at each executive launch from the launcher's code | intervention hook: `/usr/bin/env PYTHONPATH=/home/david/.codex/worktrees/23e7/odin/python .../venv/bin/python -m odin.executive_intervention_hook --state ... --project ... --session-id ...`; the loop Stop hook, the turn-marker hooks and the MCP bridge use the same `PYTHONPATH` |
+
+Steps, with the operator present, at a quiescent point, on a head that
+contains this change (call it `HEAD`). The worker documents them; it does not
+perform them.
+
+1. Configure deploys (above), then export the head and create `current`
+   without restarting anything:
+   `run executive-deploy-prepare --head HEAD`.
+2. Launcher: change its export to
+   `PYTHONPATH=/home/david/.local/state/odin-executive-pilot/deploy/current/python`.
+3. Unit files: in both units set
+   `WorkingDirectory=/home/david/.local/state/odin-executive-pilot/deploy/current`
+   and
+   `Environment=PYTHONPATH=/home/david/.local/state/odin-executive-pilot/deploy/current/python`.
+4. Replace the transient units: `systemctl --user stop
+   odin-executive-telemetry odin-executive-pilot-service`, then
+   `systemctl --user daemon-reload`, then `systemctl --user start
+   odin-executive-pilot-service odin-executive-telemetry` (and `enable` them
+   if they should start at login). Until the transient units are gone, a
+   restart re-creates their worktree environment and the split-version state
+   remains.
+5. Status line: change the `PYTHONPATH=` in `statusLine.command` to
+   `.../deploy/current/python`. It runs per refresh, so it follows `current`.
+6. Executive: exit the running session and start
+   `run executive-supervise` in its tab. The hooks and bridge are rebuilt from
+   the launcher's code at that launch. Because `ROOT` is resolved, they name
+   `deploy/<HEAD>/python`, the revision that launched them, and keep it until
+   the next restart, which every deploy performs.
+7. Check: `run executive-status` (the configuration's `repository_root` is
+   still the checkout), `~/.local/state/odin-executive-pilot/state/service-revision.json` reports
+   `HEAD` with `clean: null` (a deployed copy has no git metadata), and
+   `systemctl --user show -p Environment odin-executive-pilot-service` shows
+   `current`.
+
+To undo, restore the four edited files and restart the units. After the
+migration, `executive-activate-service` checks the running revision against
+its `--head`. Use a deploy instead, unless `--head` equals `current`.
+
+**Live acceptance (operator).** The first real deploy (by hand, operator
+present) and a forced rollback, for example deploying a head whose service
+fails to start. Also observe the drain holding a queued turn, the
+re-exec'd supervisor taking the lease, and the resumed executive receiving
+the deploy notice. The tests use a fake service unit and a fake Claude
+binary.
+
 ## Repository evidence and the retained read-only profile
 
 Version 3 already exposes native file tools. The following version 2 upgrade
