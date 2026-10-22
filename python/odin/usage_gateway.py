@@ -60,6 +60,8 @@ def dispatch(gateway, action, payload, context, operation):
                     raise PermissionError("usage native session has no recorded loop/stage lineage; import project-only metadata")
             outcome = gateway.usage.ingest(item)
             outcomes[outcome] = outcomes.get(outcome, 0) + 1
+            if outcome == "inserted":
+                gateway.limit_notices.observe(item)
         if "coverage" in payload:
             gateway.usage.record_coverage(payload["source_id"], payload["coverage"], project_id=project)
         return {"outcomes": outcomes, "provenance": "operator_imported_native_metadata_not_attested"}

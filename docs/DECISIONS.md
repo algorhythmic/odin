@@ -2232,6 +2232,22 @@ remain available in every profile.
   remaining live acceptance work are in [USAGE-AND-ROUTING.md](USAGE-AND-ROUTING.md).
   This is not proof of nested native delegation, automatic collection coverage,
   cheaper accepted changes, or Saga isolation and limit guarantees.
+- **Amendment (2026-10-21, operator direction):** account limit telemetry
+  "should trigger events when certain thresholds are reached". A newly
+  imported sample that moves a label to another admission band records
+  `usage.limit_band_changed` and a durable `limit_band` notice, delivered to the
+  executive through its existing channel and acknowledged with `odin_loop_ack`.
+  Status-line quota samples count as `claude.five_hour` and `claude.weekly`. For
+  `claude.weekly.fable` at `ordinary_stop` or above, the notice suggests the
+  operator stage `executive-configure-model --model claude-opus-5-5`, a new
+  command that stages the executive's model for its next resume while keeping
+  its session and login. Bands still hold nothing, and no code switches a model:
+  the model remains the operator's decision. The status-line helper and watcher
+  may follow the executive's manifest (`--executive-state`, `executive_state`)
+  instead of a fixed native UUID, so telemetry survives `executive-new-session`.
+  Tests are in `tests/test_limit_notices.py`, `tests/test_executive_model.py`,
+  `tests/test_usage_watch.py` and `tests/test_usage_statusline.py`. This record
+  does not state their results. Live delivery requires an observed activation.
 - **Cross-reference:** ODIN-ADR-038 (proposed) would let the successor of a
   handed-over loop checkpoint against it and, on request, read its
   predecessor's latest checkpoint.

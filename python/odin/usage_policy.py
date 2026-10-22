@@ -60,6 +60,174 @@ def _limit_bands(summary):
         bands.append({"label": sample["label"], "utilization_percent": sample["utilization_percent"],
                       "observed_at": sample["observed_at"], "band": band})
     return bands
+# Odin's own meaning of each band, for the executive's notice text.
+BAND_MEANING = {
+    "clear": "below every admission band",
+    "wind_down": "finish current work and avoid starting large new work on this limit",
+    "ordinary_stop": "start no new ordinary work on this limit; hand off or switch",
+    "handoff_only": "only handoff and recovery work on this limit",
+}
+# Suggested operator action when a model-specific weekly limit tightens.
+MODEL_FALLBACK = {"claude.weekly.fable": "claude-opus-5-5"}
+LIMIT_NOTICE_HEADER = (
+    "NOTICE, not an assignment. Account limit {label} moved from {previous} to "
+    "{band} at {percent}% (observed {observed_at}, source {source}). Odin's "
+    "bands are not provider limits and enforce nothing. Do not claim, ready or "
+    "re-execute any stage because of this message. Acknowledge it with "
+    "odin_loop_ack notice_id={notice_id} and a stable operation_id so it stops "
+    "being offered; acknowledgement records only that you saw it and grants no "
+    "authority.\n\n"
+)
+
+
+def _band_observations(observation):
+    """(label, percent, source) pairs an imported sample reports, if any."""
+    if observation["kind"] == "limit":
+        if observation.get("status") != "available":
+            return []
+        return [(observation["label"], observation["utilization_percent"], "limit_probe")]
+    if observation["kind"] == "quota" and observation["provider"] == "claude":
+        rates = observation.get("rate_limits") or {}
+        return [(label, (rates.get(window) or {}).get("used_percentage"), "status_line")
+                for label, window in (("claude.five_hour", "five_hour"),
+                                      ("claude.weekly", "seven_day"))]
+    return []
+
+
+class LimitNotices:
+    """Durable notices when an account limit sample changes admission band.
+
+    The executive receives them through its existing notice channel. A notice
+    reports an observation; it switches no model and holds no work.
+    """
+
+    def __init__(self, store):
+        store._core()
+        self.store = store
+        store.db.executescript("""
+            CREATE TABLE IF NOT EXISTS usage_limit_bands
+              (project TEXT NOT NULL, label TEXT NOT NULL, band TEXT NOT NULL,
+               observed_at TEXT NOT NULL, PRIMARY KEY(project,label));
+            CREATE TABLE IF NOT EXISTS usage_limit_notices
+              (id TEXT PRIMARY KEY, project TEXT NOT NULL, label TEXT NOT NULL,
+               state TEXT NOT NULL, body TEXT NOT NULL);
+        """)
+
+    def observe(self, observation):
+        """Record band changes for one newly inserted sample; return notice IDs."""
+        from .development_loop import _ulid_from_digest
+
+        project, created = observation["project_id"], []
+        observed_at = observation["observed_at"]
+        for label, percent, source in _band_observations(observation):
+            band = band_for(label, percent)
+            if band is None:
+                continue
+            row = self.store.db.execute(
+                "SELECT band,observed_at FROM usage_limit_bands WHERE project=? AND label=?",
+                (project, label)).fetchone()
+            if row and row[1] >= observed_at:
+                continue  # An older or simultaneous sample never moves the band.
+            previous = row[0] if row else None
+            self.store.db.execute(
+                "INSERT INTO usage_limit_bands VALUES(?,?,?,?) ON CONFLICT(project,label) "
+                "DO UPDATE SET band=excluded.band,observed_at=excluded.observed_at",
+                (project, label, band, observed_at))
+            if band == previous or (previous is None and band == "clear"):
+                continue
+            self.store._history("usage.limit_band_changed", {
+                "project": project, "label": label, "previous_band": previous,
+                "band": band, "utilization_percent": percent,
+                "observed_at": observed_at, "source": source})
+            for (body,) in self.store.db.execute(
+                    "SELECT body FROM usage_limit_notices WHERE project=? AND label=? "
+                    "AND state='pending'", (project, label)).fetchall():
+                self._save(strict_loads(body) | {"state": "superseded"})
+            fallback = MODEL_FALLBACK.get(label)
+            notice = {
+                "schema_version": 1,
+                "id": _ulid_from_digest({"kind": "limit_band", "project": project,
+                                         "label": label, "observed_at": observed_at}),
+                "kind": "limit_band", "project": project, "label": label,
+                "previous_band": previous, "band": band,
+                "utilization_percent": percent, "observed_at": observed_at,
+                "source": source,
+                "suggested_action": (
+                    f"operator may stage executive-configure-model --model {fallback} "
+                    "and resume the executive"
+                    if fallback and band in ("ordinary_stop", "handoff_only") else None),
+                "created_at": now(), "state": "pending", "first_offered_at": None,
+                "acknowledged_at": None, "acknowledged_by": None,
+                "acknowledgement_authority": None,
+            }
+            self.store.db.execute(
+                "INSERT INTO usage_limit_notices VALUES(?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
+                (notice["id"], project, label, "pending", canonical(notice)))
+            created.append(notice["id"])
+        return created
+
+    def notice(self, notice_id):
+        row = self.store.db.execute(
+            "SELECT body FROM usage_limit_notices WHERE id=?", (notice_id,)).fetchone()
+        return strict_loads(row[0]) if row else None
+
+    def _save(self, notice):
+        self.store.db.execute(
+            "UPDATE usage_limit_notices SET state=?,body=? WHERE id=?",
+            (notice["state"], canonical(notice), notice["id"]))
+
+    def pending(self, project, limit=8):
+        rows = self.store.db.execute(
+            "SELECT body FROM usage_limit_notices WHERE project=? AND state='pending' "
+            "ORDER BY rowid LIMIT ?", (project, limit))
+        return [strict_loads(row[0]) for row in rows]
+
+    def mark_offered(self, notice_ids, at=None):
+        """Record the first channel offer only; later polls write nothing."""
+        stamp = at or now()
+        with self.store.transaction():
+            for notice_id in notice_ids:
+                notice = self.notice(notice_id)
+                if notice and notice["first_offered_at"] is None:
+                    self._save(notice | {"first_offered_at": stamp})
+
+    def acknowledge(self, notice_id, project, *, actor):
+        """Model-attributed acknowledgement: stops re-delivery, grants nothing else."""
+        with self.store.transaction():
+            notice = self.notice(notice_id)
+            if notice is None or notice["project"] != project:
+                raise Conflict("notice belongs to another project")
+            if notice["state"] == "pending":
+                notice = notice | {
+                    "state": "acknowledged", "acknowledged_at": now(),
+                    "acknowledged_by": actor,
+                    "acknowledgement_authority": (
+                        "model_attributed_not_operator_approval"
+                        if actor == "fable-executive"
+                        else "operator_terminal_acknowledgement_not_approval"),
+                }
+                self._save(notice)
+                self.store._history("usage.limit_notice_acknowledged",
+                                    {"notice_id": notice_id, "actor": actor})
+        return {"notice": {key: notice[key] for key in (
+            "id", "kind", "label", "band", "state", "acknowledged_at",
+            "acknowledged_by", "acknowledgement_authority")}}
+
+    @staticmethod
+    def render(notice):
+        text = LIMIT_NOTICE_HEADER.format(
+            label=notice["label"], previous=notice["previous_band"] or "unobserved",
+            band=notice["band"], percent=f"{notice['utilization_percent']:g}",
+            observed_at=notice["observed_at"], source=notice["source"],
+            notice_id=notice["id"])
+        text += f"Band meaning: {BAND_MEANING[notice['band']]}."
+        if notice["suggested_action"]:
+            text += (f"\nSuggested action: {notice['suggested_action']}. Changing the "
+                     "executive model is the operator's decision; report this to the "
+                     "operator rather than acting on it.")
+        return text
+
+
 _UNSET = object()
 
 

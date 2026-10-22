@@ -22,7 +22,7 @@ from .memory import Memory
 from .orchestration_config import OrchestrationConfig
 from .store import Conflict, Refusal, Refused, digest, event, now
 from .usage import UsageLedger
-from .usage_policy import UsagePolicy, ContinuityCheckpoints
+from .usage_policy import UsagePolicy, ContinuityCheckpoints, LimitNotices
 from .usage_gateway import ACTIONS as USAGE_ACTIONS, EXECUTIVE_ACTIONS as EXECUTIVE_USAGE_ACTIONS
 
 DELEGATION_ACTIONS = {
@@ -78,6 +78,7 @@ class Gateway:
         self.usage = UsageLedger(self.store)
         self.usage_policy = UsagePolicy(self.store)
         self.checkpoints = ContinuityCheckpoints(self.store)
+        self.limit_notices = LimitNotices(self.store)
         self.evaluator_configured = evaluator_configured
         self.store.db.executescript("""
             CREATE TABLE IF NOT EXISTS gateway_commands

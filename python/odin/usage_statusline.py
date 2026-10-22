@@ -155,7 +155,10 @@ def status_text(snapshot):
 def main(argv=None, *, stdin=None, stdout=None, stderr=None):
     parser = argparse.ArgumentParser(description="Capture one private Claude status-line sample")
     parser.add_argument("--output", required=True)
-    parser.add_argument("--session-id", required=True)
+    identity = parser.add_mutually_exclusive_group(required=True)
+    identity.add_argument("--session-id")
+    identity.add_argument("--executive-state",
+                          help="follow the executive's current native UUID across rotation")
     parser.add_argument("--project", required=True)
     args = parser.parse_args(argv)
     source = stdin or sys.stdin.buffer
@@ -165,15 +168,20 @@ def main(argv=None, *, stdin=None, stdout=None, stderr=None):
         raw = source.read(MAX_INPUT_BYTES + 1)
         if len(raw) > MAX_INPUT_BYTES:
             raise ValueError("status input exceeds bound")
+        session_id = args.session_id
+        if session_id is None:
+            from .executive_runtime import current_session_id
+
+            session_id = current_session_id(args.executive_state)
         snapshot = sanitize(strict_loads(raw.decode("utf-8")),
-                            session_id=args.session_id, project=args.project)
+                            session_id=session_id, project=args.project)
         if snapshot is None:
             print("Odin status unavailable", file=output_stream)
             return 0
         write_snapshot(args.output, snapshot)
         print(status_text(snapshot), file=output_stream)
         return 0
-    except (OSError, UnicodeError, ValueError, ValidationError) as error:
+    except (OSError, UnicodeError, ValueError, ValidationError, PermissionError) as error:
         print("Odin status capture unavailable: " + type(error).__name__, file=error_stream)
         return 1
 

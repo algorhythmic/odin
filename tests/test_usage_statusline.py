@@ -1,16 +1,18 @@
 """Synthetic native status-line payloads only; no live configuration changes."""
 
+import contextlib
 import io
 import json
 import os
 import stat
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from odin import executive_runtime as runtime
 from odin.contracts import Contracts
 from odin.usage_statusline import main, sanitize, status_text, write_snapshot
-
 
 PROJECT = "01K7M000000000000000000001"
 SESSION = "11111111-1111-4111-8111-111111111111"
@@ -49,6 +51,30 @@ class StatuslineTests(unittest.TestCase):
                      "--project", PROJECT], stdin=io.BytesIO(json.dumps(value).encode()),
                     stdout=stdout, stderr=stderr)
         return code, stdout.getvalue(), stderr.getvalue()
+
+    def test_executive_state_follows_the_current_native_session(self):
+        state = Path(self.temp.name) / "executive"
+        runtime.prepare(state, config_dir=Path(self.temp.name) / "login", project=PROJECT,
+                        claude_binary=sys.executable, python_executable=sys.executable)
+
+        def invoke(value):
+            stdout, stderr = io.StringIO(), io.StringIO()
+            code = main(["--output", str(self.output), "--executive-state", str(state),
+                         "--project", PROJECT], stdin=io.BytesIO(json.dumps(value).encode()),
+                        stdout=stdout, stderr=stderr)
+            return code, stdout.getvalue()
+
+        first = runtime.current_session_id(state)
+        self.assertEqual(invoke(native(first))[0], 0)
+        self.assertEqual(json.loads(self.output.read_text())["session_id"], first)
+        rotated = runtime.new_session(state)["native_session_id"]
+        self.assertEqual(invoke(native(first)), (0, "Odin status unavailable\n"))
+        self.assertEqual(invoke(native(rotated))[0], 0)
+        self.assertEqual(json.loads(self.output.read_text())["session_id"], rotated)
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            main(["--output", str(self.output), "--session-id", SESSION,
+                  "--executive-state", str(state), "--project", PROJECT],
+                 stdin=io.BytesIO(b"{}"), stdout=io.StringIO(), stderr=io.StringIO())
 
     def test_sanitized_native_shape_private_atomic_file(self):
         code, line, error = self.invoke(native())

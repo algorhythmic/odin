@@ -71,6 +71,11 @@ def check_scope(gateway, action, payload):
             if delegated["project"] != payload.get("project"):
                 raise PermissionError("notice belongs to another project")
             return
+        limit = gateway.limit_notices.notice(payload["notice_id"])
+        if limit is not None:
+            if limit["project"] != payload.get("project"):
+                raise PermissionError("notice belongs to another project")
+            return
         notice = gateway.development_loop.notice(payload["notice_id"])
         if notice["project"] != payload.get("project"):
             raise PermissionError("notice belongs to another project")
@@ -689,10 +694,34 @@ def dispatch(gateway, action, payload, context, operation):
             )
         if delegated and context.actor.subject == "fable-executive":
             gateway.delegation.mark_offered([notice["id"] for notice in delegated])
+        # Account limit band notices (ODIN-ADR-031 amendment) take the slots left.
+        room = min(4, INBOX_LIMIT - len(messages))
+        limits = (
+            gateway.limit_notices.pending(payload["project"], limit=room)
+            if "notice" in accept and room > 0
+            else []
+        )
+        for notice in limits:
+            messages.append(
+                {
+                    "kind": "notice",
+                    "message_id": notice["id"],
+                    "notice_id": notice["id"],
+                    "loop_id": None,
+                    "stage_id": None,
+                    "content": gateway.limit_notices.render(notice),
+                }
+            )
+        if limits and context.actor.subject == "fable-executive":
+            gateway.limit_notices.mark_offered([notice["id"] for notice in limits])
         return {"messages": messages}
     if action == "loop_ack":
         if gateway.delegation.notice(payload["notice_id"]) is not None:
             return gateway.delegation.acknowledge_notice(
+                payload["notice_id"], payload["project"], actor=context.actor.subject
+            )
+        if gateway.limit_notices.notice(payload["notice_id"]) is not None:
+            return gateway.limit_notices.acknowledge(
                 payload["notice_id"], payload["project"], actor=context.actor.subject
             )
         return controller.acknowledge(

@@ -142,6 +142,23 @@ deltas. The project aggregate in status (`project_aggregate`) sums the sessions
 and is labelled `attributed_not_verified`. Raw inclusive figures stay in each
 turn result for audit. Codex per-turn costs are summed as reported.
 
+## Executive model
+
+The executive's requested model is stored in its manifest and passed as
+`--model` at every launch and resume. To change it, stage the new model and
+resume the same executive once its current work has drained:
+
+```bash
+python -m odin --state "$ODIN_PILOT_STATE" executive-configure-model \
+  --model claude-opus-5-5
+```
+
+The native session ID, login and conversation are kept. Staging the configured
+model again cancels the change, and it composes with the other staged settings.
+`executive-status` reports `configured_model` and `pending_model`. The running
+session keeps its model until it exits, and the model actually used remains
+`requested_not_verified`. Nothing changes the model automatically.
+
 ## Executive role and existing-loop transition
 
 ADR-033 separates the executive's context from project implementation. This is
@@ -296,9 +313,14 @@ to configured paths, and continuous coverage remains explicitly incomplete.
 For native context and account quota, an opt-in status-line command is available:
 
 ```bash
-python -m odin.usage_statusline --output /private/telemetry/fable-status.json \
-  --session-id NATIVE_UUID --project PROJECT_ULID
+python -m odin.usage_statusline --output /private/telemetry/executive-status.json \
+  --executive-state "$ODIN_PILOT_STATE" --project PROJECT_ULID
 ```
+
+`--executive-state` reads the executive's current native UUID from its manifest
+on every render, so the capture follows `executive-new-session`. A fixed
+`--session-id NATIVE_UUID` is still accepted, but it stops capturing after a
+rotation.
 
 Configure this command in the dedicated Claude profile's `statusLine` setting,
 preserving any existing display configuration. It reads bounded native stdin,
@@ -412,8 +434,22 @@ Labels not in this table, such as `claude.weekly.opus`, have no band. They keep
 the legacy `max_*_used_percentage` policy behaviour exactly. The default
 `observe` mode still holds nothing. Each policy decision reports the latest
 available sample and band per known label in `limit_bands`, and `usage-status`
-returns that decision. Band membership does not change the `hold` decision in
-this increment.
+returns that decision. Band membership does not change the `hold` decision.
+
+**Band changes are events.** When a newly imported sample moves a label to a
+different band, the service records `usage.limit_band_changed` in history and a
+durable `limit_band` notice for the executive. Probe samples count under their
+label. Status-line quota samples count as `claude.five_hour` and
+`claude.weekly`. A first observation in `clear` records the band without a
+notice, and an older or simultaneous sample never moves it. A newer notice for
+the same label supersedes a pending older one. The executive receives the
+notice through its channel, like a delegation notice, and acknowledges it with
+`odin_loop_ack`; acknowledgement is model-attributed and grants nothing. When
+`claude.weekly.fable` reaches `ordinary_stop` or `handoff_only`, the notice
+suggests that the operator stage `executive-configure-model --model
+claude-opus-5-5`. The notice is the only effect: no model is switched and no
+work is held. The live pilot shows Fable-specific figures only once the limit
+probes are configured; the status line reports account-wide windows.
 
 ## Context continuity and compaction
 
@@ -488,13 +524,20 @@ decreased counters is treated as invalid coverage while other requests continue.
   "status_files": [
     {
       "path": "/explicit/private/status.json",
-      "session_id": "SESSION_UUID",
+      "executive_state": "/explicit/odin/pilot/state",
       "agent_id": "executive",
       "account_id": "operator-chosen-account-label"
     }
   ]
 }
 ```
+
+A status file names either a fixed `session_id` or `executive_state`, which
+resolves the executive's current native UUID at each poll. An unreadable
+manifest counts the file as `unavailable`. Changing an existing entry changes
+its cursor identity, so point the new entry at a new status file path. For
+token usage across rotations, a `sessions_dir` source with `discover_sessions`
+already picks up new session files.
 
 Run one poll with `python -m odin --state "$ODIN_PILOT_STATE" usage-watch
 --request /private/watch-config.json --once`; omit `--once` to poll at the
