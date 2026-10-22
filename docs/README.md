@@ -54,7 +54,10 @@ Alongside them:
   [web app work plan](design/WEB-APP-WORKPLAN.md),
   [library choice](design/WEB-APP-LIBRARIES.md), the
   [browser projection draft](design/WEB-APP-PROJECTION.md) and the
-  [pass 4 brief](design/WEB-APP-PASS-4-BRIEF.md): ODIN-ADR-037's
+  [pass 4 brief](design/WEB-APP-PASS-4-BRIEF.md), and the
+  [redesign proposal](design/WEB-APP-REDESIGN.md) (onboarding, role
+  configuration and the control-plane views, after the affectUI
+  reference): ODIN-ADR-037's
   primary human view and agent tree, its dependency-ordered packages with
   acceptance and enforcement checks, the frontend library comparison, and a
   DRAFT (not adopted) snapshot and update-event shape, and the operator's

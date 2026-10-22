@@ -65,6 +65,15 @@ desktop evidence.
 | 9 Large tree | W2c | Playwright timing scenario with recorded dataset | Synthetic timings recorded by `tests-perf/check09-large-timing` on the seeded 2,000-session set: first render, expand, select, and depth-8 path expansion in tree and list (pass 3 evidence, `large-timings.json` and `large-deep-timings.json`, kept outside Git). All within the proposed targets, so windowing is deferred; targets still proposals |
 | 10 Desktop | W6 | Manual desktop evidence plus script checks | Not started; outside the workstream's current scope |
 
+## Redesign (2026-10-22)
+
+The operator's redesign direction (onboarding with provider sign-in,
+harness, model and per-role configuration; the agent tree as the baseline
+view; Queue, Lanes, Graph, Decisions and Board as further projections of
+the same records) and its slices R1–R7 are in
+[WEB-APP-REDESIGN.md](WEB-APP-REDESIGN.md). Every slice is a synthetic
+prototype result under the labels above.
+
 ## Not in scope
 
 Saga application redesign, cross-repository consolidation, manual graph
