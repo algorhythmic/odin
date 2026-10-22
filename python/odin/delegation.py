@@ -145,6 +145,19 @@ def _refuse(code):
     raise DelegationRefused(code)
 
 
+def _disallowed_tools(value):
+    """Validate plain Claude tool names and retain an independent list."""
+    if (
+        not isinstance(value, list)
+        or len(value) > 16
+        or any(not isinstance(name, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", name)
+               for name in value)
+        or len(set(value)) != len(value)
+    ):
+        _refuse("invalid_disallowed_tools")
+    return list(value)
+
+
 def _same_path(left, right):
     try:
         return Path(left).resolve() == Path(right).resolve()
@@ -575,9 +588,14 @@ class Delegation:
         model = payload.get("model") or harness.get("default_model")
         if payload["harness"] == "claude-code" and not model:
             _refuse("model_required")
-        claude_only = ("subagent_model", "subagent_model_force", "auto_compact_window_tokens", "native_peer_messaging")
+        claude_only = ("subagent_model", "subagent_model_force", "disallowed_tools",
+                       "auto_compact_window_tokens", "native_peer_messaging")
         if payload["harness"] != "claude-code" and any(payload.get(key) is not None for key in claude_only):
             _refuse("claude_options_unsupported_by_harness")
+        # Validate defaults even for callers supplying an in-memory config or
+        # overriding them in the session. An explicit [] clears the default.
+        default_disallowed_tools = _disallowed_tools(harness.get("default_disallowed_tools", []))
+        disallowed_tools = _disallowed_tools(payload.get("disallowed_tools", default_disallowed_tools))
         subagent_model = payload.get("subagent_model", harness.get("default_subagent_model"))
         subagent_model_force = payload.get("subagent_model_force", harness.get("default_subagent_model_force", False))
         auto_compact_window = payload.get("auto_compact_window_tokens", harness.get("default_auto_compact_window_tokens"))
@@ -615,6 +633,7 @@ class Delegation:
             "model": model,
             "subagent_model": subagent_model,
             "subagent_model_force": subagent_model_force,
+            "disallowed_tools": disallowed_tools,
             "auto_compact_window_tokens": auto_compact_window,
             "native_peer_messaging": native_peer_messaging,
             "effort": payload.get("effort"),
@@ -1093,7 +1112,7 @@ class Delegation:
             briefing = session["briefing"]
             if _role(options) == "workstream":
                 briefing += "\n\n" + WORKSTREAM_BRIEFING.format(workstream=options["workstream"])
-            if options.get("subagent_model"):
+            if options.get("subagent_model") and not {"Agent", "Task"}.intersection(options.get("disallowed_tools") or []):
                 briefing += (
                     "\n\nDelegate bounded implementation or research tasks to native workers "
                     "when useful. Integrate their results, run appropriate tests, review "
@@ -1129,6 +1148,8 @@ class Delegation:
                 Contracts().validate("native-peer-settings", settings)
                 argv.extend(["--settings", canonical(settings)])
                 argv.extend(["--name", peer_name(session["native_session_id"], "worker")])
+            if options.get("disallowed_tools"):
+                argv.extend(["--disallowedTools", ",".join(options["disallowed_tools"])])
             if first:
                 argv.extend(["--session-id", session["native_session_id"]])
             else:
@@ -2311,6 +2332,7 @@ def default_config(
     claude_model="claude-sonnet-5-5",
     claude_subagent_model=None,
     claude_subagent_model_force=False,
+    claude_disallowed_tools=None,
     claude_auto_compact_window_tokens=None,
     claude_native_peer_messaging=False,
     codex_model=None,
@@ -2319,6 +2341,8 @@ def default_config(
     max_concurrent_turns_per_lineage=1,
 ):
     """Build an operator delegation configuration from explicit choices."""
+    if claude_disallowed_tools is not None:
+        claude_disallowed_tools = _disallowed_tools(claude_disallowed_tools)
     harnesses = {}
     claude = claude_binary or shutil.which("claude")
     if claude is not None and not os.access(claude, os.X_OK):
@@ -2334,6 +2358,7 @@ def default_config(
             "default_model": claude_model,
             **({"default_subagent_model": claude_subagent_model} if claude_subagent_model else {}),
             **({"default_subagent_model_force": claude_subagent_model_force} if claude_subagent_model_force else {}),
+            **({"default_disallowed_tools": claude_disallowed_tools} if claude_disallowed_tools is not None else {}),
             **({"default_auto_compact_window_tokens": claude_auto_compact_window_tokens} if claude_auto_compact_window_tokens is not None else {}),
             **({"default_native_peer_messaging": True} if claude_native_peer_messaging else {}),
             "default_permission_mode": "acceptEdits",

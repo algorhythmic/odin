@@ -154,6 +154,7 @@ def main():
     parser.add_argument("--auto-compact-window-tokens", type=int, help="requested native Claude context window, 100000..1000000 tokens")
     parser.add_argument("--claude-subagent-model", help="default delegated Claude native subagent model")
     parser.add_argument("--claude-subagent-model-force", action="store_true", help="request native model override for ordinary subagents; native exceptions remain")
+    parser.add_argument("--claude-disallowed-tools", help="comma-separated plain tool names denied to delegated Claude sessions; empty string clears the default")
     parser.add_argument("--native-peer-messaging", action=argparse.BooleanOptionalAction, default=None, help="opt into session-scoped native Claude peer messaging")
     parser.add_argument("--implementation-mode", choices=["direct", "delegated"], help="stage the executive's native implementation role for its next resume")
     parser.add_argument("--model", help="stage the executive's claude-* model for its next resume")
@@ -486,6 +487,9 @@ def main():
             parser.error("delegation-configure requires at least one --workspace-root")
         if not 1 <= args.max_concurrent_turns_per_lineage <= 8:
             parser.error("--max-concurrent-turns-per-lineage must be between 1 and 8")
+        disallowed_tools = None
+        if args.claude_disallowed_tools is not None:
+            disallowed_tools = args.claude_disallowed_tools.split(",") if args.claude_disallowed_tools else []
         try:
             config = default_config(
                 claude_config_dir=args.claude_config,
@@ -494,6 +498,7 @@ def main():
                 claude_model=args.claude_model,
                 claude_subagent_model=args.claude_subagent_model,
                 claude_subagent_model_force=args.claude_subagent_model_force,
+                claude_disallowed_tools=disallowed_tools,
                 claude_auto_compact_window_tokens=args.auto_compact_window_tokens,
                 claude_native_peer_messaging=bool(args.native_peer_messaging),
                 codex_model=args.codex_model,

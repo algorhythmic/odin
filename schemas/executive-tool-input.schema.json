@@ -494,6 +494,16 @@
         "subagent_model_force": {
           "type": "boolean"
         },
+        "disallowed_tools": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_]{0,63}$",
+            "not": {"pattern": "[^A-Za-z0-9_]"}
+          }
+        },
         "auto_compact_window_tokens": {
           "type": "integer",
           "minimum": 100000,

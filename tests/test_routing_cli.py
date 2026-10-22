@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from odin.__main__ import main
 from odin.contracts import identifier
+from odin.delegation import load_config
 
 
 class RoutingCliTests(unittest.TestCase):
@@ -62,6 +63,34 @@ class RoutingCliTests(unittest.TestCase):
             configure.assert_not_called()
             self.invoke('executive-configure-execution-role', '--implementation-mode', 'delegated')
             configure.assert_called_once_with(self.state, implementation_mode='delegated')
+
+    def _configure_delegation(self, *flags):
+        config_dir = Path(self.temp.name) / 'synthetic-claude-config'
+        config_dir.mkdir(mode=0o700, exist_ok=True)
+        workspace = Path(self.temp.name) / 'workspaces'
+        workspace.mkdir(exist_ok=True)
+        with patch('odin.delegation.shutil.which',
+                   side_effect=lambda name: '/bin/true' if name == 'claude' else None):
+            self.invoke('delegation-configure', '--claude-config', str(config_dir),
+                        '--workspace-root', str(workspace), *flags)
+
+    def test_disallowed_tools_configure_omitted_comma_separated_and_empty(self):
+        self._configure_delegation()
+        self.assertNotIn('default_disallowed_tools', load_config(self.state)['harnesses']['claude-code'])
+        self._configure_delegation('--claude-disallowed-tools', 'Agent,Task,Bash')
+        self.assertEqual(load_config(self.state)['harnesses']['claude-code']['default_disallowed_tools'],
+                         ['Agent', 'Task', 'Bash'])
+        self._configure_delegation('--claude-disallowed-tools', '')
+        self.assertEqual(load_config(self.state)['harnesses']['claude-code']['default_disallowed_tools'], [])
+
+    def test_disallowed_tools_configure_rejects_invalid_names_without_writing(self):
+        for value in ('Bash(git *)', '-x', 'Agent,Agent', 'Agent, Task', 'Agent,', 'A' * 65,
+                      ','.join('Tool' + str(i) for i in range(17))):
+            with self.subTest(value=value):
+                with self.assertRaises(SystemExit) as raised:
+                    self._configure_delegation('--claude-disallowed-tools=' + value)
+                self.assertEqual(raised.exception.code, 2)
+                self.assertFalse((self.state / 'delegation.json').exists())
 
 
 if __name__ == '__main__':

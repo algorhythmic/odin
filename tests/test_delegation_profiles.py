@@ -4,10 +4,14 @@ import tempfile
 import json
 import sys
 import unittest
+from copy import deepcopy
 from pathlib import Path
+from unittest.mock import patch
+
+from jsonschema import ValidationError
 
 from odin.contracts import Contracts, identifier
-from odin.delegation import Delegation
+from odin.delegation import Delegation, DelegationRefused
 from odin.delegation_runner import run
 from tests.test_delegation import DelegationHarness
 
@@ -32,6 +36,106 @@ class DelegationProfileTests(unittest.TestCase):
         assignment = {"limits": {"iterations": 2, "budget_usd": 0.5}}
         turn = {"id": identifier()}
         return delegation._spec(session, assignment, turn, "Synthetic task")
+
+    def _assert_disallowed_turns(self, opened, names):
+        session = opened["session"]["id"]
+        self.assertEqual(opened["options"]["disallowed_tools"], names)
+        first = self._spec(session)["argv"]
+        # An observed native session is what selects --resume, rather than
+        # merely reopening the Odin session after a service restart.
+        earlier = {"id": identifier(), "state": "returned",
+                   "result": {"native_session_id": opened["session"]["native_session_id"]}}
+        with patch.object(self.h.gateway.delegation, "_turns", return_value=[earlier]):
+            resumed = self._spec(session)["argv"]
+        for argv, marker in ((first, "--session-id"), (resumed, "--resume")):
+            self.assertIn(marker, argv)
+            if names:
+                self.assertEqual(argv.count("--disallowedTools"), 1)
+                index = argv.index(marker)
+                self.assertEqual(argv[index - 2:index], ["--disallowedTools", ",".join(names)])
+            else:
+                self.assertNotIn("--disallowedTools", argv)
+
+    def test_disallowed_tools_default_off_on_start_and_resume(self):
+        self.assertNotIn("default_disallowed_tools",
+                         self.h.gateway.delegation.config["harnesses"]["claude-code"])
+        self._assert_disallowed_turns(self._open(), [])
+
+    def test_disallowed_tools_default_survives_restart_and_applies_to_every_turn(self):
+        names = ["Agent", "Bash"]
+        self.h.write_config(claude_disallowed_tools=names)
+        self.h.restart()
+        opened = self._open()
+        self._assert_disallowed_turns(opened, names)
+        # Session options remain pinned even if the operator changes defaults.
+        self.h.write_config(claude_disallowed_tools=["Task"])
+        self.h.restart()
+        session = opened["session"]["id"]
+        resumed = self.h.call("delegation_session", {"action": "resume", "session_id": session})
+        self._assert_disallowed_turns(resumed, names)
+        status = self.h.call("delegation_status", {"session_id": session})["sessions"][0]
+        self.assertEqual(status["options"]["disallowed_tools"], names)
+
+    def test_disallowed_tools_session_override(self):
+        self.h.gateway.delegation.config["harnesses"]["claude-code"]["default_disallowed_tools"] = ["Agent"]
+        self._assert_disallowed_turns(self._open(disallowed_tools=["Task", "Bash"]), ["Task", "Bash"])
+
+    def test_disallowed_tools_empty_session_override_disables_default(self):
+        self.h.gateway.delegation.config["harnesses"]["claude-code"]["default_disallowed_tools"] = ["Agent"]
+        self._assert_disallowed_turns(self._open(disallowed_tools=[]), [])
+
+    def test_disallowed_tools_accepts_sixteen_names_and_sixty_four_characters(self):
+        names = ["A" * 64] + ["Tool_" + str(i) for i in range(15)]
+        self._assert_disallowed_turns(self._open(disallowed_tools=names), names)
+
+    def test_disallowed_tools_invalid_payload_and_defaults_are_refused(self):
+        delegation = self.h.gateway.delegation
+        harness = delegation.config["harnesses"]["claude-code"]
+        base = {"action": "create", "harness": "claude-code",
+                "workspace": str(self.h.workspace), "briefing": "Synthetic"}
+        invalid = [["Bash(git *)"], ["-x"], [""], ["A" * 65], ["A B"],
+                   ["A,B"], ["A\n"], ["é"], ["Agent", "Agent"], [1], [{}],
+                   "Agent", {}, None, ["Tool" + str(i) for i in range(17)]]
+        for value in invalid:
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(DelegationRefused, "^invalid_disallowed_tools$"):
+                    delegation.open_session(base | {"disallowed_tools": value},
+                        project=self.h.project, actor="synthetic", operation=identifier())
+                with self.assertRaises(ValidationError):
+                    Contracts().validate_definition("executive-tool-input", "odin_delegation_session",
+                        base | {"operation_id": identifier(), "disallowed_tools": value})
+                harness["default_disallowed_tools"] = value
+                try:
+                    with self.assertRaises(ValidationError):
+                        Contracts().validate("delegation-config", delegation.config)
+                    # A valid session override must not hide a bad config default.
+                    with self.assertRaisesRegex(DelegationRefused, "^invalid_disallowed_tools$"):
+                        delegation.open_session(base | {"disallowed_tools": []},
+                            project=self.h.project, actor="synthetic", operation=identifier())
+                finally:
+                    harness.pop("default_disallowed_tools")
+
+    def test_disallowed_tools_codex_payload_and_config_are_refused(self):
+        for value in (["Agent"], []):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(DelegationRefused, "^claude_options_unsupported_by_harness$"):
+                    self._open(harness="codex", disallowed_tools=value)
+        config = deepcopy(self.h.gateway.delegation.config)
+        config["harnesses"]["codex"]["default_disallowed_tools"] = []
+        with self.assertRaises(ValidationError):
+            Contracts().validate("delegation-config", config)
+
+    def test_disallowed_native_workers_omit_delegation_briefing(self):
+        opened = self._open(subagent_model="haiku", disallowed_tools=["Agent"])
+        session = opened["session"]["id"]
+        options = self.h.gateway.delegation._options(session)
+        for names in (["Agent"], ["Task"], ["Bash"], []):
+            with self.subTest(names=names), patch.object(self.h.gateway.delegation, "_options",
+                                                       return_value=options | {"disallowed_tools": names}):
+                argv = self._spec(session)["argv"]
+                briefing = argv[argv.index("--append-system-prompt") + 1]
+                self.assertEqual("Delegate bounded implementation" in briefing,
+                                 not bool({"Agent", "Task"}.intersection(names)))
 
     def test_claude_native_profile_is_explicit_and_survives_restart(self):
         opened = self._open(subagent_model="haiku", subagent_model_force=True,
