@@ -1828,7 +1828,7 @@ class Delegation:
             and ((t.get("result") or {}).get("cost_usd") is None)
         )
         binding = binding or self._current_binding(session["id"])
-        return {
+        view = {
             "session": {
                 key: session[key]
                 for key in (
@@ -1882,6 +1882,9 @@ class Delegation:
             "execution_backend": "local_native_harness",
             "guarantees": "none; no isolation, no Saga admission, limits only as harness options",
         }
+        if options.get("subagent_model_force"):
+            view["fork_subagent"] = "disabled_requested_not_verified"
+        return view
 
     def status(self, payload, *, project):
         if not self.enabled():

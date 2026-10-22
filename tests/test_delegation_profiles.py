@@ -40,6 +40,7 @@ class DelegationProfileTests(unittest.TestCase):
         self.assertEqual(opened["options"]["model"], "opus")
         self.assertEqual(opened["options"]["subagent_model"], "haiku")
         self.assertTrue(opened["options"]["subagent_model_force"])
+        self.assertEqual(opened["fork_subagent"], "disabled_requested_not_verified")
         first = self._spec(session)
         self.assertEqual(first["argv"][first["argv"].index("--model") + 1], "opus")
         self.assertIn("Delegate bounded implementation", first["argv"][first["argv"].index("--append-system-prompt") + 1])
@@ -54,11 +55,15 @@ class DelegationProfileTests(unittest.TestCase):
         self.h.restart()
         resumed = self.h.call("delegation_session", {"action": "resume", "session_id": session})
         self.assertEqual(resumed["options"], opened["options"])
+        self.assertEqual(resumed["fork_subagent"], "disabled_requested_not_verified")
+        status = self.h.call("delegation_status", {"session_id": session})["sessions"][0]
+        self.assertEqual(status["fork_subagent"], "disabled_requested_not_verified")
         second = self._spec(session)
         self.assertEqual(second["env"], first["env"])
 
     def test_subagent_model_without_force_sets_only_the_model_variable(self):
         opened = self._open(subagent_model="haiku", subagent_model_force=False)
+        self.assertNotIn("fork_subagent", opened)
         spec = self._spec(opened["session"]["id"])
         self.assertEqual(spec["env"]["CLAUDE_CODE_SUBAGENT_MODEL"], "haiku")
         for key in ("CLAUDE_CODE_SUBAGENT_MODEL_FORCE",

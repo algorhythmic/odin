@@ -68,7 +68,9 @@ result summaries retain observed `model_usage`, `observed_model` and
 added to their children. When force is requested, Odin also disables the
 fork agent (`CLAUDE_CODE_FORK_SUBAGENT=0`, which would otherwise inherit the
 parent model) and sets `CLAUDE_CODE_WORKFLOW_SUBAGENT_MODEL` to the same
-model. Inherited skill models and provider fallbacks remain exceptions. See
+model. Inherited skill models and provider fallbacks remain exceptions. Live
+harness behaviour is unverified, so session views report the status field
+`fork_subagent: "disabled_requested_not_verified"`. See
 [native subagent controls](https://code.claude.com/docs/en/sub-agents#run-every-subagent-on-one-model).
 
 Delegation failures are surfaced, not left for the executive to find. When a

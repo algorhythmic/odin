@@ -2261,6 +2261,14 @@ remain available in every profile.
   Tests are in `tests/test_limit_notices.py`, `tests/test_executive_model.py`,
   `tests/test_usage_watch.py` and `tests/test_usage_statusline.py`. This record
   does not state their results. Live delivery requires an observed activation.
+- **Amendment (2026-10-22):** with `subagent_model_force`, delegated Claude
+  launches also set `CLAUDE_CODE_FORK_SUBAGENT=0`, because the built-in fork
+  agent's model is `inherit` and force keeps it, and set
+  `CLAUDE_CODE_WORKFLOW_SUBAGENT_MODEL` to the forced model for workflow
+  agents. Both names and the falsy parsing of `0` were read from the Claude
+  Code 2.1.308 binary. Live behaviour is unverified, so session views report
+  `fork_subagent: "disabled_requested_not_verified"`. Inherited skill models
+  and provider fallbacks remain exceptions.
 - **Cross-reference:** ODIN-ADR-038 (proposed) would let the successor of a
   handed-over loop checkpoint against it and, on request, read its
   predecessor's latest checkpoint.
