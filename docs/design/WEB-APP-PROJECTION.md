@@ -129,8 +129,8 @@ Client rules, checked in this order:
 4. **stale**: new `event_id` and `revision` <= current. Ignore and
    report it.
 5. **rejected** (prototype): `session.started` without a session
-   record or for an id already present, or any other type naming a
-   session the snapshot does not hold.
+   record or for an id already present, or any other type whose
+   `session_id` is missing or not in the snapshot.
 6. **applied**: `revision` = current + 1. Apply the payload, set
    current to `revision` and store `cursor`.
 

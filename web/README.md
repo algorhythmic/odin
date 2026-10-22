@@ -44,7 +44,8 @@ The bar under the header is a synthetic update driver: "Apply next
 synthetic update" applies the next event from
 `fixtures/default-events.json` to the loaded snapshot and reports
 whether it was applied, a duplicate, a revision gap or rejected
-(unknown session or event type; nothing changes). Reloading the
+(unknown session or event type, or a non-integer revision; nothing
+changes). Reloading the
 page starts from the snapshot again.
 
 ## Tests
