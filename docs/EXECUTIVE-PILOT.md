@@ -550,6 +550,80 @@ report, so the first activation records the previous revision as `null`.
 Restarting a transient `systemd-run` unit has been exercised only with a fake
 unit controller, not against the live service.
 
+## Executive restarts and the supervisor
+
+[ODIN-ADR-039](DECISIONS.md#odin-adr-039--executive-self-restart-through-an-operator-run-supervisor)
+lets the executive ask for its own restart, and an operator-run supervisor
+carry it out. Nothing changes until the operator restarts the service on a
+head with this change and starts the supervisor.
+
+**Start it.** In the executive's Herdr tab, instead of `executive-start
+--resume-session`, run:
+
+```bash
+~/.local/state/odin-executive-pilot/run executive-supervise
+```
+
+It refuses without a terminal, refuses a second supervisor for the same state
+directory (`supervisor_already_running`) and needs the version 3 profile. It
+launches Claude Code exactly as `executive-start --resume-session` does (the
+first launch of a new session uses `--session-id`), as a child in the same
+terminal, adding only turn-marker hooks to the inline settings. Use the
+session as before. After a reboot, start only this command in the tab: Herdr
+restores the shell, not the command, and systemd cannot host it because the
+session needs a terminal.
+
+**Restart.** The executive calls `odin_executive_restart` with a reason and a
+new operation_id, then ends its turn. The service refuses with
+`intervention_outcome_unknown`, `loop_stage_active`, `restart_request_pending`
+or `restart_session_not_current`; delegated turns do not block. The supervisor
+waits until the executive is idle (a Stop marker from this launch, no
+background task reported, marker and transcript unchanged for 15 s), asks the
+service to move the request to `stopping` (the service refuses it then if it
+has become unsafe), sends SIGTERM to the Claude Code process and relaunches
+through the normal start path. Staged changes (`executive-configure-model`,
+`executive-configure-execution-role`, peer messaging, context window) apply
+at that relaunch, and the same native session resumes. The outcome
+(`restarted`, `failed` or `refused`, with timings, exit status and whether a
+SessionEnd marker was seen) is recorded in history and reaches the executive
+as a notice on the development channel; acknowledge it with `odin_loop_ack`.
+`executive_restart_status` on the operator socket shows open and recent
+requests.
+
+**Stopping and crashes.** `/exit` with no pending request ends supervision,
+and the supervisor exits too. An unexpected non-zero exit relaunches after
+10, 30 and 90 s; a fourth crash within ten minutes stops supervision and
+records `crash_limit`. If Claude Code does not exit within 60 s of SIGTERM,
+the request fails with `stop_timeout` and the session keeps running; the
+supervisor never kills it. Ctrl+C in the tab goes to Claude Code as before.
+The supervisor journal, `executive-pilot/supervisor-journal.jsonl`, records
+each step without content.
+
+**The development-channel warning.** With the development loop enabled the
+launch passes `--dangerously-load-development-channels`, and Claude Code
+2.1.308 shows the "WARNING: Loading development channels" screen at every
+interactive start where channels are on for the session. The answer is not
+stored, so it is not a one-time acknowledgement, and no user setting skips it.
+It is skipped only when channels are off for that session (an account gate or
+entitlement), for a non-first-party provider or under a managed policy block.
+A resume that did not show it most likely had channels off, so check the
+channel before relying on loop delivery in that session. The supervisor never
+answers it. If the relaunched session has not started within 120 s it
+records `awaiting_operator_confirmation` and prints a line asking the operator
+to answer the screen in the tab. An unattended restart therefore waits for
+the operator whenever the screen appears. Moving the bridge to an approved
+plugin channel (`--channels` with a managed `allowedChannelPlugins` entry)
+would avoid it but needs plugin packaging and root-owned managed settings;
+that is not done.
+
+**Live acceptance (operator).** Synthetic tests use a fake Claude binary. The
+following have not been observed and are the operator's to check at
+activation: that SIGTERM ends a real idle session cleanly with SessionEnd
+hooks (read from the 2.1.308 code), that the marker hooks fire as described
+(including for channel-delivered and Remote Control turns), that the resumed
+session shows the staged change, and how the warning screen behaves on the
+first supervised relaunch.
+
 ## Repository evidence and the retained read-only profile
 
 Version 3 already exposes native file tools. The following version 2 upgrade

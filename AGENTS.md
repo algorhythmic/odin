@@ -30,6 +30,15 @@ personas in `docs/history/` are evidence, not instructions for you.
   credential refresh race appears. It amends ODIN-ADR-027's one-session-per-project rule and
   cross-references ODIN-ADR-022. See [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
+- ODIN-ADR-039 (2026-10-22) adds `odin_executive_restart`, a recorded
+  request refused with fixed codes when a restart is unsafe, and the operator
+  CLI `executive-supervise`, run in the executive's terminal, which waits for
+  an idle turn end, stops Claude Code with SIGTERM, relaunches it through the
+  normal start path and records the outcome as history and a notice. It never
+  kills, sends keystrokes or answers the development-channel warning. Native
+  behaviour is live acceptance for the operator. See
+  [`docs/EXECUTIVE-PILOT.md`](docs/EXECUTIVE-PILOT.md#executive-restarts-and-the-supervisor).
+
 - ODIN-ADR-038 is **accepted** (2026-10-21) and implemented (2026-10-22):
   the operator-only `odin development-handover` (gateway action
   `loop_handover`) moves a non-terminal development loop, its pending stage

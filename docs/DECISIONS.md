@@ -2887,6 +2887,107 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
   carries a cross-reference bullet.
 
 
+### ODIN-ADR-039 — Executive self-restart through an operator-run supervisor
+
+**Date:** 2026-10-22. **Status:** recorded, operator-directed local pilot
+change (correlation `odin-exec-supervisor-1`). Not active until the operator
+restarts the service on a head with it and starts `executive-supervise` in the
+executive's terminal.
+
+**Context.** Nothing let the executive restart itself. `odin_resume` is
+read-only context and `executive-activate-service` restarts only the service,
+so every staged model, mode or permit change, and every start after a reboot,
+needed someone to type `/exit` and the launcher into the executive's Herdr
+tab.
+
+**Decision.**
+- *Request tool.* `odin_executive_restart(reason, operation_id)` records a
+  request (id, native session, reason, times, state) through the executive
+  socket. The service refuses with fixed codes when a restart would be
+  unsafe: `intervention_outcome_unknown` (an admitted permit with no observed
+  completion), `loop_stage_active` (a loop of the project in
+  `executive_claimed` or `executive_ready`), `restart_request_pending` (one
+  open request per project) and `restart_session_not_current` (a session other
+  than the manifest's). Delegated turns do not block: they belong to the
+  service. A replayed operation_id with identical arguments returns the same
+  receipt. The request is a record, not authority.
+- *Supervisor.* `executive-supervise` is an operator CLI action run in the
+  foreground of the executive's terminal. It takes one lease per state
+  directory (`executive-pilot/supervisor.lock`) and launches Claude Code
+  through the ordinary start path (`executive_runtime.start`, with `--resume`
+  once a launch is recorded) as a child that keeps the terminal. The only
+  launch difference is that the inline `--settings` value gains turn-marker
+  hooks. It polls the service over the operator socket. When a request is
+  pending and the executive is idle it asks the service to move the request
+  to `stopping`, which rechecks safety and refuses the request (with a notice)
+  rather than waiting silently if it is unsafe; then it sends SIGTERM to the
+  Claude Code process and relaunches through the same start path, so staged
+  pending-development changes (model, mode, permits, prompt) apply and the
+  same native session resumes. It reports `relaunching`, then `restarted` or
+  `failed` with timings, exit status and whether a SessionEnd marker was
+  seen; the service records history and a durable executive notice delivered
+  over the development channel and acknowledged with `odin_loop_ack`.
+- *Idle signal.* A command hook (`odin.executive_turn_hook`) on
+  SessionStart, UserPromptSubmit, Stop, StopFailure and SessionEnd replaces a
+  private marker (`executive-pilot/turn-marker.json`, 0600: event, session,
+  time, sequence, background-task count; no prompt or response text). The
+  executive is idle when the latest marker is a Stop or StopFailure of the
+  current session, written after this launch, with no background task
+  reported, unchanged for 15 s, and the session transcript has not changed
+  for 15 s. A turn started by a channel message or Remote Control changes the
+  transcript, so it is not idle. A subagent's stop is ignored.
+- *Clean exit.* Claude Code 2.1.308 handles SIGTERM by calling its graceful
+  shutdown routine (`shutdown(143)`), which runs SessionEnd hooks and prints the
+  resume hint, with its own failsafe; this was read from the installed
+  binary, not observed in a live session. The supervisor signals the Claude
+  process only, waits up to 60 s and never escalates: a session that does not
+  exit is left running and the request fails with `stop_timeout`. No
+  keystrokes are sent.
+- *Exits.* An exit status 0 with no pending request (an operator `/exit`)
+  ends supervision without a respawn; with a pending request it is taken as
+  the stop. An unexpected non-zero exit relaunches after 10, 30 and 90 s, at
+  most three times in ten minutes; the next crash stops supervision and
+  records `crash_limit`. A request pending when the supervisor starts is
+  carried out by the first launch. Supervisor observations (`started`,
+  `ended`, `crash`, `crash_limit`, `launch_failed`,
+  `awaiting_operator_confirmation`) are history events, and a private
+  content-free journal (`executive-pilot/supervisor-journal.jsonl`) keeps them
+  when the service is unreachable; reports are retried on each poll.
+- *Development-channel confirmation.* In 2.1.308 the
+  `--dangerously-load-development-channels` warning is a setup screen whose
+  acceptance is not stored. It is skipped only when channels are off for the
+  session (the `tengu_harbor` gate or the `allow_channels` entitlement), for a
+  non-first-party provider, or under a policy block. Every other interactive
+  launch shows it. No user setting suppresses it. The supported alternative,
+  a plugin channel on the managed `allowedChannelPlugins` allowlist started
+  with `--channels`, needs plugin packaging and root-owned managed settings
+  and is not adopted here. A resume that showed no warning most likely had
+  channels off, and the development channel probably did not deliver in that
+  session. The supervisor never answers the warning; if the relaunched session
+  has not started within 120 s it records `awaiting_operator_confirmation` and
+  writes one line to the terminal asking the operator to answer it.
+- *After a reboot* the operator starts only `run executive-supervise` in the
+  Herdr tab; Herdr restores the shell, not the command. Systemd cannot host
+  the supervisor, because the session needs a terminal.
+
+**Limits.** A turn that starts between the last idle check and the signal can
+be stopped near its start; the transcript check makes the window about one
+poll. Scheduled session wakeups and background work that Claude Code does not
+report in the Stop event do not survive a restart. Without a running supervisor
+a request stays pending and nothing happens. The supervisor runs with the
+operator's authority; it is not isolation.
+
+**Checks.** `tests/test_executive_supervisor.py` runs the supervisor on the
+real start path against a synthetic Claude binary (`tests/fake_claude.py`):
+request, idle, SIGTERM and resume with a staged model change applied; no stop
+mid-turn; refusals at request and stop time; the lease; no respawn after an
+operator exit; crash backoff, its cap and its window; a request pending at
+supervisor start; a relaunch that never starts; a stop that times out without a
+kill; the content-free marker; and that a supervised launch differs from an
+ordinary one only in its settings hooks. Native clean exit, the idle marker
+and the confirmation screen are live acceptance for the operator, not claims
+made from these tests.
+
 ## 5. Issues raised by the extraction
 
 Each issue stays open unless its entry records the evidence that
