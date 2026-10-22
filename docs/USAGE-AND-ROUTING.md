@@ -127,8 +127,9 @@ dedicated login. Several orchestrator sessions therefore interleave their turns;
 they are not parallel execution. A value above 1 is refused by
 `delegation-configure` and ignored by `launch_pending` unless `lineage_policy`
 is `shared_accepted`, because the runner's exclusive lineage lease would refuse
-the concurrent turn. The pilot keeps 1. Relying on more is phase 2, which needs
-an observed concurrent-turn credential test on isolated state (X-12, D24.4a).
+the concurrent turn. The pilot runs 8 by operator decision since 2026-10-22
+(ODIN-ADR-036 amendment), without the isolated concurrent-turn credential test
+(X-12, D24.4a stay open); set it back to 1 if a credential refresh race appears.
 Status shows the configured and effective values in `project_aggregate`.
 
 Claude Code print results report cost as an inclusive figure for the resumed

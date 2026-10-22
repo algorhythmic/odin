@@ -2432,7 +2432,9 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
 ### ODIN-ADR-036 — Workstream delegation sessions and a single integration owner
 
 - **Date/status:** 2026-10-21; accepted by operator decision; phase 1
-  implemented. Phase 2 (raising per-lineage concurrency) is not started.
+  implemented. Phase 2's raised per-lineage concurrency is configured by
+  operator decision since 2026-10-22, without the isolated credential test
+  (see the amendment below).
 - **Decision:** a delegation session may declare a `workstream` label
   (`^[a-z0-9][a-z0-9._-]{0,63}$`) and a `role` of `integration_owner` or
   `workstream`. Both are stored in the delegation session options, not in the
@@ -2493,9 +2495,9 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
 - **Interleaving (not parallel execution):** with the default 1, which is the
   only value in use, Odin runs one `claude -p` turn at a time on the dedicated
   login. Several orchestrator sessions interleave their turns; they do not run
-  in parallel. Raising the value is ADR-036 phase 2. It waits for an observed
-  concurrent-turn credential test on isolated state, under open X-12 and
-  D24.4a. The pilot configuration stays at 1 until then.
+  in parallel. Raising the value is ADR-036 phase 2. It was to wait for an
+  observed concurrent-turn credential test on isolated state, under open X-12
+  and D24.4a; the 2026-10-22 amendment below raised it without that test.
 - **Legacy sessions:** a session declaring neither `workstream` nor `role` is
   legacy and is treated as the integration owner.
 - **Amends and cross-references:** the one-session-per-project rule of
@@ -2512,6 +2514,18 @@ proof of native enforcement. No stage identity or eight-round bound is reset.
     the project's planning owner of ODIN-ADR-022 and ODIN-ADR-027 and alone
     holds `interface_decision_owner`. A workstream session is a delegation
     session record without planning ownership.
+- **Amendment (2026-10-22, operator decision, parallel turns):** the operator
+  set the pilot's `max_concurrent_turns_per_lineage` to 8, the maximum,
+  without the isolated concurrent-turn credential test, accepting the refresh
+  race risk of D24.4a and X-12 ("we can make changes if the credential
+  refresh races become an issue"). Delegated `claude -p` turns on the shared
+  login may run in parallel, still one per session. This is configuration
+  only; it takes effect at the next service restart. Watch each turn's
+  `lineage.credential_changed` and any authentication failure across
+  sessions and the executive; on a refresh race, set the value back to 1
+  with `delegation-configure` and record it. Parallel turns use the
+  five-hour window faster; ODIN-ADR-031's limit-band notices remain the
+  warning. X-12 and D24.4a stay open.
 
 ### ODIN-ADR-037 — Web app as the primary human view, with an agent tree
 
