@@ -30,6 +30,72 @@ enters the shared command path.
    tokens (ODIN-ADR-031 usage telemetry). Unknown stays "unknown", never 0.
    Dark remains the default theme.
 
+## Revised direction after the R2 review (2026-10-22)
+
+The operator accepted setup and settings and revised the rest. Where this
+section conflicts with later sections, this section wins.
+
+1. **One executive, one portfolio tree.** There is only ever one
+   executive, and it oversees every project. The baseline view is a single
+   tree rooted at the executive's session, with each project as a branch
+   under it and the project's sessions under that. `#/` opens this tree.
+   The separate overview page is dropped: attention is carried by the
+   tree header's chips, and setup progress by the sidebar card.
+2. **Project nodes are grouping nodes, not sessions.** A project node is
+   drawn between the executive and the project's sessions and is visually
+   distinct from a session card (a compact label row with the project's
+   live counts and token total). ADR-037's rules still hold: a session's
+   edge comes only from its recorded `parent_session_id`. A session the
+   executive started is drawn from the executive through its project's
+   node; a session whose recorded parent is missing, outside the
+   projection, in a cycle or itself hangs from its project node as a
+   labelled root, as before. Nothing is inferred.
+3. **Sidebar as a branch.** The sidebar drops the per-project view lists
+   and the setup sub-links. It shows the executive at the top with the
+   projects connected beneath it as a small branch (square connectors,
+   status dot and counts per project), then "Setup" and "Settings" as
+   single entries, the setup progress card while incomplete, the theme
+   toggle and the synthetic badge. Hovering or focusing a project
+   highlights its branch in the full tree; clicking it scopes the view to
+   that project (`#/projects/<p>`), shown as the executive (collapsed to a
+   one-line header) above the project's branch, with a way back to the
+   whole portfolio.
+4. **Less repeated information.** The tree header is one line:
+   `N agents · N running`, the attention chips ("1 needs you", "1 failed")
+   inline as the only place those counts appear, and the token total
+   (`131.6k tok + 3 unknown`). The "N sessions, N roots" line, the
+   Projects and Conversation toggles and the planning conversation panel
+   are removed. History stays as a small link, since retired sessions now
+   leave the live tree. The only view control is the Tree/List layout
+   toggle.
+5. **Queue, Lanes, Graph, Decisions and Board are deferred.** Their
+   routes, switchers and placeholders are removed. The control-plane
+   table below stays as the record of what each will show when it
+   returns.
+6. **Live simulation.** The synthetic driver runs as a continuous
+   simulation in which agents are created, work, finish and are removed:
+   new sessions rise in with their connector drawing in, ended sessions
+   linger briefly and then leave the live tree with a retract-and-fade
+   exit (they stay in History), and siblings glide to their new places.
+   Every simulated change goes through the existing event rules
+   (`src/events.js`). Motion follows the observed Agent Tree timings
+   (node rise 360 ms, connector draw 420 ms, leave and retract 280 ms,
+   sibling slide 420 ms, all on `cubic-bezier(0.32, 0.72, 0.24, 1)`), and
+   is instant under `prefers-reduced-motion`.
+
+ADR-037 records its layout (an overview page, a planning conversation or
+activity area) as default design rather than accepted direction; this
+revision replaces that layout for the prototype. Its accepted parts (the
+agent tree, ancestry-only edges, the browser/service boundary, the
+command path) are unchanged.
+
+**Projection change this needs (draft only).** The draft snapshot gains a
+top-level `executive_session_id`, and the executive's session carries
+`project_id: null`; every other session keeps a project. Cross-project
+ancestry is allowed only from the executive. The draft schema and its
+Python test are updated with the fixtures; the schemas stay marked draft
+and not adopted ([projection draft](WEB-APP-PROJECTION.md)).
+
 ## Control-plane views
 
 These views expose different aspects of Odin's control plane (operator
@@ -227,11 +293,9 @@ Playwright specs for what it adds.
 |---|---|---|
 | R1 | App shell (sidebar, drawer on narrow screens), refreshed tokens, project view switcher and routes for all six views; Queue, Lanes, Graph, Decisions and Board render a placeholder stating what they will show and which records they need | — |
 | R2 | `fixtures/setup.json`, the onboarding wizard (`#/setup`), settings pages and synthetic in-memory apply; the overview's setup guide card | R1 |
-| R3 | Agent tree presentation pass to the reference (header summary, card layout, harness tag, fold to one line) | R1 |
-| R4 | Decision Tree over the snapshot's recorded `decisions` | R1 |
-| R5 | Agent Queue and Delegate Board (assignments, lineage capacity, admission blockers; synthetic fixture extension) | R1 |
-| R6 | Agent Lanes (turns, waits, reviews, handoffs over time) | R1 |
-| R7 | Agent Graph (typed relationships, reviewer positions, tools) | R1 |
+| R3a | Portfolio tree (revised direction 1–5): single executive root, project grouping nodes, sidebar branch with highlight and scope, one-line header, removal of the overview page, conversation panel, Projects toggle and deferred views; fixtures, draft schema and Python test for `executive_session_id` | R2 |
+| R3b | Live simulation (revised direction 6): continuous create, work, finish and remove through the event rules, with the observed Agent Tree motion; card presentation pass (harness tag, fold to one line) | R3a |
+| Deferred | Decision Tree, Agent Queue and Delegate Board, Agent Lanes, Agent Graph (formerly R4–R7) | operator decision |
 
 Fixture fields that later slices need beyond `fixtures/setup.json` are
 drafted in the webapp workstream and proposed to the integration owner

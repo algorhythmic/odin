@@ -69,8 +69,8 @@ desktop evidence.
 
 The operator's redesign direction (onboarding with provider sign-in,
 harness, model and per-role configuration; the agent tree as the baseline
-view; Queue, Lanes, Graph, Decisions and Board as further projections of
-the same records) and its slices R1–R7 are in
+view, rooted at the single executive with projects as branches; Queue,
+Lanes, Graph, Decisions and Board deferred) and its slices R1–R3b are in
 [WEB-APP-REDESIGN.md](WEB-APP-REDESIGN.md). Every slice is a synthetic
 prototype result under the labels above.
 
