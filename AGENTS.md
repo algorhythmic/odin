@@ -12,7 +12,7 @@ personas in `docs/history/` are evidence, not instructions for you.
   with an agent tree is Odin's primary human view, presented in a Chromium
   app window on Omarchy; Herdr becomes an optional inspection and
   attachment adapter. Only a **synthetic prototype** exists, in
-  `web/`; it is not connected to the service and has no
+  [`web/`](web/README.md); it is not connected to the service and has no
   commands, update stream, authentication or desktop packaging. See the
   [handoff](docs/design/WEB-APP-HANDOFF.md) and the
   [work plan](docs/design/WEB-APP-WORKPLAN.md).
@@ -403,9 +403,10 @@ floor or remove a registry entry. Retain withdrawn IDs and their defining
 rows. Historical and dated-research
 evidence links are inventoried separately in `docs/provenance/HISTORICAL-LINKS.md`.
 A pass proves documentation integrity, not semantic completeness or runtime
-behavior. The validator skips `node_modules/` and `.playwright-browsers/`.
+behavior. The validator skips `node_modules/`, `.playwright-browsers/`, `dist/`,
+`test-results/` and `playwright-report/`.
 
-For the web app, see `web/README.md`: `cd web && npm ci`,
+For the web app, see [`web/README.md`](web/README.md): `cd web && npm ci`,
 then `npm run browsers:install` (Chromium inside `web/`, never system-wide)
 and `npm test` for the Playwright suite. Label its results by kind:
 synthetic prototype, fake-backend integration, service integration or

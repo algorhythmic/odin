@@ -98,7 +98,7 @@ service integration, validated desktop behaviour.
       agree; every behavioural requirement has an enforcement check.
 - [ ] **Synthetic UI prototype** (no gate): overview, project workspace,
       agent tree, details and list view on clearly labelled synthetic data.
-      A first slice exists in `web/`; it is a synthetic
+      A first slice exists in [`web/`](../web/README.md); it is a synthetic
       prototype only.
 - [ ] **Record and projection foundation** (I0 schema work): stable
       identities, ancestry and provenance, typed relationships, browser

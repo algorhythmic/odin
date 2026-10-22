@@ -55,7 +55,7 @@ Alongside them:
   [library choice](design/WEB-APP-LIBRARIES.md): ODIN-ADR-037's primary
   human view and agent tree, its dependency-ordered packages with acceptance
   and enforcement checks, and the frontend library comparison. Only a
-  synthetic prototype exists in `web/`.
+  synthetic prototype exists in [`web/`](../web/README.md).
 - [Odin Heimdall and Skald consolidated work plan](design/ODIN-HEIMDALL-SKALD-WORK-PLAN.md):
   proposed delivery sequence for task-authority migration, shared capture,
   retained Skald browsing and one continuity experience. It identifies the

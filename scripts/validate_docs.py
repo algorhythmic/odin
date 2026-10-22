@@ -23,8 +23,9 @@ STABLE_ID_DOCUMENTS = {
 # grow, but removing an existing entry must not make its definition optional.
 # AC-51 to AC-57 (ODIN-ADR-037) were added to the floor on 2026-10-21.
 BASELINE_ID_COUNTS = {"AC": 57, "DC": 8, "EC": 16}
-# Installed frontend dependencies and browsers are not repository documents.
-UNTRACKED_DEPENDENCY_DIRS = {"node_modules", ".playwright-browsers"}
+# Installed frontend dependencies, browsers and build or test output are not
+# repository documents.
+UNTRACKED_DEPENDENCY_DIRS = {"node_modules", ".playwright-browsers", "dist", "test-results", "playwright-report"}
 FROZEN_RESEARCH_DIRS = {
     Path("docs/research/harness-research-2026-10"),
     Path("docs/research/consolidation-2026-10"),
