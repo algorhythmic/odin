@@ -203,6 +203,48 @@ class DelegationProfileTests(unittest.TestCase):
     def test_creation_only_options_stop_are_refused_without_mutation(self):
         self._assert_creation_only_options_refused("stop")
 
+    def test_creation_only_options_stop_refusal_precedes_signalling(self):
+        delegation = self.h.gateway.delegation
+        session = self._open()["session"]["id"]
+        running = {"id": identifier(), "session": session, "state": "running",
+                   "seq": 1, "runner": {"pid": 424242}}
+        with patch.object(delegation, "_turns", return_value=[running]), \
+                patch("odin.delegation._runner_alive", return_value=True), \
+                patch("odin.delegation.os.kill") as kill, \
+                patch.object(delegation, "_save_turn") as save_turn:
+            with self.assertRaisesRegex(DelegationRefused, "^session_options_fixed_at_create$"):
+                delegation.stop_session(
+                    {"session_id": session, "disallowed_tools": ["Agent"]},
+                    project=self.h.project, actor="synthetic", operation=identifier())
+            kill.assert_not_called()
+            save_turn.assert_not_called()
+            # Control: without the field the same stop signals the runner.
+            delegation.stop_session({"session_id": session}, project=self.h.project,
+                                    actor="synthetic", operation=identifier())
+            kill.assert_called_once()
+
+    def test_creation_only_options_refusal_precedence(self):
+        delegation = self.h.gateway.delegation
+        session = self._open()["session"]["id"]
+        with self.assertRaisesRegex(DelegationRefused, "^session_options_fixed_at_create$"):
+            delegation.resume_session(
+                {"session_id": session, "workstream": "other", "subagent_model": "opus"},
+                project=self.h.project, actor="synthetic", operation=identifier())
+        with self.assertRaisesRegex(DelegationRefused, "^unknown_session$"):
+            delegation.resume_session(
+                {"session_id": identifier(), "subagent_model": "opus"},
+                project=self.h.project, actor="synthetic", operation=identifier())
+        self.h.call("delegation_session", {"action": "stop", "session_id": session})
+        retired = self.h.service.store.get(session)
+        self.assertEqual(retired["state"], "retired")
+        for action in ("resume", "stop"):
+            with self.subTest(action=action):
+                with self.assertRaisesRegex(DelegationRefused, "^session_options_fixed_at_create$"):
+                    getattr(delegation, action + "_session")(
+                        {"session_id": session, "subagent_model_force": True},
+                        project=self.h.project, actor="synthetic", operation=identifier())
+                self.assertEqual(self.h.service.store.get(session), retired)
+
     def test_creation_only_options_refusal_reaches_mcp(self):
         def socket_handler(command):
             try:
