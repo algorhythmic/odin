@@ -78,7 +78,9 @@ transcripts or evidence of the whole tree.
 Per-session response (proposal): `session_id`; `page` and `pages`
 (1-based, `pages` = `ceil(items / page_size)`); `page_size`, set by the
 service; `entries`, the page's transcript items in `seq` order; and
-`evidence`.
+`evidence`. The synthetic loader in the prototype still returns these
+as `transcript` and `pageSize` (`web/src/fixtures/synthetic.js`); the
+names are settled when W3 fixes the contract.
 
 Transcript items are one of two kinds.
 
@@ -120,15 +122,20 @@ Event types used by the prototype:
 Client rules, checked in this order:
 
 1. **duplicate**: `event_id` already seen. No change.
-2. **stale**: new `event_id` and `revision` <= current. Ignore and
-   report it.
+2. **rejected** (prototype): `revision` is not an integer, or `type`
+   is not one listed above.
 3. **gap**: `revision` > current + 1. Events were missed. Stop applying
    and fetch a fresh snapshot.
-4. **applied**: `revision` = current + 1. Apply the payload, set
+4. **stale**: new `event_id` and `revision` <= current. Ignore and
+   report it.
+5. **rejected** (prototype): `session.started` without a session
+   record or for an id already present, or any other type naming a
+   session the snapshot does not hold.
+6. **applied**: `revision` = current + 1. Apply the payload, set
    current to `revision` and store `cursor`.
-5. **rejected** (prototype): an unknown `type`, or `session.started`
-   for an id already present. Nothing changes and the id is not
-   remembered.
+
+A rejected event changes nothing and its id is not remembered, so a
+corrected re-delivery under the same id can still apply.
 
 The fixture file `web/fixtures/default-events.json` (schema
 `odin.web.projection.events/v0-draft`) wraps an ordered `events` list
@@ -215,8 +222,8 @@ them unchanged.
 | File | Content |
 |---|---|
 | `web/fixtures/default-snapshot.json` | Snapshot: 4 projects, 20 sessions, 8 relationships. Roots, nested children, reviewers, a resumption, attempts, an imported root, `host_offline`, unknown cost, malformed ancestry. |
-| `web/fixtures/default-details.json` | Details for `ses-worker-a1` and `ses-worker-a2`: transcript with a gap and raw markup, and evidence. |
-| `web/fixtures/default-events.json` | Six deliveries: `evt-001` to `evt-004` (state change, new child, cost update, retirement), `evt-002` delivered twice (duplicate) and `evt-005` at revision 9 (gap). |
+| `web/fixtures/default-details.json` | Transcript for `ses-worker-a2` only (34 entries, two pages, with a gap and raw markup) and evidence for `ses-worker-a1` and `ses-worker-a2`. Other sessions get a one-line generated placeholder transcript. |
+| `web/fixtures/default-events.json` | Eight deliveries: `evt-001` to `evt-004` (state change, new child, cost update, retirement), `evt-002` delivered twice (duplicate), `evt-bad-1` (unknown session) and `evt-bad-2` (unknown type), both rejected, and `evt-005` at revision 9 (gap). |
 | `web/src/fixtures/large.js` | Seeded generator (seed 20261022) for the W2c set: 2,000 sessions, 40 roots, depth 8, 20 transcript pages of 50 entries per session. Generated at load time; no large file is committed. |
 
 Go and Python validators over these fixtures are W3 work for the

@@ -62,7 +62,7 @@ desktop evidence.
 | 6 Approval binding and stop | W5 | Service and Playwright tests (W5) | Not started |
 | 7 Keyboard, text states, narrow layouts | W2a, W2b | Playwright `check07-keyboard-list` | Synthetic; keyboard list also covered on malformed records |
 | 8 Access, unsafe markup, credentials | W2a, W5a, W4, W5 | Playwright `check08-untrusted-transcript`; access tests in W4 | Synthetic markup rendering and stored-preference checks; access and credentials not started |
-| 9 Large tree | W2c | Playwright timing scenario with recorded dataset | Synthetic timings: `tests-perf/check09-large-timing` on the seeded 2,000-session set; targets still proposals |
+| 9 Large tree | W2c | Playwright timing scenario with recorded dataset | Synthetic timings recorded by `tests-perf/check09-large-timing` on the seeded 2,000-session set (pass 2 evidence, `large-timings.json`, kept outside Git); targets still proposals |
 | 10 Desktop | W6 | Manual desktop evidence plus script checks | Not started; outside the workstream's current scope |
 
 ## Not in scope

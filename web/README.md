@@ -12,8 +12,10 @@ and [`docs/DECISIONS.md`](../docs/DECISIONS.md).
 
 ## Start
 
-Requires Node.js and npm (developed with Node 26). After `npm ci` the
-app and its tests work offline: no CDN, external font or network call.
+Requires Node.js and npm (developed with Node 26). Installing needs the
+network once: `npm ci`, and `npm run browsers:install` for the test
+browser. Once installed, the app makes no network call at runtime: no
+CDN, external font or remote request.
 
 ```sh
 cd web
@@ -41,7 +43,8 @@ for the seeded 2,000-session tree, generated in the browser from
 The bar under the header is a synthetic update driver: "Apply next
 synthetic update" applies the next event from
 `fixtures/default-events.json` to the loaded snapshot and reports
-whether it was applied, a duplicate or a revision gap. Reloading the
+whether it was applied, a duplicate, a revision gap or rejected
+(unknown session or event type; nothing changes). Reloading the
 page starts from the snapshot again.
 
 ## Tests
@@ -70,8 +73,10 @@ EVIDENCE_DIR=/private/path npm run test:perf   # writes large-timings.json
 
 It records first render, expand and select times on the seeded dataset
 and compares them with the proposed targets (first render under 1 s,
-expand or select under 150 ms). The values are synthetic prototype
-timings on one machine, not service or desktop measurements.
+expand or select under 150 ms). The values are written first; a missed
+target then fails the run, so a red timing run still leaves its
+numbers. The values are synthetic prototype timings on one machine,
+not service or desktop measurements.
 
 ## Layout
 
