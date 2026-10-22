@@ -1135,6 +1135,10 @@ class Delegation:
                 env["CLAUDE_CODE_SUBAGENT_MODEL"] = options["subagent_model"]
             if options.get("subagent_model_force"):
                 env["CLAUDE_CODE_SUBAGENT_MODEL_FORCE"] = "1"
+                # Fork agents inherit the parent model and workflow agents
+                # use their own variable, so force alone does not cover them.
+                env["CLAUDE_CODE_WORKFLOW_SUBAGENT_MODEL"] = options["subagent_model"]
+                env["CLAUDE_CODE_FORK_SUBAGENT"] = "0"
             if options.get("auto_compact_window_tokens") is not None:
                 env["CLAUDE_CODE_AUTO_COMPACT_WINDOW"] = str(options["auto_compact_window_tokens"])
             output_format = "json"

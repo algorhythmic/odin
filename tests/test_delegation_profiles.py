@@ -47,6 +47,8 @@ class DelegationProfileTests(unittest.TestCase):
             "CLAUDE_CONFIG_DIR": str(self.h.config_dir),
             "CLAUDE_CODE_SUBAGENT_MODEL": "haiku",
             "CLAUDE_CODE_SUBAGENT_MODEL_FORCE": "1",
+            "CLAUDE_CODE_WORKFLOW_SUBAGENT_MODEL": "haiku",
+            "CLAUDE_CODE_FORK_SUBAGENT": "0",
             "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "200000",
         })
         self.h.restart()
@@ -54,6 +56,15 @@ class DelegationProfileTests(unittest.TestCase):
         self.assertEqual(resumed["options"], opened["options"])
         second = self._spec(session)
         self.assertEqual(second["env"], first["env"])
+
+    def test_subagent_model_without_force_sets_only_the_model_variable(self):
+        opened = self._open(subagent_model="haiku", subagent_model_force=False)
+        spec = self._spec(opened["session"]["id"])
+        self.assertEqual(spec["env"]["CLAUDE_CODE_SUBAGENT_MODEL"], "haiku")
+        for key in ("CLAUDE_CODE_SUBAGENT_MODEL_FORCE",
+                    "CLAUDE_CODE_WORKFLOW_SUBAGENT_MODEL",
+                    "CLAUDE_CODE_FORK_SUBAGENT"):
+            self.assertNotIn(key, spec["env"])
 
     def test_unsupported_harness_and_invalid_force_are_refused(self):
         # Direct lifecycle validation also protects any caller that bypasses

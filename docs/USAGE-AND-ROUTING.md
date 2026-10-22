@@ -65,9 +65,11 @@ with `--claude-subagent-model`, `--claude-subagent-model-force` and
 orchestrator. Session status preserves requested settings across resume;
 result summaries retain observed `model_usage`, `observed_model` and
 `usage_scope` when emitted by the harness. Inclusive aggregate totals are not
-added to their children. Claude's force setting has exceptions, including
-forked agents and inherited skill models, and does not override all provider
-fallbacks. See [native subagent controls](https://code.claude.com/docs/en/sub-agents#run-every-subagent-on-one-model).
+added to their children. When force is requested, Odin also disables the
+fork agent (`CLAUDE_CODE_FORK_SUBAGENT=0`, which would otherwise inherit the
+parent model) and sets `CLAUDE_CODE_WORKFLOW_SUBAGENT_MODEL` to the same
+model. Inherited skill models and provider fallbacks remain exceptions. See
+[native subagent controls](https://code.claude.com/docs/en/sub-agents#run-every-subagent-on-one-model).
 
 Delegation failures are surfaced, not left for the executive to find. When a
 turn ends `failed` (reported as `turn_timed_out` when the runner hit the
