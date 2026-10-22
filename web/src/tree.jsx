@@ -222,11 +222,6 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
         style={{ width: Math.max(1, width * scale), height: Math.max(1, height * scale) }}>
         <div class="tree-stage" style={{ width, height, transform: `scale(${scale})` }}>
           <svg class="tree-edges" width={width} height={height} aria-hidden="true">
-            <defs>
-              <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M0,0 L10,5 L0,10 z" class="arrowhead" />
-              </marker>
-            </defs>
             {edges.map((e) => (
               <path key={`a-${e.to}`} class={`ancestry-edge ${e.kind}${enteringEdges.has(edgeKey(e)) ? ' edge-enter' : ''}`}
                 data-from={e.from} data-to={e.to} pathLength={1}
@@ -234,9 +229,15 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
             ))}
             {showRelations && relations.map((r) => {
               const p = relationPath(pos.get(r.from), pos.get(r.to));
+              // Each overlay carries its own arrowhead marker inside the
+              // .relation-edge group, so the accent fill stays scoped to
+              // the overlay.
               return (
                 <g key={r.id} class={`relation-edge relation-${r.type}`} data-type={r.type} data-from={r.from} data-to={r.to}>
-                  <path d={p.d} marker-end="url(#arrow)" />
+                  <marker id={`arrow-${r.id}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                    <path d="M0,0 L10,5 L0,10 z" class="arrowhead" />
+                  </marker>
+                  <path d={p.d} marker-end={`url(#arrow-${r.id})`} />
                   <text x={p.lx} y={p.ly} text-anchor="middle">{RELATION_LABELS[r.type]}</text>
                 </g>
               );

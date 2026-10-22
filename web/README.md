@@ -148,7 +148,11 @@ not service or desktop measurements.
   toggle stores the choice in `odin-web-prefs`; it is validated on load
   like the other preferences. Colour tokens live on `:root` (dark) with
   a `:root[data-theme="light"]` override. Surfaces, text, chrome,
-  selection and focus are monochrome; colour is used only for status.
+  ancestry connectors and selection are monochrome. Colour is reserved
+  for the status set, the quiet `--warn` synthetic-data badge (a muted
+  amber, calmer than `--status-needs`) and `--accent`, a calm blue used
+  only on links, buttons, focus rings and the typed-relationship
+  overlay.
 - The status set is Running (blue, spinner), Needs you (amber, clock),
   Done (green, check), Failed (red, triangle) and Stopped (grey,
   square). "Needs you" replaces the old "Waiting for input" label

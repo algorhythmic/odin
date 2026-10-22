@@ -159,6 +159,54 @@ class ProjectionSchemaTests(unittest.TestCase):
             with self.subTest(tokens=tokens_record):
                 self.assertEqual(schema.is_valid(self.snapshot_with_session(tokens=tokens_record)), expected)
 
+    def test_event_tokens_counters_and_basis_are_paired(self):
+        schema = self.validator("web-projection-event")
+        session = self.load("default-snapshot.json")["sessions"][0]
+
+        def tokens(u=None, cr=None, cw=None, o=None, basis="unknown", drop=None):
+            record = {"uncached_input": u, "cache_read": cr,
+                      "cache_write": cw, "output": o, "basis": basis}
+            for key in drop or ():
+                del record[key]
+            return record
+
+        def event(etype, payload):
+            return {"event_id": "evt-pair", "revision": 6, "cursor": "cur-pair",
+                    "at": "2026-10-21T12:00:00Z", "type": etype,
+                    "summary": "pairing probe", "payload": payload}
+
+        def usage(tokens_record):
+            return event("session.usage_updated",
+                         {"session_id": "ses-docs-01", "tokens": tokens_record})
+
+        def started(tokens_record):
+            new_session = copy.deepcopy(session)
+            new_session["id"] = "ses-pair"
+            new_session["tokens"] = tokens_record
+            return event("session.started", {"session": new_session})
+
+        all_null = tokens()
+        measured = tokens(u=9000, cr=120000, cw=21000, o=12200, basis="measured")
+        half_null = tokens(u=9000, cr=None, cw=21000, o=12200, basis="measured")
+        null_measured = tokens(basis="measured")
+        int_unknown = tokens(u=9000, cr=120000, cw=21000, o=12200)
+
+        cases = [
+            (usage(all_null), True),          # all null, basis unknown
+            (usage(measured), True),
+            (usage(half_null), False),        # half-null counters
+            (usage(null_measured), False),    # all null but basis measured
+            (usage(int_unknown), False),      # integers but basis unknown
+            (started(all_null), True),
+            (started(measured), True),
+            (started(half_null), False),
+            (started(null_measured), False),
+            (started(int_unknown), False),
+        ]
+        for evt, expected in cases:
+            with self.subTest(type=evt["type"], tokens=evt["payload"].get("tokens") or evt["payload"]["session"]["tokens"]):
+                self.assertEqual(schema.is_valid(evt), expected)
+
     def test_lifecycle_is_closed(self):
         schema = self.validator("web-projection-snapshot")
         self.assertFalse(schema.is_valid(self.snapshot_with_session(lifecycle="paused")))

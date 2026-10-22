@@ -151,7 +151,8 @@ Client rules, checked in this order:
      non-string `id`, names a different `session_id` than the event's,
      or carries an `outcome` outside the documented set;
    - `session.usage_updated` whose `tokens` record fails the section 7
-     shape: a counter missing, the counters half-null, a counter
+     shape, or `session.started` whose session record's `tokens` fails the
+     same shape: a counter missing, the counters half-null, a counter
      non-integer or negative, or `basis` disagreeing with the counters.
 6. **applied**: `revision` = current + 1. Apply the payload, set
    current to `revision` and store `cursor`.
@@ -216,9 +217,10 @@ Token usage covers the session's own turns, in four counters:
 non-negative integer or `null`. A `basis` of `measured`, `estimate` or
 `unknown` records where the figures came from. The four counters are all
 integers or all `null`, and `basis` is `unknown` exactly when they are
-null. A half-known record is malformed: `session.usage_updated` events
-carrying one are rejected (section 4), and the view reports a half-known
-stored record as unknown, never as a partial sum.
+null. A half-known record is malformed: `session.usage_updated` and
+`session.started` events carrying one are rejected (section 4), and the
+view reports a half-known stored record as unknown, never as a partial
+sum.
 
 The **headline figure** is `uncached_input` + `cache_write` + `output`.
 Cache reads are excluded: they dominate long sessions and would swamp the

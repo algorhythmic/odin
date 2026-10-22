@@ -119,6 +119,33 @@ test('session.usage_updated rejects malformed tokens payloads', () => {
   assert.equal(rejected(usage(undefined), snap), 'malformed tokens: tokens is not an object');
 });
 
+test('session.started rejects a malformed tokens record before adding the session', () => {
+  const snap = atRevision4();
+  const record = byId('evt-002')[0].payload.session;
+  const started = (tokens) => ({
+    ...byId('evt-bad-4')[0], event_id: 's-tokens',
+    payload: { session: { ...record, id: 'ses-new-tokens', tokens } },
+  });
+  const valid = { uncached_input: 1, cache_read: 2, cache_write: 3, output: 4, basis: 'measured' };
+  const { result, snapshot: after } = reduceEvent(snap, new Set(), started(valid));
+  assert.equal(result.status, 'applied');
+  assert.ok(after.sessions.some((s) => s.id === 'ses-new-tokens'));
+  // String counter.
+  assert.equal(rejected(started({ ...valid, output: '4' }), snap), 'malformed tokens: a token counter is not an integer');
+  // Negative counter.
+  assert.equal(rejected(started({ ...valid, output: -5 }), snap), 'malformed tokens: a token counter is negative');
+  // Non-integer counter.
+  assert.equal(rejected(started({ ...valid, output: 1.5 }), snap), 'malformed tokens: a token counter is not an integer');
+  // Missing counter field.
+  const missing = { ...valid };
+  delete missing.cache_write;
+  assert.equal(rejected(started(missing), snap), 'malformed tokens: a token counter is missing');
+  // Missing tokens field.
+  assert.equal(rejected(started(undefined), snap), 'malformed tokens: tokens is not an object');
+  // Nothing was added.
+  assert.equal(snap.sessions.length, snapshot.sessions.length + 1);
+});
+
 test('a lifecycle change can carry a run record that lands in the snapshot runs', () => {
   const run = {
     id: 'run-x', project_id: 'proj-odin-webapp', assignment_id: 'asg-docs',

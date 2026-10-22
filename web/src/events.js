@@ -72,6 +72,8 @@ export function reduceEvent(snapshot, seen, evt) {
     if (!snapshot.projects.some((pr) => pr.id === s.project_id)) return reject('unknown project');
     if (!LIFECYCLES.has(s.lifecycle)) return reject('unknown lifecycle');
     if (byId.has(s.id)) return reject('session already exists');
+    const problem = tokensProblem(s.tokens);
+    if (problem) return reject(`malformed tokens: ${problem}`);
     sessionId = s.id;
     sessions = [...snapshot.sessions, s];
   } else {
