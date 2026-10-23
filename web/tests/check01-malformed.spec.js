@@ -2,7 +2,7 @@
 // self-parents become labelled roots, empty projects render, unknown token
 // usage never becomes zero, and a run is verified only when recorded so.
 import { test, expect } from '@playwright/test';
-import { sessionUrl, shot, snapshot } from './helpers.js';
+import { expandCards, sessionUrl, shot, snapshot } from './helpers.js';
 
 const MAL = 'proj-malformed';
 const card = (page, id) => page.locator(`[data-testid="session-card"][data-session-id="${id}"]`);
@@ -11,6 +11,7 @@ const edgesOf = (page) => page.locator('path.ancestry-edge').evaluateAll((els) =
 test('cycle and self-parent sessions are labelled roots, never dropped or given a guessed edge', async ({ page }) => {
   const malformed = snapshot.sessions.filter((s) => s.project_id === MAL);
   await page.goto(`/#/projects/${MAL}`);
+  await expandCards(page, ['ses-mal-cycle-a', 'ses-mal-cycle-b', 'ses-mal-self']);
   // Every record is shown: nothing in a cycle is dropped.
   await expect(page.getByTestId('session-card')).toHaveCount(malformed.length);
   await expect(page.getByTestId('project-node')).toHaveCount(1);
@@ -63,6 +64,7 @@ test('an empty project renders an empty forest with finite dimensions', async ({
 
 test('a branch with no known tokens shows no figure and no Infinity', async ({ page }) => {
   await page.goto(`/#/projects/${MAL}`);
+  await expandCards(page, ['ses-mal-cycle-a']);
   const text = await page.getByTestId('tree-view').innerText();
   expect(text).not.toMatch(/Infinity|NaN|\$|0 tok/);
   await expect(card(page, 'ses-mal-cycle-a')).toContainText('branch unknown (2)');
@@ -83,6 +85,7 @@ test('an ended session shows Verified only when the run outcome is recorded as v
 
 test('"Previous attempt" naming a missing session opens a not-found response', async ({ page }) => {
   await page.goto(sessionUrl('ses-mal-attempt', MAL));
+  await expandCards(page, ['ses-mal-attempt']);
   await expect(card(page, 'ses-mal-attempt').getByTestId('lineage-label')).toHaveText('Attempt 2 (after ses-mal-gone)');
   await page.getByRole('button', { name: 'Previous attempt' }).click();
   await expect(page).toHaveURL(/sessions\/ses-mal-gone$/);

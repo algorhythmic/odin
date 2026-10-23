@@ -1,7 +1,7 @@
 // Handoff check 7: keyboard navigation through an equivalent list, state as text,
 // and narrow layouts that keep session details and actions usable.
 import { test, expect } from '@playwright/test';
-import { PID, shot, snapshot } from './helpers.js';
+import { expandCards, PID, shot, snapshot } from './helpers.js';
 
 const { sessions } = snapshot;
 
@@ -57,6 +57,7 @@ test('list view is keyboard navigable and conveys state as text', async ({ page 
 
 test('tree cards also carry text state labels', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
+  await expandCards(page, ['ses-ops-01']);
   await page.getByRole('button', { name: 'Tree', exact: true }).click();
   const cards = page.getByTestId('session-card');
   for (const card of await cards.all()) {
@@ -108,6 +109,7 @@ for (const width of [1280, 800]) {
   test(`card footers show the whole branch total at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`/#/projects/${PID}`);
+    await expandCards(page, ['ses-worker-a2']);
     const totals = page.getByTestId('branch-tokens');
     await expect(totals.first()).toBeVisible();
     expect(await totals.count()).toBeGreaterThanOrEqual(2);

@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { RELATION_LABELS, getAssignment, getExecutive, relationshipsFor } from './data.js';
-import { CARD, fitTree, routeRelationship } from './tree-layout.js';
+import { RELATION_LABELS, getAssignment, getExecutive, lineageLabel, relationshipsOf, relationshipsFor } from './data.js';
+import { fitTree, routeRelationship } from './tree-layout.js';
 import { ProjectNode } from './project-node.jsx';
 import { SessionCard } from './card.jsx';
+import { cardDimensions, cardIsExpanded } from './card-size.js';
 
 const edgeKey = (e) => `${e.from}>${e.to}`;
 const clamp = (n) => Math.max(0.5, Math.min(2, n));
@@ -24,13 +25,15 @@ function RelationshipKey({ styles }) {
   </div>;
 }
 
-export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect, onToggle, showRelations, highlight }) {
+export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect, onToggle, showRelations, highlight,
+  cardSizes, onSizeToggle }) {
   const viewport = useRef(null);
-  const [area, setArea] = useState({ w: 0, h: 600 });
+  const [area, setArea] = useState({ w: 0, h: 600, x: 0, y: 0 });
   const [manual, setManual] = useState(null);
-  const lockedWidth = useRef(800);
   const geometry = useMemo(() => fitTree({ roots, children: childMap, collapsed, executiveId: getExecutive()?.id },
-    CARD, manual ? lockedWidth.current : area.w), [roots, childMap, collapsed, area.w, !!manual]);
+    (s) => cardDimensions(s, cardSizes, childMap.get(s.id)?.length, !s.project && !!lineageLabel(s),
+      showRelations && relationshipsOf(s.id).some((r) => r.type === 'run_association')), area.w, Math.max(180, area.h)),
+  [roots, childMap, collapsed, cardSizes, showRelations, area.w, area.h]);
   const { ordered, positions: pos, edges, dots, width, height, mode } = geometry;
   const relations = useMemo(() => relationshipsFor(pid).flatMap((r) => {
     // Assignment records are anchored to their recorded owner, never made into tree nodes.
@@ -57,10 +60,11 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
   useLayoutEffect(() => {
     const el = viewport.current;
     const measure = () => {
-      const top = el.getBoundingClientRect().top;
+      const { top, left } = el.getBoundingClientRect();
       const h = Math.max(180, innerHeight - top - 8);
       el.style.height = `${h}px`;
-      setArea((old) => old.w === el.clientWidth && old.h === h ? old : { w: el.clientWidth, h });
+      setArea((old) => old.w === el.clientWidth && old.h === h && old.x === left && old.y === top
+        ? old : { w: el.clientWidth, h, x: left, y: top });
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -70,11 +74,10 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     return () => { observer.disconnect(); removeEventListener('resize', measure); };
   }, [keyHeight]);
 
-  const move = (next) => {
-    if (!manualRef.current) lockedWidth.current = area.w;
+  const move = (next, reflow = false) => {
     manualRef.current = true;
     current.current = next;
-    setManual(next);
+    setManual({ ...next, reflow });
   };
   const reset = () => {
     manualRef.current = false;
@@ -101,7 +104,6 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
         const b = el.getBoundingClientRect();
         zoom(Math.exp(-e.deltaY * 0.002), e.clientX - b.left, e.clientY - b.top);
       } else {
-        if (!manualRef.current) lockedWidth.current = el.clientWidth;
         manualRef.current = true;
         setManual(current.current);
         el.scrollTop += e.deltaY;
@@ -112,6 +114,27 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     return () => el.removeEventListener('wheel', wheel);
   });
 
+  const previousGeometry = useRef(null);
+  useLayoutEffect(() => {
+    const old = previousGeometry.current;
+    const el = viewport.current;
+    previousGeometry.current = { pos, area, selectedId, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop };
+    if (!manualRef.current || !old || old.pos === pos) return;
+    const focused = document.activeElement?.closest('[data-session-id]')?.dataset.sessionId;
+    const v = current.current;
+    const id = [selectedId, focused, old.selectedId, ...ordered].find((key) => {
+      const p = old.pos.get(key);
+      return p && pos.has(key) && (key === selectedId || key === focused
+        || p.y * v.scale + v.y >= el.scrollTop && p.y * v.scale + v.y < el.scrollTop + area.h);
+    });
+    if (!id) return;
+    const a = old.pos.get(id);
+    const b = pos.get(id);
+    const dx = (a.x - b.x) * v.scale + old.area.x - area.x - old.scrollLeft + el.scrollLeft;
+    const dy = (a.y - b.y) * v.scale + old.area.y - area.y - old.scrollTop + el.scrollTop;
+    if (dx || dy) move({ ...v, x: v.x + dx, y: v.y + dy }, true);
+  }, [pos]);
+
   // One selection can be revealed after its ancestors mount or a drawer resizes.
   const scrolledSelection = useRef(null);
   useLayoutEffect(() => {
@@ -119,7 +142,8 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     const el = viewport.current;
     const p = pos.get(selectedId);
     const key = `${selectedId}:${area.w}:${mode}`;
-    if (!p || scrolledSelection.current === key) return;
+    if (!p || scrolledSelection.current === key
+      || manualRef.current && scrolledSelection.current?.startsWith(`${selectedId}:`)) return;
     scrolledSelection.current = key;
     const v = current.current;
     const left = p.x * v.scale + v.x - el.scrollLeft;
@@ -221,12 +245,21 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     <p id="tree-instructions" class="sr-only">{INSTRUCTIONS}</p>
     <div class="tree-view" ref={viewport} data-testid="tree-view" data-scale={view.scale} data-mode={mode}
       data-manual={!!manual} role="region" aria-label="Agent tree canvas" aria-describedby="tree-instructions" tabIndex={0}
+      onScroll={(e) => {
+        const old = previousGeometry.current;
+        const el = e.currentTarget;
+        // A resize may clamp scroll offsets before the next layout commits.
+        if (old && old.area.w === el.clientWidth && Math.abs(old.area.h - el.clientHeight) < 1) {
+          old.scrollLeft = el.scrollLeft;
+          old.scrollTop = el.scrollTop;
+        }
+      }}
       onKeyDown={keyDown} onPointerDown={pointerDown} onPointerMove={pointerMove}
       onPointerUp={pointerUp} onPointerCancel={pointerUp} onLostPointerCapture={pointerUp}
       onClickCapture={(e) => { if (suppressClick.current) { e.stopPropagation(); suppressClick.current = false; } }}>
       <div class="tree-space" style={{ width: Math.max(area.w, stageWidth * view.scale + view.x),
         height: Math.max(area.h, stageHeight * view.scale + view.y) }}>
-        {area.w > 0 && <div class={`tree-stage ${manual ? 'manual-view' : ''}`}
+        {area.w > 0 && <div class={`tree-stage ${manual ? 'manual-view' : ''} ${manual?.reflow ? 'reflow-view' : ''}`}
           style={{ width: stageWidth, height: stageHeight,
             transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
           <svg class="tree-edges" width={stageWidth} height={stageHeight} aria-hidden="true">
@@ -246,7 +279,8 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
             if (p.s.project) return <ProjectNode key={id} project={p.s.project} style={style}
               expanded={!collapsed.has(id)} muted={muted} onToggle={() => onToggle(id)} />;
             return <SessionCard key={id} session={p.s} childMap={childMap} style={style} muted={muted}
-              selected={id === selectedId} expanded={!collapsed.has(id)} childCount={(childMap.get(id) || []).length}
+              selected={id === selectedId} cardExpanded={cardIsExpanded(p.s, cardSizes)} onSizeToggle={onSizeToggle}
+              expanded={!collapsed.has(id)} childCount={(childMap.get(id) || []).length}
               entering={entering.has(id)} onSelect={onSelect} onToggle={onToggle} showRelations={showRelations} />;
           })}
           <svg class="tree-overlays" width={stageWidth} height={stageHeight} aria-hidden="true">

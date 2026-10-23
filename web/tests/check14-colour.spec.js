@@ -83,6 +83,7 @@ test('colour rules hold in the dark default theme', async ({ page }) => {
   const warn = await checkBadge(page);
   expect(warn).toBe('rgb(194, 163, 110)');
   await checkAccentConfined(page);
+  await checkGrouping(page);
   await shot(page, 'colour-dark');
 });
 
@@ -94,5 +95,35 @@ test('colour rules hold in the light theme', async ({ page }) => {
   const warn = await checkBadge(page);
   expect(warn).toBe('rgb(113, 96, 58)');
   await checkAccentConfined(page);
+  await checkGrouping(page);
   await shot(page, 'colour-light');
 });
+
+
+async function checkGrouping(page) {
+  const group = await resolveToken(page, '--group');
+  const canvas = await resolveToken(page, '--canvas');
+  const luminance = (rgb) => {
+    const c = rgb.match(/\d+/g).slice(0, 3).map((n) => {
+      const x = Number(n) / 255;
+      return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+    });
+    return c[0] * 0.2126 + c[1] * 0.7152 + c[2] * 0.0722;
+  };
+  const [a, b] = [luminance(group), luminance(canvas)].sort((x, y) => y - x);
+  expect((a + 0.05) / (b + 0.05), 'grouping contrast against canvas').toBeGreaterThanOrEqual(3);
+  const hits = await page.evaluate(([rgb, props]) => {
+    const offenders = [];
+    for (const el of document.querySelectorAll('*')) for (const prop of props) {
+      if (getComputedStyle(el).getPropertyValue(prop) !== rgb) continue;
+      const allowed = el.closest('.legend-row[data-style="project"]')
+        || el.matches('.project-edge') && prop === 'stroke'
+        || el.matches('.project-node') && prop === 'border-left-color';
+      if (!allowed) offenders.push(`${el.tagName}.${el.getAttribute('class')} ${prop}`);
+    }
+    return offenders;
+  }, [group, PROPS]);
+  expect(hits, '--group is reserved for project grouping').toEqual([]);
+  expect(await page.locator('.project-node').first().evaluate((el) => getComputedStyle(el).borderLeftColor)).toBe(group);
+  expect(await page.locator('.project-edge').first().evaluate((el) => getComputedStyle(el).stroke)).toBe(group);
+}

@@ -1,10 +1,11 @@
 // Handoff check 4 (synthetic): stale and host_offline sessions say when they
 // were last observed; the history view keeps attempts and resumptions apart.
 import { test, expect } from '@playwright/test';
-import { PID, sessionUrl, shot } from './helpers.js';
+import { expandCards, PID, sessionUrl, shot } from './helpers.js';
 
 test('stale and host-offline sessions show their last observed time', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
+  await expandCards(page, ['ses-ops-01']);
   const ops = page.locator('[data-testid="session-card"][data-session-id="ses-ops-01"]');
   await expect(ops.getByTestId('state-label')).toHaveText('Host offline');
   await expect(ops).toContainText('Stale');

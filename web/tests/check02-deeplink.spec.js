@@ -16,7 +16,7 @@ test('a session deep link restores the selection after reload', async ({ page })
 
 test('a deep link into a collapsed branch expands its ancestors', async ({ page }) => {
   await page.goto(sessionUrl('ses-integ-01'));
-  await page.locator('[data-session-id="ses-integ-01"]').getByRole('button', { name: /Collapse/ }).click();
+  await page.locator('[data-session-id="ses-integ-01"]').getByRole('button', { name: /Collapse 4 sessions/ }).click();
   await expect(page.locator('[data-session-id="ses-helper-01"]')).toHaveCount(0);
   await page.goto(sessionUrl('ses-helper-01'));
   await expect(page.locator('[data-testid="session-card"][data-session-id="ses-helper-01"]')).toBeVisible();

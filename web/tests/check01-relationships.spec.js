@@ -1,6 +1,6 @@
 // Handoff check 1: ancestry, ownership and review are not conflated.
 import { test, expect } from '@playwright/test';
-import { PID, sessionUrl, shot, snapshot } from './helpers.js';
+import { expandCards, PID, sessionUrl, shot, snapshot } from './helpers.js';
 
 const { sessions, relationships, assignments } = snapshot;
 
@@ -33,6 +33,7 @@ test('a recorded parent outside the view stays a labelled root, never a guessed 
   const pid = 'proj-contract-pins';
   const count = sessions.filter((s) => s.project_id === pid).length;
   await page.goto(`/#/projects/${pid}`);
+  await expandCards(page, ['ses-pin-audit']);
   await expect(page.getByTestId('session-card')).toHaveCount(count);
   await expect(page.getByTestId('project-node')).toHaveCount(1);
   const audit = page.locator('[data-testid="session-card"][data-session-id="ses-pin-audit"]');
@@ -53,6 +54,7 @@ test('a recorded parent outside the view stays a labelled root, never a guessed 
 
 test('tree renders the ancestry forest and typed relationships distinctly', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
+  await expandCards(page, ['ses-imported-01', 'ses-worker-a1', 'ses-worker-a2']);
   await expect(page.getByTestId('synthetic-badge')).toBeVisible();
   const cards = page.getByTestId('session-card');
   await expect(cards).toHaveCount(projectSessions.length);

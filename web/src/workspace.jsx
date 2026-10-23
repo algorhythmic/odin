@@ -100,6 +100,8 @@ export function Workspace({ project, sid, highlight }) {
       <section class="tree-area" aria-label="Agent tree">
         {mode === 'tree'
           ? <TreeView pid={pid} roots={roots} childMap={childMap} collapsed={collapsed} selectedId={admitted?.id}
+              cardSizes={prefs.cardSizes}
+              onSizeToggle={(id, expanded) => updatePrefs({ cardSizes: { ...prefs.cardSizes, [id]: expanded } })}
               highlight={highlight} onSelect={select} onToggle={toggle} showRelations={prefs.showRelations} />
           : <ListTree roots={roots} childMap={childMap} collapsed={collapsed} selectedId={admitted?.id}
               highlight={highlight} onSelect={select} onToggle={toggle} />}

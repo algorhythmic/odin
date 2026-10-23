@@ -34,7 +34,7 @@ test('providers come from the model id and are never guessed', () => {
 
 test('preference validation keeps documented fields and defaults the rest', () => {
   const defaults = {
-    mode: 'tree', collapsed: {}, showRelations: true, theme: 'dark', sidebarCollapsed: false, sidebarWidth: 320,
+    cardSizes: {}, mode: 'tree', collapsed: {}, showRelations: true, theme: 'dark', sidebarCollapsed: false, sidebarWidth: 320,
   };
   assert.deepEqual(cleanPrefs(null), defaults);
   assert.deepEqual(cleanPrefs('list'), defaults);
@@ -68,4 +68,13 @@ test('sidebar preferences validate types and range without coercion', () => {
   for (const sidebarCollapsed of ['true', 1, null, false, {}, []]) {
     assert.equal(cleanPrefs({ sidebarCollapsed }).sidebarCollapsed, false);
   }
+});
+
+
+test('card size overrides validate values, identifiers and a 500-entry bound', () => {
+  assert.deepEqual(cleanPrefs({ cardSizes: { a: true, b: false, c: 'true', 'bad key': false } }).cardSizes,
+    { a: true, b: false });
+  for (const value of [null, [], 'x', 7]) assert.deepEqual(cleanPrefs({ cardSizes: value }).cardSizes, {});
+  const many = Object.fromEntries(Array.from({ length: 600 }, (_, i) => [`session-${i}`, i % 2 === 0]));
+  assert.equal(Object.keys(cleanPrefs({ cardSizes: many }).cardSizes).length, 500);
 });

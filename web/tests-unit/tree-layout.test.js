@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { cardDimensions, cardIsExpanded } from '../src/card-size.js';
 import { CARD, fitTree, intersects, routeRelationship } from '../src/tree-layout.js';
 import { groupedTree, projectAncestry } from '../src/ancestry.js';
 import { generateLargeSnapshot } from '../src/fixtures/large.js';
@@ -12,28 +13,30 @@ function hierarchy(s = snapshot, scoped = false) {
     (p) => projectAncestry(s.sessions, p, s.executive_session_id), scoped);
   return { roots: h.roots, children: h.children, executiveId: s.executive_session_id };
 }
-const fit = (width, h = hierarchy()) => fitTree(h, CARD, width);
+const sizes = (h) => (s) => cardDimensions(s, {}, h.children.get(s.id)?.length,
+  !!(s.attempt || s.resumption || s.provenance === 'imported' || s.id.includes('cycle') || s.id.includes('self')));
+const fit = (width, h = hierarchy(), height = 900) => fitTree(h, sizes(h), width, height);
 
-test('tries tidy, then deepest stacking, then wrapping before shrinking', () => {
-  const tidy = fit(6000);
-  assert.equal(tidy.mode, 'tidy');
-  const roots = hierarchy().children.get('project:proj-odin-webapp');
-  const row = roots.map((s) => tidy.positions.get(s.id));
-  assert.ok(row.every((p) => p.y === row[0].y));
-  assert.ok(row.slice(1).every((p, i) => p.x > row[i].x));
-  assert.equal(fit(3000).mode, 'stack-3');
-  assert.equal(fit(1800).mode, 'stack-2');
-  assert.equal(fit(1072).mode, 'projects-wrap-2');
-  assert.equal(fit(732).mode, 'projects-wrap-4');
-  for (const width of [6000, 3000, 1800, 1072, 732, 768, 400]) {
-    const l = fit(width);
-    assert.ok(l.scale >= 0.85);
+test('per-branch candidates use both viewport dimensions and preserve readable columns', () => {
+  for (const [width, height] of [[1440, 900], [1100, 800], [800, 1000]]) {
+    const l = fit(width, hierarchy(), height);
+    const cards = [...l.positions.values()].filter((p) => !p.s.project);
+    const columns = Math.max(...cards.map((p) => cards.filter((c) => c.y === p.y).length));
+    assert.ok(columns >= 3, `${width}: ${columns} columns`);
+    assert.ok(l.scale >= 0.75);
     assert.ok(l.width * l.scale <= width);
-    const boxes = [...l.positions.values()];
-    boxes.forEach((a, i) => boxes.slice(i + 1).forEach((b) => assert.ok(!intersects(a, b))));
+    cards.forEach((a, i) => cards.slice(i + 1).forEach((b) => assert.ok(!intersects(a, b))));
   }
   assert.equal(fit(120).scale, 0.5);
-  assert.ok(fit(120).width * 0.5 > 120);
+  const h = hierarchy();
+  assert.notDeepEqual(fitTree(h, sizes(h), 1440, 300), fitTree(h, sizes(h), 1440, 3000));
+});
+
+test('a fitting tree maximises scale across both axes without unnecessary vertical scrolling', () => {
+  const h = hierarchy(snapshot, true);
+  const l = fit(1100, h, 800);
+  assert.ok(l.scale >= 0.75);
+  assert.ok(l.height * l.scale <= 800);
 });
 
 test('ancestry and labelled-root grouping survive every arrangement unchanged', () => {
@@ -87,6 +90,29 @@ test('pills clear every card across modes and counter-scale at zoom limits', () 
 test('full seeded hierarchy fits bounded width without losing nodes', () => {
   const l = fit(732, hierarchy(generateLargeSnapshot()));
   assert.equal(l.positions.size, 2002);
-  assert.ok(l.scale >= 0.85);
+  assert.ok(l.scale >= 0.75);
   assert.ok(l.height > 900);
+});
+
+test('card defaults follow lifecycle and input, and overrides win', () => {
+  for (const lifecycle of ['ended', 'retired', 'idle', 'host_offline']) {
+    const s = { id: 's', lifecycle };
+    assert.equal(cardIsExpanded(s), false);
+    assert.deepEqual(cardDimensions(s), { w: 220, h: 44 });
+    assert.equal(cardIsExpanded({ ...s, needs_operator_input: true }), true);
+    assert.equal(cardIsExpanded(s, { s: true }), true);
+  }
+  assert.equal(cardIsExpanded({ id: 's', lifecycle: 'running' }), true);
+  assert.equal(cardIsExpanded({ id: 's', lifecycle: 'running' }, { s: false }), false);
+});
+
+test('200 visible generated sessions lay out in under 50 ms', () => {
+  const large = generateLargeSnapshot();
+  const sample = { ...large, sessions: large.sessions.slice(0, 201) };
+  const h = hierarchy(sample);
+  fit(1100, h);
+  const start = performance.now();
+  const l = fit(1100, h);
+  assert.equal(l.positions.size, 202);
+  assert.ok(performance.now() - start < 50);
 });

@@ -1,5 +1,5 @@
 // Browser state is limited to layout preferences: view mode, collapsed
-// branches, the relationship overlay, theme and sidebar size. Records are
+// branches, card sizes, the relationship overlay, theme and sidebar size. Records are
 // never stored here.
 import { useEffect, useState } from 'preact/hooks';
 
@@ -20,12 +20,20 @@ function cleanCollapsed(value) {
   return out;
 }
 
+// Bound both keys and count; values are explicit expanded/compact choices only.
+function cleanCardSizes(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter(([id, expanded]) =>
+    /^[a-zA-Z0-9][a-zA-Z0-9:_-]{0,127}$/.test(id) && typeof expanded === 'boolean').slice(-500));
+}
+
 // Validates a parsed preference object: every field falls back to its
 // default when missing or malformed. Dark is the default theme whatever
 // the system setting.
 export function cleanPrefs(value) {
   const v = value && typeof value === 'object' ? value : {};
   return {
+    cardSizes: cleanCardSizes(v.cardSizes),
     mode: v.mode === 'list' ? 'list' : 'tree',
     collapsed: cleanCollapsed(v.collapsed),
     showRelations: v.showRelations !== false,

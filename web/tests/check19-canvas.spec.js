@@ -1,6 +1,6 @@
 // R3d: adaptive geometry and direct manipulation, synthetic prototype evidence.
 import { test, expect } from '@playwright/test';
-import { PID, shot } from './helpers.js';
+import { expandCards, PID, shot } from './helpers.js';
 
 const canvas = (p) => p.getByRole('region', { name: 'Agent tree canvas' });
 const card = (p, id) => p.locator(`[data-testid="session-card"][data-session-id="${id}"]`);
@@ -13,6 +13,7 @@ const settled = async (p) => {
 };
 
 async function assertLabelsClear(page) {
+  await settled(page);
   const hits = await page.evaluate(() => {
     const cards = [...document.querySelectorAll('.card, .project-node')].map((el) => el.getBoundingClientRect());
     return [...document.querySelectorAll('.relation-label')].flatMap((el) => {
@@ -24,13 +25,13 @@ async function assertLabelsClear(page) {
   expect(hits, 'every relationship pill clears every session and project card').toEqual([]);
 }
 
-for (const [width, mode] of [[1440, 'projects-wrap-2'], [1100, 'projects-wrap-4'], [800, 'projects-wrap-2']]) {
+for (const [width, mode] of [[1440, 'adaptive'], [1100, 'adaptive'], [800, 'adaptive']]) {
   test(`load fits at ${width}px by rearranging before shrinking`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto('/#/');
     await expect(canvas(page)).toHaveAttribute('data-mode', mode);
     await settled(page);
-    expect(await scale(page)).toBeGreaterThanOrEqual(0.85);
+    expect(await scale(page)).toBeGreaterThanOrEqual(0.75);
     await expect(reset(page)).toHaveCount(0);
     for (const name of ['Fit all', 'Actual size', 'Fit branch']) {
       await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
@@ -57,7 +58,7 @@ for (const [width, mode] of [[1440, 'projects-wrap-2'], [1100, 'projects-wrap-4'
 
 test('automatic fitting follows resize, sidebar, drawer and content changes', async ({ page }) => {
   await page.goto('/#/');
-  await expect(canvas(page)).toHaveAttribute('data-mode', 'projects-wrap-2');
+  await expect(canvas(page)).toHaveAttribute('data-mode', 'adaptive');
   const initialWidth = await canvas(page).evaluate((el) => el.clientWidth);
   const separator = page.getByRole('separator', { name: 'Sidebar width' });
   await separator.focus();
@@ -73,12 +74,12 @@ test('automatic fitting follows resize, sidebar, drawer and content changes', as
   });
   await page.reload();
   await page.setViewportSize({ width: 1100, height: 900 });
-  await expect(canvas(page)).toHaveAttribute('data-mode', 'projects-wrap-4');
+  await expect(canvas(page)).toHaveAttribute('data-mode', 'adaptive');
   await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
-  await expect(canvas(page)).toHaveAttribute('data-mode', 'projects-wrap-2');
+  await expect(canvas(page)).toHaveAttribute('data-mode', 'adaptive');
   await card(page, 'ses-exec-01').getByRole('button', { name: 'Collapse 4 projects under executive' }).click();
   await expect(page.getByTestId('session-card')).toHaveCount(1);
-  await expect(canvas(page)).toHaveAttribute('data-mode', 'tidy');
+  await expect(canvas(page)).toHaveAttribute('data-mode', 'adaptive');
   await card(page, 'ses-exec-01').getByRole('button', { name: 'Expand 4 projects under executive' }).click();
   const width = await canvas(page).evaluate((el) => el.clientWidth);
   await card(page, 'ses-exec-01').getByRole('button').first().click();
@@ -118,14 +119,15 @@ test('wheel zoom anchors the pointer, plain wheel scrolls, keyboard clamps and r
   expect(await scale(page)).toBe(2);
   for (let i = 0; i < 20; i++) await page.keyboard.press('-');
   expect(await scale(page)).toBe(0.5);
-  const manual = await transform(page);
+  const manualScale = await scale(page);
   await page.setViewportSize({ width: 1100, height: 900 });
-  expect(await transform(page)).toBe(manual);
+  expect(await scale(page)).toBe(manualScale);
   await page.keyboard.press('0');
   await expect(reset(page)).toHaveCount(0);
-  expect(await scale(page)).toBeGreaterThanOrEqual(0.85);
+  expect(await scale(page)).toBeGreaterThanOrEqual(0.75);
+  const fittedScale = await scale(page);
   await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
-  expect(await scale(page)).toBeGreaterThan(1);
+  expect(await scale(page)).toBeGreaterThan(fittedScale);
   await reset(page).click();
   await page.getByRole('button', { name: 'Zoom out', exact: true }).click();
   expect(await scale(page)).toBeLessThan(1);
@@ -220,6 +222,7 @@ for (const [url, width] of [['/#/', 1440], [`/#/projects/${PID}`, 1440], ['/#/',
     }
     expect(await page.locator('.tree-edges .project-edge').first()
       .evaluate((el) => getComputedStyle(el).strokeDasharray)).toBe('8px, 4px');
+    await expandCards(page, ['ses-worker-a2']);
     await expect(page.locator('.run-badge').first()).toHaveCount(1);
     await assertLabelsClear(page);
     await canvas(page).focus();

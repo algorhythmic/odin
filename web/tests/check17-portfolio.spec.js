@@ -1,6 +1,6 @@
 // R3a: grouping is presentation; ancestry and usage still come from records.
 import { test, expect } from '@playwright/test';
-import { PID, snapshot, shot } from './helpers.js';
+import { expandCards, PID, snapshot, shot } from './helpers.js';
 
 const card = (page, id) => page.locator(`[data-testid="session-card"][data-session-id="${id}"]`);
 const project = (page, id) => page.locator(`[data-testid="project-node"][data-project-id="${id}"]`);
@@ -35,6 +35,7 @@ test('one executive, ordered grouping nodes and recorded ancestry through projec
 
 test('labelled roots hang from project groupings with no invented ancestry', async ({ page }) => {
   await page.goto('/#/');
+  await expandCards(page, ['ses-imported-01', 'ses-pin-audit', 'ses-mal-cycle-a', 'ses-mal-cycle-b', 'ses-mal-self']);
   const groups = await edges(page, 'project-edge');
   const ancestry = await edges(page, 'ancestry-edge');
   for (const [id, pid, label] of [

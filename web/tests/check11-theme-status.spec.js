@@ -4,7 +4,7 @@
 // status set with icons; stopped and superseded cards are dimmed; model
 // names are friendly and the task text wraps.
 import { test, expect } from '@playwright/test';
-import { PID, shot, snapshot } from './helpers.js';
+import { expandCards, PID, shot, snapshot } from './helpers.js';
 
 const card = (page, id) => page.locator(`[data-testid="session-card"][data-session-id="${id}"]`);
 const theme = (page) => page.evaluate(() => document.documentElement.dataset.theme);
@@ -112,6 +112,7 @@ test('stopped cards and superseded attempts are dimmed', async ({ page }) => {
 
 test('cards show a provider monogram and a friendly model name', async ({ page }) => {
   await page.goto('/#/');
+  await expandCards(page, ['ses-worker-a1', 'ses-worker-a2', 'ses-helper-01', 'ses-ops-01', 'ses-review-integ', 'ses-imported-01']);
   const expected = new Map(snapshot.sessions.filter((s) => s.project_id === PID).map((s) => [s.id, s.model]));
   const names = {
     'claude-opus-5-5': 'Opus 5.5',

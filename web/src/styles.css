@@ -6,6 +6,7 @@
    --status-needs, used on the synthetic-data badge and admission warnings) and
    --accent (a calm blue, distinct from --status-running, used only on
    links, buttons, focus rings, active resize feedback and the typed-relationship overlay).
+   --group (violet) marks project grouping connectors, node accents and the key only.
    Usage bars are monochrome; admission text uses --warn from wind_down
    and --status-failed at handoff_only because bands carry status meaning. */
 :root {
@@ -20,6 +21,7 @@
   --edge: #686868;
   --warn: #c2a36e;
   --accent: #8ba3d4;
+  --group: #a394e0;
   --focus: var(--accent);
   --chip-tint: 14%;
   --status-running: #58a6ff;
@@ -47,6 +49,7 @@
   --edge: #8792a2;
   --warn: #71603a;
   --accent: #35518c;
+  --group: #5f4ba8;
   --focus: var(--accent);
   --status-running: #1f6fd6;
   --status-needs: #9a6a00;
@@ -143,7 +146,8 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
    also slide to their new positions when collapse/expand or a new
    sibling re-lays the tree out. All of it is instant under
    prefers-reduced-motion. */
-.card, .project-node { transition: left 420ms var(--tree-curve), top 420ms var(--tree-curve); }
+.card, .project-node { transition: left 420ms var(--tree-curve), top 420ms var(--tree-curve),
+  width 280ms var(--tree-curve), height 280ms var(--tree-curve); }
 .card-enter { animation: card-in 360ms var(--tree-curve); }
 @keyframes card-in { from { opacity: 0; transform: translateY(10px); } }
 .edge-enter { stroke-dasharray: 1; stroke-dashoffset: 1; animation: edge-draw 420ms var(--tree-curve) forwards; }
@@ -206,18 +210,19 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
 .tree-view:active { cursor: grabbing; }
 .tree-space { position: relative; overflow: hidden; }
 .tree-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
-.tree-stage:not(.manual-view) { transition: transform 420ms var(--tree-curve); }
+.tree-stage:not(.manual-view), .tree-stage.reflow-view { transition: transform 420ms var(--tree-curve); }
 .tree-edges, .tree-overlays { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
 .tree-overlays { z-index: 3; }
-.tree-edges > path { transition: d 420ms var(--tree-curve); }
+.tree-edges > path, .relation-edge > path { transition: d 420ms var(--tree-curve); }
 .tree-edges .port-dot { transition: cx 420ms var(--tree-curve), cy 420ms var(--tree-curve); }
 .ancestry-edge, .project-edge, .sample-ancestry, .sample-project { fill: none; stroke: var(--edge); stroke-width: 2; }
-.project-edge, .sample-project { stroke-width: 1; stroke-dasharray: 8 4; opacity: 0.65; }
+.project-edge, .sample-project { stroke: var(--group); stroke-width: 1; stroke-dasharray: 8 4; }
 .port-dot, .sample-port { fill: var(--canvas); stroke: var(--edge); stroke-width: 2; }
 .relation-edge > path { fill: none; stroke: var(--accent); stroke-width: 1.5; }
 .relation-edge.relation-review > path { stroke-dasharray: 6 4; }
 .relation-edge.relation-delegation > path { stroke-dasharray: 1 4; stroke-linecap: round; }
 .relation-edge.relation-assignment_owner > path { stroke-dasharray: 8 3 2 3; }
+.relation-label { transition: transform 420ms var(--tree-curve); }
 .relation-label rect { fill: var(--canvas); stroke: var(--border); }
 .relation-label text { fill: var(--accent); }
 .relation-edge .arrowhead { fill: var(--accent); stroke: none; stroke-dasharray: none; }
@@ -225,13 +230,15 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
   position: absolute; top: 8px; left: 12px; display: flex; flex-direction: column;
   font-size: 11px; color: var(--muted); pointer-events: none;
 }
+.legend-row[data-style="project"] { color: var(--group); }
 .legend-row { display: flex; align-items: center; gap: 8px; height: 22px; }
 .canvas-controls { position: absolute; right: 12px; top: 12px; display: flex; gap: 4px; }
 .canvas-controls button { font-size: 12px; padding: 3px 8px; }
 .run-badge { font-size: 10px; border: 1px solid var(--border); border-radius: 8px; padding: 0 5px; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); }
 @media (prefers-reduced-motion: reduce) {
-  .card, .project-node, .tree-stage:not(.manual-view), .tree-edges > path, .tree-edges .port-dot { transition: none; }
+  .card, .project-node, .tree-stage:not(.manual-view), .tree-stage.reflow-view,
+  .tree-edges > path, .tree-edges .port-dot, .relation-edge > path, .relation-label { transition: none; }
 }
 
 .card {
@@ -241,7 +248,7 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
 }
 .card.selected { box-shadow: 0 0 0 2px var(--text); }
 .card-dimmed { opacity: 0.55; }
-.card-head { display: flex; align-items: flex-start; gap: 7px; }
+.card-head { display: flex; align-items: flex-start; gap: 5px; }
 .provider-logo { width: 18px; height: 18px; flex: none; margin-top: 2px; }
 .provider-box { fill: var(--surface-2); stroke: var(--border); }
 .provider-letter { fill: var(--text); }
@@ -265,6 +272,17 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
 .child-chip { padding: 0 8px; font-size: 0.75rem; border-radius: 999px; }
 .card-title[aria-pressed="true"] { background: none; color: inherit; border: 0; }
 .observed { color: var(--status-failed); font-size: 0.8rem; font-weight: 600; }
+
+.card-size-toggle { padding: 0; width: 16px; height: 20px; flex: none; background: transparent;
+  border-color: transparent; font-size: 14px; line-height: 1; }
+.card-compact { padding: 10px 6px; }
+.card-compact .card-head { align-items: center; height: 22px; gap: 3px; }
+.card-compact .provider-logo { width: 14px; height: 14px; margin: 0; }
+.card-compact .role { font-size: 10px; }
+.card-compact .status-chip { padding: 1px 3px; gap: 2px; font-size: 9px; flex: none; }
+.card-compact .status-icon { width: 10px; height: 10px; }
+.card-compact [data-testid="own-tokens"] { font-size: 9px; white-space: nowrap; flex: none; }
+.card-compact .child-chip { padding: 0 3px; font-size: 9px; flex: none; }
 
 .list-tree { list-style: none; margin: 0; padding: 0 0 48px; border: 1px solid var(--border); border-radius: var(--radius); max-height: min(560px, 60vh); overflow: auto; overflow-anchor: none; position: relative; max-width: 900px; }
 .list-row { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; padding: 6px 8px; border-bottom: 1px solid var(--border); cursor: pointer; }
@@ -491,13 +509,15 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
 .executive-header { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
 .executive-header strong { text-transform: capitalize; }
 .project-node {
-  flex-wrap: wrap;
-  position: absolute; display: flex; gap: 10px; align-items: center; padding: 8px 12px;
-  background: var(--canvas); border: 1px solid var(--edge); border-radius: 5px;
+  position: absolute; display: grid; grid-template-columns: 12px minmax(0, 1fr);
+  gap: 1px 6px; align-content: center; padding: 8px 12px;
+  background: var(--canvas); border: 1px solid var(--edge); border-left: 3px solid var(--group); border-radius: 5px;
   font-size: 0.72rem; white-space: nowrap; text-align: left;
 }
 .project-node strong { flex: 1 1 calc(100% - 30px); min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
-.project-node > span { flex: none; }
+.project-node > :first-child { grid-row: 1 / span 3; }
+.project-node > :not(:first-child) { grid-column: 2; min-width: 0; }
+.project-node > span { font-size: 10px; }
 .list-row[data-node-kind="project"] { background: var(--surface-2); font-size: 0.8rem; }
 .branch-muted, .tree-edges [data-muted="true"] { opacity: 0.35; }
 /* The header wraps rather than scrolling sideways, so every control stays

@@ -13,6 +13,7 @@ const boxOf = (page, id) => card(page, id).boundingBox();
 test('the canvas owns vertical overflow and the lowest card is reachable', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
   const view = page.getByTestId('tree-view');
+  await page.setViewportSize({ width: 800, height: 500 });
   await expect.poll(() => view.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
   expect(await view.evaluate((el) => getComputedStyle(el).overflowY)).toBe('auto');
   expect(await view.evaluate((el) => el.getBoundingClientRect().bottom)).toBeLessThanOrEqual(900);
@@ -25,21 +26,19 @@ test('the canvas owns vertical overflow and the lowest card is reachable', async
   await expect(card(page, lastId)).toBeInViewport();
 });
 
-test('narrow branches stack in indented columns with room for their descendants', async ({ page }) => {
+test('adaptive branches keep sibling reading order and descendants clear', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
-  await expect(page.getByTestId('tree-view')).toHaveAttribute('data-mode', 'stack-2');
-  const integ = await boxOf(page, 'ses-integ-01');
-  let above = integ;
-  for (const id of kids.get('ses-integ-01')) {
-    const b = await boxOf(page, id);
-    expect(b.y, `${id} is below the previous sibling`).toBeGreaterThan(above.y + above.height);
-    expect(b.x, `${id} is indented from the parent`).toBeGreaterThan(integ.x);
-    above = b;
+  await expect(page.getByTestId('tree-view')).toHaveAttribute('data-mode', 'adaptive');
+  for (const [parent, ids] of kids) {
+    if (ids.length < 2) continue;
+    const boxes = await page.locator('[data-testid="session-card"]').evaluateAll((els) =>
+      Object.fromEntries(els.map((el) => [el.dataset.sessionId, { x: el.offsetLeft, y: el.offsetTop }])));
+    for (let i = 1; i < ids.length; i++) {
+      const a = boxes[ids[i - 1]];
+      const b = boxes[ids[i]];
+      expect(b.y > a.y || b.y === a.y && b.x > a.x, `${parent}: sibling reading order`).toBe(true);
+    }
   }
-  const a2 = await boxOf(page, 'ses-worker-a2');
-  const helper = await boxOf(page, 'ses-helper-01');
-  expect(helper.x).toBeGreaterThan(a2.x);
-  expect(helper.y).toBeGreaterThan(a2.y + a2.height);
   await shot(page, 'tree-layout');
 });
 

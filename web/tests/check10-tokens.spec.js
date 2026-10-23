@@ -5,7 +5,7 @@
 // children. The expected strings are recomputed from the fixture, not
 // hardcoded.
 import { test, expect } from '@playwright/test';
-import { PID, sessionUrl, shot, snapshot } from './helpers.js';
+import { expandCards, PID, sessionUrl, shot, snapshot } from './helpers.js';
 
 const byId = new Map(snapshot.sessions.map((s) => [s.id, s]));
 
@@ -60,6 +60,7 @@ test('an unknown session shows unknown, never a figure', async ({ page }) => {
 
 test('branch totals and the project total sum own tokens once and count unknowns', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
+  await expandCards(page, ['ses-worker-a2']);
   // ses-worker-a2 is an estimate with one unknown child (ses-helper-01).
   const a2 = page.locator('[data-testid="session-card"][data-session-id="ses-worker-a2"]');
   await expect(a2.getByTestId('branch-tokens')).toHaveText(`branch ${headlineText(byId.get('ses-worker-a2'))} + unknown (1)`);

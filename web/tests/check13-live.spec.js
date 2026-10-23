@@ -7,7 +7,7 @@
 // chips open a keyboard-accessible popover with disabled commands.
 // Timers are driven with page.clock, never real waits.
 import { test, expect } from '@playwright/test';
-import { PID, sessionUrl, shot } from './helpers.js';
+import { expandCards, PID, sessionUrl, shot } from './helpers.js';
 
 const card = (page, id) => page.locator(`[data-testid="session-card"][data-session-id="${id}"]`);
 const toggle = (page) => page.getByTestId('autoplay-toggle');
@@ -73,6 +73,7 @@ test('running sessions tick elapsed each second and the Running chip spins', asy
   await toggle(page).click();
   await page.clock.runFor(3000);
   await expect(elapsed).toHaveText('2h 34m 03s');
+  await expandCards(page, ['ses-helper-01']);
   // A stopped card does not tick.
   await expect(card(page, 'ses-helper-01').getByTestId('elapsed')).toHaveText('10m');
   // The Running chip's spinner animates.
@@ -139,11 +140,11 @@ test('autoplay preserves the selection and a manually panned canvas', async ({ p
   const view = page.getByTestId('tree-view');
   await view.focus();
   await page.keyboard.press('ArrowDown');
-  const transform = await page.locator('.tree-stage').evaluate((el) => el.style.transform);
+  const zoom = await view.getAttribute('data-scale');
   await speed(page).selectOption('4');
   await toggle(page).click();
   await page.clock.runFor(6000); // through the malformed batch and the first live sessions
-  expect(await page.locator('.tree-stage').evaluate((el) => el.style.transform)).toBe(transform);
+  expect(await view.getAttribute('data-scale')).toBe(zoom);
   await expect(view).toHaveAttribute('data-manual', 'true');
   await expect(page).toHaveURL(/sessions\/ses-worker-a2$/);
   await expect(page.locator('[data-testid="session-card"].selected')).toHaveAttribute('data-session-id', 'ses-worker-a2');
@@ -186,7 +187,7 @@ test('a failed session is retried as a new sibling and the old attempt shows Sto
   await expect(a2.getByTestId('lineage-label')).toHaveText('Attempt 2 (after ses-live-a1)');
   await expect(a2.getByTestId('state-label')).toHaveText('Running');
   const [b1, b2] = await Promise.all([a1.boundingBox(), a2.boundingBox()]);
-  expect(Math.abs(b1.x - b2.x), 'the retry stacks in its sibling column').toBeLessThanOrEqual(3);
+  expect(b2.y > b1.y || b2.x > b1.x, 'the retry follows its sibling in reading order').toBe(true);
   // The run keeps playing to the end: attempt 2 finishes Done.
   await page.clock.runFor(1000);
   await expect(a2.getByTestId('state-label')).toHaveText('Done');

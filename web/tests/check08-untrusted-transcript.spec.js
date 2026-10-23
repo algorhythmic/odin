@@ -20,7 +20,7 @@ test('hostile transcript markup renders as literal text', async ({ page }) => {
   const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('odin-web-prefs:v1') || 'null'));
   await expect.poll(async () => (await stored())?.mode).toBe('list');
   expect(Object.keys(await stored()).sort()).toEqual([
-    'collapsed', 'mode', 'showRelations', 'sidebarCollapsed', 'sidebarWidth', 'theme',
+    'cardSizes', 'collapsed', 'mode', 'showRelations', 'sidebarCollapsed', 'sidebarWidth', 'theme',
   ]);
   expect(await page.evaluate(() => Object.keys(localStorage))).toEqual(['odin-web-prefs:v1']);
 });
