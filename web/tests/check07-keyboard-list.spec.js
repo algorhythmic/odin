@@ -2,6 +2,7 @@
 // and narrow layouts that keep session details and actions usable.
 import { test, expect } from '@playwright/test';
 import { expandCards, PID, shot, snapshot } from './helpers.js';
+import { generateLargeSnapshot } from '../src/fixtures/large.js';
 
 const { sessions } = snapshot;
 
@@ -15,7 +16,7 @@ test('list view is keyboard navigable and conveys state as text', async ({ page 
   const tree = page.getByRole('tree', { name: 'Sessions by ancestry' });
   await expect(tree).toBeVisible();
   const items = tree.getByRole('treeitem');
-  await expect(items).toHaveCount(sessions.filter((s) => s.project_id === PID).length + 1);
+  await expect(items).toHaveCount(sessions.filter((s) => s.project_id === PID && s.lifecycle !== 'retired').length + 1);
 
   // Every row carries a text state label, not only a colour.
   for (const row of await tree.locator('[data-node-kind="session"]').all()) {
@@ -39,17 +40,19 @@ test('list view is keyboard navigable and conveys state as text', async ({ page 
   await expect.poll(() => focusedId(page)).toBe('ses-worker-a1');
   await page.keyboard.press('ArrowDown');
   await expect.poll(() => focusedId(page)).toBe('ses-worker-a2');
-  await page.keyboard.press('ArrowRight');
-  await expect.poll(() => focusedId(page)).toBe('ses-helper-01');
-  await page.keyboard.press('ArrowLeft'); // leaf: go to parent
+  await page.keyboard.press('ArrowRight'); // retired child is absent, so this is a leaf
   await expect.poll(() => focusedId(page)).toBe('ses-worker-a2');
+  await page.keyboard.press('ArrowLeft');
+  await expect.poll(() => focusedId(page)).toBe('ses-integ-01');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/sessions\/ses-worker-a2$/);
   await expect(page.getByTestId('detail-panel')).toHaveAttribute('data-session-id', 'ses-worker-a2');
   await expect(page.locator('[role="treeitem"][data-session-id="ses-worker-a2"]')).toHaveAttribute('aria-selected', 'true');
   await expect.poll(() => focusedId(page)).toBe('ses-worker-a2');
   await page.keyboard.press('End');
-  await expect.poll(() => focusedId(page)).toBe('ses-imported-01');
+  await expect.poll(() => focusedId(page)).toBe('ses-ops-01');
   await page.keyboard.press('Home');
   await expect.poll(() => focusedId(page)).toBe(`project:${PID}`);
   await shot(page, 'list-view');
@@ -89,13 +92,17 @@ test('list view rows expand and collapse with the pointer on the large synthetic
   await page.getByRole('button', { name: 'List', exact: true }).click();
   const tree = page.getByRole('tree', { name: 'Sessions by ancestry' });
   const items = tree.getByRole('treeitem');
-  // Large projects start at their grouping row; expanding reveals 40 recorded starts.
+  // Retired parents leave live descendants as labelled roots, without inferred ancestry.
+  const live = generateLargeSnapshot().sessions.filter((s) => s.lifecycle !== 'retired');
+  const liveIds = new Set(live.map((s) => s.id));
+  const rootCount = live.filter((s) => s.project_id
+    && (s.parent_session_id === 'ses-L-executive' || !liveIds.has(s.parent_session_id))).length;
   await expect(items).toHaveCount(1);
   const first = items.first();
   await expect(first).toHaveAttribute('aria-expanded', 'false');
   await first.getByTestId('list-toggle').click();
   await expect(first).toHaveAttribute('aria-expanded', 'true');
-  await expect(tree.locator('[data-node-kind="session"]')).toHaveCount(40);
+  await expect(tree.locator('[data-node-kind="session"]')).toHaveCount(rootCount);
   // The toggle does not select the row.
   await expect(first).not.toHaveAttribute('aria-selected');
   await first.getByTestId('list-toggle').click();
@@ -112,7 +119,7 @@ for (const width of [1280, 800]) {
     await expandCards(page, ['ses-worker-a2']);
     const totals = page.getByTestId('branch-tokens');
     await expect(totals.first()).toBeVisible();
-    expect(await totals.count()).toBeGreaterThanOrEqual(2);
+    expect(await totals.count()).toBeGreaterThanOrEqual(1);
     const clipped = await totals.evaluateAll((els) => els.flatMap((el) => {
       const card = el.closest('[data-testid="session-card"]').getBoundingClientRect();
       const r = el.getBoundingClientRect();
@@ -121,7 +128,7 @@ for (const width of [1280, 800]) {
     }));
     expect(clipped).toEqual([]);
     await expect(page.locator('[data-testid="session-card"][data-session-id="ses-integ-01"]').getByTestId('branch-tokens'))
-      .toHaveText(/^branch .*\+ unknown \(\d+\)$/);
+      .toHaveText(/^branch .*tok$/);
     if (width === 800) await shot(page, 'card-footers-800');
   });
 }

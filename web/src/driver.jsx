@@ -16,25 +16,28 @@ const STATUS_TEXT = {
 // so update handling can be exercised without a service. It re-renders
 // through the data version.
 export function UpdateDriver() {
-  const { revision, cursor, pending, last } = driverState();
+  const { revision, cursor, pending, last, generating } = driverState();
   const auto = autoplayState();
   return (
     <div class="update-driver" data-testid="update-driver">
       <span>Synthetic updates ({datasetName} dataset): revision <strong data-testid="revision">{revision}</strong> · cursor <code>{cursor}</code> · {pending} pending</span>
-      <button type="button" disabled={!pending} onClick={applyNextSyntheticEvent}>Apply next synthetic update</button>
+      <button type="button" disabled={!auto.available} onClick={applyNextSyntheticEvent}>Apply next synthetic update</button>
       <span class="autoplay">
-        <button type="button" data-testid="autoplay-toggle" disabled={!auto.pending && !auto.playing}
+        <button type="button" data-testid="autoplay-toggle" disabled={!auto.available}
           aria-pressed={auto.playing} onClick={auto.playing ? pauseAutoplay : playAutoplay}>
           {auto.playing ? 'Pause' : 'Play'}
         </button>
         <label class="autoplay-speed">Speed{' '}
-          <select data-testid="autoplay-speed" value={auto.speed} disabled={!auto.pending && !auto.playing}
+          <select data-testid="autoplay-speed" value={auto.speed} disabled={!auto.available}
             onChange={(e) => setAutoplaySpeed(Number(e.currentTarget.value))}>
             {SPEEDS.map((s) => <option key={s} value={s}>{s}×</option>)}
           </select>
         </label>
       </span>
-      <span class="muted" role="status" data-testid="update-status">{last ? STATUS_TEXT[last.status](last) : 'No update applied yet.'}</span>
+      <span class="muted" role="status" data-testid="update-status">
+        {last ? STATUS_TEXT[last.status](last) : 'No update applied yet.'}
+        {generating && <> · <span>Generating synthetic activity</span></>}
+      </span>
     </div>
   );
 }

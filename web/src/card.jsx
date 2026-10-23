@@ -5,7 +5,7 @@ import { ModelName, ProviderLogo, StatusChip, ToolIcons } from './status.jsx';
 import { TokenCount, TokenSum } from './tokencount.jsx';
 
 export function SessionCard({
-  session: s, childMap, style, selected, expanded, childCount, entering, muted, onSelect, onToggle, showRelations,
+  session: s, childMap, style, selected, expanded, childCount, entering, leaving, muted, onSelect, onToggle, showRelations,
   cardExpanded, onSizeToggle,
 }) {
   const runs = showRelations ? relationshipsOf(s.id).filter((r) => r.type === 'run_association') : [];
@@ -18,7 +18,7 @@ export function SessionCard({
   const hidden = groups ? childCount : childCount ? descendants(s.id, childMap).length : 0;
   const unit = groups ? 'project' : 'session';
   const classes = ['card', muted && 'branch-muted', selected && 'selected', dimmed && 'card-dimmed',
-    entering && 'card-enter', !cardExpanded && 'card-compact'];
+    entering && 'card-enter', leaving && 'card-leave', !cardExpanded && 'card-compact'];
   const branchChip = childCount > 0 && (
     <button type="button" class="toggle child-chip" aria-expanded={expanded}
       aria-label={`${expanded ? 'Collapse' : 'Expand'} ${hidden} ${unit}${hidden > 1 ? 's' : ''} under ${s.role}`}

@@ -77,7 +77,7 @@ test('compact terminal cards retain status and own usage, and selection opens de
   await page.goto('/#/');
   for (const [id, state, tokens] of [
     ['ses-worker-a1', 'Failed', '14.3k tok'], ['ses-worker-a2', 'Done', 'est. 18.7k tok'],
-    ['ses-helper-01', 'Stopped', 'unknown'], ['ses-review-integ', 'Idle', '2.0k tok'],
+    ['ses-review-integ', 'Idle', '2.0k tok'],
     ['ses-ops-01', 'Host offline', 'unknown'],
   ]) {
     const c = card(page, id);

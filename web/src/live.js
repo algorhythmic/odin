@@ -13,6 +13,12 @@ export const cleanSpeed = (s) => (SPEEDS.includes(s) ? s : 1);
 // Milliseconds between applied events at a playback speed.
 export const intervalFor = (speed) => BASE_INTERVAL_MS / cleanSpeed(speed);
 
+export const simulationSummary = (sessions, pending, enabled) => ({
+  generating: enabled && pending === 0,
+  population: sessions.filter((s) => s.lifecycle !== 'retired').length,
+  available: pending > 0 || enabled,
+});
+
 // Session ids with a run recorded failed. A failed run on an ended
 // session is what the status set reads as "Failed".
 export const failedSessionIds = (runs) =>

@@ -4,16 +4,14 @@ import { expandCards, PID, sessionUrl, shot, snapshot } from './helpers.js';
 
 const { sessions, relationships, assignments } = snapshot;
 
-const projectSessions = sessions.filter((s) => s.project_id === PID);
+const projectSessions = sessions.filter((s) => s.project_id === PID && s.lifecycle !== 'retired');
 const byId = new Map(sessions.map((s) => [s.id, s]));
 
 test('fixture keeps ancestry separate from typed relationships', () => {
   // Exactly one session records a parent outside the data set, on purpose.
   const outside = sessions.filter((s) => s.parent_session_id && !byId.has(s.parent_session_id));
   expect(outside.map((s) => s.id)).toEqual(['ses-pin-audit']);
-  const roots = projectSessions.filter((s) => !s.parent_session_id);
-  expect(roots.length).toBeGreaterThanOrEqual(1);
-  expect(roots.some((s) => s.provenance === 'imported')).toBe(true);
+  expect(sessions.some((s) => s.project_id === PID && !s.parent_session_id && s.provenance === 'imported')).toBe(true);
   const reviews = relationships.filter((r) => r.type === 'review');
   expect(reviews.length).toBeGreaterThanOrEqual(2);
   for (const r of reviews) {
@@ -54,7 +52,7 @@ test('a recorded parent outside the view stays a labelled root, never a guessed 
 
 test('tree renders the ancestry forest and typed relationships distinctly', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
-  await expandCards(page, ['ses-imported-01', 'ses-worker-a1', 'ses-worker-a2']);
+  await expandCards(page, ['ses-worker-a1', 'ses-worker-a2']);
   await expect(page.getByTestId('synthetic-badge')).toBeVisible();
   const cards = page.getByTestId('session-card');
   await expect(cards).toHaveCount(projectSessions.length);
@@ -74,13 +72,16 @@ test('tree renders the ancestry forest and typed relationships distinctly', asyn
     expect(edges).not.toContain(`${r.to}>${r.from}`);
   }
 
-  // Multiple roots, including the unparented imported session.
-  await expect(page.locator('[data-testid="session-card"][data-parent=""]')).toHaveCount(1);
-  const imported = page.locator('[data-session-id="ses-imported-01"]');
-  await expect(imported.getByTestId('lineage-label')).toHaveText('Imported — parent unknown');
-
-  // Nested child: helper -> worker attempt 2 -> integration owner -> executive.
-  await expect(page.locator('[data-session-id="ses-helper-01"]')).toHaveAttribute('data-parent', 'ses-worker-a2');
+  // Retired imported roots and children retain their recorded lineage in the drawer.
+  await expect(page.locator('[data-testid="session-card"][data-parent=""]')).toHaveCount(0);
+  await page.goto(sessionUrl('ses-imported-01'));
+  await expect(page.getByTestId('detail-lineage')).toHaveText('Imported — parent unknown');
+  await expect(page.getByTestId('started-by')).toHaveText('Parent unknown (imported; not inferred)');
+  await expect(page.getByRole('button', { name: 'Go to parent' })).toBeDisabled();
+  await page.goto(sessionUrl('ses-helper-01'));
+  await expect(page.getByTestId('started-by')).toContainText('ses-worker-a2');
+  await expect(page.getByTestId('retired-notice')).toBeVisible();
+  await page.goto(`/#/projects/${PID}`);
 
   // Delegation is drawn as its own typed overlay, even where it coincides with ancestry.
   await expect(page.locator('.relation-edge[data-type="delegation"]')).toHaveCount(1);
@@ -112,14 +113,14 @@ test('tree renders the ancestry forest and typed relationships distinctly', asyn
 test('collapse hides descendants and automatic fit keeps their widths readable', async ({ page }) => {
   await page.goto(sessionUrl('ses-integ-01'));
   const integ = page.locator('[data-session-id="ses-integ-01"]');
-  await integ.getByRole('button', { name: /Collapse 4 sessions under/ }).click();
+  await integ.getByRole('button', { name: /Collapse 3 sessions under/ }).click();
   await expect(page.locator('[data-session-id="ses-worker-a2"]')).toHaveCount(0);
   await expect(page.locator('[data-session-id="ses-helper-01"]')).toHaveCount(0);
-  await expect(integ.getByRole('button', { name: /Expand 4/ })).toHaveAttribute('aria-expanded', 'false');
-  await integ.getByRole('button', { name: /Expand 4/ }).click();
-  await expect(page.locator('[data-session-id="ses-helper-01"]')).toHaveCount(1);
+  await expect(integ.getByRole('button', { name: /Expand 3/ })).toHaveAttribute('aria-expanded', 'false');
+  await integ.getByRole('button', { name: /Expand 3/ }).click();
+  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-worker-a2"]')).toHaveCount(1);
   const view = await page.getByTestId('tree-view').boundingBox();
-  for (const id of ['ses-integ-01', 'ses-worker-a1', 'ses-worker-a2', 'ses-helper-01', 'ses-review-integ']) {
+  for (const id of ['ses-integ-01', 'ses-worker-a1', 'ses-worker-a2', 'ses-review-integ']) {
     const box = await page.locator(`[data-testid="session-card"][data-session-id="${id}"]`).boundingBox();
     expect(box.x, `${id} left`).toBeGreaterThanOrEqual(view.x - 1);
     expect(box.x + box.width, `${id} right`).toBeLessThanOrEqual(view.x + view.width + 1);

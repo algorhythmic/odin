@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { formatTokens, getAssignment, isSuperseded, lineageLabel, observedLabel } from './data.js';
 import { ProjectLabel } from './project-node.jsx';
 import { StatusChip } from './status.jsx';
+import { presenceClass, rowKey, usePresence } from './presence.js';
 
 // Visible rows in depth-first order. Collapsed branches are not rendered.
 function flatten(roots, childMap, collapsed) {
@@ -20,7 +21,8 @@ function flatten(roots, childMap, collapsed) {
 // ARIA treeview with roving tabindex: Up/Down move, Right expands or enters,
 // Left collapses or moves to the parent, Home/End jump, Enter/Space select.
 export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onToggle, highlight }) {
-  const rows = flatten(roots, childMap, collapsed);
+  const present = usePresence(flatten(roots, childMap, collapsed), rowKey);
+  const rows = present.map((r) => r.item);
   const [focusId, setFocusId] = useState(null);
   const ref = useRef(null);
   const active = rows.find((r) => r.s.id === focusId) ? focusId
@@ -78,11 +80,12 @@ export function ListTree({ roots, childMap, collapsed, selectedId, onSelect, onT
 
   return (
     <ul class="list-tree" role="tree" aria-label="Sessions by ancestry" ref={ref} onKeyDown={onKeyDown} onScroll={remember} data-testid="list-view">
-      {rows.map(({ s, level, kids, pos, size }) => {
+      {present.map(({ item: { s, level, kids, pos, size }, phase }) => {
         const lineage = s.project ? null : lineageLabel(s);
         const dimmed = s.lifecycle === 'retired' || isSuperseded(s);
         const muted = highlight && s.project_id && s.project_id !== highlight;
-        const classes = ['list-row', s.id === selectedId && 'selected', dimmed && 'dimmed', muted && 'branch-muted'];
+        const classes = ['list-row', presenceClass(phase), s.id === selectedId && 'selected',
+          dimmed && 'dimmed', muted && 'branch-muted'];
         return (
           <li key={s.id} role="treeitem" aria-level={level} aria-setsize={size} aria-posinset={pos}
             aria-label={s.project ? `Project ${s.project.name}` : undefined}

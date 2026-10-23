@@ -5,7 +5,10 @@ import { useEffect, useState } from 'preact/hooks';
 import * as fx from './fixtures/synthetic.js';
 import { ancestryLabel, groupedTree, projectAncestry } from './ancestry.js';
 import { reduceEvent } from './events.js';
-import { attentionCounts, cleanSpeed, displayedElapsed, failedSessionIds, intervalFor, observeElapsed } from './live.js';
+import {
+  attentionCounts, cleanSpeed, displayedElapsed, failedSessionIds, intervalFor, observeElapsed, simulationSummary,
+} from './live.js';
+import { createSimulation, DEFAULT_SEED, liveSessions } from './simulation.js';
 
 export const isSynthetic = fx.synthetic === true;
 export const datasetName = new URLSearchParams(location.search).get('dataset') === 'large' ? 'large' : 'default';
@@ -13,6 +16,8 @@ export const datasetName = new URLSearchParams(location.search).get('dataset') =
 const loaded = fx.loadDataset(datasetName);
 let snap = loaded.snapshot;
 const queue = loaded.events;
+const simulation = datasetName === 'default'
+  ? createSimulation(new URLSearchParams(location.search).get('seed') ?? DEFAULT_SEED) : null;
 const seenEvents = new Set();
 const listeners = new Set();
 let version = 0;
@@ -47,7 +52,7 @@ function ix() {
     byProject.get(s.project_id).push(s);
   }
   index = {
-    version, byProject, ancestry: new Map(), grouped: new Map(),
+    version, byProject, ancestry: new Map(), liveAncestry: new Map(), grouped: new Map(),
     sessions: new Map(snap.sessions.map((s) => [s.id, s])),
     assignments: new Map(snap.assignments.map((a) => [a.id, a])),
     // Session ids a later attempt names as its previous_attempt: the
@@ -126,6 +131,7 @@ export const getExecutive = () => {
 };
 export const getProject = (id) => snap.projects.find((p) => p.id === id) || null;
 export const sessionsFor = (pid) => pid === undefined ? snap.sessions : ix().byProject.get(pid) || [];
+export const liveSessionsFor = (pid) => liveSessions(sessionsFor(pid));
 export const getSession = (id) => ix().sessions.get(id) || null;
 export const getAssignment = (id) => ix().assignments.get(id) || null;
 export const getRun = (id) => snap.runs.find((r) => r.id === id) || null;
@@ -152,6 +158,12 @@ export function ancestry(pid) {
   const result = projectAncestry(snap.sessions, pid, snap.executive_session_id);
   cache.set(pid, result);
   return result;
+}
+
+function liveAncestry(pid) {
+  const cache = ix().liveAncestry;
+  if (!cache.has(pid)) cache.set(pid, projectAncestry(liveSessions(snap.sessions), pid, snap.executive_session_id));
+  return cache.get(pid);
 }
 
 export const parentOutsideProject = (s) => ancestry(s.project_id).outside.has(s.id);
@@ -285,7 +297,7 @@ export function cardElapsed(s) {
 }
 
 export function lineageLabel(s) {
-  const label = ancestryLabel(s, ancestry(s.project_id));
+  const label = ancestryLabel(s, s.lifecycle === 'retired' ? ancestry(s.project_id) : liveAncestry(s.project_id));
   if (label) return label;
   if (s.attempt) return `Attempt ${s.attempt}${s.previous_attempt ? ` (after ${s.previous_attempt})` : ''}`;
   if (s.resumption) return `Resumed ×${s.resumption.count} (same session)`;
@@ -313,7 +325,7 @@ export const activeWork = () => snap.sessions.filter((s) => ['running', 'waiting
 
 // Live header summary for one project (live.js holds the counting rule):
 // agents, running, needs-you and failed counts.
-export const projectSummary = (pid) => attentionCounts(sessionsFor(pid), failedSessionIds(snap.runs));
+export const projectSummary = (pid) => attentionCounts(liveSessionsFor(pid), failedSessionIds(snap.runs));
 
 // Sessions behind the header attention chips, live from the snapshot.
 export const needsYouSessions = (pid) =>
@@ -347,11 +359,12 @@ export function applyEvent(evt) {
 
 export const driverState = () => ({
   revision: snap.revision, cursor: snap.cursor, pending: queue.length, last: lastResult,
+  ...simulationSummary(snap.sessions, queue.length, !!simulation),
 });
 
 // Applies the next queued synthetic event and reports what happened.
 export function applyNextSyntheticEvent() {
-  const evt = queue.shift();
+  const evt = queue.shift() || simulation?.next(snap);
   if (!evt) return null;
   lastResult = applyEvent(evt);
   if (lastResult.status !== 'applied') bump();
@@ -368,7 +381,7 @@ let speed = 1;
 let eventTimer = null;
 let tickTimer = null;
 
-export const autoplayState = () => ({ playing, speed, pending: queue.length });
+export const autoplayState = () => ({ ...driverState(), playing, speed });
 
 function scheduleEvent() {
   clearTimeout(eventTimer);
@@ -377,7 +390,7 @@ function scheduleEvent() {
 
 function autoplayStep() {
   applyNextSyntheticEvent();
-  if (queue.length) scheduleEvent();
+  if (queue.length || simulation) scheduleEvent();
   else stopAutoplay();
 }
 
@@ -391,7 +404,7 @@ function stopAutoplay() {
 }
 
 export function playAutoplay() {
-  if (playing || !queue.length) return;
+  if (playing || (!queue.length && !simulation)) return;
   playing = true;
   scheduleEvent();
   tickTimer = setInterval(() => { elapsedTick += 1; bump(); }, 1000);
@@ -410,7 +423,8 @@ export function setAutoplaySpeed(next) {
 
 export function portfolioTree(pid) {
   const cache = ix().grouped;
-  if (!cache.has(pid)) cache.set(pid, groupedTree(pid ? [getProject(pid)] : getProjects(), getExecutive(), ancestry, !!pid));
+  if (!cache.has(pid)) cache.set(pid, groupedTree(pid ? [getProject(pid)] : getProjects(),
+    getExecutive(), liveAncestry, !!pid));
   return cache.get(pid);
 }
 

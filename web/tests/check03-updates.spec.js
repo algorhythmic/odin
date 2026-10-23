@@ -32,7 +32,7 @@ test('update events apply once, report duplicates and gaps, and change the views
   await applyNext(page); // evt-003: usage update
   await expect(page.locator('[data-testid="session-card"][data-session-id="ses-worker-a2"]')).toContainText('19.8k tok');
   await applyNext(page); // evt-004: retired
-  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-review-integ"]').getByTestId('state-label')).toHaveText('Stopped');
+  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-review-integ"]')).toHaveCount(0);
   // Malformed events change nothing and keep the revision.
   await applyNext(page); // evt-bad-1: unknown session
   await expect(status(page)).toHaveText('Rejected evt-bad-1: unknown session.');
@@ -75,7 +75,7 @@ test('update events apply once, report duplicates and gaps, and change the views
   const liveA1 = page.locator('[data-testid="session-card"][data-session-id="ses-live-a1"]');
   await expect(liveA1.getByTestId('state-label')).toHaveText('Failed');
   await applyNext(page); // evt-013: the failed attempt is stopped
-  await expect(liveA1.getByTestId('state-label')).toHaveText('Stopped');
+  await expect(liveA1).toHaveCount(0);
   await applyNext(page); // evt-014: retry — a sibling attempt 2 appears
   const liveA2 = page.locator('[data-testid="session-card"][data-session-id="ses-live-a2"]');
   await expect(liveA2).toHaveAttribute('data-parent', 'ses-integ-01');
@@ -85,7 +85,7 @@ test('update events apply once, report duplicates and gaps, and change the views
   await applyNext(page); // evt-017: attempt 2 finishes
   await expect(liveA2.getByTestId('state-label')).toHaveText('Done');
   await expect(page.getByTestId('revision')).toHaveText('18');
-  await expect(page.getByRole('button', { name: 'Apply next synthetic update' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Apply next synthetic update' })).toBeEnabled();
   // Applied sessions stay inspectable after the conversation/activity panel was removed.
   await page.goto(sessionUrl('ses-live-a2'));
   await expect(page.getByTestId('run-outcome')).toContainText('not verified');
@@ -107,24 +107,24 @@ test('selection and collapsed branches survive updates', async ({ page }) => {
   // apply events inside and outside it: the branch stays collapsed.
   await page.goto(`/#/projects/${PID}`);
   await page.reload();
-  await integ.getByRole('button', { name: /Collapse 4 sessions under/ }).click();
+  await integ.getByRole('button', { name: /Collapse 3 sessions under/ }).click();
   await applyNext(page); // evt-001
   await applyNext(page); // evt-002 adds a child elsewhere
-  await expect(integ.getByRole('button', { name: /Expand 4/ })).toHaveAttribute('aria-expanded', 'false');
+  await expect(integ.getByRole('button', { name: /Expand 3/ })).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('[data-testid="session-card"][data-session-id="ses-worker-a2"]')).toHaveCount(0);
   await applyNext(page); // duplicate
   await applyNext(page); // evt-003 changes a hidden session
   await applyNext(page); // evt-004 retires a hidden session
-  await expect(integ.getByRole('button', { name: /Expand 4/ })).toHaveAttribute('aria-expanded', 'false');
+  await expect(integ.getByRole('button', { name: /Expand 2/ })).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('the list keeps its reading position when a session is inserted above it', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
   await page.getByRole('button', { name: 'List', exact: true }).click();
   const list = page.getByTestId('list-view');
-  // The synthetic project has only 11 rows; a short list box lets the row
+  // The synthetic project has fewer live rows; a short list box lets the row
   // below the insertion point be the first visible row, as in a long list.
-  await page.addStyleTag({ content: '.list-tree { max-height: 90px !important; }' });
+  await page.addStyleTag({ content: '.list-tree { max-height: 70px !important; }' });
   await expect.poll(() => list.evaluate((el) => el.scrollHeight > el.clientHeight), 'the short list box scrolls').toBe(true);
   const row = page.locator('[role="treeitem"][data-session-id="ses-ops-01"]');
   // Scroll the list so the operations row is the first visible row.

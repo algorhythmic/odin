@@ -4,6 +4,7 @@ import { fitTree, routeRelationship } from './tree-layout.js';
 import { ProjectNode } from './project-node.jsx';
 import { SessionCard } from './card.jsx';
 import { cardDimensions, cardIsExpanded } from './card-size.js';
+import { useTreePresence } from './presence.js';
 
 const edgeKey = (e) => `${e.from}>${e.to}`;
 const clamp = (n) => Math.max(0.5, Math.min(2, n));
@@ -34,7 +35,7 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     (s) => cardDimensions(s, cardSizes, childMap.get(s.id)?.length, !s.project && !!lineageLabel(s),
       showRelations && relationshipsOf(s.id).some((r) => r.type === 'run_association')), area.w, Math.max(180, area.h)),
   [roots, childMap, collapsed, cardSizes, showRelations, area.w, area.h]);
-  const { ordered, positions: pos, edges, dots, width, height, mode } = geometry;
+  const { ordered, positions: pos, edges, dots, width, height, mode, entering, leaving } = useTreePresence(geometry);
   const relations = useMemo(() => relationshipsFor(pid).flatMap((r) => {
     // Assignment records are anchored to their recorded owner, never made into tree nodes.
     const target = r.type === 'assignment_owner' ? getAssignment(r.to)?.owner_session_id : r.to;
@@ -164,11 +165,6 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     if (!performance.getEntriesByName('odin:tree-rendered').length) performance.mark('odin:tree-rendered');
   }, [geometry, area]);
 
-  const seen = useRef(new Set(ordered));
-  const seenEdges = useRef(new Set(edges.map(edgeKey)));
-  const entering = new Set(ordered.filter((id) => !seen.current.has(id)));
-  const enteringEdges = new Set(edges.map(edgeKey).filter((k) => !seenEdges.current.has(k)));
-  useEffect(() => { seen.current = new Set(ordered); seenEdges.current = new Set(edges.map(edgeKey)); });
   const pointers = useRef(new Map());
   const gesture = useRef(null);
   const suppressClick = useRef(false);
@@ -265,11 +261,11 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
           <svg class="tree-edges" width={stageWidth} height={stageHeight} aria-hidden="true">
             {edges.map((e) => <path key={edgeKey(e)}
               class={`${e.grouping ? 'project-edge' : 'ancestry-edge'} ${e.kind}`
-                + (enteringEdges.has(edgeKey(e)) && !e.grouping ? ' edge-enter' : '')}
+                + (entering.has(e.to) ? ' edge-enter' : leaving.has(e.to) ? ' edge-leave' : '')}
               data-from={e.ancestryFrom || e.from} data-to={e.to} data-via={e.ancestryFrom ? e.from : undefined}
               data-project-id={pos.get(e.to).s.project_id}
               data-muted={highlight && pos.get(e.to).s.project_id !== highlight ? 'true' : undefined}
-              pathLength={enteringEdges.has(edgeKey(e)) && !e.grouping ? 1 : undefined} d={e.d} />)}
+              pathLength={1} d={e.d} />)}
             {dots.map((d) => <circle key={d.id} class="port-dot" data-parent={d.id} cx={d.x} cy={d.y} r={4.5} />)}
           </svg>
           {ordered.map((id) => {
@@ -281,7 +277,8 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
             return <SessionCard key={id} session={p.s} childMap={childMap} style={style} muted={muted}
               selected={id === selectedId} cardExpanded={cardIsExpanded(p.s, cardSizes)} onSizeToggle={onSizeToggle}
               expanded={!collapsed.has(id)} childCount={(childMap.get(id) || []).length}
-              entering={entering.has(id)} onSelect={onSelect} onToggle={onToggle} showRelations={showRelations} />;
+              entering={entering.has(id)} leaving={leaving.has(id)}
+              onSelect={onSelect} onToggle={onToggle} showRelations={showRelations} />;
           })}
           <svg class="tree-overlays" width={stageWidth} height={stageHeight} aria-hidden="true">
             {overlays.map((r) => {
