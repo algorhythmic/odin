@@ -129,7 +129,7 @@ and a speed selector (0.5×/1×/2×/4×) apply the same queue on a timer so
 the tree runs live: sessions appear with a drawn-in connector, running
 elapsed ticks each second and token figures count up. Pausing freezes
 both. When the default fixture queue drains, a seeded continuous generator
-keeps delivering the same four event types through the unchanged reducer.
+keeps delivering the same four event types through the event reducer.
 `?seed=your-seed` before the hash overrides the default seed `20261022`.
 It spreads work over the non-malformed projects, starts workers, subagents
 and reviewers under recorded running parents, measures growing token usage,
@@ -140,14 +140,31 @@ leaves 20 live sessions; the generator drains old ended records and keeps
 8–18 live sessions thereafter. The malformed project's records stay untouched.
 The large dataset remains a fixed performance fixture with no autoplay.
 
-Retired sessions, including those in the initial snapshot, leave both live
-layouts and stay in project and portfolio History. A retired deep link opens
-its original detail record with “Retired · see History”; ancestry, evidence,
-unknown usage and run outcomes remain inspectable there. A live descendant
-of a retired parent becomes a labelled root without acquiring a new parent.
-Live counts exclude retired sessions. Portfolio and project token totals
-keep their cumulative record scope; visible branch totals follow the live
-branch (the executive total still follows all recorded ancestry).
+Retired sessions leave both live layouts once their whole subtree is retired.
+A retired ancestor of live work stays compact, labelled “Retired · kept for live
+work”, preserving the recorded parent chain. This includes retired records in
+the initial snapshot. Live counts exclude retired sessions.
+
+Synthetic retention keeps the newest 500 retired sessions plus any older
+ancestors needed by live work, their runs, and the latest 1,000 activity entries
+per project. Duplicate detection remembers the latest 4,096 applied event IDs;
+older deliveries still cannot roll back the revision. Project and portfolio
+History show retained records and say “older history not retained in the
+synthetic prototype” after trimming. A retained retired deep link opens its
+original detail with “Retired · see History”; ancestry, evidence, unknown usage
+and run outcomes remain inspectable. A trimmed deep link is unavailable.
+Portfolio and project token totals cover retained records; visible branch
+totals follow the live branch (the executive total follows retained recorded
+ancestry). These browser bounds apply only to the synthetic source; service
+history needs server pagination and retention rules.
+
+The reducer derives elapsed time from accepted observations: when `observed_at`
+advances and the session was running, it adds the interval's whole seconds to
+`elapsed_s`. Unknown elapsed stays unknown; waiting, idle, ended and stopped
+time do not accumulate. Lifecycle events carry no elapsed field. Display ticks
+restart from each new observation so recorded intervals are counted once.
+Dashboard activity is sorted and indexed once per snapshot; priority
+disclosures read their session slice only when open.
 
 Presence tracking holds leaving cards and their connectors for 280 ms.
 New cards rise 6 px and scale from 0.98 over 360 ms, connectors draw over

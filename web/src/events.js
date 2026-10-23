@@ -76,7 +76,14 @@ export function reduceEvent(snapshot, seen, evt) {
   let sessions = snapshot.sessions;
   let runs = snapshot.runs;
   let sessionId = p.session_id;
-  const patch = (fields) => snapshot.sessions.map((s) => (s.id === sessionId ? { ...s, ...fields } : s));
+  // Count the recorded running interval before changing lifecycle.
+  const patch = (fields) => snapshot.sessions.map((s) => {
+    if (s.id !== sessionId) return s;
+    const delta = Date.parse(fields.observed_at) - Date.parse(s.observed_at);
+    const elapsed = s.lifecycle === 'running' && s.elapsed_s != null && Number.isFinite(delta) && delta > 0
+      ? s.elapsed_s + Math.floor(delta / 1000) : s.elapsed_s;
+    return { ...s, ...fields, elapsed_s: elapsed };
+  });
 
   if (evt.type === 'session.started') {
     const s = p.session;

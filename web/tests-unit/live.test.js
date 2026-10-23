@@ -115,6 +115,20 @@ test('a lifecycle or elapsed_s change resets the baseline', () => {
   assert.equal(displayedElapsed(s, baselines, 25), 205);
 });
 
+test('forward observations rebase display ticks even within the same elapsed second', () => {
+  const baselines = new Map();
+  const s = { id: 's', lifecycle: 'running', elapsed_s: 10, observed_at: '2026-10-22T12:00:00Z' };
+  observeElapsed([s], baselines, 0);
+  assert.equal(displayedElapsed(s, baselines, 2), 12);
+  const observed = { ...s, elapsed_s: 12, observed_at: '2026-10-22T12:00:02Z' };
+  observeElapsed([observed], baselines, 2);
+  assert.equal(displayedElapsed(observed, baselines, 3), 13, 'recorded seconds are not counted twice');
+  const fractional = { ...observed, observed_at: '2026-10-22T12:00:02.900Z' };
+  observeElapsed([fractional], baselines, 3);
+  assert.equal(displayedElapsed(fractional, baselines, 3), 12);
+  assert.equal(displayedElapsed(fractional, baselines, 4), 13);
+});
+
 test('non-running and unknown elapsed are untouched by ticks', () => {
   const baselines = new Map();
   const sessions = [

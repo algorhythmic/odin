@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { autoplayState, cardElapsed, getExecutive, getSnapshot, pauseAutoplay, playAutoplay } from './data.js';
 import { dashboardKPIs, dashboardTime, filterPriority, FILTERS, priorityCounts, priorityItems,
-  projectOverview, recentActivity, relativeTime, STEP_LABELS } from './dashboard.js';
+  projectOverview, recentActivity, recentSessionActivity, relativeTime, STEP_LABELS } from './dashboard.js';
 import { agentsHref, historyHref, projectHref, sessionHref, setupHref, settingsHref } from './route.js';
 import { useSetup } from './setup-state.jsx';
 import { STEPS } from './setup.js';
@@ -31,7 +31,8 @@ function Welcome({ state }) {
 
 function PriorityRow({ item, snapshot, now, setup }) {
   const [expanded, setExpanded] = useState(false);
-  const activity = recentActivity(snapshot).filter((e) => e.session_id === item.sessionId).slice(0, 3);
+  const activity = useMemo(() => expanded ? recentSessionActivity(snapshot, item.sessionId) : [],
+    [expanded, snapshot, item.sessionId]);
   const id = `priority-${item.id}`;
   return <li class={`priority-row priority-${item.kind}`} data-testid="priority-item" data-kind={item.kind}
     data-attention-session={item.sessionId}>

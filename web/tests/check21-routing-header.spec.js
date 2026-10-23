@@ -2,8 +2,7 @@
 import { test, expect } from '@playwright/test';
 import { PID, snapshot, shot } from './helpers.js';
 import { generateLargeSnapshot } from '../src/fixtures/large.js';
-import { projectAncestry } from '../src/ancestry.js';
-import { visibleSessions } from '../src/simulation.js';
+import { expectedLiveRecords } from '../tests-support/live-expectations.js';
 
 const canvas = (p) => p.getByTestId('tree-view');
 const card = (p, id) => p.locator(`[data-testid="session-card"][data-session-id="${id}"]`);
@@ -82,7 +81,12 @@ test('expanded generated project also clears rendered cards', async ({ page }) =
   await all(page).check();
   const data = generateLargeSnapshot();
   // Retired parents of live work stay visible, so live children keep their recorded parent and only true roots show.
-  const roots = projectAncestry(visibleSessions(data.sessions), data.projects[0].id, data.executive_session_id).roots;
+  const retained = expectedLiveRecords(data.sessions);
+  const ids = new Set(retained.map((s) => s.id));
+  const roots = retained.filter((s) => s.project_id === data.projects[0].id
+    && (s.parent_session_id === data.executive_session_id || !ids.has(s.parent_session_id)));
+  expect(retained.filter((s) => s.lifecycle === 'retired')).toHaveLength(168);
+  expect(roots).toHaveLength(40);
   await expect(page.getByTestId('session-card')).toHaveCount(roots.length + 1);
   const expected = [data.executive_session_id, ...roots.map((s) => s.id)].sort();
   expect(await page.getByTestId('session-card').evaluateAll((els) => els.map((el) => el.dataset.sessionId).sort()))

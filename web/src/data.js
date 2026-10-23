@@ -6,7 +6,7 @@ import { tokenSum, formatTokenSum } from './tokens.js';
 export { compactTokens, headlineTokens, formatTokens, tokenSum, formatTokenSum } from './tokens.js';
 import * as fx from './fixtures/synthetic.js';
 import { ancestryLabel, groupedTree, projectAncestry } from './ancestry.js';
-import { reduceEvent } from './events.js';
+import { createSyntheticStore } from './synthetic-store.js';
 import {
   attentionCounts, cleanSpeed, displayedElapsed, failedSessionIds, intervalFor, observeElapsed, simulationSummary,
 } from './live.js';
@@ -18,12 +18,13 @@ export const datasetName = params.get('setup') === 'fresh' ? 'empty' : params.ge
 
 const loaded = fx.loadDataset(datasetName);
 let snap = loaded.snapshot;
+const store = createSyntheticStore(snap);
 const queue = loaded.events;
 const simulation = datasetName === 'default'
   ? createSimulation(new URLSearchParams(location.search).get('seed') ?? DEFAULT_SEED) : null;
-const seenEvents = new Set();
 const listeners = new Set();
 let version = 0;
+let dataVersion = 0;
 let index = null;
 let lastResult = null;
 performance.mark('odin:data-ready');
@@ -48,14 +49,19 @@ export function useDataVersion() {
 }
 
 function ix() {
-  if (index && index.version === version) return index;
+  if (index && index.version === dataVersion) return index;
   const byProject = new Map();
   for (const s of snap.sessions) {
     if (!byProject.has(s.project_id)) byProject.set(s.project_id, []);
     byProject.get(s.project_id).push(s);
   }
+  const runs = new Map();
+  for (const r of snap.runs) {
+    if (!runs.has(r.session_id)) runs.set(r.session_id, []);
+    runs.get(r.session_id).push(r);
+  }
   index = {
-    version, byProject, ancestry: new Map(), liveAncestry: new Map(), grouped: new Map(),
+    version: dataVersion, byProject, runs, ancestry: new Map(), liveAncestry: new Map(), grouped: new Map(),
     sessions: new Map(snap.sessions.map((s) => [s.id, s])),
     assignments: new Map(snap.assignments.map((a) => [a.id, a])),
     // Session ids a later attempt names as its previous_attempt: the
@@ -128,6 +134,7 @@ export const RELATION_LABELS = {
 export const lifecycleLabel = (s) => LIFECYCLE_LABELS[s] || `Unknown state (${s})`;
 
 export const getSnapshot = () => snap;
+export const historyTrimmed = (pid) => store.historyTrimmed(pid);
 export const getProjects = () => snap.projects;
 export const getExecutive = () => {
   const session = getSession(snap.executive_session_id);
@@ -139,7 +146,7 @@ export const liveSessionsFor = (pid) => liveSessions(sessionsFor(pid));
 export const getSession = (id) => ix().sessions.get(id) || null;
 export const getAssignment = (id) => ix().assignments.get(id) || null;
 export const getRun = (id) => snap.runs.find((r) => r.id === id) || null;
-export const runsForSession = (sid) => snap.runs.filter((r) => r.session_id === sid);
+export const runsForSession = (sid) => ix().runs.get(sid) || [];
 export const commitmentsFor = (pid) => snap.commitments.filter((c) => c.project_id === pid);
 export const decisionsFor = (pid) => snap.decisions.filter((d) => d.project_id === pid);
 export const conversationFor = (pid) => snap.conversations[pid] || [];
@@ -225,9 +232,9 @@ export function formatElapsed(seconds) {
 }
 
 // Seconds added to a running session's displayed elapsed while the
-// synthetic player runs. Display only; the recorded elapsed_s is never
-// rewritten. Each session's baseline is the player tick at which its
-// (lifecycle, elapsed_s) pair was first seen this playback (live.js
+// synthetic player runs. Ticks never rewrite the recorded elapsed_s.
+// Each session's baseline is the player tick at which its
+// (lifecycle, elapsed_s, observed_at) baseline was first seen this playback (live.js
 // holds the rule), so a session that starts running mid-play counts only
 // the ticks since it appeared, not every tick since play began.
 let elapsedTick = 0;
@@ -300,10 +307,10 @@ export function observedLabel(at) {
 // events.js so they can be tested without a browser.
 
 export function applyEvent(evt) {
-  const { result, snapshot } = reduceEvent(snap, seenEvents, evt);
+  const result = store.apply(evt);
   if (result.status === 'applied') {
-    snap = snapshot;
-    seenEvents.add(evt.event_id);
+    snap = store.getSnapshot();
+    dataVersion += 1;
     observeElapsed(snap.sessions, elapsedBaselines, elapsedTick);
     index = null;
     bump();

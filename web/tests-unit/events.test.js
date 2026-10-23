@@ -245,6 +245,67 @@ test('lifecycle_changed outside the documented set is rejected', () => {
   }
 });
 
+test('accepted forward observations accumulate whole running seconds, including direct retirement', () => {
+  for (const type of ['session.lifecycle_changed', 'session.retired']) {
+    const snap = structuredClone(snapshot);
+    const session = snap.sessions.find((s) => s.id === 'ses-docs-01');
+    Object.assign(session, { lifecycle: 'running', elapsed_s: 10, observed_at: '2026-10-22T12:00:00Z' });
+    const evt = { event_id: 'timed', revision: 1, type, at: '2026-10-22T12:00:12.900Z',
+      payload: { session_id: session.id, lifecycle: 'ended', observed_at: '2026-10-22T12:00:12.900Z' } };
+    if (type === 'session.retired') delete evt.payload.lifecycle;
+    const out = reduceEvent(snap, new Set(), evt);
+    assert.equal(out.result.status, 'applied');
+    assert.equal(out.snapshot.sessions.find((s) => s.id === session.id).elapsed_s, 22);
+    assert.equal(session.elapsed_s, 10, 'input records remain unchanged');
+  }
+});
+
+test('non-running intervals never accumulate and null elapsed stays unknown across transitions', () => {
+  for (const lifecycle of LIFECYCLES) for (const elapsed_s of [10, null]) {
+    const snap = structuredClone(snapshot);
+    const session = snap.sessions.find((s) => s.id === 'ses-docs-01');
+    Object.assign(session, { lifecycle, elapsed_s, observed_at: '2026-10-22T12:00:00Z' });
+    const evt = { event_id: 'resume', revision: 1, type: 'session.lifecycle_changed',
+      at: '2026-10-22T12:01:00Z', payload: { session_id: session.id,
+        lifecycle: 'running', observed_at: '2026-10-22T12:01:00Z' } };
+    const out = reduceEvent(snap, new Set(), evt);
+    assert.equal(out.result.status, 'applied');
+    const expected = elapsed_s === null ? null : lifecycle === 'running' ? 70 : 10;
+    assert.equal(out.snapshot.sessions.find((s) => s.id === session.id).elapsed_s, expected, lifecycle);
+    const ended = reduceEvent(out.snapshot, new Set(), { ...evt, event_id: 'end', revision: 2,
+      payload: { ...evt.payload, lifecycle: 'ended', observed_at: '2026-10-22T12:01:03Z' } });
+    assert.equal(ended.snapshot.sessions.find((s) => s.id === session.id).elapsed_s,
+      expected === null ? null : expected + 3);
+  }
+});
+
+test('elapsed ignores unchanged or backward observations, usage times and rejected deliveries', () => {
+  const snap = structuredClone(snapshot);
+  const session = snap.sessions.find((s) => s.id === 'ses-docs-01');
+  Object.assign(session, { lifecycle: 'running', elapsed_s: 10, observed_at: '2026-10-22T12:00:00Z' });
+  const evt = { event_id: 'observe', revision: 1, type: 'session.lifecycle_changed',
+    at: '2026-10-22T12:10:00Z', payload: { session_id: session.id, lifecycle: 'running' } };
+  for (const observed_at of ['2026-10-22T12:00:00Z', '2026-10-22T11:59:00Z', 'invalid', undefined]) {
+    const out = reduceEvent(snap, new Set(), { ...evt, payload: { ...evt.payload, observed_at } });
+    assert.equal(out.result.status, 'applied');
+    assert.equal(out.snapshot.sessions.find((s) => s.id === session.id).elapsed_s, 10);
+  }
+  const usage = { ...evt, type: 'session.usage_updated', payload: { session_id: session.id, tokens: session.tokens } };
+  assert.equal(reduceEvent(snap, new Set(), usage).snapshot.sessions.find((s) => s.id === session.id).elapsed_s, 10);
+  const forward = { ...evt, payload: { ...evt.payload, observed_at: '2026-10-22T12:10:00Z' } };
+  for (const [event, seen, status] of [
+    [{ ...forward, payload: { ...forward.payload, lifecycle: 'invalid' } }, new Set(), 'rejected'],
+    [forward, new Set([evt.event_id]), 'duplicate'],
+    [{ ...forward, revision: 2 }, new Set(), 'gap'],
+    [{ ...forward, revision: 0 }, new Set(), 'stale'],
+  ]) {
+    const out = reduceEvent(snap, seen, event);
+    assert.equal(out.result.status, status);
+    assert.equal(out.snapshot, snap);
+    assert.equal(session.elapsed_s, 10);
+  }
+});
+
 test('a corrected re-delivery under a previously rejected id applies once', () => {
   const [bad, corrected] = byId('evt-bad-6');
   const { snap, seen, results } = replay([...events.slice(0, 5), bad, corrected, corrected]);
