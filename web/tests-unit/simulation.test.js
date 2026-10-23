@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { reduceEvent } from '../src/events.js';
 import { createSimulation, LINGER_MS, MAX_LIVE_SESSIONS, SIMULATION_STEP_MS, liveSessions, visibleSessions } from '../src/simulation.js';
+import { generateLargeSnapshot } from '../src/fixtures/large.js';
+import { expectedLiveRecords } from '../tests-support/live-expectations.js';
+import { displayedElapsed, observeElapsed } from '../src/live.js';
 
 const read = (file) => JSON.parse(fs.readFileSync(new URL(`../fixtures/${file}`, import.meta.url), 'utf8'));
 function replay(seed, steps = 2000, fixtures = true) {
@@ -63,7 +66,7 @@ function replay(seed, steps = 2000, fixtures = true) {
   return { snapshot, initial, events, populations, starts };
 }
 
-test('2,000 generated steps obey the unchanged reducer, parent, identity, usage and linger rules', () => {
+test('2,000 generated steps obey the reducer, parent, identity, usage and linger rules', () => {
   const { snapshot, initial, events, starts } = replay();
   assert.deepEqual(snapshot.sessions.filter((s) => s.project_id === 'proj-malformed'),
     initial.sessions.filter((s) => s.project_id === 'proj-malformed'));
@@ -101,4 +104,60 @@ test('retired sessions stay visible while a descendant is live, and leave with t
   assert.deepEqual(ids([s('a', null, 'retired'), s('b', 'a', 'retired'), s('c', 'b', 'running')]), ['a', 'b', 'c']);
   assert.deepEqual(ids([s('a', null, 'retired'), s('b', 'a', 'retired'), s('c', 'b', 'retired')]), []);
   assert.deepEqual(ids([s('a', 'b', 'retired'), s('b', 'a', 'retired'), s('c', 'a', 'ended')]), ['a', 'b', 'c']);
+});
+
+test('default and large visibility agree with the recorded descendant rule independently', () => {
+  for (const snapshot of [read('default-snapshot.json'), generateLargeSnapshot()]) {
+    const expected = expectedLiveRecords(snapshot.sessions);
+    assert.deepEqual(visibleSessions(snapshot.sessions), expected);
+    const retired = expected.filter((s) => s.lifecycle === 'retired');
+    if (snapshot.dataset === 'large') {
+      assert.equal(retired.length, 168);
+      const ids = new Set(expected.map((s) => s.id));
+      assert.equal(expected.filter((s) => s.project_id && (s.parent_session_id === snapshot.executive_session_id
+        || !ids.has(s.parent_session_id))).length, 40);
+    } else {
+      assert.deepEqual(retired, []);
+      assert(!expected.some((s) => s.id === 'ses-helper-01'));
+    }
+  }
+});
+
+test('default-seed replay derives elapsed through waiting, resuming, ending and retirement without new event fields', () => {
+  const { initial, events } = replay(undefined, 2000);
+  let snapshot = initial;
+  const states = new Map();
+  const accumulated = new Map();
+  const baselines = new Map();
+  const covered = new Set();
+  for (const e of events) {
+    const s = e.payload.session;
+    if (s) {
+      assert.equal(s.elapsed_s, 0);
+      states.set(s.id, { lifecycle: s.lifecycle, at: Date.parse(s.observed_at) });
+      accumulated.set(s.id, 0);
+    } else assert(!('elapsed_s' in e.payload), 'elapsed is never a lifecycle or retirement event field');
+    const sid = e.payload.session_id;
+    if (['session.lifecycle_changed', 'session.retired'].includes(e.type) && accumulated.has(sid)) {
+      const state = states.get(sid);
+      const at = Date.parse(e.payload.observed_at);
+      if (state.lifecycle === 'running') {
+        accumulated.set(sid, accumulated.get(sid) + Math.max(0, Math.floor((at - state.at) / 1000)));
+      }
+      const lifecycle = e.type === 'session.retired' ? 'retired' : e.payload.lifecycle;
+      states.set(sid, { lifecycle, at });
+      covered.add(lifecycle);
+    }
+    snapshot = reduceEvent(snapshot, new Set(), e).snapshot;
+    observeElapsed(snapshot.sessions, baselines, 0);
+    const after = snapshot.sessions.find((s) => s.id === sid);
+    if (after && accumulated.has(sid) && ['session.lifecycle_changed', 'session.retired'].includes(e.type)) {
+      assert.equal(displayedElapsed(after, baselines, 0), accumulated.get(sid));
+      if (after.lifecycle === 'running') {
+        assert.equal(displayedElapsed(after, baselines, 7), after.elapsed_s + 7);
+      }
+    }
+  }
+  assert.deepEqual(covered, new Set(['waiting_for_input', 'running', 'ended', 'retired']));
+  assert(accumulated.get('ses-sim-mvl79i-6') >= 60, 'the reported long-lived session keeps its elapsed');
 });

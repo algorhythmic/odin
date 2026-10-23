@@ -40,17 +40,16 @@ export function attentionCounts(sessions, failedIds) {
   return { agents: sessions.length, running, needsYou, failed };
 }
 
-// Records the player tick at which each session's (lifecycle, elapsed_s)
-// pair was first seen this playback. `baselines` is a Map the caller
-// owns, keyed by session id. A pair that appears or changes starts a new
-// baseline at the current tick, so a session that starts running
-// mid-play does not inherit the seconds ticked before it appeared, and a
-// lifecycle or elapsed_s change restarts its count.
+// New observations rebase ticks so recorded intervals are not counted twice.
+// Lifecycle and elapsed changes also rebase; new sessions inherit no earlier ticks.
 export function observeElapsed(sessions, baselines, tick) {
+  const retained = new Set(sessions.map((s) => s.id));
+  for (const id of baselines.keys()) if (!retained.has(id)) baselines.delete(id);
   for (const s of sessions) {
     const prev = baselines.get(s.id);
-    if (!prev || prev.lifecycle !== s.lifecycle || prev.elapsed !== s.elapsed_s) {
-      baselines.set(s.id, { lifecycle: s.lifecycle, elapsed: s.elapsed_s, since: tick });
+    if (!prev || prev.lifecycle !== s.lifecycle || prev.elapsed !== s.elapsed_s
+      || Date.parse(s.observed_at) > Date.parse(prev.observedAt)) {
+      baselines.set(s.id, { lifecycle: s.lifecycle, elapsed: s.elapsed_s, observedAt: s.observed_at, since: tick });
     }
   }
 }

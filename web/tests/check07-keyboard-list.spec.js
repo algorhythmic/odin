@@ -3,7 +3,7 @@
 import { test, expect } from '@playwright/test';
 import { expandCards, PID, shot, snapshot } from './helpers.js';
 import { generateLargeSnapshot } from '../src/fixtures/large.js';
-import { visibleSessions } from '../src/simulation.js';
+import { expectedLiveRecords } from '../tests-support/live-expectations.js';
 
 const { sessions } = snapshot;
 
@@ -17,7 +17,7 @@ test('list view is keyboard navigable and conveys state as text', async ({ page 
   const tree = page.getByRole('tree', { name: 'Sessions by ancestry' });
   await expect(tree).toBeVisible();
   const items = tree.getByRole('treeitem');
-  await expect(items).toHaveCount(sessions.filter((s) => s.project_id === PID && s.lifecycle !== 'retired').length + 1);
+  await expect(items).toHaveCount(expectedLiveRecords(sessions).filter((s) => s.project_id === PID).length + 1);
 
   // Every row carries a text state label, not only a colour.
   for (const row of await tree.locator('[data-node-kind="session"]').all()) {
@@ -94,10 +94,12 @@ test('list view rows expand and collapse with the pointer on the large synthetic
   const tree = page.getByRole('tree', { name: 'Sessions by ancestry' });
   const items = tree.getByRole('treeitem');
   // Retired parents of live work stay visible, so only true roots show; nothing is inferred.
-  const live = visibleSessions(generateLargeSnapshot().sessions);
+  const live = expectedLiveRecords(generateLargeSnapshot().sessions);
   const liveIds = new Set(live.map((s) => s.id));
   const rootCount = live.filter((s) => s.project_id
     && (s.parent_session_id === 'ses-L-executive' || !liveIds.has(s.parent_session_id))).length;
+  expect(live.filter((s) => s.lifecycle === 'retired')).toHaveLength(168);
+  expect(rootCount).toBe(40);
   await expect(items).toHaveCount(1);
   const first = items.first();
   await expect(first).toHaveAttribute('aria-expanded', 'false');

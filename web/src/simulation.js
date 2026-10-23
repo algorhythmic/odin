@@ -54,6 +54,8 @@ export function createSimulation(seed = DEFAULT_SEED) {
         cursor: `${prefix}-cursor-${step}`, at, type, payload, summary,
       });
       const active = liveSessions(snapshot.sessions);
+      const retained = new Set(active.map((s) => s.id));
+      for (const id of clocks.keys()) if (!retained.has(id)) clocks.delete(id);
       // Preserve the malformed project's demonstrations, including its ended cycle members.
       const projects = snapshot.projects.filter((p) => p.id !== 'proj-malformed');
       const managed = active.filter((s) => projects.some((p) => p.id === s.project_id));

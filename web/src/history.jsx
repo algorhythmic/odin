@@ -1,4 +1,4 @@
-import { getAssignment, getProjects, lineageLabel, observedLabel, sessionStatus, sessionsFor } from './data.js';
+import { getAssignment, getProjects, historyTrimmed, lineageLabel, observedLabel, sessionStatus, sessionsFor } from './data.js';
 import { StatusChip } from './status.jsx';
 import { agentsHref, projectHref, sessionHref } from './route.js';
 
@@ -35,6 +35,8 @@ function ProjectHistory({ project, grouped }) {
     <div class="history" data-testid="history">
       {!grouped && <p><a href={projectHref(pid)}>Back to {project.name}</a></p>}
       {grouped ? <h2>{project.name}</h2> : <h1>History — {project.name}</h1>}
+      {historyTrimmed(pid) && <p class="muted" data-testid="history-trimmed">
+        older history not retained in the synthetic prototype</p>}
 
       <section aria-labelledby={`${pid}-hist-ended-h`}>
         <h2 id={`${pid}-hist-ended-h`}>Ended and retired sessions</h2>

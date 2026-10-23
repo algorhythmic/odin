@@ -71,13 +71,28 @@ export const relativeTime = (at, now) => {
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return `${Math.floor(seconds / 86400)}d ago`;
 };
-// The latest synthetic observation anchors relative times; elapsed playback adds seconds in the view.
-export const dashboardTime = (snapshot) => Math.max(Date.parse(snapshot.generated_at),
-  ...snapshot.sessions.map((s) => Date.parse(s.observed_at)),
-  ...Object.values(snapshot.activity).flat().map((e) => Date.parse(e.at)));
-export const recentActivity = (snapshot) => Object.entries(snapshot.activity).flatMap(([pid, events]) =>
-  events.map((e) => ({ ...e, projectId: pid }))).filter((e) => e.kind !== 'session.usage_updated')
-  .sort(byTime);
+const activityCache = new WeakMap();
+function activityIndex(snapshot) {
+  if (activityCache.has(snapshot)) return activityCache.get(snapshot);
+  const all = Object.entries(snapshot.activity).flatMap(([pid, entries]) =>
+    entries.map((e) => ({ ...e, projectId: pid })));
+  const recent = all.filter((e) => e.kind !== 'session.usage_updated').sort(byTime);
+  const bySession = new Map();
+  for (const e of recent) {
+    if (!bySession.has(e.session_id)) bySession.set(e.session_id, []);
+    bySession.get(e.session_id).push(e);
+  }
+  const time = Math.max(Date.parse(snapshot.generated_at), ...snapshot.sessions.map((s) => Date.parse(s.observed_at)),
+    ...all.map((e) => Date.parse(e.at)));
+  const index = { recent, bySession, time };
+  activityCache.set(snapshot, index);
+  return index;
+}
+
+// Snapshot identity changes with data, so elapsed ticks reuse the sorted index.
+export const dashboardTime = (snapshot) => activityIndex(snapshot).time;
+export const recentActivity = (snapshot) => activityIndex(snapshot).recent;
+export const recentSessionActivity = (snapshot, sid) => (activityIndex(snapshot).bySession.get(sid) || []).slice(0, 3);
 
 export function projectOverview(snapshot, pid) {
   const sessions = snapshot.sessions.filter((s) => s.project_id === pid);

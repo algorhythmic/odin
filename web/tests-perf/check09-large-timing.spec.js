@@ -10,7 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test, expect } from '@playwright/test';
 import { describeLarge, generateLargeSnapshot, LARGE_SEED, LARGE_SPEC } from '../src/fixtures/large.js';
-import { visibleSessions } from '../src/simulation.js';
+import { expectedLiveRecords } from '../tests-support/live-expectations.js';
 
 const PID = LARGE_SPEC.projectId;
 const URL = '/?dataset=large#/agents';
@@ -22,7 +22,7 @@ const SAMPLES = 8;
 const outDir = process.env.EVIDENCE_DIR || 'test-results/perf';
 
 // The tree's visible sessions: live ones plus retired ancestors of live work, which keep their connectors.
-const liveRecords = (snapshot) => visibleSessions(snapshot.sessions);
+const liveRecords = (snapshot) => expectedLiveRecords(snapshot.sessions);
 const liveRoots = (snapshot) => {
   const live = liveRecords(snapshot);
   const ids = new Set(live.map((s) => s.id));
@@ -64,6 +64,8 @@ test('large synthetic tree: first render, expand and select timings', async ({ p
     if (s.parent_session_id) kids.set(s.parent_session_id, (kids.get(s.parent_session_id) || 0) + 1);
   }
   const roots = liveRoots(snapshot);
+  expect(liveRecords(snapshot).filter((s) => s.lifecycle === 'retired')).toHaveLength(168);
+  expect(roots).toHaveLength(40);
 
   const first = [];
   for (let i = 0; i < LOADS; i += 1) {

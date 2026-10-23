@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { dashboardKPIs, priorityItems, filterPriority, priorityCounts, dashboardTime,
-  projectOverview, recentActivity, relativeTime } from '../src/dashboard.js';
+  projectOverview, recentActivity, recentSessionActivity, relativeTime } from '../src/dashboard.js';
 import { createSetupStore } from '../src/setup.js';
 const read = (file) => JSON.parse(fs.readFileSync(new URL(`../fixtures/${file}.json`, import.meta.url)));
 const snapshot = read('default-snapshot');
@@ -74,4 +74,21 @@ test('activity orders across projects, excludes token noise, and relative times 
   assert(Number.isFinite(dashboardTime(snapshot)));
   assert.equal(relativeTime(null, dashboardTime(snapshot)), 'time unknown');
   assert.equal(relativeTime('2026-10-21T10:00:00Z', Date.parse('2026-10-21T10:02:00Z')), '2m ago');
+});
+
+test('activity is indexed once per snapshot and session slices preserve sorted, non-usage activity', () => {
+  const snap = structuredClone(snapshot);
+  snap.activity = { a: [
+    { id: 'a', session_id: 's', at: '2026-10-22T10:00:00Z', kind: 'session.started' },
+    { id: 'noise', session_id: 's', at: '2026-10-22T12:00:00Z', kind: 'session.usage_updated' },
+  ], b: Array.from({ length: 4 }, (_, i) => ({ id: `b${i}`, session_id: 's',
+    at: `2026-10-22T11:00:0${i}Z`, kind: 'session.lifecycle_changed' })) };
+  const sorted = recentActivity(snap);
+  assert.equal(recentActivity(snap), sorted, 'elapsed-only renders reuse the same sorted array');
+  assert.deepEqual(sorted.map((e) => e.id), ['b3', 'b2', 'b1', 'b0', 'a']);
+  assert.deepEqual(recentSessionActivity(snap, 's'), sorted.slice(0, 3));
+  assert.deepEqual(recentSessionActivity(snap, 'missing'), []);
+  const updated = { ...snap, activity: { a: snap.activity.a } };
+  assert.notEqual(recentActivity(updated), sorted);
+  assert.deepEqual(recentActivity(updated).map((e) => e.id), ['a']);
 });
