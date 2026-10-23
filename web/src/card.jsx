@@ -1,3 +1,4 @@
+import { useMemo } from 'preact/hooks';
 import {
   branchSum, cardElapsed, compactTokens, descendants, getAssignment, isSuperseded, lineageLabel, observedLabel, relationshipsOf,
 } from './data.js';
@@ -5,21 +6,24 @@ import { ModelName, ProviderLogo, StatusChip, ToolIcons } from './status.jsx';
 import { TokenCount, TokenSum } from './tokencount.jsx';
 
 export function SessionCard({
-  session: s, childMap, style, selected, expanded, childCount, entering, muted, onSelect, onToggle, showRelations,
+  session: s, childMap, style, selected, expanded, childCount, entering, leaving, muted, onSelect, onToggle, showRelations,
   cardExpanded, onSizeToggle, related, onHover, onFocusCard, compactExecutive,
 }) {
   const runs = showRelations ? relationshipsOf(s.id).filter((r) => r.type === 'run_association') : [];
   const assignment = getAssignment(s.assignment_id);
-  const lineage = lineageLabel(s);
+  const lineage = useMemo(() => lineageLabel(s), [s, childMap]);
   // Stopped sessions and attempts a later attempt replaced are dimmed.
   const dimmed = s.lifecycle === 'retired' || isSuperseded(s);
   // Collapsing hides the whole subtree, so the chip counts descendants.
   const groups = (childMap.get(s.id) || []).some((node) => node.project);
-  const hidden = groups ? childCount : childCount ? descendants(s.id, childMap).length : 0;
+  const hidden = useMemo(() => groups ? childCount : childCount ? descendants(s.id, childMap).length : 0,
+    [s.id, childMap, childCount, groups]);
+  const sum = useMemo(() => cardExpanded && !compactExecutive && childCount ? branchSum(s, childMap) : null,
+    [s, childMap, childCount, cardExpanded, compactExecutive]);
   const unit = groups ? 'project' : 'session';
   const classes = ['card', muted && 'branch-muted', selected && 'selected', dimmed && 'card-dimmed',
     related && 'relationship-active', compactExecutive && 'scoped-executive',
-    entering && 'card-enter', !cardExpanded && 'card-compact'];
+    entering && 'card-enter', leaving && 'card-leave', !cardExpanded && 'card-compact'];
   const branchChip = childCount > 0 && (
     <button type="button" class="toggle child-chip" aria-expanded={expanded}
       aria-label={`${expanded ? 'Collapse' : 'Expand'} ${hidden} ${unit}${hidden > 1 ? 's' : ''} under ${s.role}`}
@@ -78,7 +82,7 @@ export function SessionCard({
             </span>
             {branchChip}
             {childCount > 0 && (
-              <TokenSum sum={branchSum(s, childMap)} prefix="branch " testid="branch-tokens" />
+              <TokenSum sum={sum} prefix="branch " testid="branch-tokens" />
             )}
           </div>
         </>}

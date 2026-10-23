@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
-  OUTCOME_LABELS, PROGRESS_LABELS, RELATION_LABELS, branchTokens, compactTokens, formatElapsed, formatTokens,
+  OUTCOME_LABELS, PROGRESS_LABELS, RELATION_LABELS, branchTokens, childrenMap, compactTokens, formatElapsed, formatTokens,
   getAssignment, getSession, inParentCycle, lineageLabel, liveElapsed, loadSessionDetail, observedLabel,
   relationshipsOf, runsForSession, treeParent,
 } from './data.js';
 import { ModelName, StatusChip } from './status.jsx';
-import { sessionHref } from './route.js';
+import { historyHref, sessionHref } from './route.js';
 
 const ENDED = new Set(['ended', 'retired']);
 
@@ -54,6 +54,7 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
   const off = (blocked) => (blocked || loading ? 'true' : undefined);
 
   const assignment = getAssignment(s.assignment_id);
+  const recordedChildren = s.project_id === null ? childMap : childrenMap(s.project_id);
   // The tree parent; null for roots, including cycle members and parents
   // outside the project, whose recorded parent is shown as text only.
   const parent = treeParent(s);
@@ -71,6 +72,7 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
   return (
     <div class="detail-panel" data-testid="detail-panel" data-session-id={s.id}>
       <h2>{s.role} <code>{s.id}</code></h2>
+      {s.lifecycle === 'retired' && <p data-testid="retired-notice">Retired · <a href={historyHref(s.project_id)}>see History</a></p>}
       <dl class="facts">
         <dt>Session state</dt>
         <dd><StatusChip session={s} testid="detail-state" /> <code>{s.lifecycle}</code>
@@ -141,7 +143,10 @@ export function DetailPanel({ session: s, childMap, onSelect }) {
           <dt>Cache write</dt><dd data-testid="detail-cache-write">{tokenCounter(s.tokens, 'cache_write')}</dd>
           <dt>Output</dt><dd data-testid="detail-output">{tokenCounter(s.tokens, 'output')}</dd>
           <dt>Basis</dt><dd>{s.tokens?.basis || 'unknown'}</dd>
-          {(childMap.get(s.id) || []).length > 0 && <><dt>Branch (own tokens summed)</dt><dd data-testid="detail-branch-tokens">{branchTokens(s, childMap)}</dd></>}
+          {(recordedChildren.get(s.id) || []).length > 0 && <>
+            <dt>Recorded branch (own tokens summed)</dt>
+            <dd data-testid="detail-branch-tokens">{branchTokens(s, recordedChildren)}</dd>
+          </>}
           <dt>Elapsed</dt><dd>{formatElapsed(liveElapsed(s))}</dd>
           <dt>Budget</dt><dd>{s.budget ? `${compactTokens(s.budget.limit_tokens)} tok (${s.budget.basis}, not enforced by this view)` : 'No budget recorded'}</dd>
         </dl>

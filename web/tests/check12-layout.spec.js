@@ -2,7 +2,7 @@
 import { test, expect } from '@playwright/test';
 import { PID, sessionUrl, shot, snapshot } from './helpers.js';
 
-const projectSessions = snapshot.sessions.filter((s) => s.project_id === PID);
+const projectSessions = snapshot.sessions.filter((s) => s.project_id === PID && s.lifecycle !== 'retired');
 const kids = new Map();
 for (const s of projectSessions) {
   if (s.parent_session_id) kids.set(s.parent_session_id, [...(kids.get(s.parent_session_id) || []), s.id]);

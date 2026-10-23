@@ -73,7 +73,10 @@ export function getPrefs() {
 }
 
 export function updatePrefs(patch) {
-  current = cleanPrefs({ ...getPrefs(), ...patch });
+  const previous = getPrefs();
+  current = cleanPrefs({ ...previous, ...patch });
+  // Unrelated controls must not invalidate tree geometry and card measurements.
+  for (const key of ['collapsed', 'cardSizes']) if (!(key in patch)) current[key] = previous[key];
   savePrefs(current);
   for (const fn of listeners) fn(current);
 }

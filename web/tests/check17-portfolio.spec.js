@@ -9,7 +9,7 @@ const edges = (page, kind) => page.locator(`path.${kind}`).evaluateAll((els) => 
 
 test('one executive, ordered grouping nodes and recorded ancestry through projects', async ({ page }) => {
   await page.goto('/#/');
-  await expect(page.getByTestId('session-card')).toHaveCount(snapshot.sessions.length);
+  await expect(page.getByTestId('session-card')).toHaveCount(snapshot.sessions.filter((s) => s.lifecycle !== 'retired').length);
   await expect(page.getByRole('region', { name: 'Agent tree canvas' })).toBeInViewport();
   await expect(card(page, snapshot.executive_session_id).getByRole('button', { name: 'Collapse 4 projects under executive' }))
     .toHaveText('▾ 4');
@@ -40,7 +40,6 @@ test('labelled roots hang from project groupings with no invented ancestry', asy
   const groups = await edges(page, 'project-edge');
   const ancestry = await edges(page, 'ancestry-edge');
   for (const [id, pid, label] of [
-    ['ses-imported-01', PID, 'Imported — parent unknown'],
     ['ses-pin-audit', 'proj-contract-pins', 'Parent not in this project view'],
     ['ses-mal-cycle-a', 'proj-malformed', 'Parent cycle in records'],
     ['ses-mal-cycle-b', 'proj-malformed', 'Parent cycle in records'],
@@ -51,6 +50,9 @@ test('labelled roots hang from project groupings with no invented ancestry', asy
     await expect(card(page, id).getByTestId('lineage-label')).toHaveText(label);
   }
   expect(ancestry).toContain('ses-mal-cycle-a>ses-mal-cycle-child');
+  await page.goto('/#/sessions/ses-imported-01');
+  await expect(page.getByTestId('detail-lineage')).toHaveText('Imported — parent unknown');
+  await expect(page.getByTestId('started-by')).toContainText('Parent unknown (imported; not inferred)');
 });
 
 test('sidebar hover and focus highlight a branch without changing geometry', async ({ page }) => {
@@ -112,7 +114,7 @@ test('header has one line of controls and no repeated attention summary or remov
   await page.goto('/#/');
   const header = page.getByTestId('tree-header');
   await expect(header.getByRole('heading', { name: 'Portfolio', exact: true })).toBeVisible();
-  await expect(header.getByTestId('agent-summary')).toHaveText('20 agents · 5 running');
+  await expect(header.getByTestId('agent-summary')).toHaveText('18 agents · 5 running');
   await expect(header.getByTestId('agent-summary')).not.toContainText(/needs you|failed/);
   await expect(header.getByTestId('project-tokens')).toContainText(/tok \+ \d+ unknown/);
   // One line at a wide viewport; the header may wrap on narrower ones so no control is clipped.

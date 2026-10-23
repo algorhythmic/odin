@@ -33,7 +33,7 @@ export function fitTree({ roots, children, collapsed = new Set(), executiveId },
     const columns = [...new Set([1, 2, 3, 4, 5, 6, 8, Math.ceil(Math.sqrt(n)), n])].filter((k) => k <= n);
     for (const k of columns) {
       // A bounded beam combines different child shapes without a Cartesian explosion.
-      let beam = [{ width: 0, height: 0, rowW: 0, rowH: 0, finishedH: 0, picks: [] }];
+      let beam = [{ width: 0, height: 0, rowW: 0, rowH: 0, finishedH: 0, picks: null }];
       for (let i = 0; i < n; i++) {
         const next = [];
         for (const b of beam) for (const c of cs[i]) {
@@ -42,14 +42,19 @@ export function fitTree({ roots, children, collapsed = new Set(), executiveId },
           const rowW = newRow ? c.width : b.rowW + GAP + c.width;
           const rowH = newRow ? c.height : Math.max(b.rowH, c.height);
           next.push({ width: Math.max(b.width, rowW), height: finishedH + rowH,
-            rowW, rowH, finishedH, picks: [...b.picks, c] });
+            rowW, rowH, finishedH, picks: { child: c, previous: b.picks } });
         }
         beam = pareto(next);
       }
-      for (const b of beam) shapes.push({ s, ...own, k, picks: b.picks,
-        kind: k === n ? 'fan' : k === 1 ? 'stack' : 'grid',
-        width: Math.max(own.w, b.width + (k < n ? INDENT : 0)),
-        height: own.h + LEVEL + b.height });
+      for (const b of beam) {
+        // Share candidate prefixes instead of copying every earlier sibling at each step.
+        const picks = [];
+        for (let p = b.picks; p; p = p.previous) picks.push(p.child);
+        shapes.push({ s, ...own, k, picks: picks.reverse(),
+          kind: k === n ? 'fan' : k === 1 ? 'stack' : 'grid',
+          width: Math.max(own.w, b.width + (k < n ? INDENT : 0)),
+          height: own.h + LEVEL + b.height });
+      }
     }
     return pareto(shapes);
   };
@@ -120,7 +125,54 @@ export function fitTree({ roots, children, collapsed = new Set(), executiveId },
   for (const e of edges) {
     e.points = [...e.d.matchAll(/[ML]([\d.-]+),([\d.-]+)/g)].map((m) => ({ x: +m[1], y: +m[2] }));
   }
+  shareGroupingRails(edges);
   return { positions, ordered, edges, dots: [...dots.values()], width, height, scale, mode: 'adaptive' };
+}
+
+// Repainting the same long dashed rail for every root makes large live forests expensive.
+function shareGroupingRails(edges) {
+  const lanes = new Map();
+  for (const e of edges) {
+    if (!e.grouping) continue;
+    let skipped = 0;
+    let prefix = true;
+    const points = [];
+    for (let i = 1; i < e.points.length; i++) {
+      const a = e.points[i - 1];
+      const b = e.points[i];
+      if (a.x === b.x && a.y === b.y) continue;
+      const vertical = a.x === b.x;
+      const key = `${e.from}:${vertical ? 'x' : 'y'}:${vertical ? a.x : a.y}`;
+      const spans = lanes.get(key) || [];
+      const start = vertical ? a.y : a.x;
+      const end = vertical ? b.y : b.x;
+      const lo = Math.min(start, end);
+      const hi = Math.max(start, end);
+      let from = start;
+      if (prefix) {
+        const covered = spans.find(([l, h]) => l <= start && h >= start);
+        if (covered) from = end > start ? Math.min(end, covered[1]) : Math.max(end, covered[0]);
+        skipped += Math.abs(from - start);
+        if (from !== end) {
+          points.push(vertical ? { x: a.x, y: from } : { x: from, y: a.y });
+          prefix = false;
+        }
+      }
+      if (!prefix) points.push(b);
+      const merged = [];
+      for (const span of [...spans, [lo, hi]].sort((p, q) => p[0] - q[0])) {
+        const last = merged.at(-1);
+        if (last && span[0] <= last[1]) last[1] = Math.max(last[1], span[1]);
+        else merged.push([...span]);
+      }
+      lanes.set(key, merged);
+    }
+    e.paintPoints = points;
+    // Equal command counts let the shared rails keep interpolating during layout changes.
+    const padded = points.length ? [...Array(Math.max(0, 6 - points.length)).fill(points[0]), ...points] : [];
+    e.paintD = pathData(padded);
+    e.paintOffset = skipped % 12;
+  }
 }
 
 export const intersects = (a, b, gap = 0) => a.x < b.x + b.w + gap && a.x + a.w > b.x - gap
@@ -193,6 +245,19 @@ export function routeOrthogonal(start, end, boxes, clearance = 8, context = rout
   ].filter((ps) => ps.slice(1).every((p, i) => clear(ps[i], p)));
   if (quick.length) return simplify(quick[0]);
   const { xs, ys, links } = context;
+  // Most routes need just one gutter; avoid a grid search when that gutter is clear.
+  const lanes = (values, a, b) => values.toSorted((x, y) =>
+    Math.abs(a - x) + Math.abs(b - x) - Math.abs(a - y) - Math.abs(b - y));
+  for (const x of lanes(xs, start.x, end.x)) {
+    const a = { x, y: start.y };
+    const b = { x, y: end.y };
+    if (clear(start, a) && clear(a, b) && clear(b, end)) return simplify([start, a, b, end]);
+  }
+  for (const y of lanes(ys, start.y, end.y)) {
+    const a = { x: start.x, y };
+    const b = { x: end.x, y };
+    if (clear(start, a) && clear(a, b) && clear(b, end)) return simplify([start, a, b, end]);
+  }
   const nx = xs.length;
   const point = (id) => ({ x: xs[id % nx], y: ys[Math.floor(id / nx)] });
   const bounds = (values, n) => {

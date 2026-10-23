@@ -5,6 +5,7 @@ import { updatePrefs, usePrefs } from './prefs.js';
 import { ProjectNode } from './project-node.jsx';
 import { SessionCard } from './card.jsx';
 import { cardDimensions, cardIsExpanded } from './card-size.js';
+import { useTreePresence } from './presence.js';
 
 const edgeKey = (e) => `${e.from}>${e.to}`;
 const clamp = (n) => Math.max(0.5, Math.min(2, n));
@@ -49,7 +50,7 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
       : cardDimensions(s, cardSizes, treeChildren.get(s.id)?.length, !s.project && !!lineageLabel(s),
         relationshipsOf(s.id).some((r) => r.type === 'run_association')), area.w, Math.max(180, area.h)),
   [treeRoots, treeChildren, collapsed, cardSizes, area.w, area.h]);
-  const { ordered, positions: pos, edges, dots, width, height, mode } = geometry;
+  const { ordered, positions: pos, edges, dots, width, height, mode, entering, leaving } = useTreePresence(geometry);
   const relations = useMemo(() => relationshipsFor(pid).flatMap((r) => {
     // Assignment records are anchored to their recorded owner, never made into tree nodes.
     const target = r.type === 'assignment_owner' ? getAssignment(r.to)?.owner_session_id : r.to;
@@ -63,6 +64,7 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
   current.current = view;
   const manualRef = useRef(false);
   manualRef.current = !!manual;
+  const previousGeometry = useRef(null);
   const extent = useMemo(() => [...pos.values()], [pos]);
   const active = useMemo(() => new Set([selectedId, hovered, focused].filter(Boolean)), [selectedId, hovered, focused]);
   const routeRelation = useMemo(() => createRelationshipRouter(extent, view.scale), [extent, view.scale]);
@@ -92,8 +94,16 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     return () => { observer.disconnect(); removeEventListener('resize', measure); };
   }, []);
 
-  const move = (next, reflow = false) => {
+  const startManual = () => {
+    const old = previousGeometry.current;
+    if (!manualRef.current && old) {
+      old.scrollLeft = viewport.current.scrollLeft;
+      old.scrollTop = viewport.current.scrollTop;
+    }
     manualRef.current = true;
+  };
+  const move = (next, reflow = false) => {
+    startManual();
     current.current = next;
     setManual({ ...next, reflow });
   };
@@ -122,7 +132,7 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
         const b = el.getBoundingClientRect();
         zoom(Math.exp(-e.deltaY * 0.002), e.clientX - b.left, e.clientY - b.top);
       } else {
-        manualRef.current = true;
+        startManual();
         setManual(current.current);
         el.scrollTop += e.deltaY;
         el.scrollLeft += e.deltaX;
@@ -132,11 +142,13 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     return () => el.removeEventListener('wheel', wheel);
   });
 
-  const previousGeometry = useRef(null);
   useLayoutEffect(() => {
     const old = previousGeometry.current;
     const el = viewport.current;
-    previousGeometry.current = { pos, area, selectedId, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop };
+    // Only manual reflow needs a scroll snapshot; reading it here otherwise forces a full layout during expansion.
+    previousGeometry.current = { pos, area, selectedId,
+      scrollLeft: manualRef.current ? el.scrollLeft : old?.scrollLeft || 0,
+      scrollTop: manualRef.current ? el.scrollTop : old?.scrollTop || 0 };
     if (!manualRef.current || !old || old.pos === pos) return;
     const focused = document.activeElement?.closest('[data-session-id]')?.dataset.sessionId;
     const v = current.current;
@@ -182,11 +194,6 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     if (!performance.getEntriesByName('odin:tree-rendered').length) performance.mark('odin:tree-rendered');
   }, [geometry, area]);
 
-  const seen = useRef(new Set(ordered));
-  const seenEdges = useRef(new Set(edges.map(edgeKey)));
-  const entering = new Set(ordered.filter((id) => !seen.current.has(id)));
-  const enteringEdges = new Set(edges.map(edgeKey).filter((k) => !seenEdges.current.has(k)));
-  useEffect(() => { seen.current = new Set(ordered); seenEdges.current = new Set(edges.map(edgeKey)); });
   const pointers = useRef(new Map());
   const gesture = useRef(null);
   const suppressClick = useRef(false);
@@ -262,6 +269,7 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
   return <div class="tree-wrap">
     <p id="tree-instructions" class="sr-only">{INSTRUCTIONS}</p>
     <div class="tree-view" ref={viewport} data-testid="tree-view" data-scale={view.scale} data-mode={mode}
+      data-layout-width={area.w} data-layout-height={area.h} data-layout-x={area.x} data-layout-y={area.y}
       data-manual={!!manual} role="region" aria-label="Agent tree canvas" aria-describedby="tree-instructions" tabIndex={0}
       onScroll={(e) => {
         const old = previousGeometry.current;
@@ -281,13 +289,18 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
           style={{ width: stageWidth, height: stageHeight,
             transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
           <svg class="tree-edges" width={stageWidth} height={stageHeight} aria-hidden="true">
-            {edges.map((e) => <path key={edgeKey(e)}
-              class={`${e.grouping ? 'project-edge' : 'ancestry-edge'} ${e.kind}`
-                + (enteringEdges.has(edgeKey(e)) && !e.grouping ? ' edge-enter' : '')}
+            {edges.map((e) => {
+              // Only animating ancestry edges get a unit path length: it would turn the dashed grouping line solid.
+              const motion = e.grouping ? '' : entering.has(e.to) ? ' edge-enter' : leaving.has(e.to) ? ' edge-leave' : '';
+              const shared = e.grouping && !leaving.has(e.to);
+              return <path key={edgeKey(e)}
+              class={`${e.grouping ? 'project-edge' : 'ancestry-edge'} ${e.kind}${motion}`}
               data-from={e.ancestryFrom || e.from} data-to={e.to} data-via={e.ancestryFrom ? e.from : undefined}
               data-project-id={pos.get(e.to).s.project_id}
               data-muted={highlight && pos.get(e.to).s.project_id !== highlight ? 'true' : undefined}
-              pathLength={enteringEdges.has(edgeKey(e)) && !e.grouping ? 1 : undefined} d={e.d} />)}
+              style={shared ? { strokeDashoffset: e.paintOffset } : undefined}
+              pathLength={motion ? 1 : undefined} d={shared ? e.paintD : e.d} />;
+            })}
             {dots.map((d) => <circle key={d.id} class="port-dot" data-parent={d.id} cx={d.x} cy={d.y} r={4.5} />)}
           </svg>
           <svg class="tree-overlays" width={stageWidth} height={stageHeight} aria-hidden="true">
@@ -317,7 +330,7 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
               onHover={setHovered} onFocusCard={setFocused} compactExecutive={!!pid && id === executive?.id}
               cardExpanded={pid && id === executive?.id || cardIsExpanded(p.s, cardSizes)} onSizeToggle={onSizeToggle}
               expanded={!collapsed.has(id)} childCount={(treeChildren.get(id) || []).length}
-              entering={entering.has(id)} onSelect={onSelect} onToggle={onToggle}
+              entering={entering.has(id)} leaving={leaving.has(id)} onSelect={onSelect} onToggle={onToggle}
               showRelations={showRelations || active.has(id)} />;
           })}
 

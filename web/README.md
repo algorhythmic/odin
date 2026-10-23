@@ -121,7 +121,34 @@ whether it was applied, a duplicate, a revision gap or rejected. Play
 and a speed selector (0.5×/1×/2×/4×) apply the same queue on a timer so
 the tree runs live: sessions appear with a drawn-in connector, running
 elapsed ticks each second and token figures count up. Pausing freezes
-both. Nothing changes for a rejected event, and its id is not
+both. When the default fixture queue drains, a seeded continuous generator
+keeps delivering the same four event types through the unchanged reducer.
+`?seed=your-seed` before the hash overrides the default seed `20261022`.
+It spreads work over the non-malformed projects, starts workers, subagents
+and reviewers under recorded running parents, measures growing token usage,
+waits for synthetic input, finishes with recorded run outcomes and sometimes
+retries failed work as a distinct session in the same place. Ended sessions
+linger for about six seconds at 1×, then retire. The fixed fixture briefly
+leaves 20 live sessions; the generator drains old ended records and keeps
+8–18 live sessions thereafter. The malformed project's records stay untouched.
+The large dataset remains a fixed performance fixture with no autoplay.
+
+Retired sessions, including those in the initial snapshot, leave both live
+layouts and stay in project and portfolio History. A retired deep link opens
+its original detail record with “Retired · see History”; ancestry, evidence,
+unknown usage and run outcomes remain inspectable there. A live descendant
+of a retired parent becomes a labelled root without acquiring a new parent.
+Live counts exclude retired sessions. Portfolio and project token totals
+keep their cumulative record scope; visible branch totals follow the live
+branch (the executive total still follows all recorded ancestry).
+
+Presence tracking holds leaving cards and their connectors for 280 ms.
+New cards rise 6 px and scale from 0.98 over 360 ms, connectors draw over
+420 ms, and the existing position transitions move siblings. These all use
+`cubic-bezier(0.32, 0.72, 0.24, 1)` and become instant under reduced motion.
+Pause freezes simulation events, retirement scheduling and elapsed ticks;
+already-started presentation animations finish. Speeds scale event cadence,
+including the linger. Nothing changes for a rejected event, and its id is not
 remembered, so a corrected re-delivery can apply. Rejected: a
 non-integer revision; an unknown event type; a missing or unknown
 `session_id`; a `session.started` without a record, with a non-string
@@ -154,7 +181,11 @@ EVIDENCE_DIR=/private/path npm test   # screenshots elsewhere
 
 Screenshots go to `test-results/screenshots/` unless `EVIDENCE_DIR`
 is set. Specs are named after the handoff acceptance checks they cover
-(`check01-…` for check 1, and so on). All coverage is synthetic; checks
+(`check01-…` for check 1, and so on). `check22-simulation.spec.js` covers
+continuous playback, lifecycle removal/history, presence motion, pause/speed,
+seed replay and reduced motion. `tests-unit/simulation.test.js` validates
+2,000 generated steps, identity, running parents, outcomes, usage and bounds.
+All coverage is synthetic; checks
 2, 3 and 8 are partial.
 
 The large-tree timing scenario (check 9) runs separately so it does not
@@ -183,7 +214,9 @@ not service or desktop measurements.
 | `src/setup.js` | Browser-independent setup store, validation, apply and discard |
 | `src/setup-state.jsx`, `src/setup-page.jsx`, `src/setup-panels.jsx` | Setup subscription, wizard, shared settings panels and progress cards |
 | `src/events.js` | Update-event rules (pure; unit-tested in `tests-unit/`) |
-| `src/live.js` | Autoplay scheduling and header summary counts (pure; unit-tested) |
+| `src/live.js` | Autoplay scheduling, driver availability/population and header counts (pure; unit-tested) |
+| `src/simulation.js` | Seeded continuous synthetic events; bounded live population and step-based retirement |
+| `src/presence.js` | Enter/present/leave tracking shared by the canvas and list |
 | `src/driver.jsx`, `src/history.jsx` | Synthetic update driver bar; project history |
 | `src/route.js`, `src/prefs.js` | Hash routes; layout preferences (`odin-web-prefs:v1` in localStorage): view mode, collapsed branches, relationship overlay, colour theme, sidebar width/collapse |
 | `src/models.js`, `src/status.jsx` | Friendly model names and providers; the status chip, provider monogram and tool icons |

@@ -31,7 +31,8 @@ test('tampered layout preferences are ignored rather than breaking the app', asy
     JSON.stringify({ mode: 'tree', collapsed: { 'proj-odin-webapp': 42, other: { x: 1 } }, showRelations: 'yes' })));
   await page.goto(sessionUrl('ses-helper-01'));
   await expect(page.getByTestId('workspace')).toBeVisible();
-  await expect(page.locator('[data-testid="session-card"][data-session-id="ses-helper-01"]')).toBeVisible();
+  await expect(page.getByTestId('retired-notice')).toBeVisible();
+  await expect(page.getByTestId('detail-panel')).toHaveAttribute('data-session-id', 'ses-helper-01');
 });
 
 test('the built app has no websocket allowance in its CSP', async ({ page }) => {

@@ -7,7 +7,7 @@
 // chips open a keyboard-accessible popover with disabled commands.
 // Timers are driven with page.clock, never real waits.
 import { test, expect } from '@playwright/test';
-import { expandCards, PID, sessionUrl, shot } from './helpers.js';
+import { PID, sessionUrl, shot } from './helpers.js';
 
 const card = (page, id) => page.locator(`[data-testid="session-card"][data-session-id="${id}"]`);
 const toggle = (page) => page.getByTestId('autoplay-toggle');
@@ -73,9 +73,10 @@ test('running sessions tick elapsed each second and the Running chip spins', asy
   await toggle(page).click();
   await page.clock.runFor(3000);
   await expect(elapsed).toHaveText('2h 34m 03s');
-  await expandCards(page, ['ses-helper-01']);
-  // A stopped card does not tick.
-  await expect(card(page, 'ses-helper-01').getByTestId('elapsed')).toHaveText('10m');
+  // A retired session's recorded elapsed stays fixed in its drawer.
+  await page.evaluate(() => { location.hash = '#/sessions/ses-helper-01'; });
+  await expect(page.getByTestId('detail-panel')).toContainText('10m');
+  await expect(page.getByTestId('retired-notice')).toBeVisible();
   // The Running chip's spinner animates.
   const spin = card(page, 'ses-exec-01').getByTestId('status-icon-spinner');
   expect(await animationName(spin)).toBe('odin-spin');
@@ -96,11 +97,11 @@ test('a session that starts running mid-play ticks only since it appeared', asyn
 
 test('the header summary counts update live with the run', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
-  await expect(summary(page)).toContainText('9 agents · 2 running');
+  await expect(summary(page)).toContainText('7 agents · 2 running');
   await applyNext(page); // evt-001: reviewer running again
-  await expect(summary(page)).toContainText('9 agents · 3 running');
+  await expect(summary(page)).toContainText('7 agents · 3 running');
   await applyNext(page); // evt-002: docs helper appears
-  await expect(summary(page)).toContainText('10 agents · 4 running');
+  await expect(summary(page)).toContainText('8 agents · 4 running');
   // Token totals update live too (a2 gains 19.8k measured on evt-003,
   // which also drops the est. marker from the project total; evt-002's
   // docs helper already added its measured 850 tok).
@@ -131,7 +132,8 @@ test('token counts animate up to a new value', async ({ page }) => {
   await page.clock.runFor(1000);
   await expect(own).toHaveText('19.8k tok');
   // An unknown session shows the word, never a figure or a 0.
-  await expect(card(page, 'ses-helper-01').getByTestId('own-tokens')).toHaveText('unknown');
+  await page.evaluate(() => { location.hash = '#/sessions/ses-helper-01'; });
+  await expect(page.getByTestId('detail-own-tokens')).toHaveText('unknown');
 });
 
 test('autoplay preserves the selection and a manually panned canvas', async ({ page }) => {
@@ -155,23 +157,24 @@ test('autoplay preserves the selection and a manually panned canvas', async ({ p
 test('collapse reads "+N ›" for the hidden descendants and expand restores them', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
   const integ = card(page, 'ses-integ-01');
-  // Four sessions are recorded under the integration owner.
-  await expect(integ.getByRole('button', { name: 'Collapse 4 sessions under integration owner' })).toHaveText('▾ 4');
+  // Three live sessions are recorded under the integration owner.
+  await expect(integ.getByRole('button', { name: 'Collapse 3 sessions under integration owner' })).toHaveText('▾ 3');
   // Collapse/expand animates through the cards' position transition.
   const transition = await integ.evaluate((el) => getComputedStyle(el).transitionProperty);
   expect(transition).toContain('left');
-  await integ.getByRole('button', { name: 'Collapse 4 sessions under integration owner' }).click();
-  const expand = integ.getByRole('button', { name: 'Expand 4 sessions under integration owner' });
-  await expect(expand).toHaveText('+4 ›');
+  await integ.getByRole('button', { name: 'Collapse 3 sessions under integration owner' }).click();
+  const expand = integ.getByRole('button', { name: 'Expand 3 sessions under integration owner' });
+  await expect(expand).toHaveText('+3 ›');
   await expect(expand).toHaveAttribute('aria-expanded', 'false');
   await expect(card(page, 'ses-worker-a2')).toHaveCount(0);
   await expect(card(page, 'ses-helper-01')).toHaveCount(0);
   await expand.click();
-  await expect(card(page, 'ses-helper-01')).toBeVisible();
-  await expect(integ.getByRole('button', { name: 'Collapse 4 sessions under integration owner' })).toHaveText('▾ 4');
+  await expect(card(page, 'ses-worker-a2')).toBeVisible();
+  await expect(card(page, 'ses-helper-01')).toHaveCount(0);
+  await expect(integ.getByRole('button', { name: 'Collapse 3 sessions under integration owner' })).toHaveText('▾ 3');
 });
 
-test('a failed session is retried as a new sibling and the old attempt shows Stopped', async ({ page }) => {
+test('a failed session leaves for History and its retry retains distinct sibling identity', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
   await speed(page).selectOption('4');
   await toggle(page).click();
@@ -179,15 +182,18 @@ test('a failed session is retried as a new sibling and the old attempt shows Sto
   const a1 = card(page, 'ses-live-a1');
   await expect(a1.getByTestId('state-label')).toHaveText('Failed');
   await page.clock.runFor(600); // evt-013 stops it, evt-014 starts the retry
-  await expect(a1.getByTestId('state-label')).toHaveText('Stopped');
-  await expect(a1).toHaveAttribute('data-dimmed', 'true');
+  await expect(a1).toHaveCount(0);
   // The retry is a sibling in the same stacked column, linked as attempt 2.
   const a2 = card(page, 'ses-live-a2');
   await expect(a2).toHaveAttribute('data-parent', 'ses-integ-01');
   await expect(a2.getByTestId('lineage-label')).toHaveText('Attempt 2 (after ses-live-a1)');
   await expect(a2.getByTestId('state-label')).toHaveText('Running');
-  const [b1, b2] = await Promise.all([a1.boundingBox(), a2.boundingBox()]);
-  expect(b2.y > b1.y || b2.x > b1.x, 'the retry follows its sibling in reading order').toBe(true);
+  // Inspect the original attempt through its retained record, without inventing a replacement.
+  await page.evaluate(() => { location.hash = '#/sessions/ses-live-a1'; });
+  await expect(page.getByTestId('detail-state')).toHaveText('Stopped');
+  await expect(page.getByTestId('retired-notice')).toBeVisible();
+  await expect(page.getByTestId('run-outcome')).toContainText('Failed');
+  await expect(page.getByTestId('started-by')).toContainText('ses-integ-01');
   // The run keeps playing to the end: attempt 2 finishes Done.
   await page.clock.runFor(1000);
   await expect(a2.getByTestId('state-label')).toHaveText('Done');
@@ -240,12 +246,13 @@ test.describe('attention chips', () => {
     await page.clock.runFor(1500); // through evt-012: attempt 1 failed
     await expect(page.getByTestId('chip-failed')).toHaveText('2 failed ˅');
     await expect(page.getByTestId('chip-needs')).toHaveText('0 needs you ˅');
-    await page.clock.runFor(3000); // to the end: retry done, scout needs you
+    await page.clock.runFor(1500); // to the fixture end: retry done, scout needs you
     await expect(page.getByTestId('chip-failed')).toHaveText('1 failed ˅');
     await expect(page.getByTestId('chip-needs')).toHaveText('1 needs you ˅');
-    // The queue is drained: the player stopped itself and Play is disabled.
-    await expect(toggle(page)).toHaveText('Play');
-    await expect(toggle(page)).toBeDisabled();
+    // A drained fixture queue hands over to the continuous generator.
+    await expect(toggle(page)).toHaveText('Pause');
+    await expect(toggle(page)).toBeEnabled();
+    await expect(page.getByText('Generating synthetic activity', { exact: true })).toBeVisible();
   });
 });
 

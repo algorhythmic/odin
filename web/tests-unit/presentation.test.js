@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { friendlyModelName, providerFor } from '../src/models.js';
-import { cleanPrefs } from '../src/prefs.js';
+import { cleanPrefs, getPrefs, updatePrefs } from '../src/prefs.js';
 
 test('known model ids get friendly names', () => {
   assert.equal(friendlyModelName('claude-opus-5-5'), 'Opus 5.5');
@@ -87,4 +87,15 @@ test('key disclosure and all-relationships preferences accept only booleans', ()
     assert.equal(cleanPrefs({ keyOpen: bad }).keyOpen, false);
     assert.equal(cleanPrefs({ showRelations: bad }).showRelations, false);
   }
+});
+
+test('unrelated controls preserve geometry inputs while changed card sizes are validated', () => {
+  const before = getPrefs();
+  updatePrefs({ keyOpen: !before.keyOpen, sidebarWidth: 400 });
+  assert.equal(getPrefs().collapsed, before.collapsed);
+  assert.equal(getPrefs().cardSizes, before.cardSizes);
+  updatePrefs({ cardSizes: { session: true, invalid: 'true' } });
+  assert.notEqual(getPrefs().cardSizes, before.cardSizes);
+  assert.deepEqual(getPrefs().cardSizes, { session: true });
+  assert.equal(getPrefs().collapsed, before.collapsed);
 });

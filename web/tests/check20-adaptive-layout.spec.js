@@ -7,8 +7,22 @@ const card = (p, id) => p.locator(`[data-testid="session-card"][data-session-id=
 const scale = async (p) => Number(await canvas(p).getAttribute('data-scale'));
 const geometry = (p) => p.locator('.card, .project-node').evaluateAll((els) => els.map((el) =>
   [el.dataset.sessionId || el.dataset.projectId, el.offsetLeft, el.offsetTop, el.offsetHeight]));
-const settled = (p) => expect.poll(() => p.evaluate(() => document.getAnimations()
-  .filter((a) => a.effect?.getTiming().iterations !== Infinity).length)).toBe(0);
+const settled = (p) => expect.poll(() => p.evaluate(async () => {
+  const ready = () => {
+    const el = document.querySelector('[data-testid="tree-view"]');
+    if (!el) return false;
+    const box = el.getBoundingClientRect();
+    const data = el.dataset;
+    return Number(data.layoutWidth) === el.clientWidth && Math.abs(Number(data.layoutHeight) - el.clientHeight) < 1
+      && Number(data.layoutX) === box.x && Number(data.layoutY) === box.y
+      && !document.getAnimations().some((a) => a.effect?.getTiming().iterations !== Infinity);
+  };
+  // ResizeObserver and the resulting layout commit must catch up after the last animation frame.
+  await new Promise(requestAnimationFrame);
+  if (!ready()) return false;
+  await new Promise(requestAnimationFrame);
+  return ready();
+})).toBe(true);
 
 for (const [width, height] of [[1440, 900], [1100, 800], [800, 1000]]) {
   test(`portfolio uses three or more card columns at ${width}x${height}`, async ({ page }) => {
@@ -76,7 +90,7 @@ test('compact terminal cards retain status and own usage, and selection opens de
   await page.goto('/#/');
   for (const [id, state, tokens] of [
     ['ses-worker-a1', 'Failed', '14.3k tok'], ['ses-worker-a2', 'Done', 'est. 18.7k tok'],
-    ['ses-helper-01', 'Stopped', 'unknown'], ['ses-review-integ', 'Idle', '2.0k tok'],
+    ['ses-review-integ', 'Idle', '2.0k tok'],
     ['ses-ops-01', 'Host offline', 'unknown'],
   ]) {
     const c = card(page, id);
@@ -118,6 +132,7 @@ test('a lifecycle completion resizes and rearranges unless the user overrode tha
 test('sidebar and drawer changes rearrange while preserving manual zoom and the selected anchor', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 800 });
   await page.goto('/#/');
+  await settled(page);
   const first = await geometry(page);
   await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
   await expect.poll(() => geometry(page)).not.toEqual(first);
@@ -137,8 +152,10 @@ test('sidebar and drawer changes rearrange while preserving manual zoom and the 
   await expect(page.getByTestId('detail-panel')).toBeVisible();
   await settled(page);
   await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
+  await settled(page);
   const zoom = await scale(page);
   await title.focus();
+  await settled(page);
   const anchor = await title.boundingBox();
   await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
   await settled(page);
@@ -148,6 +165,7 @@ test('sidebar and drawer changes rearrange while preserving manual zoom and the 
   expect(Math.abs(point.y - anchor.y)).toBeLessThanOrEqual(2);
   expect(Math.abs(point.x - anchor.x)).toBeLessThanOrEqual(2);
   await page.locator('aside.detail').getByRole('button', { name: 'Close', exact: true }).click();
+  await settled(page);
   expect(await scale(page)).toBe(zoom);
 });
 

@@ -50,7 +50,8 @@ test('a known session shows its exact compact headline on the card and in the de
 test('an unknown session shows unknown, never a figure', async ({ page }) => {
   await page.goto(sessionUrl('ses-helper-01'));
   const card = page.locator('[data-testid="session-card"][data-session-id="ses-helper-01"]');
-  await expect(card.getByTestId('own-tokens')).toHaveText('unknown');
+  await expect(card).toHaveCount(0);
+  await expect(page.getByTestId('retired-notice')).toBeVisible();
   const panel = page.getByTestId('detail-panel');
   await expect(panel.getByTestId('detail-own-tokens')).toHaveText('unknown');
   for (const part of ['detail-uncached-input', 'detail-cache-read', 'detail-cache-write', 'detail-output']) {
@@ -61,9 +62,10 @@ test('an unknown session shows unknown, never a figure', async ({ page }) => {
 test('branch totals and the project total sum own tokens once and count unknowns', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
   await expandCards(page, ['ses-worker-a2']);
-  // ses-worker-a2 is an estimate with one unknown child (ses-helper-01).
+  // The retired unknown child has left the live branch; its usage remains inspectable in details.
   const a2 = page.locator('[data-testid="session-card"][data-session-id="ses-worker-a2"]');
-  await expect(a2.getByTestId('branch-tokens')).toHaveText(`branch ${headlineText(byId.get('ses-worker-a2'))} + unknown (1)`);
+  await expect(a2.getByTestId('own-tokens')).toHaveText(headlineText(byId.get('ses-worker-a2')));
+  await expect(a2.getByTestId('branch-tokens')).toHaveCount(0);
   // The project header total sums every session's own headline once.
   const sessions = snapshot.sessions.filter((s) => s.project_id === PID);
   let known = 0;
@@ -77,4 +79,8 @@ test('branch totals and the project total sum own tokens once and count unknowns
   const expected = `${estimate ? 'est. ' : ''}${compact(known)} tok + unknown (${unknown})`;
   expect(unknown).toBeGreaterThan(0);
   await expect(page.getByTestId('project-tokens')).toHaveText(expected.replace(/unknown \((\d+)\)/, '$1 unknown'));
+  // The detail projection retains the original branch, including its retired unknown child.
+  await page.goto(sessionUrl('ses-worker-a2'));
+  await expect(page.getByTestId('detail-branch-tokens'))
+    .toHaveText(`${headlineText(byId.get('ses-worker-a2'))} + unknown (1)`);
 });

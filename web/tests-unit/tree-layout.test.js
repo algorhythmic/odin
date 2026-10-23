@@ -184,3 +184,47 @@ test('shared routing queries keep all 100 generated relationships clear across 2
   const h = hierarchy(large);
   assertRoutes(fit(1100, h, 800), large.relationships, large.assignments);
 });
+
+
+test('shared grouping rails paint the same segment union once and retain full edge geometry', () => {
+  const large = generateLargeSnapshot();
+  const live = { ...large, sessions: large.sessions.filter((s) => s.lifecycle !== 'retired') };
+  const h = hierarchy(live);
+  h.collapsed = new Set([...h.children.keys()].filter((id) => !id.startsWith('project:')
+    && id !== large.executive_session_id));
+  const l = fit(1100, h, 800);
+  const edges = l.edges.filter((e) => e.grouping);
+  assert.equal(l.positions.size, 342, '340 live roots, executive and project');
+  const spans = (painted) => {
+    const lanes = new Map();
+    for (const e of edges) {
+      const points = painted ? e.paintPoints : e.points;
+      for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1];
+        const b = points[i];
+        if (a.x === b.x && a.y === b.y) continue;
+        const vertical = a.x === b.x;
+        const key = `${e.from}:${vertical ? 'x' : 'y'}:${vertical ? a.x : a.y}`;
+        const values = vertical ? [a.y, b.y] : [a.x, b.x];
+        if (!lanes.has(key)) lanes.set(key, []);
+        lanes.get(key).push(values.sort((a, b) => a - b));
+      }
+    }
+    return lanes;
+  };
+  const merge = (lanes) => [...lanes].map(([key, values]) => {
+    const union = [];
+    for (const [lo, hi] of values.toSorted((a, b) => a[0] - b[0])) {
+      const last = union.at(-1);
+      if (last && lo <= last[1]) last[1] = Math.max(last[1], hi);
+      else union.push([lo, hi]);
+    }
+    return [key, union];
+  }).sort(([a], [b]) => a.localeCompare(b));
+  const full = spans(false);
+  const painted = spans(true);
+  assert.deepEqual(merge(painted), merge(full));
+  const length = (lanes) => [...lanes.values()].flat().reduce((n, [lo, hi]) => n + hi - lo, 0);
+  assert.ok(length(painted) < length(full) / 10, 'shared long rails are not repeatedly painted');
+  assertRoutes(l, large.relationships, large.assignments);
+});

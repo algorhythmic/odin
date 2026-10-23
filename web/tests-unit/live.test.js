@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   BASE_INTERVAL_MS, SPEEDS, attentionCounts, cleanSpeed, displayedElapsed, failedSessionIds,
-  intervalFor, observeElapsed,
+  intervalFor, observeElapsed, simulationSummary,
 } from '../src/live.js';
 
 test('autoplay speed validation keeps documented speeds and defaults the rest', () => {
@@ -64,6 +64,13 @@ test('a failed run on a non-ended session does not count as failed', () => {
 
 test('an empty project reports zeros, never undefined', () => {
   assert.deepEqual(attentionCounts([], new Set()), { agents: 0, running: 0, needsYou: 0, failed: 0 });
+});
+
+test('the driver distinguishes queued fixtures, generation and a fixed large dataset', () => {
+  const sessions = [session('running'), session('ended'), session('retired')];
+  assert.deepEqual(simulationSummary(sessions, 1, true), { generating: false, population: 2, available: true });
+  assert.deepEqual(simulationSummary(sessions, 0, true), { generating: true, population: 2, available: true });
+  assert.deepEqual(simulationSummary(sessions, 0, false), { generating: false, population: 2, available: false });
 });
 
 test('a session already running at play accumulates ticks from the start', () => {

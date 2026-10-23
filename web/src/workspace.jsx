@@ -46,7 +46,7 @@ export function Workspace({ project, sid, highlight }) {
   const prefKey = pid || 'portfolio';
   const collapsed = useMemo(() => new Set(prefs.collapsed[prefKey]
     ?? (sessionsFor(pid).length > 200 ? [...childMap.keys()].filter((id) => id !== executive?.id) : [])),
-  [prefs, prefKey, childMap]);
+  [prefs.collapsed, prefKey, childMap, executive?.id]);
   const selected = sid ? getSession(sid) : null;
   const admitted = selected && (!pid || selected.project_id === pid || selected.id === executive?.id) ? selected : null;
   const mode = narrow ? 'list' : prefs.mode;

@@ -79,7 +79,6 @@ test('every status renders its label and icon on the card', async ({ page }) => 
     ['ses-review-exec', 'Needs you', 'status-icon-clock'],
     ['ses-worker-a2', 'Done', 'status-icon-check'],
     ['ses-worker-a1', 'Failed', 'status-icon-triangle'],
-    ['ses-helper-01', 'Stopped', 'status-icon-square'],
   ];
   for (const [id, label, icon] of cases) {
     const chip = card(page, id).getByTestId('status-chip');
@@ -96,13 +95,14 @@ test('every status renders its label and icon on the card', async ({ page }) => 
   await shot(page, 'status-set');
 });
 
-test('stopped cards and superseded attempts are dimmed', async ({ page }) => {
+test('retired sessions stay inspectable and superseded live attempts are dimmed', async ({ page }) => {
   await page.goto('/#/');
-  for (const id of ['ses-helper-01', 'ses-worker-a1']) {
+  for (const id of ['ses-worker-a1']) {
     await expect(card(page, id)).toHaveAttribute('data-dimmed', 'true');
     const opacity = await card(page, id).evaluate((el) => Number(getComputedStyle(el).opacity));
     expect(opacity, `${id} is dimmed`).toBeLessThan(1);
   }
+  await expect(card(page, 'ses-helper-01')).toHaveCount(0);
   // A current attempt and a running card are not dimmed.
   for (const id of ['ses-worker-a2', 'ses-exec-01']) {
     const opacity = await card(page, id).evaluate((el) => Number(getComputedStyle(el).opacity));
@@ -113,7 +113,7 @@ test('stopped cards and superseded attempts are dimmed', async ({ page }) => {
 test('cards show a provider monogram and a friendly model name', async ({ page }) => {
   await page.goto('/#/');
   await expandCards(page, ['ses-worker-a1', 'ses-worker-a2', 'ses-helper-01', 'ses-ops-01', 'ses-review-integ', 'ses-imported-01']);
-  const expected = new Map(snapshot.sessions.filter((s) => s.project_id === PID).map((s) => [s.id, s.model]));
+  const expected = new Map(snapshot.sessions.filter((s) => s.project_id === PID && s.lifecycle !== 'retired').map((s) => [s.id, s.model]));
   const names = {
     'claude-opus-5-5': 'Opus 5.5',
     'claude-sonnet-5-5': 'Sonnet 5.5',
@@ -122,7 +122,7 @@ test('cards show a provider monogram and a friendly model name', async ({ page }
   };
   await expect(card(page, 'ses-exec-01').getByTestId('model-name')).toHaveText('Fable 5.1');
   await expect(card(page, 'ses-exec-01')).not.toContainText('claude-fable-5-1');
-  for (const [id, provider] of [['ses-exec-01', 'anthropic'], ['ses-ops-01', 'openai'], ['ses-helper-01', 'unknown']]) {
+  for (const [id, provider] of [['ses-exec-01', 'anthropic'], ['ses-ops-01', 'openai']]) {
     await expect(card(page, id).getByTestId('provider-logo')).toHaveAttribute('data-provider', provider);
   }
   for (const [id, model] of expected) {
@@ -144,4 +144,14 @@ test('the task text wraps to two lines instead of truncating to one', async ({ p
   // A second line actually renders: the clamped box is taller than one line.
   const box = await task.boundingBox();
   expect(box.height).toBeGreaterThan(25);
+});
+
+// Stopped is retained as a status in History and in a retired session's drawer.
+test('a retired status retains its label and icon in the drawer', async ({ page }) => {
+  await page.goto('/#/sessions/ses-helper-01');
+  const chip = page.getByTestId('detail-panel').getByTestId('status-chip');
+  await expect(chip.getByTestId('detail-state')).toHaveText('Stopped');
+  await expect(chip.getByTestId('status-icon-square')).toHaveAttribute('aria-label', 'Stopped');
+  await expect(page.getByTestId('retired-notice')).toBeVisible();
+  await expect(page.getByTestId('detail-panel').getByTestId('model-name')).toHaveText('model unknown');
 });

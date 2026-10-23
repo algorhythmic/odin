@@ -102,6 +102,8 @@ test('colour rules hold in the light theme', async ({ page }) => {
 
 
 async function checkGrouping(page) {
+  // The portfolio always has grouping connectors, even after imported roots retire.
+  await page.goto('/#/');
   const group = await resolveToken(page, '--group');
   const canvas = await resolveToken(page, '--canvas');
   const luminance = (rgb) => {

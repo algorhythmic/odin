@@ -221,11 +221,12 @@ for (const [url, width] of [['/#/', 1440], [`/#/projects/${PID}`, 1440], ['/#/',
     await settled(page);
     await page.getByRole('button', { name: 'Key', exact: true }).click();
     await page.getByRole('checkbox', { name: 'Show all relationships' }).check();
-    await expect(page.locator('.legend-row')).toHaveCount(5);
-    for (const s of ['ancestry', 'project', 'review', 'delegation', 'assignment_owner']) {
+    const grouping = await page.locator('.tree-edges .project-edge').count() > 0;
+    await expect(page.locator('.legend-row')).toHaveCount(grouping ? 5 : 4);
+    for (const s of ['ancestry', ...(grouping ? ['project'] : []), 'review', 'delegation', 'assignment_owner']) {
       await expect(page.locator(`.legend-row[data-style="${s}"]`)).toBeVisible();
     }
-    expect(await page.locator('.tree-edges .project-edge').first()
+    if (grouping) expect(await page.locator('.tree-edges .project-edge').first()
       .evaluate((el) => getComputedStyle(el).strokeDasharray)).toBe('8px, 4px');
     await expandCards(page, ['ses-worker-a2']);
     await expect(page.locator('.run-badge').first()).toHaveCount(1);
@@ -240,7 +241,7 @@ for (const [url, width] of [['/#/', 1440], [`/#/projects/${PID}`, 1440], ['/#/',
     const large = await page.locator('.relation-label text').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
     expect(large * await scale(page)).toBeCloseTo(11 * 1.25, 3);
     await page.getByRole('checkbox', { name: 'Show all relationships' }).uncheck();
-    await expect(page.locator('.legend-row')).toHaveCount(5);
+    await expect(page.locator('.legend-row')).toHaveCount(grouping ? 5 : 4);
     await canvas(page).focus();
     await page.mouse.move(0, 0);
     await expect(page.locator('.relation-label, .run-badge')).toHaveCount(0);

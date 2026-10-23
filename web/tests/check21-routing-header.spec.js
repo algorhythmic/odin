@@ -1,6 +1,9 @@
 // R3f synthetic prototype: gutter routing and compact canvas controls.
 import { test, expect } from '@playwright/test';
 import { PID, snapshot, shot } from './helpers.js';
+import { generateLargeSnapshot } from '../src/fixtures/large.js';
+import { projectAncestry } from '../src/ancestry.js';
+import { visibleSessions } from '../src/simulation.js';
 
 const canvas = (p) => p.getByTestId('tree-view');
 const card = (p, id) => p.locator(`[data-testid="session-card"][data-session-id="${id}"]`);
@@ -77,7 +80,13 @@ test('expanded generated project also clears rendered cards', async ({ page }) =
   await page.getByTestId('project-node').click();
   await key(page).click();
   await all(page).check();
-  await expect(page.getByTestId('session-card')).toHaveCount(41);
+  const data = generateLargeSnapshot();
+  // Retired parents of live work stay visible, so live children keep their recorded parent and only true roots show.
+  const roots = projectAncestry(visibleSessions(data.sessions), data.projects[0].id, data.executive_session_id).roots;
+  await expect(page.getByTestId('session-card')).toHaveCount(roots.length + 1);
+  const expected = [data.executive_session_id, ...roots.map((s) => s.id)].sort();
+  expect(await page.getByTestId('session-card').evaluateAll((els) => els.map((el) => el.dataset.sessionId).sort()))
+    .toEqual(expected);
   await assertRouting(page);
 });
 

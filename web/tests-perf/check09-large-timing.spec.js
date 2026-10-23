@@ -10,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test, expect } from '@playwright/test';
 import { describeLarge, generateLargeSnapshot, LARGE_SEED, LARGE_SPEC } from '../src/fixtures/large.js';
+import { visibleSessions } from '../src/simulation.js';
 
 const PID = LARGE_SPEC.projectId;
 const URL = '/?dataset=large#/';
@@ -19,6 +20,15 @@ const DEEP_PATHS = 3;
 const LOADS = 5;
 const SAMPLES = 8;
 const outDir = process.env.EVIDENCE_DIR || 'test-results/perf';
+
+// The tree's visible sessions: live ones plus retired ancestors of live work, which keep their connectors.
+const liveRecords = (snapshot) => visibleSessions(snapshot.sessions);
+const liveRoots = (snapshot) => {
+  const live = liveRecords(snapshot);
+  const ids = new Set(live.map((s) => s.id));
+  return live.filter((s) => s.project_id && (s.parent_session_id === snapshot.executive_session_id
+    || !ids.has(s.parent_session_id))).map((s) => s.id);
+};
 
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
 const machine = () => ({ platform: os.platform(), release: os.release(), cpus: os.cpus().length, cpu_model: os.cpus()[0]?.model, memory_gb: Math.round(os.totalmem() / 2 ** 30) });
@@ -50,8 +60,10 @@ test('large synthetic tree: first render, expand and select timings', async ({ p
   expect(data.sessions).toBe(2001);
   const snapshot = generateLargeSnapshot();
   const kids = new Map();
-  for (const s of snapshot.sessions) if (s.parent_session_id) kids.set(s.parent_session_id, (kids.get(s.parent_session_id) || 0) + 1);
-  const roots = snapshot.sessions.filter((s) => s.parent_session_id === snapshot.executive_session_id).map((s) => s.id);
+  for (const s of liveRecords(snapshot)) {
+    if (s.parent_session_id) kids.set(s.parent_session_id, (kids.get(s.parent_session_id) || 0) + 1);
+  }
+  const roots = liveRoots(snapshot);
 
   const first = [];
   for (let i = 0; i < LOADS; i += 1) {
@@ -100,7 +112,7 @@ test('large synthetic tree: first render, expand and select timings', async ({ p
   }
   const result = {
     label: 'synthetic prototype timings (not service integration)',
-    dataset: { ...data, seed: LARGE_SEED },
+    dataset: { ...data, seed: LARGE_SEED, live_sessions: liveRecords(snapshot).length, live_roots: roots.length },
     method: {
       first_render: `performance mark "odin:tree-fitted" (measured viewport fit committed) relative to navigation start;`
         + ` ${LOADS} fresh loads of the built app from vite preview on 127.0.0.1`,
@@ -130,9 +142,15 @@ test('large synthetic tree: first render, expand and select timings', async ({ p
 
 // Root-to-leaf paths ending at the deepest sessions, from distinct roots.
 function deepPaths(snapshot, count) {
-  const byId = new Map(snapshot.sessions.map((x) => [x.id, x]));
-  const pathTo = (x) => { const p = [x.id]; for (let q = x.parent_session_id; q && q !== snapshot.executive_session_id; q = byId.get(q).parent_session_id) p.unshift(q); return p; };
-  const all = snapshot.sessions.filter((s) => s.id !== snapshot.executive_session_id).map(pathTo).sort((a, b) => b.length - a.length || a.at(-1).localeCompare(b.at(-1)));
+  const byId = new Map(liveRecords(snapshot).map((x) => [x.id, x]));
+  const pathTo = (x) => {
+    const p = [x.id];
+    for (let q = x.parent_session_id; q && q !== snapshot.executive_session_id && byId.has(q);
+      q = byId.get(q).parent_session_id) p.unshift(q);
+    return p;
+  };
+  const all = liveRecords(snapshot).filter((s) => s.id !== snapshot.executive_session_id).map(pathTo)
+    .sort((a, b) => b.length - a.length || a.at(-1).localeCompare(b.at(-1)));
   const picked = [];
   for (const p of all) if (!picked.some((q) => q[0] === p[0])) { picked.push(p); if (picked.length === count) break; }
   return picked;
@@ -142,8 +160,10 @@ test('large synthetic tree: expanding depth-8 paths in the tree and the list', a
   test.setTimeout(180_000);
   const snapshot = generateLargeSnapshot();
   const kids = new Map();
-  for (const x of snapshot.sessions) if (x.parent_session_id) kids.set(x.parent_session_id, (kids.get(x.parent_session_id) || 0) + 1);
-  const roots = snapshot.sessions.filter((x) => x.parent_session_id === snapshot.executive_session_id).length;
+  for (const x of liveRecords(snapshot)) {
+    if (x.parent_session_id) kids.set(x.parent_session_id, (kids.get(x.parent_session_id) || 0) + 1);
+  }
+  const roots = liveRoots(snapshot).length;
   const paths = deepPaths(snapshot, DEEP_PATHS);
   expect(paths.every((p) => p.length === LARGE_SPEC.maxDepth)).toBe(true);
 
@@ -195,7 +215,8 @@ test('large synthetic tree: expanding depth-8 paths in the tree and the list', a
 
   const result = {
     label: 'synthetic prototype timings (not service integration)',
-    dataset: { ...describeLarge(snapshot), seed: LARGE_SEED },
+    dataset: { ...describeLarge(snapshot), seed: LARGE_SEED,
+      live_sessions: liveRecords(snapshot).length, live_roots: roots },
     paths: paths.map((p) => ({ root: p[0], leaf: p.at(-1), depth: p.length, cards_added: p.slice(0, -1).map((id) => kids.get(id)) })),
     method: {
       step: 'one project or session expand on a depth-8 path, from a fresh load with every branch collapsed: in-page click on the toggle until the expected number of cards (tree) or rows (list) is in the DOM, plus one animation frame',
