@@ -27,7 +27,6 @@ for (const [width, height] of [[1440, 900], [1100, 800], [800, 1000]]) {
 test('a tree that fits is visible in full without scrolling', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1400 });
   await page.goto(`/#/projects/${PID}`);
-  await page.getByRole('checkbox', { name: 'Show typed relationships' }).uncheck();
   await settled(page);
   expect(await scale(page)).toBeGreaterThanOrEqual(0.75);
   const over = await canvas(page).evaluate((el) => [el.scrollWidth - el.clientWidth, el.scrollHeight - el.clientHeight]);

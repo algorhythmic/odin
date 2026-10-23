@@ -2,9 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { cardDimensions, cardIsExpanded } from '../src/card-size.js';
-import { CARD, fitTree, intersects, routeRelationship } from '../src/tree-layout.js';
+import { CARD, createRelationshipRouter, fitTree, intersects, routeOrthogonal, routeRelationship, segmentIntersects } from '../src/tree-layout.js';
 import { groupedTree, projectAncestry } from '../src/ancestry.js';
-import { generateLargeSnapshot } from '../src/fixtures/large.js';
+import { generateLargeSnapshot, LARGE_SPEC } from '../src/fixtures/large.js';
 
 const snapshot = JSON.parse(fs.readFileSync(new URL('../fixtures/default-snapshot.json', import.meta.url)));
 function hierarchy(s = snapshot, scoped = false) {
@@ -115,4 +115,72 @@ test('200 visible generated sessions lay out in under 50 ms', () => {
   const l = fit(1100, h);
   assert.equal(l.positions.size, 202);
   assert.ok(performance.now() - start < 50);
+});
+
+function assertRoutes(l, relationships, assignments = []) {
+  const boxes = [...l.positions.values()];
+  const check = (points, from, to) => {
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1];
+      const b = points[i];
+      assert.ok(a.x === b.x || a.y === b.y, 'orthogonal segment');
+      for (const box of boxes) {
+        if (box.s.id === from || box.s.id === to) continue;
+        assert.ok(!segmentIntersects(a, b, box), `${from}>${to} crosses ${box.s.id}`);
+      }
+    }
+  };
+  l.edges.forEach((e) => check(e.points, e.from, e.to));
+  const route = createRelationshipRouter(boxes, l.scale);
+  relationships.forEach((r, i) => {
+    const to = r.type === 'assignment_owner' ? assignments.find((a) => a.id === r.to)?.owner_session_id : r.to;
+    if (r.type === 'run_association' || !l.positions.has(r.from) || !l.positions.has(to)) return;
+    const line = route(l.positions.get(r.from), l.positions.get(to), r.type, i);
+    check(line.points, r.from, to);
+    // Only the final one-pixel port inset may enter an endpoint.
+    for (const box of [l.positions.get(r.from), l.positions.get(to)]) {
+      const inner = { x: box.x + 2, y: box.y + 2, w: box.w - 4, h: box.h - 4 };
+      line.points.slice(1).forEach((p, j) => assert.ok(!segmentIntersects(line.points[j], p, inner)));
+    }
+    assert.ok(boxes.every((b) => !intersects(line.labelBox, b)));
+  });
+}
+
+test('every default edge and relationship clears non-endpoint rectangles at all requested viewports', () => {
+  for (const [w, h] of [[1440, 900], [1100, 800], [800, 1000]]) {
+    for (const scoped of [false, true]) {
+      const tree = hierarchy(snapshot, scoped);
+      if (scoped) {
+        const executive = snapshot.sessions.find((s) => s.id === snapshot.executive_session_id);
+        tree.children.set(executive.id, tree.roots);
+        tree.roots = [executive];
+      }
+      assertRoutes(fit(w, tree, h), snapshot.relationships, snapshot.assignments);
+    }
+  }
+});
+
+test('expanded large project routes around the visible compact and expanded cards', () => {
+  const s = generateLargeSnapshot();
+  const h = hierarchy(s);
+  h.collapsed = new Set([...h.children.keys()].filter((id) => !id.startsWith('project:') && id !== s.executive_session_id));
+  assertRoutes(fit(1100, h, 800), s.relationships, s.assignments);
+});
+
+test('gutter search detours around a wall and separates parallel relationship ports', () => {
+  const wall = { x: 40, y: 0, w: 20, h: 80 };
+  const route = routeOrthogonal({ x: 0, y: 40 }, { x: 100, y: 40 }, [wall]);
+  assert.ok(route.some((p) => p.y <= -8 || p.y >= 88));
+  route.slice(1).forEach((p, i) => assert.ok(!segmentIntersects(route[i], p, wall)));
+  const a = { x: 0, y: 0, w: 20, h: 44 };
+  const b = { x: 80, y: 100, w: 20, h: 44 };
+  const one = routeRelationship(a, b, [a, b], 'reviews', 1, 0);
+  const two = routeRelationship(a, b, [a, b], 'reviews', 1, 1);
+  assert.notDeepEqual(one.points, two.points);
+});
+
+test('shared routing queries keep all 100 generated relationships clear across 200 visible sessions', () => {
+  const large = generateLargeSnapshot({ ...LARGE_SPEC, sessions: 200 });
+  const h = hierarchy(large);
+  assertRoutes(fit(1100, h, 800), large.relationships, large.assignments);
 });

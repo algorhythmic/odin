@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { RELATION_LABELS, getAssignment, getExecutive, lineageLabel, relationshipsOf, relationshipsFor } from './data.js';
-import { fitTree, routeRelationship } from './tree-layout.js';
+import { createRelationshipRouter, fitTree } from './tree-layout.js';
+import { updatePrefs, usePrefs } from './prefs.js';
 import { ProjectNode } from './project-node.jsx';
 import { SessionCard } from './card.jsx';
 import { cardDimensions, cardIsExpanded } from './card-size.js';
@@ -11,29 +12,43 @@ const INSTRUCTIONS = 'Use + and - to zoom, arrow keys to pan, and 0 to reset the
 const STYLES = { project: 'project', ancestry: 'started (ancestry)', review: 'reviews',
   delegation: 'delegated to', assignment_owner: 'owns assignment' };
 
-function RelationshipKey({ styles }) {
+function RelationshipKey({ styles, prefs }) {
   return <div class="legend" aria-label="Relationship key">
-    {styles.map((type) => <div class="legend-row" key={type} data-style={type}>
-      <svg width="40" height="16" aria-hidden="true" class={type === 'project' || type === 'ancestry'
-        ? '' : `relation-edge relation-${type}`}>
-        <path class={type === 'project' ? 'sample-project' : type === 'ancestry' ? 'sample-ancestry' : ''} d="M2,8 L36,8" />
-        {type === 'ancestry' && <circle class="sample-port" cx="5" cy="8" r="3" />}
-        {type !== 'project' && type !== 'ancestry' && <path class="arrowhead" d="M32,4 L38,8 L32,12 z" />}
-      </svg>
-      <span>{STYLES[type]}</span>
-    </div>)}
+    <button type="button" aria-expanded={prefs.keyOpen} aria-controls="relationship-key"
+      onClick={() => updatePrefs({ keyOpen: !prefs.keyOpen })}><span aria-hidden="true">☷</span> Key</button>
+    {prefs.keyOpen && <div id="relationship-key" class="key-content">
+      <label class="check"><input type="checkbox" checked={prefs.showRelations}
+        onChange={(e) => updatePrefs({ showRelations: e.currentTarget.checked })} />Show all relationships</label>
+      {styles.map((type) => <div class="legend-row" key={type} data-style={type}>
+        <svg width="40" height="16" aria-hidden="true" class={type === 'project' || type === 'ancestry'
+          ? '' : `relation-edge relation-${type}`}>
+          <path class={type === 'project' ? 'sample-project' : type === 'ancestry' ? 'sample-ancestry' : ''} d="M2,8 L36,8" />
+          {type === 'ancestry' && <circle class="sample-port" cx="5" cy="8" r="3" />}
+          {type !== 'project' && type !== 'ancestry' && <path class="arrowhead" d="M32,4 L38,8 L32,12 z" />}
+        </svg>
+        <span>{STYLES[type]}</span>
+      </div>)}
+    </div>}
   </div>;
 }
 
 export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect, onToggle, showRelations, highlight,
-  cardSizes, onSizeToggle }) {
+  cardSizes, onSizeToggle, driver }) {
+  const prefs = usePrefs();
+  const [hovered, setHovered] = useState(null);
+  const [focused, setFocused] = useState(null);
+  const executive = getExecutive();
+  const treeRoots = useMemo(() => pid && executive ? [executive] : roots, [pid, executive, roots]);
+  const treeChildren = useMemo(() => pid && executive
+    ? new Map([...childMap, [executive.id, roots]]) : childMap, [pid, executive, roots, childMap]);
   const viewport = useRef(null);
   const [area, setArea] = useState({ w: 0, h: 600, x: 0, y: 0 });
   const [manual, setManual] = useState(null);
-  const geometry = useMemo(() => fitTree({ roots, children: childMap, collapsed, executiveId: getExecutive()?.id },
-    (s) => cardDimensions(s, cardSizes, childMap.get(s.id)?.length, !s.project && !!lineageLabel(s),
-      showRelations && relationshipsOf(s.id).some((r) => r.type === 'run_association')), area.w, Math.max(180, area.h)),
-  [roots, childMap, collapsed, cardSizes, showRelations, area.w, area.h]);
+  const geometry = useMemo(() => fitTree({ roots: treeRoots, children: treeChildren, collapsed, executiveId: executive?.id },
+    (s) => pid && s.id === executive?.id ? { w: 220, h: 112 }
+      : cardDimensions(s, cardSizes, treeChildren.get(s.id)?.length, !s.project && !!lineageLabel(s),
+        relationshipsOf(s.id).some((r) => r.type === 'run_association')), area.w, Math.max(180, area.h)),
+  [treeRoots, treeChildren, collapsed, cardSizes, area.w, area.h]);
   const { ordered, positions: pos, edges, dots, width, height, mode } = geometry;
   const relations = useMemo(() => relationshipsFor(pid).flatMap((r) => {
     // Assignment records are anchored to their recorded owner, never made into tree nodes.
@@ -41,8 +56,7 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     return r.type !== 'run_association' && pos.has(r.from) && pos.has(target) ? [{ ...r, target }] : [];
   }), [pid, pos]);
   const styles = [...new Set([...edges.map((e) => e.grouping ? 'project' : 'ancestry'),
-    ...(showRelations ? relations.map((r) => r.type) : [])])];
-  const keyHeight = styles.length * 22 + 24;
+    ...relations.map((r) => r.type)])];
   const fit = { scale: geometry.scale, x: Math.max(0, (area.w - width * geometry.scale) / 2), y: 0 };
   const view = manual || fit;
   const current = useRef(view);
@@ -50,9 +64,13 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
   const manualRef = useRef(false);
   manualRef.current = !!manual;
   const extent = useMemo(() => [...pos.values()], [pos]);
-  const overlays = useMemo(() => showRelations ? relations.map((r, i) => ({ ...r,
-    ...routeRelationship(pos.get(r.from), pos.get(r.target), extent, RELATION_LABELS[r.type], view.scale, i),
-  })) : [], [showRelations, relations, extent, view.scale]);
+  const active = useMemo(() => new Set([selectedId, hovered, focused].filter(Boolean)), [selectedId, hovered, focused]);
+  const routeRelation = useMemo(() => createRelationshipRouter(extent, view.scale), [extent, view.scale]);
+  const overlays = useMemo(() => relations.filter((r) => showRelations || active.has(r.from) || active.has(r.target))
+    .map((r, i) => ({ ...r,
+    ...routeRelation(pos.get(r.from), pos.get(r.target), RELATION_LABELS[r.type], i),
+  })), [showRelations, active, relations, routeRelation]);
+  const related = new Set(overlays.flatMap((r) => [r.from, r.target]));
   const stageWidth = Math.max(width, ...overlays.map((r) => r.labelBox.x + r.labelBox.w + 24));
   const stageHeight = Math.max(height, ...overlays.map((r) => r.labelBox.y + r.labelBox.h + 24));
 
@@ -61,7 +79,7 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     const el = viewport.current;
     const measure = () => {
       const { top, left } = el.getBoundingClientRect();
-      const h = Math.max(180, innerHeight - top - 8);
+      const h = Math.max(180, innerHeight - top - 56);
       el.style.height = `${h}px`;
       setArea((old) => old.w === el.clientWidth && old.h === h && old.x === left && old.y === top
         ? old : { w: el.clientWidth, h, x: left, y: top });
@@ -72,7 +90,7 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     observer.observe(el.closest('.workspace').querySelector('.toolbar'));
     addEventListener('resize', measure);
     return () => { observer.disconnect(); removeEventListener('resize', measure); };
-  }, [keyHeight]);
+  }, []);
 
   const move = (next, reflow = false) => {
     manualRef.current = true;
@@ -156,7 +174,7 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
       if (manualRef.current) move({ ...v, x: v.x + dx, y: v.y + dy });
       else { el.scrollLeft -= dx; el.scrollTop -= dy; }
     }
-  }, [selectedId, area, pos, mode, keyHeight]);
+  }, [selectedId, area, pos, mode]);
 
   useLayoutEffect(() => {
     if (area.w !== viewport.current.clientWidth) return;
@@ -241,7 +259,7 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     e.preventDefault();
   };
 
-  return <div class="tree-wrap" style={{ paddingTop: keyHeight }}>
+  return <div class="tree-wrap">
     <p id="tree-instructions" class="sr-only">{INSTRUCTIONS}</p>
     <div class="tree-view" ref={viewport} data-testid="tree-view" data-scale={view.scale} data-mode={mode}
       data-manual={!!manual} role="region" aria-label="Agent tree canvas" aria-describedby="tree-instructions" tabIndex={0}
@@ -272,22 +290,11 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
               pathLength={enteringEdges.has(edgeKey(e)) && !e.grouping ? 1 : undefined} d={e.d} />)}
             {dots.map((d) => <circle key={d.id} class="port-dot" data-parent={d.id} cx={d.x} cy={d.y} r={4.5} />)}
           </svg>
-          {ordered.map((id) => {
-            const p = pos.get(id);
-            const style = { left: p.x, top: p.y, width: p.w, height: p.h };
-            const muted = highlight && p.s.project_id && p.s.project_id !== highlight;
-            if (p.s.project) return <ProjectNode key={id} project={p.s.project} style={style}
-              expanded={!collapsed.has(id)} muted={muted} onToggle={() => onToggle(id)} />;
-            return <SessionCard key={id} session={p.s} childMap={childMap} style={style} muted={muted}
-              selected={id === selectedId} cardExpanded={cardIsExpanded(p.s, cardSizes)} onSizeToggle={onSizeToggle}
-              expanded={!collapsed.has(id)} childCount={(childMap.get(id) || []).length}
-              entering={entering.has(id)} onSelect={onSelect} onToggle={onToggle} showRelations={showRelations} />;
-          })}
           <svg class="tree-overlays" width={stageWidth} height={stageHeight} aria-hidden="true">
             {overlays.map((r) => {
               const b = r.labelBox;
               return <g key={r.id} class={`relation-edge relation-${r.type}`} data-type={r.type}
-                data-from={r.from} data-to={r.to}>
+                data-from={r.from} data-to={r.to} data-target={r.target}>
                 <defs><marker id={`arrow-${r.id}`} viewBox="0 0 10 10" refX="9" refY="5"
                   markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="arrowhead" /></marker></defs>
                 <path d={r.d} marker-end={`url(#arrow-${r.id})`} />
@@ -299,14 +306,31 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
               </g>;
             })}
           </svg>
+          {ordered.map((id) => {
+            const p = pos.get(id);
+            const style = { left: p.x, top: p.y, width: p.w, height: p.h };
+            const muted = highlight && p.s.project_id && p.s.project_id !== highlight;
+            if (p.s.project) return <ProjectNode key={id} project={p.s.project} style={style}
+              expanded={!collapsed.has(id)} muted={muted} onToggle={() => onToggle(id)} />;
+            return <SessionCard key={id} session={p.s} childMap={treeChildren} style={style} muted={muted}
+              selected={id === selectedId} related={related.has(id)}
+              onHover={setHovered} onFocusCard={setFocused} compactExecutive={!!pid && id === executive?.id}
+              cardExpanded={pid && id === executive?.id || cardIsExpanded(p.s, cardSizes)} onSizeToggle={onSizeToggle}
+              expanded={!collapsed.has(id)} childCount={(treeChildren.get(id) || []).length}
+              entering={entering.has(id)} onSelect={onSelect} onToggle={onToggle}
+              showRelations={showRelations || active.has(id)} />;
+          })}
+
         </div>}
       </div>
     </div>
-    <RelationshipKey styles={styles} />
-    <div class="canvas-controls" role="group" aria-label="Canvas view">
-      {manual && <button type="button" onClick={reset}>Reset view</button>}
-      <button type="button" aria-label="Zoom out" onClick={() => zoomCentre(1 / 1.2)}>−</button>
-      <button type="button" aria-label="Zoom in" onClick={() => zoomCentre(1.2)}>+</button>
+    <RelationshipKey styles={styles} prefs={prefs} />
+    <div class="canvas-bottom-right">{driver}
+      <div class="canvas-controls" role="group" aria-label="Canvas view">
+        {manual && <button type="button" onClick={reset}>Reset view</button>}
+        <button type="button" aria-label="Zoom out" onClick={() => zoomCentre(1 / 1.2)}>−</button>
+        <button type="button" aria-label="Zoom in" onClick={() => zoomCentre(1.2)}>+</button>
+      </div>
     </div>
   </div>;
 }

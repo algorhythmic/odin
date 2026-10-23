@@ -20,8 +20,17 @@ export function UpdateDriver() {
   const auto = autoplayState();
   return (
     <div class="update-driver" data-testid="update-driver">
-      <span>Synthetic updates ({datasetName} dataset): revision <strong data-testid="revision">{revision}</strong> · cursor <code>{cursor}</code> · {pending} pending</span>
-      <button type="button" disabled={!pending} onClick={applyNextSyntheticEvent}>Apply next synthetic update</button>
+      <details class="driver-details">
+        <summary aria-label="Synthetic update details">Synthetic <span aria-hidden="true">ⓘ</span></summary>
+        <div class="driver-metadata">
+          <span>Synthetic updates ({datasetName} dataset): revision <strong data-testid="revision">{revision}</strong>
+            {' '}· cursor <code>{cursor}</code> · {pending} pending</span>
+          <p>{last ? STATUS_TEXT[last.status](last) : 'No update applied yet.'}</p>
+        </div>
+      </details>
+      <button type="button" disabled={!pending} onClick={applyNextSyntheticEvent}
+        aria-label="Apply next synthetic update"><span class="apply-text">Apply next synthetic update</span>
+        <span class="apply-icon" aria-hidden="true">↦</span></button>
       <span class="autoplay">
         <button type="button" data-testid="autoplay-toggle" disabled={!auto.pending && !auto.playing}
           aria-pressed={auto.playing} onClick={auto.playing ? pauseAutoplay : playAutoplay}>
@@ -34,7 +43,9 @@ export function UpdateDriver() {
           </select>
         </label>
       </span>
-      <span class="muted" role="status" data-testid="update-status">{last ? STATUS_TEXT[last.status](last) : 'No update applied yet.'}</span>
+      <span class="sr-only" role="status" data-testid="update-status">
+        {last ? STATUS_TEXT[last.status](last) : 'No update applied yet.'}
+      </span>
     </div>
   );
 }

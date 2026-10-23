@@ -34,7 +34,7 @@ test('a recorded parent outside the view stays a labelled root, never a guessed 
   const count = sessions.filter((s) => s.project_id === pid).length;
   await page.goto(`/#/projects/${pid}`);
   await expandCards(page, ['ses-pin-audit']);
-  await expect(page.getByTestId('session-card')).toHaveCount(count);
+  await expect(page.getByTestId('session-card')).toHaveCount(count + 1);
   await expect(page.getByTestId('project-node')).toHaveCount(1);
   const audit = page.locator('[data-testid="session-card"][data-session-id="ses-pin-audit"]');
   await expect(audit).toHaveAttribute('data-parent', 'ses-pin-archived');
@@ -57,7 +57,7 @@ test('tree renders the ancestry forest and typed relationships distinctly', asyn
   await expandCards(page, ['ses-imported-01', 'ses-worker-a1', 'ses-worker-a2']);
   await expect(page.getByTestId('synthetic-badge')).toBeVisible();
   const cards = page.getByTestId('session-card');
-  await expect(cards).toHaveCount(projectSessions.length);
+  await expect(cards).toHaveCount(projectSessions.length + 1);
 
   // Every card's tree parent is the recorded parent_session_id, nothing else.
   for (const s of projectSessions) {
@@ -75,13 +75,15 @@ test('tree renders the ancestry forest and typed relationships distinctly', asyn
   }
 
   // Multiple roots, including the unparented imported session.
-  await expect(page.locator('[data-testid="session-card"][data-parent=""]')).toHaveCount(1);
+  await expect(page.locator('[data-testid="session-card"][data-parent=""][data-project-id]')).toHaveCount(1);
   const imported = page.locator('[data-session-id="ses-imported-01"]');
   await expect(imported.getByTestId('lineage-label')).toHaveText('Imported — parent unknown');
 
   // Nested child: helper -> worker attempt 2 -> integration owner -> executive.
   await expect(page.locator('[data-session-id="ses-helper-01"]')).toHaveAttribute('data-parent', 'ses-worker-a2');
 
+  await page.getByRole('button', { name: 'Key', exact: true }).click();
+  await page.getByRole('checkbox', { name: 'Show all relationships' }).check();
   // Delegation is drawn as its own typed overlay, even where it coincides with ancestry.
   await expect(page.locator('.relation-edge[data-type="delegation"]')).toHaveCount(1);
 

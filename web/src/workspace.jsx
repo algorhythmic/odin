@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import {
-  ancestors, getExecutive, getSession, portfolioTree, projectSum, projectSummary, sessionsFor,
+  ancestors, isSynthetic, getExecutive, getSession, portfolioTree, projectSum, projectSummary, sessionsFor,
 } from './data.js';
 import { projectNodeId } from './ancestry.js';
 import { updatePrefs, usePrefs } from './prefs.js';
@@ -11,7 +11,7 @@ import { DetailPanel } from './detail.jsx';
 import { NotFound } from './notfound.jsx';
 import { AttentionChips } from './attention.jsx';
 import { TokenSum } from './tokencount.jsx';
-import { ModelName, StatusChip } from './status.jsx';
+import { UpdateDriver } from './driver.jsx';
 
 const NARROW = '(max-width: 759px)';
 
@@ -71,25 +71,14 @@ export function Workspace({ project, sid, highlight }) {
 
   return (
     <div class={`workspace ${narrow ? 'narrow' : ''} ${sid ? 'has-detail' : ''}`} data-testid="workspace" data-mode={mode}>
-      {pid && <div class="scope-header">
-        <a href="#/">All projects</a>
-        {executive && <a class="executive-header" href={sessionHref(undefined, executive.id)} data-testid="executive-header">
-          <strong>{executive.role}</strong> <ModelName model={executive.model} /> <StatusChip session={executive} />
-        </a>}
-      </div>}
       <div class="toolbar" ref={header} data-testid="tree-header">
-        <h1>{title}</h1>
+        <h1>{pid && <><a href="#/">Portfolio</a><span class="breadcrumb-separator"> / </span></>}{title}</h1>
         <span class="muted" data-testid="agent-summary" aria-live="polite">
           {counts.agents} agents · {counts.running} running
         </span>
         <AttentionChips pid={pid} />
         <TokenSum sum={projectSum(pid)} compactUnknown testid="project-tokens" />
-        <a href={historyHref(pid)}>History</a>
-        <label class="check">
-          <input type="checkbox" checked={prefs.showRelations}
-            onChange={(e) => updatePrefs({ showRelations: e.currentTarget.checked })} />
-          Show typed relationships
-        </label>
+        <a class="history-link" href={historyHref(pid)}>History</a>
         {!narrow && (
           <div class="segmented" role="group" aria-label="Layout">
             <button type="button" aria-pressed={mode === 'tree'} onClick={() => updatePrefs({ mode: 'tree' })}>Tree</button>
@@ -100,12 +89,13 @@ export function Workspace({ project, sid, highlight }) {
       <section class="tree-area" aria-label="Agent tree">
         {mode === 'tree'
           ? <TreeView pid={pid} roots={roots} childMap={childMap} collapsed={collapsed} selectedId={admitted?.id}
-              cardSizes={prefs.cardSizes}
+              driver={isSynthetic && <UpdateDriver />} cardSizes={prefs.cardSizes}
               onSizeToggle={(id, expanded) => updatePrefs({ cardSizes: { ...prefs.cardSizes, [id]: expanded } })}
               highlight={highlight} onSelect={select} onToggle={toggle} showRelations={prefs.showRelations} />
           : <ListTree roots={roots} childMap={childMap} collapsed={collapsed} selectedId={admitted?.id}
               highlight={highlight} onSelect={select} onToggle={toggle} />}
       </section>
+      {mode === 'list' && isSynthetic && <div class="list-driver"><UpdateDriver /></div>}
       {sid && <aside class="detail" aria-label="Session details">
         <div class="drawer-bar"><button type="button" onClick={() => { location.hash = base; }}>Close</button></div>
         {admitted

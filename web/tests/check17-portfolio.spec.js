@@ -27,6 +27,7 @@ test('one executive, ordered grouping nodes and recorded ancestry through projec
     expect(ancestry).toContain(`${snapshot.executive_session_id}>${s.id}`);
     await expect(page.locator(`path.ancestry-edge[data-to="${s.id}"]`)).toHaveAttribute('data-via', `project:${s.project_id}`);
   }
+  await page.getByRole('button', { name: 'Key', exact: true }).click();
   await expect(page.locator('.legend')).toContainText('started (ancestry)');
   await expect(page.locator('.legend')).toContainText('project');
   await expect(page.locator('.legend')).toContainText('reviews');
@@ -74,19 +75,19 @@ test('sidebar hover and focus highlight a branch without changing geometry', asy
   await expect(project(page, PID)).not.toHaveClass(/branch-muted/);
 });
 
-test('scope keeps one project, a compact executive and All projects; session routes still work', async ({ page }) => {
+test('scope keeps one project, a compact executive and breadcrumb; session routes still work', async ({ page }) => {
   await page.goto('/#/');
   await sidebarProject(page, PID).click();
   await expect(page).toHaveURL(new RegExp(`projects/${PID}$`));
   await expect(page.getByTestId('project-node')).toHaveCount(1);
-  await expect(page.getByTestId('executive-header')).toContainText('executive');
-  await expect(page.getByTestId('executive-header')).toContainText('Fable 5.1');
-  await expect(page.getByTestId('executive-header')).toContainText('Running');
-  await expect(card(page, snapshot.executive_session_id)).toHaveCount(0);
+  await expect(card(page, snapshot.executive_session_id)).toContainText('executive');
+  await expect(card(page, snapshot.executive_session_id)).toContainText('Fable 5.1');
+  await expect(card(page, snapshot.executive_session_id)).toContainText('Running');
+  await expect(card(page, snapshot.executive_session_id)).toHaveCount(1);
   await card(page, 'ses-integ-01').getByRole('button', { name: /integration owner/ }).first().click();
   await expect(page).toHaveURL(new RegExp(`projects/${PID}/sessions/ses-integ-01$`));
   await expect(page.getByTestId('detail-panel')).toHaveAttribute('data-session-id', 'ses-integ-01');
-  await page.getByRole('link', { name: 'All projects', exact: true }).click();
+  await page.getByTestId('tree-header').getByRole('link', { name: 'Portfolio', exact: true }).click();
   await expect(page).toHaveURL(/#\/$/);
   await page.goto('/#/sessions/ses-exec-01');
   await expect(card(page, 'ses-exec-01')).toHaveClass(/selected/);

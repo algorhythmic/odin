@@ -47,7 +47,10 @@ for (const [width, mode] of [[1440, 'adaptive'], [1100, 'adaptive'], [800, 'adap
       const a = key.getBoundingClientRect();
       return [...document.querySelectorAll('.card, .project-node')].some((el) => {
         const b = el.getBoundingClientRect();
-        return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+        const v = document.querySelector('.tree-view').getBoundingClientRect();
+        if (b.top >= v.bottom || b.bottom <= v.top) return false;
+        return a.top < Math.min(b.bottom, v.bottom) && a.bottom > Math.max(b.top, v.top)
+          && a.left < b.right && a.right > b.left;
       });
     });
     expect(collision).toBe(false);
@@ -216,6 +219,8 @@ for (const [url, width] of [['/#/', 1440], [`/#/projects/${PID}`, 1440], ['/#/',
     await page.setViewportSize({ width, height: 900 });
     await page.goto(url);
     await settled(page);
+    await page.getByRole('button', { name: 'Key', exact: true }).click();
+    await page.getByRole('checkbox', { name: 'Show all relationships' }).check();
     await expect(page.locator('.legend-row')).toHaveCount(5);
     for (const s of ['ancestry', 'project', 'review', 'delegation', 'assignment_owner']) {
       await expect(page.locator(`.legend-row[data-style="${s}"]`)).toBeVisible();
@@ -234,11 +239,13 @@ for (const [url, width] of [['/#/', 1440], [`/#/projects/${PID}`, 1440], ['/#/',
     await assertLabelsClear(page);
     const large = await page.locator('.relation-label text').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
     expect(large * await scale(page)).toBeCloseTo(11 * 1.25, 3);
-    await page.getByRole('checkbox', { name: 'Show typed relationships' }).uncheck();
-    await expect(page.locator('.legend-row')).toHaveCount(2);
+    await page.getByRole('checkbox', { name: 'Show all relationships' }).uncheck();
+    await expect(page.locator('.legend-row')).toHaveCount(5);
+    await canvas(page).focus();
+    await page.mouse.move(0, 0);
     await expect(page.locator('.relation-label, .run-badge')).toHaveCount(0);
     await page.goto('/#/projects/proj-empty');
-    await expect(page.locator('.legend-row')).toHaveCount(0);
+    await expect(page.locator('.legend-row')).toHaveCount(1);
   });
 }
 

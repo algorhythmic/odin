@@ -202,7 +202,7 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
 .autoplay { display: inline-flex; gap: 6px; align-items: center; }
 .autoplay-speed { display: inline-flex; gap: 4px; align-items: center; }
 
-.tree-wrap { position: relative; min-width: 0; }
+.tree-wrap { position: relative; min-width: 0; padding-bottom: 48px; container: canvas / inline-size; }
 .tree-view {
   position: relative; width: 100%; overflow: auto; background: var(--canvas);
   overscroll-behavior: contain; touch-action: none; cursor: grab; overflow-anchor: none;
@@ -212,7 +212,8 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
 .tree-stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .tree-stage:not(.manual-view), .tree-stage.reflow-view { transition: transform 420ms var(--tree-curve); }
 .tree-edges, .tree-overlays { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
-.tree-overlays { z-index: 3; }
+.tree-edges, .tree-overlays { z-index: 0; }
+.tree-stage > .card, .tree-stage > .project-node { z-index: 1; }
 .tree-edges > path, .relation-edge > path { transition: d 420ms var(--tree-curve); }
 .tree-edges .port-dot { transition: cx 420ms var(--tree-curve), cy 420ms var(--tree-curve); }
 .ancestry-edge, .project-edge, .sample-ancestry, .sample-project { fill: none; stroke: var(--edge); stroke-width: 2; }
@@ -227,12 +228,21 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
 .relation-label text { fill: var(--accent); }
 .relation-edge .arrowhead { fill: var(--accent); stroke: none; stroke-dasharray: none; }
 .legend {
-  position: absolute; top: 8px; left: 12px; display: flex; flex-direction: column;
-  font-size: 11px; color: var(--muted); pointer-events: none;
+  position: absolute; bottom: 8px; left: 8px; z-index: 5;
+  font-size: 11px; color: var(--muted);
 }
+.legend > button { font-size: 12px; }
+.key-content {
+  position: absolute; bottom: 36px; left: 0; width: 200px; padding: 10px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+}
+.key-content .check { margin-bottom: 8px; font-size: 11px; }
 .legend-row[data-style="project"] { color: var(--group); }
 .legend-row { display: flex; align-items: center; gap: 8px; height: 22px; }
-.canvas-controls { position: absolute; right: 12px; top: 12px; display: flex; gap: 4px; }
+.canvas-bottom-right { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 8px; align-items: center; z-index: 4; }
+.canvas-controls { display: flex; gap: 4px; flex: none; }
+.relationship-active { border-color: var(--text); }
+.scoped-executive .card-task { margin-bottom: 0; }
 .canvas-controls button { font-size: 12px; padding: 3px 8px; }
 .run-badge { font-size: 10px; border: 1px solid var(--border); border-radius: 8px; padding: 0 5px; }
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); }
@@ -322,9 +332,23 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
   border: 1px solid var(--border); border-radius: var(--radius);
   margin-top: 12px; padding: 12px;
 }
-.update-driver { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 6px 16px; background: var(--surface-2); border-bottom: 1px solid var(--border); font-size: 0.85rem; }
-/* A separate status row keeps driver messages from shifting the canvas. */
-.update-driver [role="status"] { flex-basis: 100%; min-height: 1.45em; overflow-wrap: anywhere; }
+.update-driver {
+  display: flex; gap: 8px; align-items: center; padding: 4px 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 7px; font-size: 11px;
+}
+.update-driver button, .update-driver select { font-size: 11px; }
+.driver-details { position: relative; }
+.driver-details summary { cursor: pointer; list-style: none; white-space: nowrap; }
+.driver-metadata {
+  position: absolute; right: 0; bottom: 36px; width: 300px; padding: 12px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--surface); overflow-wrap: anywhere;
+}
+.driver-metadata p { margin: 8px 0 0; }
+.list-driver { position: sticky; bottom: 8px; display: flex; justify-content: flex-end; z-index: 4; }
+@media (max-width: 759px) {
+  .list-driver .update-driver { flex-wrap: wrap; }
+}
+
 .activity { list-style: none; padding: 0; margin: 0 0 8px; font-size: 0.85rem; }
 .activity li { margin: 2px 0; }
 .history table { border-collapse: collapse; width: 100%; background: var(--surface); }
@@ -505,16 +529,14 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
 .sidebar-branch a { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; }
 .sidebar-project-name { flex: 1; }
 .sidebar-branch small { color: var(--muted); font-variant-numeric: tabular-nums; }
-.scope-header { display: flex; align-items: center; gap: 24px; padding: 12px 0; }
-.executive-header { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); }
-.executive-header strong { text-transform: capitalize; }
 .project-node {
   position: absolute; display: grid; grid-template-columns: 12px minmax(0, 1fr);
-  gap: 1px 6px; align-content: center; padding: 8px 12px;
+  gap: 3px 6px; grid-template-rows: 16px 14px 14px; align-content: center; padding: 8px 12px;
+  line-height: 14px;
   background: var(--canvas); border: 1px solid var(--edge); border-left: 3px solid var(--group); border-radius: 5px;
   font-size: 0.72rem; white-space: nowrap; text-align: left;
 }
-.project-node strong { flex: 1 1 calc(100% - 30px); min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.project-node strong { line-height: 16px; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .project-node > :first-child { grid-row: 1 / span 3; }
 .project-node > :not(:first-child) { grid-column: 2; min-width: 0; }
 .project-node > span { font-size: 10px; }
@@ -525,11 +547,16 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
 .toolbar { font-size: 0.75rem; gap: 8px 10px; }
 .toolbar h1 { font-size: 1rem; }
 .toolbar > * { white-space: nowrap; }
-@media (max-width: 759px) {
-  .scope-header { flex-wrap: wrap; gap: 12px; }
-}
 
 .toolbar > * { flex-shrink: 0; }
+.toolbar { min-height: 44px; margin-bottom: 0; }
+.toolbar h1 { min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
+.toolbar .history-link { margin-left: auto; }
+.breadcrumb-separator { color: var(--muted); font-weight: 400; }
+.content:has(.workspace) { padding-top: 8px; }
+@media (min-width: 1200px) {
+  .toolbar { flex-wrap: nowrap; }
+}
 .attention-pop { position: fixed; right: auto; white-space: normal; }
 
 /* Content follows the panel width, including inside the mobile drawer. */
@@ -651,4 +678,12 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
 }
 @media (prefers-reduced-motion: reduce) {
   .sidebar, .sidebar * { transition: none !important; animation: none !important; }
+}
+
+.apply-icon { display: none; }
+@container canvas (max-width: 600px) {
+  .apply-text { display: none; }
+  .apply-icon { display: inline; }
+  .canvas-bottom-right { gap: 4px; }
+  .update-driver { gap: 4px; }
 }

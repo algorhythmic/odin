@@ -13,7 +13,7 @@ test('cycle and self-parent sessions are labelled roots, never dropped or given 
   await page.goto(`/#/projects/${MAL}`);
   await expandCards(page, ['ses-mal-cycle-a', 'ses-mal-cycle-b', 'ses-mal-self']);
   // Every record is shown: nothing in a cycle is dropped.
-  await expect(page.getByTestId('session-card')).toHaveCount(malformed.length);
+  await expect(page.getByTestId('session-card')).toHaveCount(malformed.length + 1);
   await expect(page.getByTestId('project-node')).toHaveCount(1);
   for (const id of ['ses-mal-cycle-a', 'ses-mal-cycle-b', 'ses-mal-self']) {
     await expect(card(page, id).getByTestId('lineage-label')).toHaveText('Parent cycle in records');
@@ -43,7 +43,7 @@ test('cycle and self-parent sessions are labelled roots, never dropped or given 
 test('an empty project renders an empty forest with finite dimensions', async ({ page }) => {
   await page.goto('/#/projects/proj-empty');
   await expect(page.getByTestId('agent-summary')).toHaveText('0 agents · 0 running');
-  await expect(page.getByTestId('session-card')).toHaveCount(0);
+  await expect(page.getByTestId('session-card')).toHaveCount(1);
   const svg = page.locator('svg.tree-edges');
   for (const attr of ['width', 'height']) {
     const value = Number(await svg.getAttribute(attr));

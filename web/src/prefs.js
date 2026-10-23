@@ -1,6 +1,6 @@
 // Browser state is limited to layout preferences: view mode, collapsed
-// branches, card sizes, the relationship overlay, theme and sidebar size. Records are
-// never stored here.
+// branches, card sizes, the key, relationships, theme and sidebar size.
+// Records are never stored here.
 import { useEffect, useState } from 'preact/hooks';
 
 const KEY = 'odin-web-prefs:v1';
@@ -36,7 +36,8 @@ export function cleanPrefs(value) {
     cardSizes: cleanCardSizes(v.cardSizes),
     mode: v.mode === 'list' ? 'list' : 'tree',
     collapsed: cleanCollapsed(v.collapsed),
-    showRelations: v.showRelations !== false,
+    showRelations: v.showRelations === true,
+    keyOpen: v.keyOpen === true,
     theme: THEMES.has(v.theme) ? v.theme : 'dark',
     sidebarCollapsed: v.sidebarCollapsed === true,
     sidebarWidth: Number.isInteger(v.sidebarWidth) && v.sidebarWidth >= SIDEBAR_MIN && v.sidebarWidth <= SIDEBAR_MAX

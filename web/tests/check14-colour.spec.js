@@ -49,7 +49,8 @@ async function checkAccentConfined(page) {
   await page.goto(sessionUrl('ses-worker-a2'));
   await expect(page.locator('.relation-edge').first()).toBeVisible();
   await expect(page.getByTestId('session-card').first()).toBeVisible();
-  // Focus the overlay toggle so its accent focus ring joins the walk.
+  await page.getByRole('button', { name: 'Key', exact: true }).click();
+  // Focus the key's overlay switch so its accent focus ring joins the walk.
   await page.evaluate(() => document.querySelector('.check input[type="checkbox"]').focus());
 
   const { hits, offenders } = await page.evaluate(([accentRgb, props]) => {

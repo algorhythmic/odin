@@ -1,12 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { parseHash, overviewHref } from './route.js';
-import { getProject, isSynthetic, useDataVersion } from './data.js';
+import { getProject, useDataVersion } from './data.js';
 import { Sidebar, useSidebarNarrow } from './shell.jsx';
 import { SetupPage } from './setup-page.jsx';
 import { Workspace } from './workspace.jsx';
 import { NotFound } from './notfound.jsx';
 import { History } from './history.jsx';
-import { UpdateDriver } from './driver.jsx';
 
 function useRoute() {
   const [route, setRoute] = useState(() => parseHash(location.hash));
@@ -20,7 +19,6 @@ function useRoute() {
 
 export function App() {
   const route = useRoute();
-  const treeRoute = route.view === 'portfolio' || route.view === 'project';
   useDataVersion();
   const narrow = useSidebarNarrow();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -68,7 +66,6 @@ export function App() {
               <a class="brand" href={overviewHref()}>Odin</a>
             </header>
           )}
-          {isSynthetic && treeRoute && <UpdateDriver />}
         </div>
         <main class="content">{body}</main>
       </div>
