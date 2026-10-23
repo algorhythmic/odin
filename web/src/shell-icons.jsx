@@ -1,4 +1,8 @@
 const ICONS = {
+  agents: <><rect x="5.5" y="1.5" width="5" height="4" rx="1" />
+    <path d="M8 5.5v3m-4 2v-2h8v2" />
+    <rect x="2" y="10.5" width="4" height="4" rx="1" />
+    <rect x="10" y="10.5" width="4" height="4" rx="1" /></>,
   dashboard: <><rect x="2" y="2" width="5" height="5" rx="1" />
     <rect x="9" y="2" width="5" height="5" rx="1" /><rect x="2" y="9" width="5" height="5" rx="1" />
     <rect x="9" y="9" width="5" height="5" rx="1" /></>,

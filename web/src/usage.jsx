@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks';
 import { compactTokens } from './data.js';
 import { admissionBand, availableSample, bandLabel, bandTicks, mostConstrainedSample, resetLabel, windowName } from './usage.js';
+import { setupHref } from './route.js';
 import { ShellIcon } from './shell-icons.jsx';
 
 function WindowDetail({ sample: s, ceilings, lineageId }) {
@@ -73,9 +74,11 @@ function UsageMeter({ lineage: l, ceilings }) {
 export function UsageMeters({ lineages, ceilings, hidden }) {
   return <section class="sidebar-usage" aria-label="Provider usage" data-testid="sidebar-usage" hidden={hidden}>
     <h2>Usage</h2>
-    <div class="usage-list">
-      {lineages.map((l) => <UsageMeter key={l.id} lineage={l} ceilings={ceilings} />)}
-    </div>
-    <small class="muted" title="Reset intervals use each synthetic sample's observation time">Synthetic samples</small>
+    {lineages.length ? <>
+      <div class="usage-list">
+        {lineages.map((l) => <UsageMeter key={l.id} lineage={l} ceilings={ceilings} />)}
+      </div>
+      <small class="muted" title="Reset intervals use each synthetic sample's observation time">Synthetic samples</small>
+    </> : <p class="usage-empty">No sign-ins yet <a href={setupHref('providers')}>Connect</a></p>}
   </section>;
 }

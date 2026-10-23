@@ -39,24 +39,30 @@ function PriorityRow({ item, snapshot, now, setup }) {
       <span class="priority-icon" aria-hidden="true">{ICONS[item.kind]}</span>
       <button type="button" class="priority-disclosure" aria-expanded={expanded} aria-controls={id}
         onClick={() => setExpanded(!expanded)}>
-        <strong>{item.title}</strong><span class="priority-description">{item.description}</span>
-        <small>{item.kind === 'setup' ? `Setup · ${setup.progress} of 4 complete`
-          : `${projectName(snapshot, item.projectId)} · ${item.role || 'Role unknown'}`}</small>
+        <strong title={item.title}>{item.title}</strong>
+        <small title={item.kind === 'setup' ? `Setup · ${setup.progress} of 4 complete`
+          : `${projectName(snapshot, item.projectId)} · ${item.role || 'Role unknown'}`}>
+          {item.kind === 'setup' ? `${setup.progress}/4`
+            : `${projectName(snapshot, item.projectId)} · ${item.role || 'Role unknown'}`}</small>
+        <span class="priority-description" title={item.description}>{item.description}</span>
+        {item.kind === 'setup' && <progress class="dashboard-progress" aria-label="Setup progress"
+          max="4" value={setup.progress} />}
       </button>
       <time dateTime={item.at} title={item.at}>{item.kind === 'setup' ? 'Not applied' : relativeTime(item.at, now)}</time>
       <a class="dashboard-open" href={linkFor(item)}>{item.kind === 'setup' ? 'Continue setup' : 'Open'}</a>
     </div>
-    {item.kind === 'setup' && <progress class="dashboard-progress" aria-label="Setup progress"
-      max="4" value={setup.progress} />}
-    {item.decision && <div class="priority-proposal">
-      <span>Requested by <code>{item.decision.requested_by}</code> · Proposal revision {item.decision.proposal.revision}</span>
-      <code>{item.decision.proposal.digest}</code>
-      <span class="decision-actions"><button disabled aria-describedby={`${id}-reason`}>Approve</button>
-        <button disabled aria-describedby={`${id}-reason`}>Deny</button>
-        <small id={`${id}-reason`}>Commands are not connected</small></span>
-    </div>}
     <div class={`priority-fold ${expanded ? 'open' : ''}`} id={id} aria-hidden={!expanded} inert={!expanded ? '' : undefined}>
-      <div>{item.kind === 'setup' ? <ul class="priority-steps">{STEPS.map((step) => <li key={step}>
+      <div>
+        <p class="priority-full-summary">{item.title} · {projectName(snapshot, item.projectId)}
+          {' · '}{item.role || (item.kind === 'setup' ? 'Setup' : 'Role unknown')} · {item.description}</p>
+        {item.decision && <div class="priority-proposal">
+          <span>Requested by <code>{item.decision.requested_by}</code> · Proposal revision {item.decision.proposal.revision}</span>
+          <code>{item.decision.proposal.digest}</code>
+          <span class="decision-actions"><button disabled aria-describedby={`${id}-reason`}>Approve</button>
+            <button disabled aria-describedby={`${id}-reason`}>Deny</button>
+            <small id={`${id}-reason`}>Commands are not connected</small></span>
+        </div>}
+        {item.kind === 'setup' ? <ul class="priority-steps">{STEPS.map((step) => <li key={step}>
         <Check done={setup.completed[step]} /><a href={setupHref(step)}>{STEP_LABELS[step]}</a></li>)}</ul>
         : activity.length ? <ul>{activity.map((e) => <li key={e.id}>{e.text}
           <time>{relativeTime(e.at, now)}</time></li>)}</ul> : <p class="muted">No recent activity recorded.</p>}</div>
@@ -117,50 +123,65 @@ export function Dashboard() {
     </header>
     <div class="dashboard-grid">
       <PriorityQueue items={items} snapshot={snapshot} now={now} setup={state} />
-      <section class="dashboard-kpis" aria-label="Portfolio totals" data-testid="dashboard-kpis">
-        <KPI label="Running" name="running" value={kpis.running} />
-        <KPI label="Needs you" name="needs" value={kpis.needsYou} />
-        <KPI label="Failed" name="failed" value={kpis.failed} />
-        <KPI label="Ended in snapshot" name="ended" value={kpis.ended} />
-        <div class="dashboard-kpi kpi-tokens"><span>Tokens · cache reads excluded</span>
-          <strong><TokenSum sum={kpis.tokens} compactUnknown testid="kpi-tokens" /></strong></div>
-      </section>
-      <section class="dashboard-panel dashboard-projects" aria-labelledby="projects-title">
-        <header class="dashboard-section-head"><h2 id="projects-title">Projects</h2>
-          <span class="muted">{snapshot.projects.length}</span></header>
-        <div class="dashboard-project-grid">{snapshot.projects.map((p) => {
-          const info = projectOverview(snapshot, p.id);
-          const total = Object.values(info.buckets).reduce((a, b) => a + b, 0);
-          const text = Object.entries(info.buckets).map(([key, count]) => `${count} ${key.replaceAll('-', ' ')}`).join(', ');
-          return <a key={p.id} href={projectHref(p.id)} class="dashboard-project" data-testid="dashboard-project">
-            <strong>{p.name}<span aria-hidden="true">↗</span></strong>
-            <span class="dashboard-status-bar" role="img" aria-label={text || 'No active sessions'}>
-              {Object.entries(info.buckets).map(([key, count]) => <i key={key} class={`status-${key}`}
-                style={{ width: `${count / total * 100}%` }} />)}</span>
-            <span>{info.agents} agents · {info.running} running · {info.needsYou} needs you · {info.failed} failed</span>
-            <TokenSum sum={info.tokens} compactUnknown />
-            <small>{info.at ? `Last activity ${relativeTime(info.at, now)}` : 'No activity yet'}</small>
-          </a>;
-        })}</div>
-        {!snapshot.projects.length && <p class="dashboard-empty">No projects yet</p>}
-      </section>
+      <div class="dashboard-summary">
+        <section class="dashboard-kpis" aria-label="Portfolio totals" data-testid="dashboard-kpis">
+          <KPI label="Running" name="running" value={kpis.running} />
+          <KPI label="Needs you" name="needs" value={kpis.needsYou} />
+          <KPI label="Failed" name="failed" value={kpis.failed} />
+          <KPI label="Ended in snapshot" name="ended" value={kpis.ended} />
+          <div class="dashboard-kpi kpi-tokens"><span>Tokens · cache reads excluded</span>
+            <strong><TokenSum sum={kpis.tokens} compactUnknown testid="kpi-tokens" /></strong></div>
+        </section>
+        <section class="dashboard-panel dashboard-projects" aria-labelledby="projects-title">
+          <header class="dashboard-section-head"><h2 id="projects-title">Projects</h2>
+            <span class="muted">{snapshot.projects.length}</span></header>
+          <div class="dashboard-project-grid">{snapshot.projects.map((p) => {
+            const info = projectOverview(snapshot, p.id);
+            const total = Object.values(info.buckets).reduce((a, b) => a + b, 0);
+            const text = Object.entries(info.buckets).map(([key, count]) => `${count} ${key.replaceAll('-', ' ')}`).join(', ');
+            const counts = `${info.agents} agents · ${info.running} running · ${info.needsYou} needs you · ${info.failed} failed`;
+            return <a key={p.id} href={projectHref(p.id)} class="dashboard-project" data-testid="dashboard-project"
+              title={`${p.name} · ${counts} · ${info.at ? `Last activity ${relativeTime(info.at, now)}` : 'No activity yet'}`}>
+              <strong title={p.name}>{p.name}</strong>
+              <span class="dashboard-status-bar" role="img" aria-label={text || 'No active sessions'}>
+                {Object.entries(info.buckets).map(([key, count]) => <i key={key} class={`status-${key}`}
+                  style={{ width: `${count / total * 100}%` }} />)}</span>
+              <span class="dashboard-project-counts" role="group" aria-label={counts} title={counts}>
+                <span title={`${info.agents} agents`}>{info.agents}</span>
+                <span class="status-running" title={`${info.running} running`}>
+                  <i class="status-dot" aria-hidden="true" />{info.running}</span>
+                <span class="status-needs-you" title={`${info.needsYou} needs you`}>
+                  <i class="status-dot" aria-hidden="true" />{info.needsYou}</span>
+                <span class="status-failed" title={`${info.failed} failed`}>
+                  <i class="status-dot" aria-hidden="true" />{info.failed}</span>
+              </span>
+              <span class="dashboard-project-tokens"><TokenSum sum={info.tokens} compactUnknown /></span>
+              <small class="sr-only">{info.at ? `Last activity ${relativeTime(info.at, now)}` : 'No activity yet'}</small>
+            </a>;
+          })}</div>
+          {!snapshot.projects.length && <p class="dashboard-empty">No projects yet</p>}
+        </section>
+      </div>
       <section class="dashboard-panel dashboard-running" aria-labelledby="running-title">
         <header class="dashboard-section-head"><h2 id="running-title">Running now</h2>
           <span class="muted">{running.length} agents</span></header>
-        <table class="dashboard-table" data-testid="running-table"><thead><tr>
+        {running.length > 0 && <table class="dashboard-table" data-testid="running-table"><thead><tr>
           {['Role / Project', 'Model / Harness', 'Elapsed', 'Tokens'].map((label) => <th key={label}>{label}</th>)}
         </tr></thead><tbody>{running.map((s) => <tr key={s.id} data-session-id={s.id}>
-          <td><a href={sessionHref(null, s.id)}>{s.role}<small>{projectName(snapshot, s.project_id)}</small></a></td>
-          <td>{friendlyModelName(s.model)}<small class="dashboard-harness">{s.harness || 'Harness unknown'}</small></td>
+          <td><a href={sessionHref(null, s.id)} title={`${s.role} · ${projectName(snapshot, s.project_id)}`}>
+            {s.role}<small> · {projectName(snapshot, s.project_id)}</small></a></td>
+          <td title={`${friendlyModelName(s.model)} · ${s.harness || 'Harness unknown'}`}>
+            {friendlyModelName(s.model)}<small class="dashboard-harness">{s.harness || 'Harness unknown'}</small></td>
           <td>{cardElapsed(s)}</td><td><TokenCount tokens={s.tokens} /></td>
-        </tr>)}</tbody></table>
+        </tr>)}</tbody></table>}
         {!running.length && <p class="dashboard-empty">No agents running</p>}
       </section>
       <section class="dashboard-panel dashboard-activity" aria-labelledby="activity-title" data-testid="recent-activity">
         <header class="dashboard-section-head"><h2 id="activity-title">Recent activity</h2><a href={historyHref()}>History</a></header>
-        <ul>{recentActivity(snapshot).slice(0, 12).map((e) => <li key={e.id} data-event-id={e.id}>
+        {recentActivity(snapshot).length > 0 && <ul>{recentActivity(snapshot).slice(0, 12).map((e) =>
+          <li key={e.id} data-event-id={e.id}>
           <a href={sessionHref(null, e.session_id)} title={`${projectName(snapshot, e.projectId)} · ${e.text}`}>{e.text}</a>
-          <time dateTime={e.at} title={e.at}>{relativeTime(e.at, now)}</time></li>)}</ul>
+          <time dateTime={e.at} title={e.at}>{relativeTime(e.at, now)}</time></li>)}</ul>}
         {!recentActivity(snapshot).length && <p class="dashboard-empty">No activity yet</p>}
       </section>
     </div>

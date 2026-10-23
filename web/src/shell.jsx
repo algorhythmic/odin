@@ -60,6 +60,8 @@ export function Sidebar({ route, narrow, open, onClose, onHighlight }) {
   const lineages = connectedUsage(setup);
   const ceilings = setup.catalogue.usage?.band_ceilings;
   const worst = worstBand(lineages, ceilings);
+  const usageLabel = lineages.length ? `Usage: ${bandLabel(worst) || 'unavailable'}` : 'Usage: No sign-ins yet · Connect';
+  const executiveLabel = executive ? `Executive · ${executiveStatus.label}` : 'No executive yet · Agents';
   const priorityCount = priorityItems(getSnapshot(), setup).length;
   const hovered = useRef(null);
   const focused = useRef(null);
@@ -102,18 +104,18 @@ export function Sidebar({ route, narrow, open, onClose, onHighlight }) {
             <span class="dashboard-badge">{priorityCount}</span></>}
         </a>
         <a class="sidebar-executive" href={agentsHref()} data-testid="sidebar-executive"
-          aria-label={collapsed ? `Executive · ${executiveStatus?.label || 'unavailable'}` : undefined}
-          title={collapsed ? `Executive · ${executiveStatus?.label || 'unavailable'}` : undefined}
+          aria-label={collapsed ? executiveLabel : undefined}
+          title={collapsed ? executiveLabel : undefined}
           aria-current={route.view === 'portfolio' ? 'page' : undefined}>
           {executive ? <>
             <span class={`status-dot status-${executiveStatus.key}`} role="img" aria-label={executiveStatus.label} />
             {!collapsed && <span class="executive-label"><strong>{executive.role}</strong>
               <small>{friendlyModelName(executive.model)}</small>
               <small class="sidebar-detail"><TokenCount tokens={executive.tokens} /> · {cardElapsed(executive)}</small></span>}
-          </> : !collapsed && <span>No executive yet</span>}
+          </> : collapsed ? <ShellIcon name="agents" /> : <span>No executive yet</span>}
         </a>
         {!getProjects().length && !collapsed && <p class="sidebar-empty">No projects yet</p>}
-        <ul class="sidebar-branch">
+        {getProjects().length > 0 && <ul class="sidebar-branch">
           {getProjects().map((project) => {
             const status = projectStatus(project.id);
             const c = projectSummary(project.id);
@@ -135,10 +137,11 @@ export function Sidebar({ route, narrow, open, onClose, onHighlight }) {
               </a>
             </li>;
           })}
-        </ul>
+        </ul>}
         {collapsed && <div class="sidebar-rail-indicators">
-          <a href={settingsHref('providers')} class={`rail-usage usage-band band-${worst || 'unknown'}`}
-            aria-label={`Usage: ${bandLabel(worst) || 'unavailable'}`} title={`Usage: ${bandLabel(worst) || 'unavailable'}`}>
+          <a href={lineages.length ? settingsHref('providers') : setupHref('providers')}
+            class={`rail-usage usage-band band-${worst || 'unknown'}`}
+            aria-label={usageLabel} title={usageLabel}>
             <ShellIcon name="usage" /></a>
         </div>}
       </div>

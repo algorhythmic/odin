@@ -57,15 +57,23 @@ test('usage shows exact bands, thresholds, reset intervals, monograms and explic
 test('meters follow setup connection, disconnect, label edits and discard; new lineages have no samples', async ({ page }) => {
   await page.goto('/?setup=fresh#/settings/providers');
   await expect(page.getByTestId('usage-meter')).toHaveCount(0);
+  const usage = page.getByTestId('sidebar-usage');
+  await expect(usage).toContainText('No sign-ins yet');
+  await expect(usage.getByRole('link', { name: 'Connect', exact: true })).toHaveAttribute('href', '#/setup/providers');
+  await expect(usage.getByText('Synthetic samples', { exact: true })).toHaveCount(0);
   const row = page.getByTestId('lineage-executive-login');
   await row.getByRole('button', { name: 'Connect Executive login', exact: true }).click();
   await expect(page.getByTestId('usage-meter')).toHaveCount(0);
   await row.getByRole('button', { name: 'Simulate completed sign-in (synthetic)' }).click();
   await expect(page.getByTestId('usage-meter')).toHaveCount(1);
+  await expect(usage.getByText('Synthetic samples', { exact: true })).toBeVisible();
+  await expect(usage).not.toContainText('No sign-ins yet');
   await row.getByRole('textbox').fill('Coordination login');
   await expect(meter(page, 'executive-login').locator('.usage-sign-in-label')).toHaveText('Coordination login');
   await row.getByRole('button', { name: 'Disconnect Coordination login', exact: true }).click();
   await expect(page.getByTestId('usage-meter')).toHaveCount(0);
+  await expect(usage).toContainText('No sign-ins yet');
+  await expect(usage.getByText('Synthetic samples', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: /Add another sign-in for Anthropic/ }).click();
   const extra = page.getByTestId('lineage-anthropic-sign-in-3');
   await extra.getByRole('button', { name: 'Connect Additional login', exact: true }).click();
@@ -367,4 +375,25 @@ test('a sign-in with only unavailable probes has an explicit compact summary and
   await expect(executive.locator('.usage-unavailable')).toHaveCount(3);
   await expect(executive.getByRole('meter')).toHaveCount(0);
   await expect(executive).toContainText('credential not readable');
+});
+
+
+test('first-run rail has visible labelled entries and a Connect destination', async ({ page }) => {
+  await page.goto('/?setup=fresh#/');
+  await expect(panel(page).locator('.sidebar-branch')).toHaveCount(0);
+  await panel(page).getByRole('link', { name: 'Connect', exact: true }).click();
+  await expect(page).toHaveURL(/#\/setup\/providers$/);
+  await collapse(page).click();
+  const executive = panel(page).getByRole('link', { name: 'No executive yet · Agents', exact: true });
+  await expect(executive).toBeVisible();
+  await expect(executive).toHaveAttribute('title', 'No executive yet · Agents');
+  await expect(executive.locator('svg')).toBeVisible();
+  const usage = panel(page).getByRole('link', { name: 'Usage: No sign-ins yet · Connect', exact: true });
+  await expect(usage).toBeVisible();
+  await expect(usage).toHaveAttribute('title', 'Usage: No sign-ins yet · Connect');
+  await expect(usage).toHaveAttribute('href', '#/setup/providers');
+  await expect(page.getByTestId('sidebar-usage')).toBeHidden();
+  await expect(panel(page).getByText('Synthetic samples', { exact: true })).toHaveCount(0);
+  await expand(page).click();
+  await expect(page.getByTestId('sidebar-usage')).toContainText('No sign-ins yet');
 });

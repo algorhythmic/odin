@@ -1,4 +1,4 @@
-// R4a coverage is synthetic prototype evidence, never service or desktop acceptance.
+// R4a and R5a coverage is synthetic prototype evidence, never service or desktop acceptance.
 import { test, expect } from '@playwright/test';
 import { snapshot, PID, shot } from './helpers.js';
 import { generateLargeSnapshot } from '../src/fixtures/large.js';
@@ -110,6 +110,10 @@ test('decisions retain proposal identity and disabled commands; usage and hosts 
   await queue(page).getByRole('button', { name: /^\+\d+ more$/ }).click();
   for (const d of snapshot.decisions) {
     const row = rowKind(page, 'decision').filter({ hasText: d.title });
+    await expect(row.locator('.priority-proposal')).not.toBeInViewport();
+    await row.locator('.priority-disclosure').click();
+    await expect(row.locator('.priority-disclosure')).toHaveAttribute('aria-expanded', 'true');
+    await expect(row.locator('.priority-proposal')).toBeVisible();
     await expect(row).toContainText(d.requested_by);
     await expect(row).toContainText(`Proposal revision ${d.proposal.revision}`);
     await expect(row).toContainText(d.proposal.digest);
@@ -261,16 +265,44 @@ test('dashboard follows input, failure and retirement, then continues into gener
   await page.getByTestId('autoplay-toggle').click();
 });
 
-for (const [width, columns] of [[1440, 3], [1100, 2], [800, 2], [480, 1]]) {
-  test(`container layout at ${width}px has ${columns} columns and no horizontal overflow`, async ({ page }) => {
+for (const [width, mode] of [[1440, 'wide'], [1100, 'medium'], [800, 'medium'], [480, 'narrow']]) {
+  test(`container layout at ${width}px is ${mode} with no horizontal overflow`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/#/');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     const grid = page.locator('.dashboard-grid');
-    expect(await grid.evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length)).toBe(columns);
+    expect(await grid.evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length))
+      .toBe(mode === 'narrow' ? 1 : 2);
+    const boxes = await page.locator('.dashboard-priority, .dashboard-kpis, .dashboard-projects, '
+      + '.dashboard-running, .dashboard-activity').evaluateAll((els) => Object.fromEntries(els.map((el) =>
+      [el.className.split(' ').at(-1), { x: el.offsetLeft, y: el.offsetTop,
+        width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height }])));
+    const q = boxes['dashboard-priority'];
+    const k = boxes['dashboard-kpis'];
+    const p = boxes['dashboard-projects'];
+    const r = boxes['dashboard-running'];
+    const a = boxes['dashboard-activity'];
+    if (mode === 'wide') {
+      expect(k.x).toBeGreaterThan(q.x + q.width);
+      expect(p.x).toBe(k.x); expect(p.y).toBeGreaterThan(k.y);
+      expect(r.y).toBe(a.y); expect(a.x).toBeGreaterThan(r.x);
+    } else if (mode === 'medium') {
+      expect(k.y).toBeGreaterThanOrEqual(q.y + q.height);
+      expect(k.y).toBe(p.y); expect(p.x).toBeGreaterThan(k.x);
+      expect(a.y).toBeGreaterThanOrEqual(r.y + r.height);
+    } else {
+      expect(k.y).toBeGreaterThanOrEqual(q.y + q.height);
+      expect(p.y).toBeGreaterThanOrEqual(k.y + k.height);
+      expect(r.y).toBeGreaterThanOrEqual(p.y + p.height);
+      expect(a.y).toBeGreaterThanOrEqual(r.y + r.height);
+    }
+    expect(await page.locator('.dashboard').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.getByTestId('dashboard-project').last()).toBeVisible();
     await shot(page, `dashboard-${width}`);
+    await rowKind(page, 'decision').first().locator('.priority-disclosure').click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await page.locator('.dashboard').evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
   });
 }
 
@@ -294,6 +326,11 @@ test('fresh setup welcomes in the shell with empty portfolio, four steps, a prim
   await expect(rows(page).first()).toHaveAttribute('data-kind', 'setup');
   await expect(page.getByTestId('dashboard-project')).toHaveCount(0);
   await expect(page.getByTestId('autoplay-toggle')).toBeDisabled();
+  await expect(page.locator('.dashboard-projects')).toContainText('No projects yet');
+  await expect(page.locator('.dashboard-running')).toContainText('No agents running');
+  await expect(page.getByTestId('running-table')).toHaveCount(0);
+  await expect(page.getByTestId('recent-activity')).toContainText('No activity yet');
+  await expect(page.getByTestId('recent-activity').locator('ul')).toHaveCount(0);
 });
 
 test('partial setup leads queue, unfolds the checklist, and Apply removes it with a short confirmation', async ({ page }) => {
@@ -329,4 +366,78 @@ test('reduced motion changes KPI numbers immediately and disables dashboard fold
   await page.clock.runFor(1200);
   await expect(page.getByTestId('kpi-running')).toHaveText('Running6');
   await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+
+test('1440×900 keeps priorities, every KPI and every project above the fold with compact rows', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/#/');
+  await expect(rows(page)).toHaveCount(8);
+  await expect(queue(page).getByRole('button', { name: '+1 more', exact: true })).toBeInViewport({ ratio: 1 });
+  for (const el of await page.locator('.dashboard-priority, .dashboard-kpi, .dashboard-project').all()) {
+    await expect(el).toBeInViewport({ ratio: 1 });
+  }
+  for (const [selector, max] of [['.priority-row', 34], ['.dashboard-table tbody tr', 29],
+    ['.dashboard-project', 35], ['.dashboard-activity li', 28]]) {
+    const heights = await page.locator(selector).evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
+    expect(heights.length).toBeGreaterThan(0);
+    expect(Math.max(...heights), selector).toBeLessThanOrEqual(max);
+  }
+  expect(await page.locator('.dashboard-kpi').evaluateAll((els) => els.every((el) => el.clientHeight <= 56))).toBe(true);
+  await expect(rowKind(page, 'setup').locator('.priority-description')).toBeVisible();
+  expect(await page.locator('.dashboard-project-tokens').evaluateAll((els) =>
+    els.every((el) => el.scrollWidth <= el.clientWidth))).toBe(true);
+  const progress = await rowKind(page, 'setup').getByRole('progressbar').boundingBox();
+  const setupLine = await rowKind(page, 'setup').locator('.priority-line').boundingBox();
+  expect(progress.y).toBeGreaterThanOrEqual(setupLine.y);
+  expect(progress.y + progress.height).toBeLessThanOrEqual(setupLine.y + setupLine.height);
+  await shot(page, 'dashboard-dense-above-fold');
+});
+
+test('sidebar resizing changes dashboard modes at a fixed viewport', async ({ page }) => {
+  await page.goto('/#/');
+  const summary = page.locator('.dashboard-summary');
+  const columns = () => summary.evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length);
+  expect(await columns()).toBe(1);
+  await page.getByRole('separator', { name: 'Sidebar width' }).focus();
+  await page.keyboard.press('End');
+  await expect.poll(columns).toBe(2);
+  await page.keyboard.press('Home');
+  await expect.poll(columns).toBe(1);
+});
+
+for (const theme of ['dark', 'light']) test(`dense dashboard text size and contrast in ${theme}`, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/#/');
+  if (theme === 'light') await page.getByTestId('theme-toggle').click();
+  await rowKind(page, 'decision').first().locator('.priority-disclosure').click();
+  const failures = await page.locator('.dashboard').evaluate((root) => {
+    const canvas = document.createElement('canvas'); canvas.width = 1; canvas.height = 1;
+    const ctx = canvas.getContext('2d');
+    const rgb = (color) => {
+      ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = color; ctx.fillRect(0, 0, 1, 1);
+      return [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3);
+    };
+    const luminance = (color) => rgb(color).map((v) => {
+      const s = v / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    }).reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const failures = [];
+    for (const el of root.querySelectorAll('*')) {
+      if (el.closest('[aria-hidden="true"], .sr-only') || el.matches(':disabled')) continue;
+      if (![...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim())) continue;
+      const style = getComputedStyle(el);
+      if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
+      if (parseFloat(style.fontSize) < 16 * 0.68 - 0.01) failures.push(`size: ${el.className}`);
+      let background = el;
+      while (background.parentElement && getComputedStyle(background).backgroundColor === 'rgba(0, 0, 0, 0)') {
+        background = background.parentElement;
+      }
+      const fg = luminance(style.color), bg = luminance(getComputedStyle(background).backgroundColor);
+      const contrast = (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+      if (contrast < 4.5) failures.push({ text: el.textContent, color: style.color,
+        background: getComputedStyle(background).backgroundColor, contrast });
+    }
+    return failures;
+  });
+  expect(failures).toEqual([]);
 });
