@@ -45,11 +45,13 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
   const viewport = useRef(null);
   const [area, setArea] = useState({ w: 0, h: 600, x: 0, y: 0 });
   const [manual, setManual] = useState(null);
-  const geometry = useMemo(() => fitTree({ roots: treeRoots, children: treeChildren, collapsed, executiveId: executive?.id },
+  // A detail drawer needs a taller arrangement to keep the selected card readable.
+  const geometry = useMemo(() => fitTree({ roots: treeRoots, children: treeChildren, collapsed,
+    executiveId: executive?.id, minReadable: selectedId ? 0.85 : undefined },
     (s) => pid && s.id === executive?.id ? { w: 220, h: 112 }
       : cardDimensions(s, cardSizes, treeChildren.get(s.id)?.length, !s.project && !!lineageLabel(s),
         relationshipsOf(s.id).some((r) => r.type === 'run_association')), area.w, Math.max(180, area.h)),
-  [treeRoots, treeChildren, collapsed, cardSizes, area.w, area.h]);
+  [treeRoots, treeChildren, collapsed, cardSizes, area.w, area.h, !!selectedId]);
   const { ordered, positions: pos, edges, dots, width, height, mode, entering, leaving } = useTreePresence(geometry);
   const relations = useMemo(() => relationshipsFor(pid).flatMap((r) => {
     // Assignment records are anchored to their recorded owner, never made into tree nodes.

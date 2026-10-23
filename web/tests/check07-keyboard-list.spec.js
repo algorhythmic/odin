@@ -156,3 +156,75 @@ test('the transcript pager keeps keyboard focus across page loads', async ({ pag
   await expect(earlier).toBeFocused();
   await expect(page.getByTestId('transcript')).toContainText('Progress note 1:');
 });
+
+for (const [width, height] of [[1440, 900], [800, 1000]]) {
+  test(`list flows with its rows without an inner scroller or trailing gap at ${width}x${height}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto('/?dataset=large#/projects/proj-large-synthetic');
+    await page.getByRole('button', { name: 'List', exact: true }).click();
+    const list = page.getByTestId('list-view');
+    const project = list.getByRole('treeitem').first();
+    await project.getByTestId('list-toggle').click();
+    const measure = () => list.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const last = el.lastElementChild.getBoundingClientRect();
+      const driver = document.querySelector('.list-driver').getBoundingClientRect();
+      const workspace = el.closest('.workspace').getBoundingClientRect();
+      return { overflow: getComputedStyle(el).overflowY, maxHeight: getComputedStyle(el).maxHeight,
+        innerOverflow: el.scrollHeight - el.clientHeight, height: box.height,
+        trailing: box.bottom - last.bottom, driverGap: driver.top - box.bottom,
+        workspaceGap: workspace.bottom - driver.bottom };
+    });
+    for (const expanded of [true, false]) {
+      await expect(project).toHaveAttribute('aria-expanded', String(expanded));
+      await expect.poll(() => list.evaluate((el) => el.getAnimations({ subtree: true })
+        .filter((a) => a.effect?.getTiming().iterations !== Infinity).length)).toBe(0);
+      // At the page end the sticky driver is back in its normal flow position.
+      await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+      const m = await measure();
+      expect(m.overflow).toBe('visible');
+      expect(m.maxHeight).toBe('none');
+      expect(m.innerOverflow).toBeLessThanOrEqual(1);
+      expect(m.trailing).toBeLessThanOrEqual(1);
+      expect(m.driverGap).toBeGreaterThanOrEqual(0);
+      expect(m.driverGap).toBeLessThanOrEqual(12);
+      expect(m.workspaceGap).toBeLessThanOrEqual(1);
+      if (expanded) {
+        expect(m.height).toBeGreaterThan(height);
+        await project.getByTestId('list-toggle').click();
+      }
+    }
+  });
+}
+
+test('keyboard End, Home and arrows scroll the page and keep focused rows clear of sticky chrome', async ({ page }) => {
+  await page.goto('/?dataset=large#/projects/proj-large-synthetic');
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+  const list = page.getByTestId('list-view');
+  await list.getByRole('treeitem').first().getByTestId('list-toggle').click();
+  await list.getByRole('treeitem').first().focus();
+  const assertVisibleFocus = async () => {
+    const rect = await page.evaluate(() => {
+      const row = document.activeElement.getBoundingClientRect();
+      return { top: row.top, bottom: row.bottom, header: document.querySelector('.toolbar').getBoundingClientRect().bottom,
+        driver: document.querySelector('.list-driver').getBoundingClientRect().top };
+    });
+    expect(rect.top).toBeGreaterThanOrEqual(rect.header);
+    expect(rect.bottom).toBeLessThanOrEqual(Math.min(height, rect.driver));
+    await expect(page.getByTestId('tree-header')).toBeInViewport({ ratio: 1 });
+    expect(await list.evaluate((el) => el.scrollTop)).toBe(0);
+  };
+  const height = page.viewportSize().height;
+  await page.keyboard.press('End');
+  await expect(list.getByRole('treeitem').last()).toBeFocused();
+  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+  await assertVisibleFocus();
+  await page.keyboard.press('Home');
+  await expect(list.getByRole('treeitem').first()).toBeFocused();
+  await assertVisibleFocus();
+  for (let i = 0; i < 35; i++) {
+    await page.keyboard.press('ArrowDown');
+    await assertVisibleFocus();
+  }
+  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+});

@@ -114,12 +114,13 @@ test('relationships follow hover, keyboard focus and selection, with both endpoi
   await assertRouting(page);
 });
 
-test('project title, counts and tokens have separate unclipped measured rows', async ({ page }) => {
-  await page.goto('/#/');
+test('project identity, status, counts and tokens have separate unclipped measured rows', async ({ page }) => {
+  await page.goto(`/#/projects/${PID}`);
+  await page.goto(`/${await page.getByTestId('sidebar-executive').getAttribute('href')}`);
   await settled(page);
   const failures = await page.getByTestId('project-node').evaluateAll((nodes) => nodes.flatMap((node) => {
     const parent = node.getBoundingClientRect();
-    const rows = [...node.children].slice(1).map((el) => ({ el, box: el.getBoundingClientRect() }));
+    const rows = [...node.querySelector('.project-label').children].map((el) => ({ el, box: el.getBoundingClientRect() }));
     return rows.flatMap(({ el, box }, i) => box.top < parent.top + 1 || box.bottom > parent.bottom - 1
       || el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth
       || i && box.top < rows[i - 1].box.bottom - 0.1 ? [el.textContent] : []);

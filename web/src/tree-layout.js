@@ -1,11 +1,11 @@
-export const CARD = { width: 220, height: 182, projectWidth: 300, projectHeight: 74 };
+export const CARD = { width: 220, height: 182, projectWidth: 300, projectHeight: 128 };
 export const MIN_READABLE = 0.75;
 const PAD = 16;
 const GAP = 24;
 const LEVEL = 48;
 const INDENT = 24;
 
-// Keep the frontier's extremes and sample its middle, so narrow and short shapes survive.
+// Taller project nodes need more intermediate shapes to preserve readable columns.
 function pareto(shapes) {
   const sorted = shapes.sort((a, b) => a.width - b.width || a.height - b.height);
   let height = Infinity;
@@ -14,12 +14,12 @@ function pareto(shapes) {
     height = s.height;
     return true;
   });
-  if (frontier.length <= 8) return frontier;
-  return Array.from({ length: 8 }, (_, i) => frontier[Math.round(i * (frontier.length - 1) / 7)]);
+  if (frontier.length <= 16) return frontier;
+  return Array.from({ length: 16 }, (_, i) => frontier[Math.round(i * (frontier.length - 1) / 15)]);
 }
 
 // Geometry consumes admitted parents and caller-supplied node sizes; it never chooses ancestry.
-export function fitTree({ roots, children, collapsed = new Set(), executiveId }, size = CARD,
+export function fitTree({ roots, children, collapsed = new Set(), executiveId, minReadable = MIN_READABLE }, size = CARD,
   viewportWidth = 800, viewportHeight = 900) {
   const dimensions = (s) => typeof size === 'function' ? size(s) : s.project
     ? { w: size.projectWidth, h: size.projectHeight } : { w: size.width, h: size.height };
@@ -66,13 +66,13 @@ export function fitTree({ roots, children, collapsed = new Set(), executiveId },
   const heightOf = (c) => c.height + PAD * 2;
   const score = (c) => Math.min(1, viewportWidth / widthOf(c), viewportHeight / heightOf(c));
   let chosen = [...candidates].sort((a, b) => score(b) - score(a) || a.height - b.height || a.width - b.width)[0];
-  if (score(chosen) < MIN_READABLE) {
-    const readable = candidates.filter((c) => widthOf(c) * MIN_READABLE <= viewportWidth);
+  if (score(chosen) < minReadable) {
+    const readable = candidates.filter((c) => widthOf(c) * minReadable <= viewportWidth);
     if (readable.length) chosen = readable.sort((a, b) => a.height - b.height || a.width - b.width)[0];
   }
   const width = widthOf(chosen);
   const height = heightOf(chosen);
-  const scale = Math.max(0.5, score(chosen) >= MIN_READABLE ? score(chosen) : Math.min(1, viewportWidth / width));
+  const scale = Math.max(0.5, score(chosen) >= minReadable ? score(chosen) : Math.min(1, viewportWidth / width));
   const positions = new Map();
   const edges = [];
   const ordered = [];

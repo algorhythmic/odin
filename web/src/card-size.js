@@ -3,7 +3,7 @@ export const cardIsExpanded = (s, sizes = {}) => Object.hasOwn(sizes, s.id) ? si
   || s.lifecycle === 'waiting_for_input' || s.needs_operator_input === true);
 
 export function cardDimensions(s, sizes = {}, hasChildren = false, hasLineage = false, hasRuns = false) {
-  if (s.project) return { w: 300, h: 74 };
+  if (s.project) return { w: 300, h: 128 };
   if (!cardIsExpanded(s, sizes)) return { w: 220, h: 44 };
   return { w: 220, h: 140 + (s.needs_operator_input || s.stale ? 22 : 0)
     + (s.stale || s.lifecycle === 'host_offline' ? 22 : 0) + (hasLineage ? 18 : 0)

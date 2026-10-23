@@ -176,6 +176,9 @@ test('automatic width fit includes the forest and reset restores it after zoom',
   await expect(page.getByRole('button', { name: 'Reset view' })).toBeVisible();
   await page.keyboard.press('0');
   await expect(page.getByRole('button', { name: 'Reset view' })).toHaveCount(0);
+  // Bounds describe the fitted forest after its reset transition finishes.
+  await expect.poll(() => page.locator('.tree-stage').evaluate((el) => el.getAnimations({ subtree: true })
+    .filter((a) => a.effect?.getTiming().iterations !== Infinity).length)).toBe(0);
   const box = await view.boundingBox();
   for (const s of projectSessions) {
     const c = await page.locator(`[data-testid="session-card"][data-session-id="${s.id}"]`).boundingBox();

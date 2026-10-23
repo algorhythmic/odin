@@ -118,30 +118,42 @@ test('selection and collapsed branches survive updates', async ({ page }) => {
   await expect(integ.getByRole('button', { name: /Expand 2/ })).toHaveAttribute('aria-expanded', 'false');
 });
 
-test('the list keeps its reading position when a session is inserted above it', async ({ page }) => {
-  await page.goto(`/#/projects/${PID}`);
-  await page.getByRole('button', { name: 'List', exact: true }).click();
+test('the list keeps its page reading position when sessions are inserted and removed above it', async ({ page }) => {
+  // The narrow detail panel follows the list, leaving room to read its last row near the top.
+  await page.setViewportSize({ width: 700, height: 500 });
+  await page.goto(sessionUrl('ses-ops-01'));
   const list = page.getByTestId('list-view');
-  // The synthetic project has fewer live rows; a short list box lets the row
-  // below the insertion point be the first visible row, as in a long list.
-  await page.addStyleTag({ content: '.list-tree { max-height: 70px !important; }' });
-  await expect.poll(() => list.evaluate((el) => el.scrollHeight > el.clientHeight), 'the short list box scrolls').toBe(true);
-  const row = page.locator('[role="treeitem"][data-session-id="ses-ops-01"]');
-  // Scroll the list so the operations row is the first visible row.
-  await list.evaluate((el) => {
-    const r = el.querySelector('[data-session-id="ses-ops-01"]');
-    el.scrollTop = r.offsetTop;
+  const row = list.locator('[data-session-id="ses-ops-01"]');
+  await page.evaluate(() => {
+    const row = document.querySelector('[role="treeitem"][data-session-id="ses-ops-01"]');
+    // The first scroll pins the header; measure again at its sticky position.
+    for (let i = 0; i < 2; i++) {
+      const top = document.querySelector('.toolbar').getBoundingClientRect().bottom;
+      scrollBy(0, row.getBoundingClientRect().top - top - 2);
+    }
   });
-  await expect.poll(() => list.evaluate((el) => {
-    const r = el.querySelector('[data-session-id="ses-ops-01"]');
-    return Math.round(r.getBoundingClientRect().top - el.getBoundingClientRect().top);
-  }), 'the operations row is the first visible row').toBeLessThanOrEqual(1);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => {
+    const top = document.querySelector('.toolbar').getBoundingClientRect().bottom;
+    return [...document.querySelectorAll('[role="treeitem"]')]
+      .find((el) => el.getBoundingClientRect().bottom > top + 4)?.dataset.sessionId;
+  }), 'the operations row is the first readable row below the sticky header').toBe('ses-ops-01');
   const before = (await row.boundingBox()).y;
+  const scrollBefore = await page.evaluate(() => scrollY);
   await applyNext(page); // evt-001
   await applyNext(page); // evt-002 inserts ses-docs-helper above ses-ops-01
-  await expect(page.locator('[role="treeitem"][data-session-id="ses-docs-helper"]')).toHaveCount(1);
-  const after = (await row.boundingBox()).y;
-  expect(Math.abs(after - before), 'row did not move').toBeLessThanOrEqual(2);
+  await expect(list.locator('[data-session-id="ses-docs-helper"]')).toHaveCount(1);
+  await expect.poll(async () => Math.abs((await row.boundingBox()).y - before)).toBeLessThanOrEqual(2);
+  expect(await page.evaluate(() => scrollY), 'the page compensates for the inserted row').toBeGreaterThan(scrollBefore);
+  const beforeRemoval = await page.evaluate(() => scrollY);
+  await applyNext(page); // duplicate
+  await applyNext(page); // usage update
+  await applyNext(page); // evt-004 retires ses-review-integ above the anchor
+  await expect(list.locator('[data-session-id="ses-review-integ"]')).toHaveCount(0);
+  await expect.poll(async () => Math.abs((await row.boundingBox()).y - before)).toBeLessThanOrEqual(2);
+  expect(await page.evaluate(() => scrollY), 'the page compensates for the removed row').toBeLessThan(beforeRemoval);
+  expect(await list.evaluate((el) => el.scrollTop)).toBe(0);
+  await expect(page.getByTestId('tree-header')).toBeInViewport({ ratio: 1 });
   await shot(page, 'list-reading-position');
 });
 
