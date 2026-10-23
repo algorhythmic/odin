@@ -3,7 +3,7 @@
 // needs-you status, and --accent is confined to links, buttons, focus
 // rings, active resize feedback and the typed-relationship overlay. Checked in both themes.
 import { test, expect } from '@playwright/test';
-import { sessionUrl, shot } from './helpers.js';
+import { PID, sessionUrl, shot } from './helpers.js';
 
 const badge = (page) => page.getByTestId('synthetic-badge');
 const theme = (page) => page.evaluate(() => document.documentElement.dataset.theme);
@@ -121,7 +121,7 @@ async function checkGrouping(page) {
       if (getComputedStyle(el).getPropertyValue(prop) !== rgb) continue;
       const allowed = el.closest('.legend-row[data-style="project"]')
         || el.matches('.project-edge') && prop === 'stroke'
-        || el.matches('.project-node') && prop === 'border-left-color';
+        || el.closest('.project-node, .list-row[data-node-kind="project"]');
       if (!allowed) offenders.push(`${el.tagName}.${el.getAttribute('class')} ${prop}`);
     }
     return offenders;
@@ -130,3 +130,52 @@ async function checkGrouping(page) {
   expect(await page.locator('.project-node').first().evaluate((el) => getComputedStyle(el).borderLeftColor)).toBe(group);
   expect(await page.locator('.project-edge').first().evaluate((el) => getComputedStyle(el).stroke)).toBe(group);
 }
+
+// Resolve mixed and transparent colours through canvas, including ancestor surfaces.
+async function projectTextContrast(page) {
+  const failures = await page.locator('.project-label').evaluateAll((labels) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 1;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const luminance = (c) => {
+      const linear = [...c].slice(0, 3).map((v) => {
+        const x = v / 255;
+        return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+      });
+      return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+    };
+    return labels.flatMap((label) => [...label.querySelectorAll(
+      '.project-eyebrow, strong, .project-count, .project-metrics > span')].flatMap((el) => {
+      const ancestors = [];
+      for (let p = el; p; p = p.parentElement) ancestors.unshift(p);
+      ctx.clearRect(0, 0, 1, 1);
+      for (const p of ancestors) {
+        ctx.fillStyle = getComputedStyle(p).backgroundColor;
+        ctx.fillRect(0, 0, 1, 1);
+      }
+      const bg = luminance(ctx.getImageData(0, 0, 1, 1).data);
+      ctx.fillStyle = getComputedStyle(el).color;
+      ctx.fillRect(0, 0, 1, 1);
+      const fg = luminance(ctx.getImageData(0, 0, 1, 1).data);
+      const ratio = (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+      return ratio >= 4.5 ? [] : [{ text: el.textContent, ratio }];
+    }));
+  });
+  expect(failures, 'all project text meets 4.5:1 on its actual surface').toEqual([]);
+}
+
+for (const theme of ['dark', 'light']) test(`project surfaces and text contrast in tree and list: ${theme}`, async ({ page }) => {
+  await page.goto(`/#/projects/${PID}`);
+  if (theme === 'light') await page.getByTestId('theme-toggle').click();
+  for (const mode of ['Tree', 'List']) {
+    await page.getByRole('button', { name: mode, exact: true }).click();
+    await projectTextContrast(page);
+    const surfaces = await page.evaluate(() => {
+      const project = document.querySelector('.project-node, .list-row[data-node-kind="project"]');
+      const session = document.querySelector('.card, .list-row[data-node-kind="session"]');
+      return [getComputedStyle(project).backgroundColor, getComputedStyle(session).backgroundColor];
+    });
+    expect(surfaces[0], 'project surface differs from a session').not.toBe(surfaces[1]);
+    await shot(page, `r4b-project-${mode.toLowerCase()}-${theme}`);
+  }
+});
