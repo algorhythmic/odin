@@ -1,9 +1,4 @@
-// Pass 4 brief item 4 and "Keep" (synthetic): the tree fills the page —
-// square-cornered connectors from a port dot under each parent, the first
-// level in a horizontal row, deeper levels stacked under the parent's left
-// edge, and a canvas that grows with content so the page scrolls (no
-// fixed-height box clips it). Details use a right-side drawer; Tree/List
-// is the only layout toggle.
+// R3d synthetic layout: width fit, vertical scroll and recorded connectors.
 import { test, expect } from '@playwright/test';
 import { PID, sessionUrl, shot, snapshot } from './helpers.js';
 
@@ -15,75 +10,43 @@ for (const s of projectSessions) {
 const card = (page, id) => page.locator(`[data-testid="session-card"][data-session-id="${id}"]`);
 const boxOf = (page, id) => card(page, id).boundingBox();
 
-test('the canvas grows with the tree and no ancestor clips it to a fixed height', async ({ page }) => {
+test('the canvas owns vertical overflow and the lowest card is reachable', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
   const view = page.getByTestId('tree-view');
-  const offenders = await view.evaluate((el) => {
-    const bad = [];
-    for (let n = el.parentElement; n && n !== document.documentElement; n = n.parentElement) {
-      const cs = getComputedStyle(n);
-      const clips = ['hidden', 'auto', 'scroll'].includes(cs.overflowY) && n.scrollHeight > n.clientHeight + 1;
-      if (clips) bad.push(`${n.tagName.toLowerCase()}.${String(n.className).split(' ')[0]} overflow-y=${cs.overflowY}`);
-    }
-    return bad;
-  });
-  expect(offenders, 'no ancestor may clip the canvas vertically').toEqual([]);
-
-  // The canvas is tall enough that the page itself must scroll.
-  const metrics = await view.evaluate((el) => ({
-    canvas: el.getBoundingClientRect().height,
-    page: document.documentElement.scrollHeight,
-    win: innerHeight,
-  }));
-  expect(metrics.page).toBeGreaterThan(metrics.win);
-
-  // The lowest card is reachable by scrolling the page/canvas.
+  await expect.poll(() => view.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+  expect(await view.evaluate((el) => getComputedStyle(el).overflowY)).toBe('auto');
+  expect(await view.evaluate((el) => el.getBoundingClientRect().bottom)).toBeLessThanOrEqual(900);
   const lastId = await view.evaluate((el) => {
     const cards = [...el.querySelectorAll('[data-testid="session-card"]')];
-    const bottom = cards.reduce((a, b) => (a.getBoundingClientRect().top > b.getBoundingClientRect().top ? a : b));
-    bottom.scrollIntoView({ block: 'center' });
+    const bottom = cards.reduce((a, b) => a.offsetTop > b.offsetTop ? a : b);
+    bottom.scrollIntoView({ block: 'nearest' });
     return bottom.dataset.sessionId;
   });
   await expect(card(page, lastId)).toBeInViewport();
 });
 
-test('first-level children share a row; deeper levels stack under the parent left edge', async ({ page }) => {
+test('narrow branches stack in indented columns with room for their descendants', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
-
-  // ses-exec-01's recorded children form the first-level row: same y,
-  // strictly increasing x.
-  const firstLevel = kids.get('ses-exec-01');
-  expect(firstLevel.length).toBeGreaterThan(1);
-  const row = [];
-  for (const id of firstLevel) row.push(await boxOf(page, id));
-  for (const b of row) expect(Math.abs(b.y - row[0].y), 'first-level siblings share a row').toBeLessThanOrEqual(3);
-  for (let i = 1; i < row.length; i += 1) expect(row[i].x, 'siblings fan out left to right').toBeGreaterThan(row[i - 1].x);
-
-  // Each second-level child sits below its parent, left edges aligned.
+  await expect(page.getByTestId('tree-view')).toHaveAttribute('data-mode', 'stack-2');
   const integ = await boxOf(page, 'ses-integ-01');
-  const secondLevel = kids.get('ses-integ-01');
-  expect(secondLevel.length).toBeGreaterThan(1);
   let above = integ;
-  for (const id of secondLevel) {
+  for (const id of kids.get('ses-integ-01')) {
     const b = await boxOf(page, id);
-    expect(b.y, `${id} is below its parent`).toBeGreaterThanOrEqual(integ.y + integ.height - 1);
-    expect(Math.abs(b.x - integ.x), `${id} left edge aligns with the parent's`).toBeLessThanOrEqual(3);
-    if (above !== integ) expect(b.y, `${id} stacks below the previous sibling`).toBeGreaterThan(above.y);
+    expect(b.y, `${id} is below the previous sibling`).toBeGreaterThan(above.y + above.height);
+    expect(b.x, `${id} is indented from the parent`).toBeGreaterThan(integ.x);
     above = b;
   }
-
-  // A third-level child keeps the same left edge and sits below its parent.
   const a2 = await boxOf(page, 'ses-worker-a2');
   const helper = await boxOf(page, 'ses-helper-01');
-  expect(Math.abs(helper.x - a2.x)).toBeLessThanOrEqual(3);
-  expect(helper.y).toBeGreaterThan(a2.y);
+  expect(helper.x).toBeGreaterThan(a2.x);
+  expect(helper.y).toBeGreaterThan(a2.y + a2.height);
   await shot(page, 'tree-layout');
 });
 
 test('every recorded parent-child edge has a square-cornered connector and a port dot', async ({ page }) => {
   await page.goto(`/#/projects/${PID}`);
   const expected = projectSessions.filter((s) => s.parent_session_id).map((s) => `${s.parent_session_id}>${s.id}`);
-  const edges = page.locator('path.ancestry-edge');
+  const edges = page.locator('.tree-edges path.ancestry-edge');
   await expect(edges).toHaveCount(expected.length);
   const pairs = await edges.evaluateAll((els) => els.map((e) => `${e.dataset.from}>${e.dataset.to}`));
   expect(pairs.sort()).toEqual([...expected].sort());
@@ -92,8 +55,8 @@ test('every recorded parent-child edge has a square-cornered connector and a por
   expect(curved, 'ancestry connectors must be square-cornered').toEqual([]);
   // A port dot under every parent that shows children.
   const parents = new Set(await edges.evaluateAll((els) => els.map((e) => e.dataset.via || e.dataset.from)));
-  await expect(page.locator('circle.port-dot')).toHaveCount(parents.size);
-  for (const pid of parents) await expect(page.locator(`circle.port-dot[data-parent="${pid}"]`)).toHaveCount(1);
+  await expect(page.locator('.tree-edges circle.port-dot')).toHaveCount(parents.size);
+  for (const pid of parents) await expect(page.locator(`.tree-edges circle.port-dot[data-parent="${pid}"]`)).toHaveCount(1);
 });
 
 test('selection opens a detail drawer; List remains and removed panels stay absent', async ({ page }) => {

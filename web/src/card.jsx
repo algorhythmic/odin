@@ -1,10 +1,13 @@
-import { branchSum, cardElapsed, compactTokens, descendants, getAssignment, isSuperseded, lineageLabel, observedLabel } from './data.js';
+import {
+  branchSum, cardElapsed, compactTokens, descendants, getAssignment, isSuperseded, lineageLabel, observedLabel, relationshipsOf,
+} from './data.js';
 import { ModelName, ProviderLogo, StatusChip, ToolIcons } from './status.jsx';
 import { TokenCount, TokenSum } from './tokencount.jsx';
 
 export function SessionCard({
-  session: s, childMap, style, selected, expanded, childCount, entering, muted, onSelect, onToggle,
+  session: s, childMap, style, selected, expanded, childCount, entering, muted, onSelect, onToggle, showRelations,
 }) {
+  const runs = showRelations ? relationshipsOf(s.id).filter((r) => r.type === 'run_association') : [];
   const assignment = getAssignment(s.assignment_id);
   const lineage = lineageLabel(s);
   // Stopped sessions and attempts a later attempt replaced are dimmed.
@@ -42,6 +45,8 @@ export function SessionCard({
       )}
       {lineage && <div class="card-row lineage" data-testid="lineage-label">{lineage}</div>}
       <div class="card-row card-foot muted">
+        {runs.map((r) => <span key={r.id} class="run-badge" data-relationship-type="run_association"
+          title={`Associated run: ${r.to}`}>run · {r.to}</span>)}
         <span class="foot-metrics">
           <TokenCount tokens={s.tokens} testid="own-tokens" /> · <span data-testid="elapsed">{cardElapsed(s)}</span>
           {s.budget && <span> · budget {compactTokens(s.budget.limit_tokens)} tok ({s.budget.basis})</span>}

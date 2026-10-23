@@ -14,7 +14,7 @@ import { describeLarge, generateLargeSnapshot, LARGE_SEED, LARGE_SPEC } from '..
 const PID = LARGE_SPEC.projectId;
 const URL = '/?dataset=large#/';
 const PROJECT = `project:${PID}`;
-const TARGETS = { first_render_ms: 1000, expand_ms: 150, select_ms: 150 };
+const TARGETS = { first_render_ms: 1000, fit_ms: 150, expand_ms: 150, select_ms: 150 };
 const DEEP_PATHS = 3;
 const LOADS = 5;
 const SAMPLES = 8;
@@ -59,7 +59,7 @@ test('large synthetic tree: first render, expand and select timings', async ({ p
     await page.goto(URL);
     await expect(page.getByTestId('session-card')).toHaveCount(1);
     const t = await page.evaluate(() => new Promise((resolve) => {
-      const read = () => performance.getEntriesByName('odin:tree-rendered')[0]?.startTime;
+      const read = () => performance.getEntriesByName('odin:tree-fitted').at(-1)?.startTime;
       const poll = () => (read() != null ? resolve(read()) : setTimeout(poll, 5));
       poll();
     }));
@@ -85,11 +85,26 @@ test('large synthetic tree: first render, expand and select timings', async ({ p
   }
   await page.screenshot({ path: path.join(outDir, 'large-selected.png') }).catch(() => {});
 
+  const fit = [];
+  for (let i = 0; i < SAMPLES; i++) {
+    fit.push(await page.evaluate(() => new Promise((resolve) => {
+      const canvas = document.querySelector('[data-testid="tree-view"]');
+      canvas.focus();
+      canvas.dispatchEvent(new KeyboardEvent('keydown', { key: '+', bubbles: true }));
+      requestAnimationFrame(() => {
+        const start = performance.now();
+        canvas.dispatchEvent(new KeyboardEvent('keydown', { key: '0', bubbles: true }));
+        requestAnimationFrame(() => resolve(performance.now() - start));
+      });
+    })));
+  }
   const result = {
     label: 'synthetic prototype timings (not service integration)',
     dataset: { ...data, seed: LARGE_SEED },
     method: {
-      first_render: `performance mark "odin:tree-rendered" (TreeView first effect) relative to navigation start; ${LOADS} fresh loads of the built app from vite preview on 127.0.0.1`,
+      first_render: `performance mark "odin:tree-fitted" (measured viewport fit committed) relative to navigation start;`
+        + ` ${LOADS} fresh loads of the built app from vite preview on 127.0.0.1`,
+      fit: 'keyboard 0 after a manual zoom until the next committed frame; geometry and viewport fit, not animation duration',
       expand: 'in-page click on a project or session expand toggle until the expected card count is in the DOM, plus one animation frame',
       select: 'in-page click on a card title until the detail panel shows that session, plus one animation frame (transcript loads after)',
       browser: `${browserName} headless (Playwright ${test.info().config.version})`,
@@ -98,14 +113,17 @@ test('large synthetic tree: first render, expand and select timings', async ({ p
     caveat: CAVEAT,
     targets_proposed: TARGETS,
     first_render_ms: summary(first),
+    fit_ms: summary(fit),
     expand_ms: summary(expand),
     select_ms: summary(select),
   };
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'large-timings.json'), `${JSON.stringify(result, null, 2)}\n`);
-  console.log(JSON.stringify({ first: result.first_render_ms, expand: result.expand_ms, select: result.select_ms }));
+  console.log(JSON.stringify({ first: result.first_render_ms, fit: result.fit_ms,
+    expand: result.expand_ms, select: result.select_ms }));
 
   expect.soft(result.first_render_ms.median, 'first render median vs proposed 1 s').toBeLessThan(TARGETS.first_render_ms);
+  expect.soft(result.fit_ms.max, 'slowest fit vs proposed 150 ms').toBeLessThan(TARGETS.fit_ms);
   expect.soft(result.expand_ms.max, 'slowest expand vs proposed 150 ms').toBeLessThan(TARGETS.expand_ms);
   expect.soft(result.select_ms.max, 'slowest select vs proposed 150 ms').toBeLessThan(TARGETS.select_ms);
 });

@@ -50,9 +50,10 @@ test('an empty project renders an empty forest with finite dimensions', async ({
     expect(value).toBeGreaterThan(0);
   }
   await expect(page.getByTestId('tree-view')).toHaveAttribute('data-scale', /^(0|1)(\.\d+)?$/);
-  // Fit all on an empty forest must not produce NaN or Infinity.
-  await page.getByRole('button', { name: 'Fit all' }).click();
-  await expect(page.getByText(/Zoom \d+%/)).toBeVisible();
+  // Resetting an empty forest must keep finite geometry.
+  await page.getByTestId('tree-view').focus();
+  await page.keyboard.press('0');
+  await expect(page.getByRole('button', { name: 'Reset view' })).toHaveCount(0);
   const html = await page.getByTestId('tree-view').innerHTML();
   expect(html).not.toMatch(/NaN|Infinity/);
   await page.getByRole('button', { name: 'List', exact: true }).click();

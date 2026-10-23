@@ -133,16 +133,18 @@ test('token counts animate up to a new value', async ({ page }) => {
   await expect(card(page, 'ses-helper-01').getByTestId('own-tokens')).toHaveText('unknown');
 });
 
-test('autoplay preserves the selection and the canvas scroll position', async ({ page }) => {
+test('autoplay preserves the selection and a manually panned canvas', async ({ page }) => {
   await page.goto(sessionUrl('ses-worker-a2'));
   await expect(page.getByTestId('detail-panel')).toHaveAttribute('data-session-id', 'ses-worker-a2');
-  await page.evaluate(() => scrollTo(0, 200));
-  const y0 = await page.evaluate(() => scrollY);
-  expect(y0).toBe(200);
+  const view = page.getByTestId('tree-view');
+  await view.focus();
+  await page.keyboard.press('ArrowDown');
+  const transform = await page.locator('.tree-stage').evaluate((el) => el.style.transform);
   await speed(page).selectOption('4');
   await toggle(page).click();
   await page.clock.runFor(6000); // through the malformed batch and the first live sessions
-  expect(await page.evaluate(() => scrollY)).toBe(y0);
+  expect(await page.locator('.tree-stage').evaluate((el) => el.style.transform)).toBe(transform);
+  await expect(view).toHaveAttribute('data-manual', 'true');
   await expect(page).toHaveURL(/sessions\/ses-worker-a2$/);
   await expect(page.locator('[data-testid="session-card"].selected')).toHaveAttribute('data-session-id', 'ses-worker-a2');
   await expect(page.getByTestId('detail-panel')).toHaveAttribute('data-session-id', 'ses-worker-a2');

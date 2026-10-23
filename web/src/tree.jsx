@@ -1,316 +1,278 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { RELATION_LABELS, descendants, getExecutive, relationshipsFor } from './data.js';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { RELATION_LABELS, getAssignment, getExecutive, relationshipsFor } from './data.js';
+import { CARD, fitTree, routeRelationship } from './tree-layout.js';
 import { ProjectNode } from './project-node.jsx';
 import { SessionCard } from './card.jsx';
 
-const CARD_W = 220;
-const CARD_H = 182;
-const FAN_X = 32; // gap between siblings in a first-level row
-const FAN_Y = 56; // vertical gap: parent bottom to the first-level row
-const ROW_GAP = 48; // gap between root regions
-const STACK_GAP = 26; // vertical gap between cards in a stacked column
-const RAIL = 14; // stacked rail distance left of the column's left edge
-const JOG = 10; // drop from a stacked parent's port to its rail jog
-const PORT_IN = 10; // stacked-parent port inset from the card's left edge
-const TICK_Y = 40; // elbow height below a stacked child's top edge
-const DOT = 8; // port dot centre below a parent's bottom edge
-const PAD = 24;
-
-// Project roots share a row. Recorded descendants stack in each root's
-// column, so expanding a branch does not move other projects sideways.
-function sessionLayout(roots, childMap, collapsed) {
-  const pos = new Map();
-  const ordered = [];
-  const edges = [];
-  const dots = [];
-  const kidsOf = (id) => (collapsed.has(id) ? [] : (childMap.get(id) || []));
-
-  // Descendants of `id`, depth-first, stacked in the column at `x` starting
-  // at `y`. Returns the y below the last card (bottom + STACK_GAP).
-  const placeStack = (id, x, y) => {
-    const kids = kidsOf(id);
-    if (kids.length) dots.push({ id, x: pos.get(id).x + PORT_IN, y: pos.get(id).y + CARD_H + DOT });
-    for (const c of kids) {
-      pos.set(c.id, { x, y, s: c });
-      ordered.push(c.id);
-      edges.push({ from: id, to: c.id, kind: 'stack' });
-      y = placeStack(c.id, x, y + CARD_H + STACK_GAP);
-    }
-    return y;
-  };
-
-  let cursorX = PAD;
-  let maxBottom = PAD + CARD_H;
-  for (const root of roots) {
-    const rx = cursorX;
-    pos.set(root.id, { x: rx, y: PAD, s: root });
-    ordered.push(root.id);
-    const bottom = Math.max(PAD + CARD_H, placeStack(root.id, rx, PAD + CARD_H + STACK_GAP) - STACK_GAP);
-    maxBottom = Math.max(maxBottom, bottom);
-    cursorX += CARD_W + FAN_X;
-  }
-  const width = ordered.length ? cursorX - FAN_X + PAD : PAD * 2;
-  const height = Math.max(maxBottom + PAD, PAD * 2);
-  return { ordered, pos, edges, dots, width, height };
-}
-
-const PROJECT_W = 480;
-const PROJECT_H = 44;
-
-// Project regions keep the recorded forest intact below a separate grouping row.
-function layout(roots, childMap, collapsed) {
-  const executive = roots[0] && !roots[0].project ? roots[0] : null;
-  const projects = executive ? (collapsed.has(executive.id) ? [] : childMap.get(executive.id) || []) : roots;
-  const pos = new Map();
-  const ordered = [];
-  const edges = [];
-  const dots = [];
-  const projectY = executive ? PAD + CARD_H + FAN_Y : PAD;
-  let cursorX = PAD;
-  let bottom = projectY + PROJECT_H;
-  for (const node of projects) {
-    const local = sessionLayout(collapsed.has(node.id) ? [] : childMap.get(node.id) || [], childMap, collapsed);
-    const regionW = Math.max(PROJECT_W, local.width);
-    const x = cursorX + (regionW - PROJECT_W) / 2;
-    pos.set(node.id, { x, y: projectY, s: node, w: PROJECT_W, h: PROJECT_H });
-    ordered.push(node.id);
-    const dx = cursorX + (regionW - local.width) / 2;
-    const dy = projectY + PROJECT_H + FAN_Y - PAD;
-    for (const id of local.ordered) {
-      pos.set(id, { ...local.pos.get(id), x: local.pos.get(id).x + dx, y: local.pos.get(id).y + dy });
-      ordered.push(id);
-    }
-    edges.push(...local.edges);
-    dots.push(...local.dots.map((d) => ({ ...d, x: d.x + dx, y: d.y + dy })));
-    if (!collapsed.has(node.id)) {
-      for (const root of childMap.get(node.id) || []) {
-        edges.push({ from: node.id, to: root.id, kind: 'fan',
-          ancestryFrom: root.parent_session_id === getExecutive()?.id ? getExecutive().id : null });
-      }
-      if ((childMap.get(node.id) || []).length) dots.push({ id: node.id, x: x + PROJECT_W / 2, y: projectY + PROJECT_H + DOT });
-    }
-    if (executive) edges.push({ from: executive.id, to: node.id, kind: 'fan', grouping: true });
-    bottom = Math.max(bottom, local.ordered.length ? dy + local.height : projectY + PROJECT_H);
-    cursorX += regionW + ROW_GAP;
-  }
-  const width = Math.max(CARD_W + PAD * 2, cursorX - ROW_GAP + PAD);
-  if (executive) {
-    pos.set(executive.id, { x: (width - CARD_W) / 2, y: PAD, s: executive });
-    ordered.unshift(executive.id);
-    if (projects.length) dots.push({ id: executive.id, x: width / 2, y: PAD + CARD_H + DOT });
-  }
-  return { ordered, pos, edges, dots, width, height: bottom + PAD };
-}
-
-// First-level fan: down from the port dot, across the shared bus, down into
-// the child's top edge. Right angles only.
-function fanPath(p, c) {
-  const pcx = p.x + (p.w || CARD_W) / 2;
-  const ccx = c.x + (c.w || CARD_W) / 2;
-  const y0 = p.y + (p.h || CARD_H) + DOT;
-  if (Math.abs(ccx - pcx) < 0.5) return `M${pcx},${y0} L${ccx},${c.y}`;
-  const busY = p.y + (p.h || CARD_H) + FAN_Y / 2;
-  return `M${pcx},${y0} L${pcx},${busY} L${ccx},${busY} L${ccx},${c.y}`;
-}
-
-// Stacked level: from the port under the parent's left edge, a short jog to
-// the vertical rail in the column's left margin, down the rail, then right
-// into the child's left edge. Right angles only.
-function stackPath(p, c) {
-  const px = p.x + PORT_IN;
-  const jogY = p.y + (p.h || CARD_H) + DOT + JOG;
-  const railX = c.x - RAIL;
-  const tickY = c.y + TICK_Y;
-  return `M${px},${p.y + (p.h || CARD_H) + DOT} L${px},${jogY} L${railX},${jogY} L${railX},${tickY} L${c.x},${tickY}`;
-}
-
-function relationPath(a, b) {
-  const x1 = a.x + CARD_W;
-  const y1 = a.y + CARD_H / 2;
-  const x2 = b.x + (b.x > a.x ? 0 : CARD_W);
-  const y2 = b.y + (b.h || CARD_H) / 2 + 12;
-  const cx = (x1 + x2) / 2;
-  const cy = Math.min(y1, y2) - 40;
-  return { d: `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`, lx: cx, ly: (Math.min(y1, y2) + cy) / 2 + 8 };
-}
-
-// Height of the page chrome pinned above the canvas: the sticky header plus
-// the workspace toolbar. The canvas scrolls under both.
-function pinnedTop(el) {
-  const chrome = el.closest('.app')?.querySelector('.chrome');
-  const toolbar = el.closest('.workspace')?.querySelector('.toolbar');
-  return (chrome?.offsetHeight || 0) + (toolbar?.offsetHeight || 0);
-}
-
 const edgeKey = (e) => `${e.from}>${e.to}`;
+const clamp = (n) => Math.max(0.5, Math.min(2, n));
+const INSTRUCTIONS = 'Use + and - to zoom, arrow keys to pan, and 0 to reset the view. Drag the background to pan.';
+const STYLES = { project: 'project', ancestry: 'started (ancestry)', review: 'reviews',
+  delegation: 'delegated to', assignment_owner: 'owns assignment' };
+
+function RelationshipKey({ styles }) {
+  return <div class="legend" aria-label="Relationship key">
+    {styles.map((type) => <div class="legend-row" key={type} data-style={type}>
+      <svg width="40" height="16" aria-hidden="true" class={type === 'project' || type === 'ancestry'
+        ? '' : `relation-edge relation-${type}`}>
+        <path class={type === 'project' ? 'sample-project' : type === 'ancestry' ? 'sample-ancestry' : ''} d="M2,8 L36,8" />
+        {type === 'ancestry' && <circle class="sample-port" cx="5" cy="8" r="3" />}
+        {type !== 'project' && type !== 'ancestry' && <path class="arrowhead" d="M32,4 L38,8 L32,12 z" />}
+      </svg>
+      <span>{STYLES[type]}</span>
+    </div>)}
+  </div>;
+}
 
 export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect, onToggle, showRelations, highlight }) {
-  const { ordered, pos, edges, dots, width, height } = useMemo(
-    () => layout(roots, childMap, collapsed), [roots, childMap, collapsed]);
-  const relations = useMemo(
-    () => relationshipsFor(pid).filter((r) => (r.type === 'review' || r.type === 'delegation') && pos.has(r.from) && pos.has(r.to)),
-    [pid, pos],
-  );
   const viewport = useRef(null);
-  const [scale, setScale] = useState(1);
-  const pendingScroll = useRef(null);
+  const [area, setArea] = useState({ w: 0, h: 600 });
+  const [manual, setManual] = useState(null);
+  const lockedWidth = useRef(800);
+  const geometry = useMemo(() => fitTree({ roots, children: childMap, collapsed, executiveId: getExecutive()?.id },
+    CARD, manual ? lockedWidth.current : area.w), [roots, childMap, collapsed, area.w, !!manual]);
+  const { ordered, positions: pos, edges, dots, width, height, mode } = geometry;
+  const relations = useMemo(() => relationshipsFor(pid).flatMap((r) => {
+    // Assignment records are anchored to their recorded owner, never made into tree nodes.
+    const target = r.type === 'assignment_owner' ? getAssignment(r.to)?.owner_session_id : r.to;
+    return r.type !== 'run_association' && pos.has(r.from) && pos.has(target) ? [{ ...r, target }] : [];
+  }), [pid, pos]);
+  const styles = [...new Set([...edges.map((e) => e.grouping ? 'project' : 'ancestry'),
+    ...(showRelations ? relations.map((r) => r.type) : [])])];
+  const keyHeight = styles.length * 22 + 24;
+  const fit = { scale: geometry.scale, x: Math.max(0, (area.w - width * geometry.scale) / 2), y: 0 };
+  const view = manual || fit;
+  const current = useRef(view);
+  current.current = view;
+  const manualRef = useRef(false);
+  manualRef.current = !!manual;
+  const extent = useMemo(() => [...pos.values()], [pos]);
+  const overlays = useMemo(() => showRelations ? relations.map((r, i) => ({ ...r,
+    ...routeRelationship(pos.get(r.from), pos.get(r.target), extent, RELATION_LABELS[r.type], view.scale, i),
+  })) : [], [showRelations, relations, extent, view.scale]);
+  const stageWidth = Math.max(width, ...overlays.map((r) => r.labelBox.x + r.labelBox.w + 24));
+  const stageHeight = Math.max(height, ...overlays.map((r) => r.labelBox.y + r.labelBox.h + 24));
 
-  // Cards and connectors that mount after the first render — sessions a
-  // delivered event added, or children an expand reveals — enter with an
-  // animation. The first paint never animates.
-  const seen = useRef(null);
-  const seenEdges = useRef(null);
-  if (seen.current === null) {
-    seen.current = new Set(ordered);
-    seenEdges.current = new Set(edges.map(edgeKey));
-  }
+  // ResizeObserver includes sidebar and drawer changes, not just window resizes.
+  useLayoutEffect(() => {
+    const el = viewport.current;
+    const measure = () => {
+      const top = el.getBoundingClientRect().top;
+      const h = Math.max(180, innerHeight - top - 8);
+      el.style.height = `${h}px`;
+      setArea((old) => old.w === el.clientWidth && old.h === h ? old : { w: el.clientWidth, h });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    observer.observe(el.closest('.workspace').querySelector('.toolbar'));
+    addEventListener('resize', measure);
+    return () => { observer.disconnect(); removeEventListener('resize', measure); };
+  }, [keyHeight]);
+
+  const move = (next) => {
+    if (!manualRef.current) lockedWidth.current = area.w;
+    manualRef.current = true;
+    current.current = next;
+    setManual(next);
+  };
+  const reset = () => {
+    manualRef.current = false;
+    setManual(null);
+    viewport.current.scrollTo(0, 0);
+  };
+  const zoom = (factor, x, y) => {
+    const el = viewport.current;
+    const old = current.current;
+    const scale = clamp(old.scale * factor);
+    const px = x + el.scrollLeft;
+    const py = y + el.scrollTop;
+    move({ scale, x: px - (px - old.x) * scale / old.scale, y: py - (py - old.y) * scale / old.scale });
+  };
+  const zoomCentre = (factor) => zoom(factor, area.w / 2, area.h / 2);
+  const pan = (dx, dy) => { const v = current.current; move({ ...v, x: v.x + dx, y: v.y + dy }); };
+
+  // A non-passive listener is needed to consume browser pinch zoom.
+  useEffect(() => {
+    const el = viewport.current;
+    const wheel = (e) => {
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        const b = el.getBoundingClientRect();
+        zoom(Math.exp(-e.deltaY * 0.002), e.clientX - b.left, e.clientY - b.top);
+      } else {
+        if (!manualRef.current) lockedWidth.current = el.clientWidth;
+        manualRef.current = true;
+        setManual(current.current);
+        el.scrollTop += e.deltaY;
+        el.scrollLeft += e.deltaX;
+      }
+    };
+    el.addEventListener('wheel', wheel, { passive: false });
+    return () => el.removeEventListener('wheel', wheel);
+  });
+
+  // One selection can be revealed after its ancestors mount or a drawer resizes.
+  const scrolledSelection = useRef(null);
+  useLayoutEffect(() => {
+    if (!selectedId) { scrolledSelection.current = null; return; }
+    const el = viewport.current;
+    const p = pos.get(selectedId);
+    const key = `${selectedId}:${area.w}:${mode}`;
+    if (!p || scrolledSelection.current === key) return;
+    scrolledSelection.current = key;
+    const v = current.current;
+    const left = p.x * v.scale + v.x - el.scrollLeft;
+    const top = p.y * v.scale + v.y - el.scrollTop;
+    const right = left + p.w * v.scale;
+    const bottom = top + p.h * v.scale;
+    const dx = left < 8 ? 8 - left : right > area.w - 8 ? area.w - 8 - right : 0;
+    const dy = top < 8 ? 8 - top : bottom > area.h - 8 ? area.h - 8 - bottom : 0;
+    if (dx || dy) {
+      if (manualRef.current) move({ ...v, x: v.x + dx, y: v.y + dy });
+      else { el.scrollLeft -= dx; el.scrollTop -= dy; }
+    }
+  }, [selectedId, area, pos, mode, keyHeight]);
+
+  useLayoutEffect(() => {
+    if (area.w !== viewport.current.clientWidth) return;
+    performance.mark('odin:tree-fitted');
+    if (!performance.getEntriesByName('odin:tree-rendered').length) performance.mark('odin:tree-rendered');
+  }, [geometry, area]);
+
+  const seen = useRef(new Set(ordered));
+  const seenEdges = useRef(new Set(edges.map(edgeKey)));
   const entering = new Set(ordered.filter((id) => !seen.current.has(id)));
   const enteringEdges = new Set(edges.map(edgeKey).filter((k) => !seenEdges.current.has(k)));
-  useEffect(() => {
-    seen.current = new Set(ordered);
-    seenEdges.current = new Set(edges.map(edgeKey));
-  });
-
-  // The canvas grows with the tree and the page scrolls, so the usable
-  // region is the window minus the pinned chrome and the side padding —
-  // and minus a detail drawer's width when one is open.
-  const viewArea = () => {
-    const el = viewport.current;
-    const host = el?.parentElement;
-    if (!el || !host) return { w: 800, h: 600 };
-    const top = pinnedTop(el);
-    return {
-      w: Math.max(120, Math.min(host.clientWidth, innerWidth - 16)),
-      h: Math.max(120, innerHeight - top - 16),
-      top,
-    };
+  useEffect(() => { seen.current = new Set(ordered); seenEdges.current = new Set(edges.map(edgeKey)); });
+  const pointers = useRef(new Map());
+  const gesture = useRef(null);
+  const suppressClick = useRef(false);
+  const cardPress = useRef(null);
+  const startGesture = () => {
+    const ps = [...pointers.current.values()];
+    gesture.current = ps.length === 2 ? { x: (ps[0].x + ps[1].x) / 2, y: (ps[0].y + ps[1].y) / 2,
+      distance: Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y), pinch: true }
+      : ps.length ? { ...ps[0], pinch: false, moved: false } : null;
   };
-
-  const fitTo = (ids) => {
-    const boxes = ids.map((id) => pos.get(id)).filter(Boolean);
-    const el = viewport.current;
-    if (!boxes.length || !el) return;
-    const x0 = Math.min(...boxes.map((b) => b.x)) - PAD;
-    const y0 = Math.min(...boxes.map((b) => b.y)) - PAD;
-    const x1 = Math.max(...boxes.map((b) => b.x + (b.w || CARD_W))) + PAD;
-    const y1 = Math.max(...boxes.map((b) => b.y + (b.h || CARD_H))) + PAD;
-    const area = viewArea();
-    const s = Math.max(0.1, Math.min(1, area.w / (x1 - x0), area.h / (y1 - y0)));
-    const origin = el.getBoundingClientRect();
-    pendingScroll.current = {
-      left: scrollX,
-      canvasLeft: x0 * s,
-      top: origin.top + scrollY + y0 * s - area.top - 4,
-    };
-    // Scroll now — the canvas origin does not move when the scale commits —
-    // and again after the render in case the scroll range shifted.
-    scrollTo({ left: pendingScroll.current.left, top: pendingScroll.current.top });
-    setScale(s);
-  };
-  const fitBranch = () => {
-    if (!selectedId) return;
-    fitTo([selectedId, ...descendants(selectedId, childMap).map((s) => s.id)]);
-  };
-
-  useEffect(() => {
-    if (pendingScroll.current) {
-      const target = pendingScroll.current;
-      pendingScroll.current = null;
-      viewport.current.parentElement.scrollLeft = target.canvasLeft;
-      scrollTo({ left: target.left, top: target.top });
+  const pointerDown = (e) => {
+    if (e.button !== 0) return;
+    suppressClick.current = false;
+    if (e.target.closest('.card, .project-node, button, a')) {
+      cardPress.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      return;
     }
-  });
-
-  // Start on the whole forest when it fits at a readable scale, else at
-  // actual size centred on the first root.
-  useEffect(() => {
-    const el = viewport.current;
-    if (!el || selectedId) return;
-    const area = viewArea();
-    const s = Math.min(1, area.w / width, area.h / height);
-    if (s >= 0.7) setScale(s);
-    else el.querySelector('[data-testid="session-card"]')?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
-  }, []);
-
-  // Timing mark for the large-tree check: first commit of the tree view.
-  useEffect(() => { performance.mark('odin:tree-rendered'); }, []);
-
-  // A deep link may reveal its card one render after expanding ancestors.
-  // Scroll once per selection; projection updates preserve reading position.
-  const scrolledSelection = useRef(null);
-  useEffect(() => {
-    if (!selectedId) { scrolledSelection.current = null; return; }
-    if (scrolledSelection.current === selectedId) return;
-    const card = viewport.current?.querySelector(`[data-testid="session-card"][data-session-id="${CSS.escape(selectedId)}"]`);
-    if (card) {
-      card.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-      scrolledSelection.current = selectedId;
+    viewport.current.focus({ preventScroll: true });
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    viewport.current.setPointerCapture(e.pointerId);
+    startGesture();
+  };
+  const pointerMove = (e) => {
+    const press = cardPress.current;
+    if (press?.id === e.pointerId) {
+      if (Math.hypot(e.clientX - press.x, e.clientY - press.y) >= 4) suppressClick.current = true;
+      return;
     }
-  });
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const g = gesture.current;
+    if (!g) return;
+    if (g.pinch && pointers.current.size === 2) {
+      const ps = [...pointers.current.values()];
+      const x = (ps[0].x + ps[1].x) / 2;
+      const y = (ps[0].y + ps[1].y) / 2;
+      const distance = Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y);
+      const b = viewport.current.getBoundingClientRect();
+      zoom(distance / Math.max(1, g.distance), g.x - b.left, g.y - b.top);
+      pan(x - g.x, y - g.y);
+      gesture.current = { x, y, distance, pinch: true };
+      suppressClick.current = true;
+    } else {
+      const dx = e.clientX - g.x;
+      const dy = e.clientY - g.y;
+      if (!g.moved && Math.hypot(dx, dy) < 4) return;
+      pan(dx, dy);
+      gesture.current = { x: e.clientX, y: e.clientY, moved: true };
+      suppressClick.current = true;
+    }
+  };
+  const pointerUp = (e) => {
+    cardPress.current = null;
+    if (e.type === 'pointercancel') suppressClick.current = false;
+    pointers.current.delete(e.pointerId);
+    startGesture();
+  };
+  const keyDown = (e) => {
+    if (e.target !== e.currentTarget) return;
+    switch (e.key) {
+      case '+': case '=': zoomCentre(1.2); break;
+      case '-': zoomCentre(1 / 1.2); break;
+      case '0': reset(); break;
+      case 'ArrowLeft': pan(48, 0); break;
+      case 'ArrowRight': pan(-48, 0); break;
+      case 'ArrowUp': pan(0, 48); break;
+      case 'ArrowDown': pan(0, -48); break;
+      default: return;
+    }
+    e.preventDefault();
+  };
 
-  return (
-    <div class="tree-wrap">
-      <div class="tree-actions">
-        <button type="button" onClick={fitBranch} disabled={!selectedId}>Fit branch</button>
-        <button type="button" onClick={() => fitTo(ordered)}>Fit all</button>
-        <button type="button" onClick={() => setScale(1)}>Actual size</button>
-        <span class="muted" aria-live="polite">Zoom {Math.round(scale * 100)}%</span>
-        <span class="legend">
-          <span class="legend-line project" /> project <span class="legend-line solid" /> started (ancestry)
-          <span class="legend-line dashed" /> typed relationship
-        </span>
-      </div>
-      <div class="tree-scroller">
-      <div class="tree-view" ref={viewport} data-testid="tree-view" data-scale={scale}
-        style={{ width: Math.max(1, width * scale), height: Math.max(1, height * scale) }}>
-        <div class="tree-stage" style={{ width, height, transform: `scale(${scale})` }}>
-          <svg class="tree-edges" width={width} height={height} aria-hidden="true">
-            {edges.map((e) => {
-              const grouping = e.grouping || (pos.get(e.from).s.project && !e.ancestryFrom);
-              const projectId = pos.get(e.to).s.project_id;
-              return <path key={`a-${e.to}`}
-                class={`${grouping ? 'project-edge' : 'ancestry-edge'} ${e.kind}`
-                  + (enteringEdges.has(edgeKey(e)) ? ' edge-enter' : '')}
-                data-from={e.ancestryFrom || e.from} data-to={e.to} data-via={e.ancestryFrom ? e.from : undefined}
-                data-project-id={projectId} data-muted={highlight && projectId !== highlight ? 'true' : undefined}
-                pathLength={grouping ? undefined : 1}
-                d={(e.kind === 'fan' ? fanPath : stackPath)(pos.get(e.from), pos.get(e.to))} />;
-            })}
-            {showRelations && relations.map((r) => {
-              const p = relationPath(pos.get(r.from), pos.get(r.to));
-              // Each overlay carries its own arrowhead marker inside the
-              // .relation-edge group, so the accent fill stays scoped to
-              // the overlay.
-              return (
-                <g key={r.id} class={`relation-edge relation-${r.type}`} data-type={r.type} data-from={r.from} data-to={r.to}>
-                  <marker id={`arrow-${r.id}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                    <path d="M0,0 L10,5 L0,10 z" class="arrowhead" />
-                  </marker>
-                  <path d={p.d} marker-end={`url(#arrow-${r.id})`} />
-                  <text x={p.lx} y={p.ly} text-anchor="middle">{RELATION_LABELS[r.type]}</text>
-                </g>
-              );
-            })}
-            {dots.map((d) => (
-              <circle key={`p-${d.id}`} class="port-dot" data-parent={d.id} cx={d.x} cy={d.y} r={4.5} />
-            ))}
+  return <div class="tree-wrap" style={{ paddingTop: keyHeight }}>
+    <p id="tree-instructions" class="sr-only">{INSTRUCTIONS}</p>
+    <div class="tree-view" ref={viewport} data-testid="tree-view" data-scale={view.scale} data-mode={mode}
+      data-manual={!!manual} role="region" aria-label="Agent tree canvas" aria-describedby="tree-instructions" tabIndex={0}
+      onKeyDown={keyDown} onPointerDown={pointerDown} onPointerMove={pointerMove}
+      onPointerUp={pointerUp} onPointerCancel={pointerUp} onLostPointerCapture={pointerUp}
+      onClickCapture={(e) => { if (suppressClick.current) { e.stopPropagation(); suppressClick.current = false; } }}>
+      <div class="tree-space" style={{ width: Math.max(area.w, stageWidth * view.scale + view.x),
+        height: Math.max(area.h, stageHeight * view.scale + view.y) }}>
+        {area.w > 0 && <div class={`tree-stage ${manual ? 'manual-view' : ''}`}
+          style={{ width: stageWidth, height: stageHeight,
+            transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
+          <svg class="tree-edges" width={stageWidth} height={stageHeight} aria-hidden="true">
+            {edges.map((e) => <path key={edgeKey(e)}
+              class={`${e.grouping ? 'project-edge' : 'ancestry-edge'} ${e.kind}`
+                + (enteringEdges.has(edgeKey(e)) && !e.grouping ? ' edge-enter' : '')}
+              data-from={e.ancestryFrom || e.from} data-to={e.to} data-via={e.ancestryFrom ? e.from : undefined}
+              data-project-id={pos.get(e.to).s.project_id}
+              data-muted={highlight && pos.get(e.to).s.project_id !== highlight ? 'true' : undefined}
+              pathLength={enteringEdges.has(edgeKey(e)) && !e.grouping ? 1 : undefined} d={e.d} />)}
+            {dots.map((d) => <circle key={d.id} class="port-dot" data-parent={d.id} cx={d.x} cy={d.y} r={4.5} />)}
           </svg>
           {ordered.map((id) => {
             const p = pos.get(id);
-            const kids = childMap.get(id) || [];
-            if (p.s.project) return <ProjectNode key={id} project={p.s.project}
-              style={{ left: p.x, top: p.y, width: p.w, height: p.h }} expanded={!collapsed.has(id)}
-              muted={highlight && p.s.project_id !== highlight} onToggle={() => onToggle(id)} />;
-            return (
-              <SessionCard key={id} session={p.s} childMap={childMap} style={{ left: p.x, top: p.y, width: CARD_W, height: CARD_H }}
-                muted={highlight && p.s.project_id && p.s.project_id !== highlight}
-                selected={id === selectedId} expanded={!collapsed.has(id)} childCount={kids.length}
-                entering={entering.has(id)} onSelect={onSelect} onToggle={onToggle} />
-            );
+            const style = { left: p.x, top: p.y, width: p.w, height: p.h };
+            const muted = highlight && p.s.project_id && p.s.project_id !== highlight;
+            if (p.s.project) return <ProjectNode key={id} project={p.s.project} style={style}
+              expanded={!collapsed.has(id)} muted={muted} onToggle={() => onToggle(id)} />;
+            return <SessionCard key={id} session={p.s} childMap={childMap} style={style} muted={muted}
+              selected={id === selectedId} expanded={!collapsed.has(id)} childCount={(childMap.get(id) || []).length}
+              entering={entering.has(id)} onSelect={onSelect} onToggle={onToggle} showRelations={showRelations} />;
           })}
-        </div>
-      </div>
+          <svg class="tree-overlays" width={stageWidth} height={stageHeight} aria-hidden="true">
+            {overlays.map((r) => {
+              const b = r.labelBox;
+              return <g key={r.id} class={`relation-edge relation-${r.type}`} data-type={r.type}
+                data-from={r.from} data-to={r.to}>
+                <defs><marker id={`arrow-${r.id}`} viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="arrowhead" /></marker></defs>
+                <path d={r.d} marker-end={`url(#arrow-${r.id})`} />
+                <g class="relation-label" data-testid="relationship-label" transform={`translate(${b.x},${b.y})`}>
+                  <rect width={b.w} height={b.h} rx={b.h / 2} />
+                  <text x={b.w / 2} y={b.h / 2} dominant-baseline="central" text-anchor="middle"
+                    style={{ fontSize: 11 * r.fontScale }}>{RELATION_LABELS[r.type]}</text>
+                </g>
+              </g>;
+            })}
+          </svg>
+        </div>}
       </div>
     </div>
-  );
+    <RelationshipKey styles={styles} />
+    <div class="canvas-controls" role="group" aria-label="Canvas view">
+      {manual && <button type="button" onClick={reset}>Reset view</button>}
+      <button type="button" aria-label="Zoom out" onClick={() => zoomCentre(1 / 1.2)}>−</button>
+      <button type="button" aria-label="Zoom in" onClick={() => zoomCentre(1.2)}>+</button>
+    </div>
+  </div>;
 }

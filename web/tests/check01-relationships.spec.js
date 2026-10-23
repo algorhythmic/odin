@@ -107,7 +107,7 @@ test('tree renders the ancestry forest and typed relationships distinctly', asyn
   await shot(page, 'detail-panel');
 });
 
-test('collapse hides descendants and fit branch scales to the selection', async ({ page }) => {
+test('collapse hides descendants and automatic fit keeps their widths readable', async ({ page }) => {
   await page.goto(sessionUrl('ses-integ-01'));
   const integ = page.locator('[data-session-id="ses-integ-01"]');
   await integ.getByRole('button', { name: /Collapse 4 sessions under/ }).click();
@@ -116,14 +116,11 @@ test('collapse hides descendants and fit branch scales to the selection', async 
   await expect(integ.getByRole('button', { name: /Expand 4/ })).toHaveAttribute('aria-expanded', 'false');
   await integ.getByRole('button', { name: /Expand 4/ }).click();
   await expect(page.locator('[data-session-id="ses-helper-01"]')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Fit branch' }).click();
   const view = await page.getByTestId('tree-view').boundingBox();
   for (const id of ['ses-integ-01', 'ses-worker-a1', 'ses-worker-a2', 'ses-helper-01', 'ses-review-integ']) {
     const box = await page.locator(`[data-testid="session-card"][data-session-id="${id}"]`).boundingBox();
     expect(box.x, `${id} left`).toBeGreaterThanOrEqual(view.x - 1);
-    expect(box.y, `${id} top`).toBeGreaterThanOrEqual(view.y - 1);
     expect(box.x + box.width, `${id} right`).toBeLessThanOrEqual(view.x + view.width + 1);
-    expect(box.y + box.height, `${id} bottom`).toBeLessThanOrEqual(view.y + view.height + 1);
   }
   await shot(page, 'fit-branch');
   await page.getByRole('button', { name: 'Go to parent' }).click();
@@ -165,23 +162,20 @@ test('go to parent follows recorded ancestry to the root, keeping the target in 
   await expect(page).toHaveURL(/sessions\/ses-integ-01$/);
 });
 
-test('fit branch on a root fits its whole branch and fit all fits the forest', async ({ page }) => {
+test('automatic width fit includes the forest and reset restores it after zoom', async ({ page }) => {
   await page.goto(sessionUrl('ses-exec-01'));
-  await page.getByRole('button', { name: 'Fit branch' }).click();
   const view = page.getByTestId('tree-view');
-  await expect(view).not.toHaveAttribute('data-scale', '1');
+  await view.focus();
+  await page.keyboard.press('+');
+  await expect(page.getByRole('button', { name: 'Reset view' })).toBeVisible();
+  await page.keyboard.press('0');
+  await expect(page.getByRole('button', { name: 'Reset view' })).toHaveCount(0);
   const box = await view.boundingBox();
-  const branch = projectSessions.filter((s) => s.id !== 'ses-imported-01').map((s) => s.id);
-  for (const id of branch) {
-    const c = await page.locator(`[data-testid="session-card"][data-session-id="${id}"]`).boundingBox();
-    expect(c.x, `${id} left`).toBeGreaterThanOrEqual(box.x - 1);
-    expect(c.y, `${id} top`).toBeGreaterThanOrEqual(box.y - 1);
-    expect(c.x + c.width, `${id} right`).toBeLessThanOrEqual(box.x + box.width + 1);
-    expect(c.y + c.height, `${id} bottom`).toBeLessThanOrEqual(box.y + box.height + 1);
-  }
-  await page.getByRole('button', { name: 'Fit all' }).click();
   for (const s of projectSessions) {
-    await expect(page.locator(`[data-testid="session-card"][data-session-id="${s.id}"]`)).toBeInViewport();
+    const c = await page.locator(`[data-testid="session-card"][data-session-id="${s.id}"]`).boundingBox();
+    expect(c.x, `${s.id} left`).toBeGreaterThanOrEqual(box.x - 1);
+    expect(c.x + c.width, `${s.id} right`).toBeLessThanOrEqual(box.x + box.width + 1);
   }
-  await shot(page, 'fit-all');
+  expect(Number(await view.getAttribute('data-scale'))).toBeGreaterThanOrEqual(0.85);
+  await shot(page, 'automatic-fit');
 });

@@ -10,7 +10,7 @@ const edges = (page, kind) => page.locator(`path.${kind}`).evaluateAll((els) => 
 test('one executive, ordered grouping nodes and recorded ancestry through projects', async ({ page }) => {
   await page.goto('/#/');
   await expect(page.getByTestId('session-card')).toHaveCount(snapshot.sessions.length);
-  await expect(page.getByRole('button', { name: 'Fit all', exact: true })).toBeInViewport();
+  await expect(page.getByRole('region', { name: 'Agent tree canvas' })).toBeInViewport();
   await expect(card(page, snapshot.executive_session_id).getByRole('button', { name: 'Collapse 4 projects under executive' }))
     .toHaveText('▾ 4');
   await expect(page.locator('[data-testid="session-card"][data-role="executive"]')).toHaveCount(1);
@@ -27,7 +27,9 @@ test('one executive, ordered grouping nodes and recorded ancestry through projec
     expect(ancestry).toContain(`${snapshot.executive_session_id}>${s.id}`);
     await expect(page.locator(`path.ancestry-edge[data-to="${s.id}"]`)).toHaveAttribute('data-via', `project:${s.project_id}`);
   }
-  await expect(page.locator('.legend')).toHaveText('project started (ancestry) typed relationship');
+  await expect(page.locator('.legend')).toContainText('started (ancestry)');
+  await expect(page.locator('.legend')).toContainText('project');
+  await expect(page.locator('.legend')).toContainText('reviews');
   await shot(page, 'portfolio-tree');
 });
 
@@ -111,7 +113,10 @@ test('header has one line of controls and no repeated attention summary or remov
   await expect(header.getByTestId('agent-summary')).toHaveText('20 agents · 5 running');
   await expect(header.getByTestId('agent-summary')).not.toContainText(/needs you|failed/);
   await expect(header.getByTestId('project-tokens')).toContainText(/tok \+ \d+ unknown/);
-  expect(await header.evaluate((el) => getComputedStyle(el).flexWrap)).toBe('nowrap');
+  // One line at a wide viewport; the header may wrap on narrower ones so no control is clipped.
+  const tops = await header.evaluate((el) => [...el.children].filter((c) => c.offsetParent)
+    .map((c) => Math.round(c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2)));
+  expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(6);
   await expect(header).not.toContainText(/sessions,|roots/);
   await expect(page.locator('.view-switcher, .conversation, .overview')).toHaveCount(0);
   for (const label of ['Projects', 'Conversation']) await expect(header.getByRole('button', { name: label })).toHaveCount(0);
@@ -123,7 +128,7 @@ for (const mode of ['Tree', 'List']) test(`project groupings are keyboard reacha
   if (mode === 'Tree') {
     const node = project(page, PID);
     // Walk the actual tab order to the project button.
-    await page.getByRole('button', { name: 'Actual size' }).focus();
+    await page.getByRole('region', { name: 'Agent tree canvas' }).focus();
     for (let i = 0; i < 10 && !(await node.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press('Tab');
     await expect(node).toBeFocused();
     await page.keyboard.press('Enter');

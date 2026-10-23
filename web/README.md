@@ -54,6 +54,33 @@ list replaces the canvas. Tree/List is a layout preference; selection
 stays in the URL. Deferred Queue, Lanes, Graph, Decisions and Board routes
 render not found. Setup and settings share working synthetic panels.
 
+The canvas fits its available width on load, resize, sidebar changes,
+drawer changes and branch expansion. It tries a full horizontal tree,
+then stacks progressively shallower levels into indented columns, then
+wraps project columns into rows. It keeps a scale of at least 0.85 whenever
+an arrangement permits, and never scales below 0.5; tall arrangements scroll
+inside the canvas. The relationship key has a reserved band above the tree.
+
+Ctrl/Meta + wheel (including trackpad pinch) zooms about the pointer;
+plain wheel scrolls. Drag empty canvas to pan; one-finger drag and two-finger
+pinch are supported through pointer events. Focus **Agent tree canvas** and
+use `+` / `-` to zoom about its centre, arrow keys to pan and `0` to reset.
+Compact Zoom out / Zoom in buttons offer the same control. A manual move
+pauses automatic fitting and reveals **Reset view**. New selections are
+brought into view at the current manual zoom. Tree/List stays the full
+keyboard alternative; selection and layout preferences retain their existing
+storage rules. Arrangement changes take 420 ms on the shared motion curve,
+and are instant under reduced motion.
+
+Ancestry uses solid neutral lines and port dots; grouping uses lighter
+long dashes without dots. Typed overlays are above cards, with arrowheads
+and distinct review, delegation and assignment ownership patterns. An
+assignment record is anchored to its recorded owner card; it does not
+become a node. Run associations are card badges. Relationship pills search
+for space clear of every card, with a clear arrowhead-side fallback. Their
+screen font size stays within 0.85–1.25 of the base size across zoom levels.
+The vertical key lists only the line styles in the current view.
+
 Data sets: the default loads the shared fixtures in `fixtures/`. Add
 `?dataset=large` before the hash (for example
 `http://127.0.0.1:5317/?dataset=large#/projects/proj-large-synthetic`)
@@ -137,7 +164,7 @@ skew the functional suite:
 EVIDENCE_DIR=/private/path npm run test:perf   # writes large-timings.json and large-deep-timings.json
 ```
 
-It records first render, expand and select times on the seeded dataset,
+It records first fitted render, reset-to-fit, expand and select times on the seeded dataset,
 and the time to expand three depth-8 paths step by step in the tree and
 in the list, and compares them with the proposed targets (first render under 1 s,
 expand or select under 150 ms). Large trees open collapsed to their project nodes. The values are written first; a missed
@@ -162,7 +189,8 @@ not service or desktop measurements.
 | `src/models.js`, `src/status.jsx` | Friendly model names and providers; the status chip, provider monogram and tool icons |
 | `src/shell.jsx`, `src/usage.jsx`, `src/usage.js` | Sidebar dashboard, rail, resize controls and pure admission-band helpers |
 | `src/workspace.jsx` | Portfolio and scoped project workspace |
-| `src/tree.jsx`, `src/card.jsx`, `src/project-node.jsx` | Square connector layout, SVG edges, session cards and project groupings |
+| `src/tree-layout.js` | Pure adaptive layout, recorded-edge geometry and clear relationship label routing |
+| `src/tree.jsx`, `src/card.jsx`, `src/project-node.jsx` | Canvas fit, pointer/keyboard gestures, SVG layers, session cards and project groupings |
 | `src/tokencount.jsx`, `src/attention.jsx` | Animated token figures; the header attention chips and popovers |
 | `src/list.jsx` | ARIA treeview list alternative with roving tabindex |
 | `src/detail.jsx` | Detail panel; transcripts render as plain text |
@@ -173,13 +201,13 @@ not service or desktop measurements.
 
 - Solid tree edges are session ancestry only (`parent_session_id`). Review,
   delegation, run association and assignment ownership are typed
-  relationships, drawn as dashed overlays and listed in details.
+  relationships, drawn as patterned overlays or run badges and listed in details.
 - An imported session with no known parent stays a root.
 - The draft snapshot requires `executive_session_id` (string or null).
   Only that executive has `project_id: null`. Cross-project ancestry is
   admitted only from the executive; other cross-project parents yield
   "Parent in another project". Unavailable parents stay labelled roots.
-- Project nodes are grouping rows, never sessions. Dotted connectors
+- Project nodes are grouping rows, never sessions. Lighter long-dashed connectors
   distinguish project membership from recorded starts. An executive's
   recorded starts route through their project node. Labelled roots hang
   from their group without acquiring an ancestry parent.
