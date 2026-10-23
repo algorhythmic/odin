@@ -110,6 +110,19 @@ section conflicts with later sections, this section wins.
    with clearly different line styles, and typed-relationship labels are
    never hidden behind session cards.
 
+9. **Layout that fills the viewport, and cards that size to their
+   state** (operator, after R3d). The first adaptive layout produced
+   either one vertical column or at most two columns; the arrangement
+   must instead use the viewport's width and height, choosing per branch
+   between a horizontal fan, a vertical stack and a wrapped grid. Cards
+   size to their state: a running session's card is expanded; a done,
+   failed or stopped session collapses to a compact one-line card (role,
+   status, tokens). Expanded cards have a collapse button and compact
+   ones an expand button. Any change in card size, the viewport, or the
+   sidebar (including collapsing it) re-arranges the tree with the
+   shared motion. The zoom icons stay for keyboard and accessibility use,
+   and the project grouping line is coloured with its own token.
+
 ADR-037 records its layout (an overview page, a planning conversation or
 activity area) as default design rather than accepted direction; this
 revision replaces that layout for the prototype. Its accepted parts (the
@@ -323,6 +336,7 @@ Playwright specs for what it adds.
 | R3a | Portfolio tree (revised direction 1–5): single executive root, project grouping nodes, sidebar branch with highlight and scope, one-line header, removal of the overview page, conversation panel, Projects toggle and deferred views; fixtures, draft schema and Python test for `executive_session_id` | R2 |
 | R3c | Sidebar dashboard (revised direction 7): overview content, provider usage meters, Setup and Settings at the bottom, collapse to a rail, drag to resize | R3a |
 | R3d | Canvas (revised direction 8): fit to viewport, responsive vertical stacking, zoom and pan, stacked legend with distinct line styles, unobstructed relationship labels | R3c |
+| R3e | Viewport-filling layout and state-sized cards (revised direction 9) | R3d |
 | R3b | Live simulation (revised direction 6): continuous create, work, finish and remove through the event rules, with the observed Agent Tree motion; card presentation pass (harness tag, fold to one line) | R3a |
 | Deferred | Decision Tree, Agent Queue and Delegate Board, Agent Lanes, Agent Graph (formerly R4–R7) | operator decision |
 
