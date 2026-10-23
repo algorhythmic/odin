@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/ho
 import {
   ancestors, isSynthetic, getExecutive, getSession, portfolioTree, projectSum, projectSummary, sessionsFor,
 } from './data.js';
-import { projectNodeId } from './ancestry.js';
+import { projectNodeId, restoredNodeId, storedNodeId } from './ancestry.js';
 import { updatePrefs, usePrefs } from './prefs.js';
 import { historyHref, projectHref, sessionHref, agentsHref } from './route.js';
 import { TreeView } from './tree.jsx';
@@ -44,14 +44,14 @@ export function Workspace({ project, sid, highlight }) {
   const executive = getExecutive();
   const { roots, children: childMap } = portfolioTree(pid);
   const prefKey = pid || 'portfolio';
-  const collapsed = useMemo(() => new Set(prefs.collapsed[prefKey]
+  const collapsed = useMemo(() => new Set(prefs.collapsed[prefKey]?.map(restoredNodeId)
     ?? (sessionsFor(pid).length > 200 ? [...childMap.keys()].filter((id) => id !== executive?.id) : [])),
   [prefs.collapsed, prefKey, childMap, executive?.id]);
   const selected = sid ? getSession(sid) : null;
   const admitted = selected && (!pid || selected.project_id === pid || selected.id === executive?.id) ? selected : null;
   const mode = narrow ? 'list' : prefs.mode;
   const counts = projectSummary(pid);
-  const setCollapsed = (ids) => updatePrefs({ collapsed: { ...prefs.collapsed, [prefKey]: [...ids] } });
+  const setCollapsed = (ids) => updatePrefs({ collapsed: { ...prefs.collapsed, [prefKey]: [...ids].map(storedNodeId) } });
   const toggle = (id) => {
     const next = new Set(collapsed);
     if (next.has(id)) next.delete(id); else next.add(id);

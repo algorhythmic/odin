@@ -43,7 +43,18 @@ export function projectAncestry(sessions, pid, executiveId) {
   return { roots, children, parentOf, outside, crossProject, cycle };
 }
 
-export const projectNodeId = (pid) => `project:${pid}`;
+// Session IDs accept every nonempty string. Symbols keep grouping keys in a separate namespace.
+export const projectNodeId = (pid) => Symbol.for(`project:${pid}`);
+export const nodeLabel = (id) => typeof id === 'symbol' ? Symbol.keyFor(id) : id;
+export const storedNodeId = (id) => JSON.stringify([typeof id === 'symbol' ? 'project' : 'session', nodeLabel(id)]);
+export function restoredNodeId(value) {
+  try {
+    const [kind, id] = JSON.parse(value);
+    if (typeof id === 'string' && kind === 'project') return Symbol.for(id);
+    if (typeof id === 'string' && kind === 'session') return id;
+  } catch { /* Older preferences stored raw IDs. */ }
+  return value.startsWith('project:') ? Symbol.for(value) : value;
+}
 
 // Project rows are layout nodes, never session records or ancestry parents.
 export function groupedTree(projects, executive, ancestryFor, scoped = false) {

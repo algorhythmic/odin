@@ -12,6 +12,17 @@ export function SessionCard({
   const runs = showRelations ? relationshipsOf(s.id).filter((r) => r.type === 'run_association') : [];
   const assignment = getAssignment(s.assignment_id);
   const lineage = useMemo(() => lineageLabel(s), [s, childMap]);
+  const shortLineage = {
+    'Imported — parent unknown': 'Imported · parent unknown',
+    'Parent cycle in records': 'Parent cycle',
+    'Parent in another project': 'Parent in another project',
+    'Parent not in this project view': 'Parent outside view',
+  }[lineage] || lineage;
+  const freshness = s.stale || s.lifecycle === 'host_offline';
+  const observed = `Last observed ${observedLabel(s.observed_at)}`;
+  const retained = s.lifecycle === 'retired' && childCount > 0 && !leaving;
+  const qualifications = [freshness && `${s.stale ? 'Stale observation. ' : ''}${observed} (${s.observed_at || 'unknown'})`,
+    lineage, retained && 'Retired · kept for live work'].filter(Boolean).join('. ');
   // Stopped sessions and attempts a later attempt replaced are dimmed.
   const dimmed = s.lifecycle === 'retired' || isSuperseded(s);
   // Collapsing hides the whole subtree, so the chip counts descendants.
@@ -48,6 +59,8 @@ export function SessionCard({
       <div class="card-head">
         <ProviderLogo model={s.model} />
         <button type="button" class="card-title" aria-pressed={selected}
+          aria-label={qualifications ? `${s.role}. ${qualifications}` : undefined}
+          title={qualifications || undefined}
           onClick={(e) => { e.stopPropagation(); onSelect(s.id); }}>
           <span class="role">{s.role}</span>
           {cardExpanded && <ModelName model={s.model} />}
@@ -57,6 +70,16 @@ export function SessionCard({
         {!cardExpanded && branchChip}
         {!compactExecutive && sizeToggle}
       </div>
+      {!cardExpanded && <div class="compact-qualifications">
+        {freshness && <div class="compact-qualification observed" data-testid="last-observed"
+          title={qualifications} aria-label={`${s.stale ? 'Stale observation. ' : ''}${observed} (${s.observed_at || 'unknown'})`}>
+          {s.stale ? 'Stale' : 'Last observed'} · {observedLabel(s.observed_at)}
+        </div>}
+        {lineage && <div class="compact-qualification lineage" data-testid="lineage-label"
+          title={lineage} aria-label={lineage}>{shortLineage}</div>}
+      </div>}
+      {retained && <div class="card-row retained-label" title="Retired · kept for live work"
+        data-testid="retained-label">Retired · kept for live work</div>}
       {cardExpanded && <>
         <div class="card-task">
           <ToolIcons session={s} />

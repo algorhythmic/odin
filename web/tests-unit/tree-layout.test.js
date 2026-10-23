@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { cardDimensions, cardIsExpanded } from '../src/card-size.js';
 import { CARD, createRelationshipRouter, fitTree, intersects, routeOrthogonal, routeRelationship, segmentIntersects } from '../src/tree-layout.js';
-import { groupedTree, projectAncestry } from '../src/ancestry.js';
+import { groupedTree, nodeLabel, projectAncestry } from '../src/ancestry.js';
 import { generateLargeSnapshot, LARGE_SPEC } from '../src/fixtures/large.js';
 
 const snapshot = JSON.parse(fs.readFileSync(new URL('../fixtures/default-snapshot.json', import.meta.url)));
@@ -14,7 +14,7 @@ function hierarchy(s = snapshot, scoped = false) {
   return { roots: h.roots, children: h.children, executiveId: s.executive_session_id };
 }
 const sizes = (h) => (s) => cardDimensions(s, {}, h.children.get(s.id)?.length,
-  !!(s.attempt || s.resumption || s.provenance === 'imported' || s.id.includes('cycle') || s.id.includes('self')));
+  !s.project && !!(s.attempt || s.resumption || s.provenance === 'imported' || s.id.includes('cycle') || s.id.includes('self')));
 const fit = (width, h = hierarchy(), height = 900) => fitTree(h, sizes(h), width, height);
 
 test('per-branch candidates use both viewport dimensions and preserve readable columns', () => {
@@ -40,10 +40,10 @@ test('a fitting tree maximises scale across both axes without unnecessary vertic
 });
 
 test('ancestry and labelled-root grouping survive every arrangement unchanged', () => {
-  const reference = fit(6000).edges.map((e) => `${e.ancestryFrom || e.from}>${e.to}:${e.grouping}`).sort();
+  const reference = fit(6000).edges.map((e) => `${nodeLabel(e.ancestryFrom || e.from)}>${nodeLabel(e.to)}:${e.grouping}`).sort();
   for (const w of [3000, 1800, 1072, 732, 120]) {
     const l = fit(w);
-    assert.deepEqual(l.edges.map((e) => `${e.ancestryFrom || e.from}>${e.to}:${e.grouping}`).sort(), reference);
+    assert.deepEqual(l.edges.map((e) => `${nodeLabel(e.ancestryFrom || e.from)}>${nodeLabel(e.to)}:${e.grouping}`).sort(), reference);
     assert.equal(l.positions.size, snapshot.sessions.length + snapshot.projects.length);
     assert.ok(!l.edges.some((e) => !e.grouping && e.to === 'ses-mal-cycle-a'));
     assert.ok(l.dots.every((d) => l.edges.some((e) => e.from === d.id && !e.grouping)));
@@ -98,7 +98,7 @@ test('card defaults follow lifecycle and input, and overrides win', () => {
   for (const lifecycle of ['ended', 'retired', 'idle', 'host_offline']) {
     const s = { id: 's', lifecycle };
     assert.equal(cardIsExpanded(s), false);
-    assert.deepEqual(cardDimensions(s), { w: 220, h: 44 });
+    assert.deepEqual(cardDimensions(s), { w: 220, h: lifecycle === 'host_offline' ? 66 : 44 });
     assert.equal(cardIsExpanded({ ...s, needs_operator_input: true }), true);
     assert.equal(cardIsExpanded(s, { s: true }), true);
   }
@@ -126,7 +126,7 @@ function assertRoutes(l, relationships, assignments = []) {
       assert.ok(a.x === b.x || a.y === b.y, 'orthogonal segment');
       for (const box of boxes) {
         if (box.s.id === from || box.s.id === to) continue;
-        assert.ok(!segmentIntersects(a, b, box), `${from}>${to} crosses ${box.s.id}`);
+        assert.ok(!segmentIntersects(a, b, box), `${nodeLabel(from)}>${nodeLabel(to)} crosses ${nodeLabel(box.s.id)}`);
       }
     }
   };
@@ -163,7 +163,7 @@ test('every default edge and relationship clears non-endpoint rectangles at all 
 test('expanded large project routes around the visible compact and expanded cards', () => {
   const s = generateLargeSnapshot();
   const h = hierarchy(s);
-  h.collapsed = new Set([...h.children.keys()].filter((id) => !id.startsWith('project:') && id !== s.executive_session_id));
+  h.collapsed = new Set([...h.children.keys()].filter((id) => typeof id === 'string' && id !== s.executive_session_id));
   assertRoutes(fit(1100, h, 800), s.relationships, s.assignments);
 });
 
@@ -190,7 +190,7 @@ test('shared grouping rails paint the same segment union once and retain full ed
   const large = generateLargeSnapshot();
   const live = { ...large, sessions: large.sessions.filter((s) => s.lifecycle !== 'retired') };
   const h = hierarchy(live);
-  h.collapsed = new Set([...h.children.keys()].filter((id) => !id.startsWith('project:')
+  h.collapsed = new Set([...h.children.keys()].filter((id) => typeof id === 'string'
     && id !== large.executive_session_id));
   const l = fit(1100, h, 800);
   const edges = l.edges.filter((e) => e.grouping);
@@ -204,7 +204,7 @@ test('shared grouping rails paint the same segment union once and retain full ed
         const b = points[i];
         if (a.x === b.x && a.y === b.y) continue;
         const vertical = a.x === b.x;
-        const key = `${e.from}:${vertical ? 'x' : 'y'}:${vertical ? a.x : a.y}`;
+        const key = `${nodeLabel(e.from)}:${vertical ? 'x' : 'y'}:${vertical ? a.x : a.y}`;
         const values = vertical ? [a.y, b.y] : [a.x, b.x];
         if (!lanes.has(key)) lanes.set(key, []);
         lanes.get(key).push(values.sort((a, b) => a - b));

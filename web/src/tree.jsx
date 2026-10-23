@@ -6,8 +6,9 @@ import { ProjectNode } from './project-node.jsx';
 import { SessionCard } from './card.jsx';
 import { cardDimensions, cardIsExpanded } from './card-size.js';
 import { useTreePresence } from './presence.js';
+import { nodeLabel, storedNodeId } from './ancestry.js';
 
-const edgeKey = (e) => `${e.from}>${e.to}`;
+const edgeKey = (e) => JSON.stringify([storedNodeId(e.from), storedNodeId(e.to)]);
 const clamp = (n) => Math.max(0.5, Math.min(2, n));
 const INSTRUCTIONS = 'Use + and - to zoom, arrow keys to pan, and 0 to reset the view. Drag the background to pan.';
 const STYLES = { project: 'project', ancestry: 'started (ancestry)', review: 'reviews',
@@ -50,14 +51,15 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
     executiveId: executive?.id, minReadable: selectedId ? 0.85 : undefined },
     (s) => pid && s.id === executive?.id ? { w: 220, h: 112 }
       : cardDimensions(s, cardSizes, treeChildren.get(s.id)?.length, !s.project && !!lineageLabel(s),
-        relationshipsOf(s.id).some((r) => r.type === 'run_association')), area.w, Math.max(180, area.h)),
+        !s.project && relationshipsOf(s.id).some((r) => r.type === 'run_association')), area.w, Math.max(180, area.h)),
   [treeRoots, treeChildren, collapsed, cardSizes, area.w, area.h, !!selectedId]);
   const { ordered, positions: pos, edges, dots, width, height, mode, entering, leaving } = useTreePresence(geometry);
   const relations = useMemo(() => relationshipsFor(pid).flatMap((r) => {
     // Assignment records are anchored to their recorded owner, never made into tree nodes.
     const target = r.type === 'assignment_owner' ? getAssignment(r.to)?.owner_session_id : r.to;
-    return r.type !== 'run_association' && pos.has(r.from) && pos.has(target) ? [{ ...r, target }] : [];
-  }), [pid, pos]);
+    return r.type !== 'run_association' && geometry.positions.has(r.from) && geometry.positions.has(target)
+      ? [{ ...r, target }] : [];
+  }), [pid, geometry]);
   const styles = [...new Set([...edges.map((e) => e.grouping ? 'project' : 'ancestry'),
     ...relations.map((r) => r.type)])];
   const fit = { scale: geometry.scale, x: Math.max(0, (area.w - width * geometry.scale) / 2), y: 0 };
@@ -67,13 +69,16 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
   const manualRef = useRef(false);
   manualRef.current = !!manual;
   const previousGeometry = useRef(null);
-  const extent = useMemo(() => [...pos.values()], [pos]);
+  // Exit cards keep old positions for animation, never for routing or obstacles.
+  const extent = useMemo(() => [...geometry.positions.values()], [geometry]);
   const active = useMemo(() => new Set([selectedId, hovered, focused].filter(Boolean)), [selectedId, hovered, focused]);
   const routeRelation = useMemo(() => createRelationshipRouter(extent, view.scale), [extent, view.scale]);
   const overlays = useMemo(() => relations.filter((r) => showRelations || active.has(r.from) || active.has(r.target))
-    .map((r, i) => ({ ...r,
-    ...routeRelation(pos.get(r.from), pos.get(r.target), RELATION_LABELS[r.type], i),
-  })), [showRelations, active, relations, routeRelation]);
+    .flatMap((r, i) => {
+      const line = routeRelation(geometry.positions.get(r.from), geometry.positions.get(r.target), RELATION_LABELS[r.type], i);
+      // The detail panel still lists relationships that have no clear route this frame.
+      return line ? [{ ...r, ...line }] : [];
+    }), [showRelations, active, relations, routeRelation]);
   const related = new Set(overlays.flatMap((r) => [r.from, r.target]));
   const stageWidth = Math.max(width, ...overlays.map((r) => r.labelBox.x + r.labelBox.w + 24));
   const stageHeight = Math.max(height, ...overlays.map((r) => r.labelBox.y + r.labelBox.h + 24));
@@ -297,13 +302,15 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
               const shared = e.grouping && !leaving.has(e.to);
               return <path key={edgeKey(e)}
               class={`${e.grouping ? 'project-edge' : 'ancestry-edge'} ${e.kind}${motion}`}
-              data-from={e.ancestryFrom || e.from} data-to={e.to} data-via={e.ancestryFrom ? e.from : undefined}
+              data-from={nodeLabel(e.ancestryFrom || e.from)} data-to={nodeLabel(e.to)}
+              data-via={e.ancestryFrom ? nodeLabel(e.from) : undefined}
               data-project-id={pos.get(e.to).s.project_id}
               data-muted={highlight && pos.get(e.to).s.project_id !== highlight ? 'true' : undefined}
               style={shared ? { strokeDashoffset: e.paintOffset } : undefined}
               pathLength={motion ? 1 : undefined} d={shared ? e.paintD : e.d} />;
             })}
-            {dots.map((d) => <circle key={d.id} class="port-dot" data-parent={d.id} cx={d.x} cy={d.y} r={4.5} />)}
+            {dots.map((d) => <circle key={storedNodeId(d.id)} class="port-dot" data-parent={nodeLabel(d.id)}
+              cx={d.x} cy={d.y} r={4.5} />)}
           </svg>
           <svg class="tree-overlays" width={stageWidth} height={stageHeight} aria-hidden="true">
             {overlays.map((r) => {
@@ -325,9 +332,9 @@ export function TreeView({ pid, roots, childMap, collapsed, selectedId, onSelect
             const p = pos.get(id);
             const style = { left: p.x, top: p.y, width: p.w, height: p.h };
             const muted = highlight && p.s.project_id && p.s.project_id !== highlight;
-            if (p.s.project) return <ProjectNode key={id} project={p.s.project} style={style}
+            if (p.s.project) return <ProjectNode key={storedNodeId(id)} project={p.s.project} style={style}
               expanded={!collapsed.has(id)} muted={muted} onToggle={() => onToggle(id)} />;
-            return <SessionCard key={id} session={p.s} childMap={treeChildren} style={style} muted={muted}
+            return <SessionCard key={storedNodeId(id)} session={p.s} childMap={treeChildren} style={style} muted={muted}
               selected={id === selectedId} related={related.has(id)}
               onHover={setHovered} onFocusCard={setFocused} compactExecutive={!!pid && id === executive?.id}
               cardExpanded={pid && id === executive?.id || cardIsExpanded(p.s, cardSizes)} onSizeToggle={onSizeToggle}

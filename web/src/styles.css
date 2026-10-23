@@ -982,3 +982,15 @@ button[aria-pressed="true"] { background: var(--accent); color: var(--bg); borde
   .dashboard-activity { grid-column: 2; grid-row: 2; }
   .priority-setup .priority-disclosure { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) 32px; }
 }
+
+/* Review fixes: rendering */
+.card-compact { gap: 0; }
+.compact-qualification, .card-compact .retained-label {
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-compact .observed { line-height: 19px; }

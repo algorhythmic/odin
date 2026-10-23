@@ -4,9 +4,12 @@ export const cardIsExpanded = (s, sizes = {}) => Object.hasOwn(sizes, s.id) ? si
 
 export function cardDimensions(s, sizes = {}, hasChildren = false, hasLineage = false, hasRuns = false) {
   if (s.project) return { w: 300, h: 128 };
-  if (!cardIsExpanded(s, sizes)) return { w: 220, h: 44 };
+  const freshness = s.stale || s.lifecycle === 'host_offline';
+  const retained = s.lifecycle === 'retired' && hasChildren;
+  if (!cardIsExpanded(s, sizes)) return { w: 220, h: 44 + (freshness ? 22 : 0)
+    + (hasLineage ? 18 : 0) + (retained ? 18 : 0) };
   return { w: 220, h: 140 + (s.needs_operator_input || s.stale ? 22 : 0)
     + (s.stale || s.lifecycle === 'host_offline' ? 22 : 0) + (hasLineage ? 18 : 0)
-    + (s.budget ? 18 : 0) + (hasChildren ? 22 : 0) + (hasRuns ? 24 : 0) };
+    + (s.budget ? 18 : 0) + (hasChildren ? 22 : 0) + (hasRuns ? 24 : 0) + (retained ? 18 : 0) };
 }
 

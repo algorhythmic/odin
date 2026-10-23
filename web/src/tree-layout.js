@@ -1,3 +1,5 @@
+import { storedNodeId } from './ancestry.js';
+
 export const CARD = { width: 220, height: 182, projectWidth: 300, projectHeight: 128 };
 export const MIN_READABLE = 0.75;
 const PAD = 16;
@@ -58,7 +60,7 @@ export function fitTree({ roots, children, collapsed = new Set(), executiveId, m
     }
     return pareto(shapes);
   };
-  const virtual = { id: '__layout_root__', virtual: true };
+  const virtual = { id: Symbol('layout root'), virtual: true };
   const forest = roots.length === 1 ? roots[0] : virtual;
   if (forest === virtual) children = new Map([...children, [virtual.id, roots]]);
   const candidates = measure(forest);
@@ -142,7 +144,7 @@ function shareGroupingRails(edges) {
       const b = e.points[i];
       if (a.x === b.x && a.y === b.y) continue;
       const vertical = a.x === b.x;
-      const key = `${e.from}:${vertical ? 'x' : 'y'}:${vertical ? a.x : a.y}`;
+      const key = JSON.stringify([storedNodeId(e.from), vertical ? 'x' : 'y', vertical ? a.x : a.y]);
       const spans = lanes.get(key) || [];
       const start = vertical ? a.y : a.x;
       const end = vertical ? b.y : b.x;
@@ -350,12 +352,14 @@ export function routeOrthogonal(start, end, boxes, clearance = 8, context = rout
     while (previous[first] >= 0) { first = previous[first]; path.push(point(first)); }
     return simplify([...starts.get(first), ...path.reverse(), ...ends.get(goal).toReversed()]);
   }
-  throw new Error('No clear gutter route');
+  return null;
 }
 
-export function createRelationshipRouter(boxes, scale) {
+export function createRelationshipRouter(boxes, scale, leaving = new Set()) {
+  boxes = boxes.filter((b) => !leaving.has(b.s?.id));
   const contexts = new Map();
   return (a, b, label, lane = 0) => {
+    if (!a || !b || leaving.has(a.s?.id) || leaving.has(b.s?.id)) return null;
     const clearance = 6 + lane % 4 * 2;
     if (!contexts.has(clearance)) contexts.set(clearance, routingContext(boxes, clearance));
     return routeRelationship(a, b, boxes, label, scale, lane, contexts.get(clearance));
@@ -374,6 +378,7 @@ export function routeRelationship(a, b, boxes, label, scale, lane = 0, context) 
   const out = { x: a.x + a.w + clearance, y: start.y };
   const into = { x: b.x + b.w + clearance, y: end.y };
   let middle = routeOrthogonal(out, into, boxes, clearance, context);
+  if (!middle) return null;
   let labelBox;
   for (let i = 1; i < middle.length && !labelBox; i++) {
     const p = middle[i - 1];
@@ -405,8 +410,10 @@ export function routeRelationship(a, b, boxes, label, scale, lane = 0, context) 
     // The external lane is needed only if no interior gutter can hold the label.
     labelBox = slots[0] || { x: right + 4 + lane * 4, y: Math.max(0, end.y - h / 2), w, h };
     const via = centre(labelBox);
-    middle = [...routeOrthogonal(out, via, boxes, clearance, context),
-      ...routeOrthogonal(via, into, boxes, clearance, context)];
+    const first = routeOrthogonal(out, via, boxes, clearance, context);
+    const last = routeOrthogonal(via, into, boxes, clearance, context);
+    if (!first || !last) return null;
+    middle = [...first, ...last];
   }
   const points = simplify([start, ...middle, end]);
   return { d: pathData(points), points, labelBox, fontScale };
