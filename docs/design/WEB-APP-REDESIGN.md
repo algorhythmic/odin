@@ -134,6 +134,79 @@ section conflicts with later sections, this section wins.
     the scoped canvas as a compact card above the project node, so it is
     clear who oversees the project and what it is doing.
 
+11. **A dashboard is the home screen** (operator, after the R3b merge).
+    A "Dashboard" entry sits at the top of the left panel, above the
+    executive and the project branch, and `#/` opens it; the agent tree
+    moves to `#/agents` (the executive's entry). The dashboard is very
+    compact and dense, re-flows to the viewport, and leads with the
+    operator's high-priority tasks: finishing setup, agents that failed,
+    agents that need input. It is what people see on first use and on
+    every later visit, so first use has a deliberate flow (below). The
+    sidebar's attention and activity sections move into the dashboard so
+    nothing is shown twice; the sidebar keeps the branch, usage meters,
+    Setup, Settings and the theme toggle. The agent list loses its fixed
+    height and flows with the page's scroll, and project nodes in the tree
+    are restyled so they read as projects, not agents.
+
+#### Dashboard: component evaluation
+
+Every captured affectUI reference was judged for the dashboard
+(visual references only, as before):
+
+| Reference | Verdict | Use |
+|---|---|---|
+| Agent Inbox | **Adopt** | The priority queue: grouped rows with counts and filter tabs, a row unfolds to its last steps and actions (actions disabled until W5) |
+| Setup Guide, Progress Tracker | **Adopt** | Setup as the first priority item: progress bar and the remaining steps |
+| Permission Request, Approval Card | **Adapt** | Pending recorded decisions in the queue: who asks, the proposal and its digest; Approve and Deny disabled until W5 |
+| Number Ticker | **Adopt** | KPI figures roll to new values |
+| KPI Board, Analytics screen | **Adapt** | Density and grid: a row of small KPI tiles (running, needs you, failed, ended, tokens) and a project grid; no prices |
+| Segmented Control | **Adopt** | Queue filters (All, Needs you, Failed, Setup) |
+| Usage Meter | **Partial** | The sidebar keeps the meters; the dashboard lists only sign-ins at "wind down" or worse, as priority items |
+| Agent Run, Evals screens | **Adapt** | Compact activity feed and dense tables for "Running now" |
+| Onboarding screen, Stepper Form, Assistant Home | **Adopt** | The first-run welcome screen and its hand-off to the setup wizard |
+| Agent Tree | Exclude | It is the Agents view one click away; project tiles link to it |
+| Trace Waterfall | Exclude here | Per-run detail; a candidate for the session drawer later |
+| Agent Lanes | Defer | A compact "last 30 minutes" strip is possible later |
+| Agent Queue, Delegate Board, Agent Graph, Decision Tree | Exclude | Deferred views (item 5) |
+| Model Picker | Exclude | Setup only |
+
+#### Dashboard layout
+
+A responsive grid (container queries on the main area; one column on a
+phone, up to four on a wide screen), top to bottom:
+
+1. **Priority queue** (Agent Inbox): one list sorted by urgency, with
+   filter tabs and counts: setup incomplete, needs input, failed runs,
+   pending recorded decisions, sign-ins at a limit band of wind down or
+   worse, hosts offline. Each row: icon, what, where (project, role),
+   how long, and an Open action that goes to the agent in the tree or to
+   the setup step. When the queue is empty it says so in one line.
+2. **KPI tiles**: running, needs you, failed, ended in the snapshot, and
+   tokens (with "+ N unknown"), each a compact tile with a rolling number.
+3. **Projects**: one dense tile per project (status bar, counts, tokens,
+   last activity); clicking scopes the agent tree to it.
+4. **Running now**: a dense table of running agents (role, project,
+   model, harness, elapsed, tokens).
+5. **Recent activity**: the latest events (started, needs input, ended,
+   retired) as single lines.
+
+#### First use and continued use
+
+Odin's first screen depends on the setup stage, without blocking modals:
+
+- **Fresh install** (no sign-in connected, no executive yet): `#/` shows a
+  full welcome screen in the app shell instead of the dashboard: what
+  Odin is in one line, the four setup steps as a checklist, and "Connect
+  your first subscription", which opens the setup wizard. The sidebar
+  shows the empty states. In the prototype, `?setup=fresh` also loads an
+  empty portfolio to stand for a fresh install.
+- **Partly set up**: the dashboard shows, with setup as the first priority
+  item (Setup Guide: progress and the next step) until it is applied.
+- **Set up**: the dashboard shows; the setup item is gone.
+- No modal or overlay gates the app: Odin is a monitoring surface and a
+  modal would hide what the operator came to check. The one transient
+  element is a short confirmation after setup is applied.
+
 ADR-037 records its layout (an overview page, a planning conversation or
 activity area) as default design rather than accepted direction; this
 revision replaces that layout for the prototype. Its accepted parts (the
@@ -349,6 +422,8 @@ Playwright specs for what it adds.
 | R3d | Canvas (revised direction 8): fit to viewport, responsive vertical stacking, zoom and pan, stacked legend with distinct line styles, unobstructed relationship labels | R3c |
 | R3e | Viewport-filling layout and state-sized cards (revised direction 9) | R3d |
 | R3f | Collision-free routing, compact header, in-canvas key, breadcrumb scope (revised direction 10) | R3e |
+| R4a | Dashboard home, Agents route, sidebar Dashboard entry, first-run welcome (revised direction 11) | R3b merge |
+| R4b | Unbounded agent list with page scroll; project node styling in tree and list (revised direction 11) | R3b merge; parallel with R4a |
 | R3b | Live simulation (revised direction 6): continuous create, work, finish and remove through the event rules, with the observed Agent Tree motion; card presentation pass (harness tag, fold to one line) | R3a |
 | Deferred | Decision Tree, Agent Queue and Delegate Board, Agent Lanes, Agent Graph (formerly R4–R7) | operator decision |
 
