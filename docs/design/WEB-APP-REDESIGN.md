@@ -82,6 +82,13 @@ section conflicts with later sections, this section wins.
    (node rise 360 ms, connector draw 420 ms, leave and retract 280 ms,
    sibling slide 420 ms, all on `cubic-bezier(0.32, 0.72, 0.24, 1)`), and
    is instant under `prefers-reduced-motion`.
+   *Amendment (2026-10-23, coordinating session, after the independent
+   review):* a retired session whose descendants are still live stays in
+   the live tree, compact and labelled "Retired · kept for live work", so
+   live work keeps its recorded parent instead of becoming a labelled
+   root; it leaves once its whole subtree has. Agent counts include live
+   sessions only. With the backend, retirement comes from records, never
+   from a browser timer (wiring report, risk 2).
 
 7. **The overview returns as the sidebar** (operator, after R3a). The
    left panel becomes a compact, detailed dashboard that adapts to its
