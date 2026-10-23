@@ -4,7 +4,7 @@ import {
 } from './data.js';
 import { projectNodeId } from './ancestry.js';
 import { updatePrefs, usePrefs } from './prefs.js';
-import { historyHref, projectHref, sessionHref } from './route.js';
+import { historyHref, projectHref, sessionHref, agentsHref } from './route.js';
 import { TreeView } from './tree.jsx';
 import { ListTree } from './list.jsx';
 import { DetailPanel } from './detail.jsx';
@@ -38,7 +38,7 @@ export function Workspace({ project, sid, highlight }) {
   }, []);
   const pid = project?.id;
   const title = project?.name || 'Portfolio';
-  const base = pid ? projectHref(pid) : '#/';
+  const base = pid ? projectHref(pid) : agentsHref();
   const prefs = usePrefs();
   const narrow = useNarrow();
   const executive = getExecutive();
@@ -72,7 +72,7 @@ export function Workspace({ project, sid, highlight }) {
   return (
     <div class={`workspace ${narrow ? 'narrow' : ''} ${sid ? 'has-detail' : ''}`} data-testid="workspace" data-mode={mode}>
       <div class="toolbar" ref={header} data-testid="tree-header">
-        <h1>{pid && <><a href="#/">Portfolio</a><span class="breadcrumb-separator"> / </span></>}{title}</h1>
+        <h1>{pid && <><a href={agentsHref()}>Portfolio</a><span class="breadcrumb-separator"> / </span></>}{title}</h1>
         <span class="muted" data-testid="agent-summary" aria-live="polite">
           {counts.agents} agents · {counts.running} running
         </span>

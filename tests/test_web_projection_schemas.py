@@ -17,6 +17,7 @@ FIXTURES = ROOT / "web" / "fixtures"
 SCHEMAS = ROOT / "schemas"
 
 FIXTURE_SCHEMAS = {
+    "empty-snapshot.json": "web-projection-snapshot",
     "default-snapshot.json": "web-projection-snapshot",
     "default-details.json": "web-projection-details-fixture",
     "default-events.json": "web-projection-events-fixture",
@@ -73,6 +74,14 @@ class ProjectionSchemaTests(unittest.TestCase):
         for name, schema in FIXTURE_SCHEMAS.items():
             with self.subTest(fixture=name):
                 self.contracts.validate(schema, self.load(name))
+
+    def test_fresh_snapshot_is_empty(self):
+        snapshot = self.load("empty-snapshot.json")
+        self.assertIsNone(snapshot["executive_session_id"])
+        for name in ("projects", "sessions", "assignments", "commitments", "runs", "decisions", "relationships"):
+            self.assertEqual(snapshot[name], [])
+        self.assertEqual(snapshot["activity"], {})
+        self.assertEqual(snapshot["conversations"], {})
 
     def test_session_detail_pages_match_loader(self):
         snapshot = self.load("default-snapshot.json")

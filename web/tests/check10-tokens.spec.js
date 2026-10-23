@@ -23,7 +23,7 @@ const headlineText = (s) => {
 };
 
 test('no dollar figure anywhere on the portfolio', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await expect(page.getByTestId('workspace')).toBeVisible();
   expect(await page.locator('body').innerText()).not.toContain('$');
 });

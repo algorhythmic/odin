@@ -8,7 +8,7 @@ const sidebarProject = (page, id) => page.locator(`[data-testid="sidebar-project
 const edges = (page, kind) => page.locator(`path.${kind}`).evaluateAll((els) => els.map((e) => `${e.dataset.from}>${e.dataset.to}`));
 
 test('one executive, ordered grouping nodes and recorded ancestry through projects', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await expect(page.getByTestId('session-card')).toHaveCount(snapshot.sessions.filter((s) => s.lifecycle !== 'retired').length);
   await expect(page.getByRole('region', { name: 'Agent tree canvas' })).toBeInViewport();
   await expect(card(page, snapshot.executive_session_id).getByRole('button', { name: 'Collapse 4 projects under executive' }))
@@ -35,7 +35,7 @@ test('one executive, ordered grouping nodes and recorded ancestry through projec
 });
 
 test('labelled roots hang from project groupings with no invented ancestry', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await expandCards(page, ['ses-imported-01', 'ses-pin-audit', 'ses-mal-cycle-a', 'ses-mal-cycle-b', 'ses-mal-self']);
   const groups = await edges(page, 'project-edge');
   const ancestry = await edges(page, 'ancestry-edge');
@@ -56,7 +56,7 @@ test('labelled roots hang from project groupings with no invented ancestry', asy
 });
 
 test('sidebar hover and focus highlight a branch without changing geometry', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const target = sidebarProject(page, PID);
   const before = await project(page, PID).boundingBox();
   await target.hover();
@@ -78,7 +78,7 @@ test('sidebar hover and focus highlight a branch without changing geometry', asy
 });
 
 test('scope keeps one project, a compact executive and breadcrumb; session routes still work', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await sidebarProject(page, PID).click();
   await expect(page).toHaveURL(new RegExp(`projects/${PID}$`));
   await expect(page.getByTestId('project-node')).toHaveCount(1);
@@ -90,14 +90,14 @@ test('scope keeps one project, a compact executive and breadcrumb; session route
   await expect(page).toHaveURL(new RegExp(`projects/${PID}/sessions/ses-integ-01$`));
   await expect(page.getByTestId('detail-panel')).toHaveAttribute('data-session-id', 'ses-integ-01');
   await page.getByTestId('tree-header').getByRole('link', { name: 'Portfolio', exact: true }).click();
-  await expect(page).toHaveURL(/#\/$/);
+  await expect(page).toHaveURL(/#\/agents$/);
   await page.goto('/#/sessions/ses-exec-01');
   await expect(card(page, 'ses-exec-01')).toHaveClass(/selected/);
   await expect(page.getByTestId('detail-panel')).toHaveAttribute('data-session-id', 'ses-exec-01');
 });
 
 test('portfolio History reuses the view grouped in snapshot project order', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await page.getByRole('link', { name: 'History', exact: true }).click();
   await expect(page).toHaveURL(/#\/history$/);
   await expect(page.getByTestId('history')).toHaveCount(snapshot.projects.length);
@@ -111,7 +111,7 @@ test('portfolio History reuses the view grouped in snapshot project order', asyn
 
 test('header has one line of controls and no repeated attention summary or removed views', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const header = page.getByTestId('tree-header');
   await expect(header.getByRole('heading', { name: 'Portfolio', exact: true })).toBeVisible();
   await expect(header.getByTestId('agent-summary')).toHaveText('18 agents · 5 running');
@@ -127,7 +127,7 @@ test('header has one line of controls and no repeated attention summary or remov
 });
 
 for (const mode of ['Tree', 'List']) test(`project groupings are keyboard reachable and collapsible in ${mode}`, async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await page.getByRole('button', { name: mode, exact: true }).click();
   if (mode === 'Tree') {
     const node = project(page, PID);
@@ -155,13 +155,13 @@ for (const mode of ['Tree', 'List']) test(`project groupings are keyboard reacha
     await expect(node).toHaveAttribute('aria-expanded', 'false');
     await expect(node).not.toHaveAttribute('aria-selected');
   }
-  await expect(page).toHaveURL(/#\/$/);
+  await expect(page).toHaveURL(/#\/agents$/);
   await expect(page.getByTestId('detail-panel')).toHaveCount(0);
 });
 
 test('800px drawer opens by keyboard, traps focus, closes and scopes on navigation', async ({ page }) => {
   await page.setViewportSize({ width: 800, height: 900 });
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const menu = page.getByRole('button', { name: 'Open menu' });
   const drawer = page.getByRole('dialog', { name: 'Sidebar', exact: true });
   await menu.focus();
@@ -199,7 +199,7 @@ test('portfolio, project and executive totals sum own usage without grouping or 
     if (unknown) text += compactUnknown ? ` + ${unknown} unknown` : ` + unknown (${unknown})`;
     return text;
   };
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await expect(page.getByTestId('project-tokens')).toHaveText(sum(snapshot.sessions, true));
   for (const p of snapshot.projects) {
     await expect(project(page, p.id)).toContainText(sum(snapshot.sessions.filter((s) => s.project_id === p.id)));
@@ -216,7 +216,7 @@ test('portfolio, project and executive totals sum own usage without grouping or 
 });
 
 test('large portfolio starts at project nodes and a deep link reveals its recorded ancestors', async ({ page }) => {
-  await page.goto('/?dataset=large#/');
+  await page.goto('/?dataset=large#/agents');
   await expect(page.getByTestId('session-card')).toHaveCount(1);
   await expect(page.getByTestId('project-node')).toHaveCount(1);
   await expect(page.getByTestId('project-node')).toHaveAttribute('aria-expanded', 'false');

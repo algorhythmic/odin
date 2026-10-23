@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { parseHash, overviewHref } from './route.js';
+import { parseHash, overviewHref, agentsHref } from './route.js';
 import { getProject, useDataVersion } from './data.js';
 import { Sidebar, useSidebarNarrow } from './shell.jsx';
 import { SetupPage } from './setup-page.jsx';
 import { Workspace } from './workspace.jsx';
 import { NotFound } from './notfound.jsx';
+import { Dashboard } from './dashboard.jsx';
+import { useSetup } from './setup-state.jsx';
 import { History } from './history.jsx';
 
 function useRoute() {
@@ -15,6 +17,18 @@ function useRoute() {
     return () => removeEventListener('hashchange', onChange);
   }, []);
   return route;
+}
+
+function AppliedNotice() {
+  const state = useSetup();
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!state.appliedOnce || state.dirty) { setVisible(false); return undefined; }
+    setVisible(true);
+    const timer = setTimeout(() => setVisible(false), 5000);
+    return () => clearTimeout(timer);
+  }, [state.applied, state.appliedOnce, state.dirty]);
+  return visible && <p class="setup-applied dashboard-confirmation" role="status">Applied (synthetic, not saved)</p>;
 }
 
 export function App() {
@@ -41,7 +55,8 @@ export function App() {
   }, []);
   let body;
   const project = route.pid ? getProject(route.pid) : null;
-  if (route.view === 'portfolio') body = <Workspace sid={route.sid} highlight={highlight} />;
+  if (route.view === 'dashboard') body = <Dashboard />;
+  else if (route.view === 'portfolio') body = <Workspace sid={route.sid} highlight={highlight} />;
   else if (route.view === 'setup' || route.view === 'settings') body = <SetupPage step={route.step} section={route.section} />;
   else if (route.view === 'history' && (!route.pid || project)) body = <History project={project} />;
   else if (route.view === 'project' || route.view === 'history') {
@@ -49,10 +64,10 @@ export function App() {
       ? <Workspace key={project.id} project={project} sid={route.sid} />
       : <NotFound title="Project not found"
           message={`No project "${route.pid}" exists in this data set, or you do not have access to it.`}
-          href={overviewHref()} linkText="All projects" />;
+          href={agentsHref()} linkText="All projects" />;
   } else {
     body = <NotFound title="Page not found" message="This address does not match a project or session route."
-      href={overviewHref()} linkText="All projects" />;
+      href={agentsHref()} linkText="All projects" />;
   }
   return (
     <div class="app" ref={appRef}>
@@ -68,6 +83,7 @@ export function App() {
           )}
         </div>
         <main class="content">{body}</main>
+        <AppliedNotice />
       </div>
     </div>
   );

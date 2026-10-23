@@ -13,7 +13,7 @@ import { describeLarge, generateLargeSnapshot, LARGE_SEED, LARGE_SPEC } from '..
 import { visibleSessions } from '../src/simulation.js';
 
 const PID = LARGE_SPEC.projectId;
-const URL = '/?dataset=large#/';
+const URL = '/?dataset=large#/agents';
 const PROJECT = `project:${PID}`;
 const TARGETS = { first_render_ms: 1000, fit_ms: 150, expand_ms: 150, select_ms: 150 };
 const DEEP_PATHS = 3;

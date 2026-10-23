@@ -84,7 +84,7 @@ for (const [i, step] of steps.entries()) test(`setup deep link: ${step}`, async 
 });
 
 test('default setup opens roles from the shared sidebar progress card', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await expect(page.getByTestId('setup-progress-card')).toContainText('Setup 3 of 4');
   await page.getByTestId('setup-progress-card').click();
   await expect(page).toHaveURL(/setup\/roles$/);
@@ -118,7 +118,7 @@ test('shared sign-ins are summarized once above the role table on every role pag
 });
 
 test('snapshot updates stay on portfolio and project trees when navigating through setup and settings', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const driver = page.getByTestId('update-driver');
   await expect(driver).toBeVisible();
   await driver.getByRole('button', { name: 'Apply next synthetic update', exact: true }).click();
@@ -128,7 +128,7 @@ test('snapshot updates stay on portfolio and project trees when navigating throu
     await expect(page).toHaveURL(new RegExp(`${route}$`));
     await expect(driver).toHaveCount(0);
   }
-  for (const route of ['', `projects/${PID}`]) {
+  for (const route of ['agents', `projects/${PID}`]) {
     await page.evaluate((hash) => { location.hash = hash; }, `#/${route}`);
     await expect(page).toHaveURL(new RegExp(`#/${route}$`));
     await expect(driver).toBeVisible();

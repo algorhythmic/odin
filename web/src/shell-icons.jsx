@@ -1,4 +1,7 @@
 const ICONS = {
+  dashboard: <><rect x="2" y="2" width="5" height="5" rx="1" />
+    <rect x="9" y="2" width="5" height="5" rx="1" /><rect x="2" y="9" width="5" height="5" rx="1" />
+    <rect x="9" y="9" width="5" height="5" rx="1" /></>,
   attention: <>
     <path d="M8 2.3 14 13H2Z" />
     <path d="M8 6v3.2m0 1.9v.1" />

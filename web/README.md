@@ -1,6 +1,6 @@
 # Odin web app — synthetic prototype
 
-This directory holds the synthetic Odin web app: a portfolio agent tree
+This directory holds the synthetic Odin web app: a dashboard and portfolio agent tree
 rooted at one executive, project grouping nodes, scoped project trees,
 a detail drawer, a keyboard-navigable list and portfolio/project history.
 **It runs on synthetic data only.** It is not connected to Odin's service,
@@ -33,7 +33,8 @@ npm run preview      # http://127.0.0.1:5318/
 
 Routes are hash based so a static build deep-links without server rewrites:
 
-- `#/`: portfolio tree; `#/sessions/<session>` selects in the full tree.
+- `#/`: dashboard home; `#/agents`: portfolio tree.
+- `#/sessions/<session>` selects in the full tree.
 - `#/projects/<project>`: scoped project tree with a compact executive header.
 - `#/projects/<project>/sessions/<session>`: scoped session selection.
 - `#/history` and `#/projects/<project>/history`: portfolio and project history.
@@ -41,8 +42,9 @@ Routes are hash based so a static build deep-links without server rewrites:
 
 The sidebar connects projects beneath the executive. Hover or keyboard
 focus highlights a project's branch on portfolio routes; clicking scopes
-the tree. The sidebar also lists portfolio attention, activity and usage
-for connected provider sign-ins. Usage stays pinned above setup and settings,
+the tree. The Dashboard entry shows the number of open priority items.
+Portfolio attention and activity live on the dashboard; the sidebar keeps
+usage for connected sign-ins. Usage stays pinned above setup and settings,
 with one compact row per sign-in. Each row shows its most constrained available
 window; its disclosure unfolds per-window details in a bounded scrolling list.
 Disclosure state lasts only in memory, including through sidebar collapse. It resizes from 220 to 440 px by dragging
@@ -90,8 +92,11 @@ for 2,000 seeded project sessions plus one executive, generated in the browser f
 Setup uses its own `fixtures/setup.json`, separate from the projection
 fixtures. The default draft has three of four steps done and opens Roles.
 Add `?setup=fresh` before the hash to start with no connected sign-ins,
-enabled harnesses or completed steps; it can be combined with
-`?dataset=large&setup=fresh`. Sign-in completion is an explicitly labelled
+enabled harnesses or completed steps and an empty portfolio from
+`fixtures/empty-snapshot.json`. Fresh setup takes precedence over `dataset=large`.
+Home shows a welcome checklist until a sign-in connects; partial setup leads the
+priority queue. Apply removes that item and shows a five-second confirmation,
+without opening a modal. Sign-in completion is an explicitly labelled
 simulation. No field accepts a credential, and no sign-in request leaves
 the browser. Disconnect removes a sign-in from the draft; Discard restores
 the applied snapshot. The model speed/depth bars are synthetic descriptors.
@@ -114,8 +119,10 @@ applies no configuration to the service. The executive must use Claude Code;
 roles need enabled harnesses and connected sign-ins. Same-family independent
 review is allowed with a warning; shared-lineage capacity is informational.
 
-On tree pages the bar above the header is a synthetic update driver: "Apply next
-synthetic update" applies the next event from
+The dashboard has a small Synthetic data · Play/Pause control. It shares playback
+with the tree; navigating between them preserves the current projection.
+On tree pages the compact synthetic update driver includes "Apply next
+synthetic update", which applies the next event from
 `fixtures/default-events.json` to the loaded snapshot and reports
 whether it was applied, a duplicate, a revision gap or rejected. Play
 and a speed selector (0.5×/1×/2×/4×) apply the same queue on a timer so
@@ -185,6 +192,11 @@ is set. Specs are named after the handoff acceptance checks they cover
 continuous playback, lifecycle removal/history, presence motion, pause/speed,
 seed replay and reduced motion. `tests-unit/simulation.test.js` validates
 2,000 generated steps, identity, running parents, outcomes, usage and bounds.
+`check23-dashboard.spec.js` covers dashboard routes, priorities, filters, KPI
+totals, projects, running sessions, live activity, container layouts, first use,
+confirmation and reduced motion. `tests-unit/dashboard.test.js` checks the pure
+queue and summary rules. The draft projection currently carries no harness field;
+the running table explicitly shows "Harness unknown" for these records.
 All coverage is synthetic; checks
 2, 3 and 8 are partial.
 
@@ -207,12 +219,15 @@ not service or desktop measurements.
 
 | Path | Purpose |
 |---|---|
+| `fixtures/empty-snapshot.json` | Empty draft projection for fresh setup |
 | `fixtures/default-*.json` | Shared synthetic projection fixtures: snapshot, session details, update events ([draft shape](../docs/design/WEB-APP-PROJECTION.md)) |
 | `src/fixtures/synthetic.js`, `src/fixtures/large.js` | Fixture loading and paged detail requests; seeded large-dataset generator |
 | `src/data.js`, `src/ancestry.js` | Versioned store over the snapshot: views, ancestry analysis (cycles, outside parents), indexes by session and assignment; the autoplay timers |
 | `fixtures/setup.json` | Separate synthetic setup catalogue, presets and initial draft |
 | `src/setup.js` | Browser-independent setup store, validation, apply and discard |
 | `src/setup-state.jsx`, `src/setup-page.jsx`, `src/setup-panels.jsx` | Setup subscription, wizard, shared settings panels and progress cards |
+| `src/dashboard.jsx`, `src/dashboard.js` | Dashboard and welcome; pure priority, KPI, project and activity projections |
+| `src/tokens.js` | Shared pure token rules, re-exported by the data store |
 | `src/events.js` | Update-event rules (pure; unit-tested in `tests-unit/`) |
 | `src/live.js` | Autoplay scheduling, driver availability/population and header counts (pure; unit-tested) |
 | `src/simulation.js` | Seeded continuous synthetic events; bounded live population and step-based retirement |
@@ -220,7 +235,7 @@ not service or desktop measurements.
 | `src/driver.jsx`, `src/history.jsx` | Synthetic update driver bar; project history |
 | `src/route.js`, `src/prefs.js` | Hash routes; layout preferences (`odin-web-prefs:v1` in localStorage): view mode, collapsed branches, relationship overlay, colour theme, sidebar width/collapse |
 | `src/models.js`, `src/status.jsx` | Friendly model names and providers; the status chip, provider monogram and tool icons |
-| `src/shell.jsx`, `src/usage.jsx`, `src/usage.js` | Sidebar dashboard, rail, resize controls and pure admission-band helpers |
+| `src/shell.jsx`, `src/usage.jsx`, `src/usage.js` | Sidebar branch, rail, resize controls and pure admission-band helpers |
 | `src/workspace.jsx` | Portfolio and scoped project workspace |
 | `src/tree-layout.js` | Pure adaptive layout, recorded-edge geometry and clear relationship label routing |
 | `src/tree.jsx`, `src/card.jsx`, `src/project-node.jsx` | Canvas fit, pointer/keyboard gestures, SVG layers, session cards and project groupings |

@@ -36,7 +36,7 @@ test('tampered layout preferences are ignored rather than breaking the app', asy
 });
 
 test('the built app has no websocket allowance in its CSP', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
   expect(csp).toContain("script-src 'self'");
   expect(csp).not.toContain('ws:');

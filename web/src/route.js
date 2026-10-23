@@ -6,7 +6,8 @@ export function parseHash(hash) {
   const parts = (hash || '').replace(/^#\/?/, '').split('/').filter(Boolean).map((p) => {
     try { return decodeURIComponent(p); } catch { return p; }
   });
-  if (parts.length === 0) return { view: 'portfolio', sid: null };
+  if (parts.length === 0) return { view: 'dashboard' };
+  if (parts[0] === 'agents' && parts.length === 1) return { view: 'portfolio', sid: null };
   if (parts[0] === 'history' && parts.length === 1) return { view: 'history' };
   if (parts[0] === 'sessions' && parts[1] && parts.length === 2) return { view: 'portfolio', sid: parts[1] };
   if (parts[0] === 'setup') {
@@ -27,6 +28,7 @@ export function parseHash(hash) {
   return { view: 'unknown' };
 }
 
+export const agentsHref = () => '#/agents';
 export const overviewHref = () => '#/';
 export const projectHref = (pid) => `#/projects/${encodeURIComponent(pid)}`;
 export const historyHref = (pid) => pid ? `${projectHref(pid)}/history` : '#/history';

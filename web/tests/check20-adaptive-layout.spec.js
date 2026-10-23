@@ -27,7 +27,7 @@ const settled = (p) => expect.poll(() => p.evaluate(async () => {
 for (const [width, height] of [[1440, 900], [1100, 800], [800, 1000]]) {
   test(`portfolio uses three or more card columns at ${width}x${height}`, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await page.goto('/#/');
+    await page.goto('/#/agents');
     await settled(page);
     const columns = await page.locator('.card').evaluateAll((els) =>
       Math.max(...els.map((el) => els.filter((c) => c.offsetTop === el.offsetTop).length)));
@@ -49,7 +49,7 @@ test('a tree that fits is visible in full without scrolling', async ({ page }) =
 });
 
 test('card toggles are keyboard reachable, separate from branches, and persist with validated values', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const exec = card(page, 'ses-exec-01');
   const original = await geometry(page);
   const collapse = exec.getByRole('button', { name: 'Collapse card', exact: true });
@@ -87,7 +87,7 @@ test('card toggles are keyboard reachable, separate from branches, and persist w
 });
 
 test('compact terminal cards retain status and own usage, and selection opens details without expansion', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   for (const [id, state, tokens] of [
     ['ses-worker-a1', 'Failed', '14.3k tok'], ['ses-worker-a2', 'Done', 'est. 18.7k tok'],
     ['ses-review-integ', 'Idle', '2.0k tok'],
@@ -106,7 +106,7 @@ test('compact terminal cards retain status and own usage, and selection opens de
 });
 
 test('a lifecycle completion resizes and rearranges unless the user overrode that session', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const apply = page.getByRole('button', { name: 'Apply next synthetic update' });
   const events = eventFile.events;
   const start = events.findIndex((e) => e.event_id === 'evt-014');
@@ -131,7 +131,7 @@ test('a lifecycle completion resizes and rearranges unless the user overrode tha
 
 test('sidebar and drawer changes rearrange while preserving manual zoom and the selected anchor', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 800 });
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await settled(page);
   const first = await geometry(page);
   await page.getByRole('button', { name: 'Collapse sidebar', exact: true }).click();
@@ -170,7 +170,7 @@ test('sidebar and drawer changes rearrange while preserving manual zoom and the 
 });
 
 test('grouping uses violet and all layout and size motion stops under reduced motion', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const group = await page.locator('.project-edge').first().evaluate((el) => getComputedStyle(el).stroke);
   expect(group).toBe('rgb(163, 148, 224)');
   expect(await page.locator('.ancestry-edge').first().evaluate((el) => getComputedStyle(el).stroke)).not.toBe(group);

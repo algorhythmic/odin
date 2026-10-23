@@ -79,7 +79,7 @@ async function checkAccentConfined(page) {
 }
 
 test('colour rules hold in the dark default theme', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   expect(await theme(page)).toBe('dark');
   const warn = await checkBadge(page);
   expect(warn).toBe('rgb(194, 163, 110)');
@@ -89,7 +89,7 @@ test('colour rules hold in the dark default theme', async ({ page }) => {
 });
 
 test('colour rules hold in the light theme', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const toggle = page.getByTestId('theme-toggle');
   await toggle.click();
   expect(await theme(page)).toBe('light');
@@ -103,7 +103,7 @@ test('colour rules hold in the light theme', async ({ page }) => {
 
 async function checkGrouping(page) {
   // The portfolio always has grouping connectors, even after imported roots retire.
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const group = await resolveToken(page, '--group');
   const canvas = await resolveToken(page, '--canvas');
   const luminance = (rgb) => {

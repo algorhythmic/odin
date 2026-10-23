@@ -64,7 +64,7 @@ test('a delivered session fades in and its connector draws in', async ({ page })
 });
 
 test('running sessions tick elapsed each second and the Running chip spins', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const elapsed = card(page, 'ses-exec-01').getByTestId('elapsed');
   await expect(elapsed).toHaveText('2h 34m 00s');
   // Nothing ticks while the player is stopped.
@@ -260,7 +260,7 @@ test.describe('reduced motion', () => {
   test.use({ reducedMotion: 'reduce' });
 
   test('new sessions, connectors and the spinner are instant under prefers-reduced-motion', async ({ page }) => {
-    await page.goto('/#/');
+    await page.goto('/#/agents');
     await speed(page).selectOption('4');
     await toggle(page).click();
     await page.clock.runFor(600); // evt-001, evt-002

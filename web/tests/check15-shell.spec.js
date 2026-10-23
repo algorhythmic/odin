@@ -5,7 +5,7 @@ import { PID, snapshot, shot } from './helpers.js';
 const sidebar = (page) => page.getByRole('complementary', { name: 'Sidebar', exact: true });
 
 test('sidebar lists the executive, project branch, Setup and Settings', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const nav = sidebar(page).getByRole('navigation', { name: 'Primary' });
   await expect(page.getByTestId('sidebar-executive')).toHaveAttribute('aria-current', 'page');
   for (const project of snapshot.projects) {
@@ -65,7 +65,7 @@ for (const view of ['queue', 'lanes', 'graph', 'decisions', 'board']) {
 }
 
 test('Setup progress links to the wizard and Settings has its own section tabs', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await page.getByTestId('setup-progress-card').click();
   await expect(page).toHaveURL(/setup\/roles$/);
   for (const step of ['providers', 'harnesses', 'models', 'roles', 'review']) {

@@ -1,0 +1,18 @@
+{
+  "schema": "odin.web.projection.snapshot/v0-draft",
+  "synthetic": true,
+  "dataset": "empty",
+  "revision": 0,
+  "cursor": "cur-empty-0000",
+  "generated_at": "2026-10-21T10:45:00Z",
+  "projects": [],
+  "commitments": [],
+  "assignments": [],
+  "runs": [],
+  "sessions": [],
+  "relationships": [],
+  "decisions": [],
+  "conversations": {},
+  "activity": {},
+  "executive_session_id": null
+}

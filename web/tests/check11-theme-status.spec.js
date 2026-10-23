@@ -16,7 +16,7 @@ test.describe('theme', () => {
   test.use({ colorScheme: 'light' });
 
   test('dark theme is the default whatever the system prefers', async ({ page }) => {
-    await page.goto('/#/');
+    await page.goto('/#/agents');
     await expect(page.getByTestId('session-card').first()).toBeVisible();
     expect(await theme(page)).toBe('dark');
     expect(await bodyBg(page)).toBe('rgb(16, 20, 25)');
@@ -25,7 +25,7 @@ test.describe('theme', () => {
   });
 
   test('the toggle switches theme and persists it across reload', async ({ page }) => {
-    await page.goto('/#/');
+    await page.goto('/#/agents');
     const toggle = page.getByTestId('theme-toggle');
     await expect(toggle).toHaveText('Theme: Dark');
     await expect(toggle).toHaveAttribute('aria-pressed', 'false');
@@ -49,7 +49,7 @@ test.describe('theme', () => {
   });
 
   test('an unknown stored theme falls back to dark', async ({ page }) => {
-    await page.goto('/#/');
+    await page.goto('/#/agents');
     await page.evaluate(() => {
       localStorage.setItem('odin-web-prefs:v1', JSON.stringify({ theme: 'neon', mode: 'tree' }));
     });
@@ -62,7 +62,7 @@ test.describe('theme', () => {
 
 test('a quiet synthetic badge in the header replaces the banner on every view', async ({ page }) => {
   const badge = page.getByTestId('synthetic-badge');
-  for (const hash of ['#/', `#/projects/${PID}`, `#/projects/${PID}/history`]) {
+  for (const hash of ['#/agents', `#/projects/${PID}`, `#/projects/${PID}/history`]) {
     await page.goto(`/${hash}`);
     await expect(badge).toBeVisible();
     await expect(badge).toHaveText('Synthetic data');
@@ -73,7 +73,7 @@ test('a quiet synthetic badge in the header replaces the banner on every view', 
 });
 
 test('every status renders its label and icon on the card', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const cases = [
     ['ses-exec-01', 'Running', 'status-icon-spinner'],
     ['ses-review-exec', 'Needs you', 'status-icon-clock'],
@@ -96,7 +96,7 @@ test('every status renders its label and icon on the card', async ({ page }) => 
 });
 
 test('retired sessions stay inspectable and superseded live attempts are dimmed', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   for (const id of ['ses-worker-a1']) {
     await expect(card(page, id)).toHaveAttribute('data-dimmed', 'true');
     const opacity = await card(page, id).evaluate((el) => Number(getComputedStyle(el).opacity));
@@ -111,7 +111,7 @@ test('retired sessions stay inspectable and superseded live attempts are dimmed'
 });
 
 test('cards show a provider monogram and a friendly model name', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await expandCards(page, ['ses-worker-a1', 'ses-worker-a2', 'ses-helper-01', 'ses-ops-01', 'ses-review-integ', 'ses-imported-01']);
   const expected = new Map(snapshot.sessions.filter((s) => s.project_id === PID && s.lifecycle !== 'retired').map((s) => [s.id, s.model]));
   const names = {
@@ -132,7 +132,7 @@ test('cards show a provider monogram and a friendly model name', async ({ page }
 });
 
 test('the task text wraps to two lines instead of truncating to one', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const task = card(page, 'ses-exec-01').getByTestId('task-text');
   await expect(task).toBeVisible();
   const style = await task.evaluate((el) => {

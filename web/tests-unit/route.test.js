@@ -2,12 +2,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  parseHash, overviewHref, projectHref, historyHref, sessionHref,
+  parseHash, agentsHref, overviewHref, projectHref, historyHref, sessionHref,
   setupHref, settingsHref, SETUP_STEPS, SETTINGS_SECTIONS,
 } from '../src/route.js';
 
 test('existing routes keep their shapes and hrefs', () => {
-  for (const hash of ['', '#', '#/', undefined]) assert.deepEqual(parseHash(hash), { view: 'portfolio', sid: null });
+  for (const hash of ['', '#', '#/', undefined]) assert.deepEqual(parseHash(hash), { view: 'dashboard' });
+  assert.deepEqual(parseHash(agentsHref()), { view: 'portfolio', sid: null });
+  assert.equal(agentsHref(), '#/agents');
   assert.equal(overviewHref(), '#/');
   assert.equal(projectHref('p'), '#/projects/p');
   assert.equal(historyHref('p'), '#/projects/p/history');
@@ -50,7 +52,8 @@ test('project and session identifiers are encoded separately and decoded once', 
 
 test('unknown and incomplete routes are not found', () => {
   for (const hash of [
-    '#/sessions', '#/sessions/s/extra', '#/history/extra', '#/missing', '#/projects', '#/projects/p/tree', '#/projects/p/unknown',
+    '#/agents/extra', '#/agents/sessions/s', '#/sessions', '#/sessions/s/extra', '#/history/extra',
+    '#/missing', '#/projects', '#/projects/p/tree', '#/projects/p/unknown',
     '#/projects/p/queue/sessions', '#/projects/p/queue/sessions/s/extra',
     '#/projects/p/sessions', '#/projects/p/sessions/s/extra', '#/projects/p/history/sessions/s',
     '#/setup/unknown', '#/setup/providers/extra', '#/settings', '#/settings/review',

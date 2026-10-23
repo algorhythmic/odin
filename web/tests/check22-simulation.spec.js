@@ -8,7 +8,7 @@ const revision = (p) => p.getByTestId('revision');
 const status = (p) => p.getByTestId('update-status');
 const next = (p) => p.getByRole('button', { name: 'Apply next synthetic update' }).click();
 const generated = 'ses-sim-mvl79i-1';
-const drain = async (page, url = '/#/') => {
+const drain = async (page, url = '/#/agents') => {
   await page.goto(url);
   await page.reload();
   await page.clock.runFor(100);
@@ -118,7 +118,7 @@ test('the list also animates a delivered retirement before removing its row', as
 
 test('two runs produce the same first 20 generated deliveries and seed overrides vary them', async ({ page }) => {
   const run = async (query = '') => {
-    await drain(page, `/${query}#/`);
+    await drain(page, `/${query}#/agents`);
     await toggle(page).click();
     const deliveries = [];
     for (let i = 0; i < 20; i++) {

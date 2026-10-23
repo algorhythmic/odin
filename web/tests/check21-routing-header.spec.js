@@ -51,7 +51,7 @@ for (const [width, height] of [[1440, 900], [1100, 800], [800, 1000]]) {
   for (const scoped of [false, true]) test(`clear DOM routing: ${scoped ? 'project' : 'portfolio'} ${width}x${height}`,
     async ({ page }) => {
       await page.setViewportSize({ width, height });
-      await page.goto(scoped ? `/#/projects/${PID}` : '/#/');
+      await page.goto(scoped ? `/#/projects/${PID}` : '/#/agents');
       await key(page).click();
       await all(page).check();
       await expect(lines(page)).toHaveCount(4);
@@ -76,7 +76,7 @@ for (const [width, height] of [[1440, 900], [1100, 800], [800, 1000]]) {
 }
 
 test('expanded generated project also clears rendered cards', async ({ page }) => {
-  await page.goto('/?dataset=large#/');
+  await page.goto('/?dataset=large#/agents');
   await page.getByTestId('project-node').click();
   await key(page).click();
   await all(page).check();
@@ -91,7 +91,7 @@ test('expanded generated project also clears rendered cards', async ({ page }) =
 });
 
 test('relationships follow hover, keyboard focus and selection, with both endpoints highlighted', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await expect(lines(page)).toHaveCount(0);
   await card(page, 'ses-review-exec').hover();
   await expect(lines(page)).toHaveCount(1);
@@ -115,7 +115,7 @@ test('relationships follow hover, keyboard focus and selection, with both endpoi
 });
 
 test('project title, counts and tokens have separate unclipped measured rows', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await settled(page);
   const failures = await page.getByTestId('project-node').evaluateAll((nodes) => nodes.flatMap((node) => {
     const parent = node.getBoundingClientRect();
@@ -129,7 +129,7 @@ test('project title, counts and tokens have separate unclipped measured rows', a
 
 for (const scoped of [false, true]) test(`compact header and key preferences: ${scoped ? 'project' : 'portfolio'}`,
   async ({ page }) => {
-    await page.goto(scoped ? `/#/projects/${PID}` : '/#/');
+    await page.goto(scoped ? `/#/projects/${PID}` : '/#/agents');
     await expect(key(page)).toHaveAttribute('aria-expanded', 'false');
     await expect(page.locator('.legend-row')).toHaveCount(0);
     expect((await page.getByTestId('tree-header').boundingBox()).height).toBeLessThanOrEqual(56);
@@ -160,7 +160,7 @@ for (const scoped of [false, true]) test(`compact header and key preferences: ${
 
 test('compact synthetic driver plays, pauses, changes speed, applies and announces results', async ({ page }) => {
   await page.clock.install();
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const driver = page.getByTestId('update-driver');
   expect((await driver.boundingBox()).height).toBeLessThanOrEqual(44);
   await driver.getByRole('button', { name: 'Play', exact: true }).click();
@@ -182,7 +182,7 @@ test('breadcrumb returns to portfolio and the scoped executive shows its work an
   await page.goto(`/#/projects/${PID}`);
   const header = page.getByTestId('tree-header');
   await expect(header.getByRole('heading')).toHaveText('Portfolio / Odin web app (synthetic)');
-  await expect(header.getByRole('link', { name: 'Portfolio', exact: true })).toHaveAttribute('href', '#/');
+  await expect(header.getByRole('link', { name: 'Portfolio', exact: true })).toHaveAttribute('href', '#/agents');
   const executive = card(page, snapshot.executive_session_id);
   await expect(executive).toContainText('executive');
   await expect(executive).toContainText('Fable 5.1');
@@ -196,5 +196,5 @@ test('breadcrumb returns to portfolio and the scoped executive shows its work an
   await expect(executive).toHaveClass(/selected/);
   await expect(page.getByTestId('detail-panel')).toHaveAttribute('data-session-id', snapshot.executive_session_id);
   await header.getByRole('link', { name: 'Portfolio', exact: true }).click();
-  await expect(page).toHaveURL(/#\/$/);
+  await expect(page).toHaveURL(/#\/agents$/);
 });

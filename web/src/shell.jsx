@@ -1,15 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import {
-  cardElapsed, failedSessions, getExecutive, getProjects, isSynthetic, needsYouSessions,
-  projectStatus, projectSummary, projectSum, sessionStatus, sessionsFor,
+  cardElapsed, getSnapshot, getExecutive, getProjects, isSynthetic,
+  projectStatus, projectSummary, sessionStatus, sessionsFor,
 } from './data.js';
-import { overviewHref, projectHref, sessionHref, setupHref, settingsHref } from './route.js';
+import { overviewHref, agentsHref, projectHref, setupHref, settingsHref } from './route.js';
 import { friendlyModelName } from './models.js';
 import { clampSidebarWidth, SIDEBAR_MIN, SIDEBAR_MAX, updatePrefs, usePrefs } from './prefs.js';
 import { SetupProgressCard } from './setup-page.jsx';
 import { useSetup } from './setup-state.jsx';
-import { SidebarAttention } from './attention.jsx';
-import { TokenCount, TokenSum } from './tokencount.jsx';
+import { priorityItems } from './dashboard.js';
+import { TokenCount } from './tokencount.jsx';
 import { ShellIcon } from './shell-icons.jsx';
 import { UsageMeters } from './usage.jsx';
 import { bandLabel, connectedUsage, worstBand } from './usage.js';
@@ -50,20 +50,6 @@ function ProjectBar({ pid }) {
   </span>;
 }
 
-function Activity() {
-  const list = sessionsFor();
-  const ended = list.filter((s) => ['ended', 'retired'].includes(s.lifecycle)).length;
-  return <section class="sidebar-activity" aria-label="Activity" data-testid="sidebar-activity">
-    <h2>Activity</h2>
-    <div class="activity-values">
-      <span><strong>{projectSummary().running}</strong> running</span>
-      <span title="Ended or retired in the snapshot"><strong>{ended}</strong> ended
-        <span class="sidebar-detail"> in snapshot</span></span>
-      <TokenSum sum={projectSum()} compactUnknown />
-    </div>
-  </section>;
-}
-
 export function Sidebar({ route, narrow, open, onClose, onHighlight }) {
   const dialogRef = useRef(null);
   const prefs = usePrefs();
@@ -74,7 +60,7 @@ export function Sidebar({ route, narrow, open, onClose, onHighlight }) {
   const lineages = connectedUsage(setup);
   const ceilings = setup.catalogue.usage?.band_ceilings;
   const worst = worstBand(lineages, ceilings);
-  const attentionTarget = needsYouSessions()[0] || failedSessions()[0];
+  const priorityCount = priorityItems(getSnapshot(), setup).length;
   const hovered = useRef(null);
   const focused = useRef(null);
   const highlight = () => onHighlight(route.view === 'portfolio' ? hovered.current || focused.current : null);
@@ -108,7 +94,14 @@ export function Sidebar({ route, narrow, open, onClose, onHighlight }) {
     </div>
     <nav class="sidebar-nav" aria-label="Primary" onClick={(e) => { if (narrow && e.target.closest('a')) onClose(); }}>
       <div class="sidebar-scroll">
-        <a class="sidebar-executive" href={overviewHref()} data-testid="sidebar-executive"
+        <a class="sidebar-dashboard" href={overviewHref()} data-testid="sidebar-dashboard"
+          aria-label={`Dashboard, ${priorityCount} items need attention`}
+          title={`Dashboard, ${priorityCount} items need attention`}
+          aria-current={route.view === 'dashboard' ? 'page' : undefined}>
+          <ShellIcon name="dashboard" />{!collapsed && <><span>Dashboard</span>
+            <span class="dashboard-badge">{priorityCount}</span></>}
+        </a>
+        <a class="sidebar-executive" href={agentsHref()} data-testid="sidebar-executive"
           aria-label={collapsed ? `Executive · ${executiveStatus?.label || 'unavailable'}` : undefined}
           title={collapsed ? `Executive · ${executiveStatus?.label || 'unavailable'}` : undefined}
           aria-current={route.view === 'portfolio' ? 'page' : undefined}>
@@ -117,8 +110,9 @@ export function Sidebar({ route, narrow, open, onClose, onHighlight }) {
             {!collapsed && <span class="executive-label"><strong>{executive.role}</strong>
               <small>{friendlyModelName(executive.model)}</small>
               <small class="sidebar-detail"><TokenCount tokens={executive.tokens} /> · {cardElapsed(executive)}</small></span>}
-          </> : !collapsed && <span>Portfolio · Executive unavailable</span>}
+          </> : !collapsed && <span>No executive yet</span>}
         </a>
+        {!getProjects().length && !collapsed && <p class="sidebar-empty">No projects yet</p>}
         <ul class="sidebar-branch">
           {getProjects().map((project) => {
             const status = projectStatus(project.id);
@@ -142,17 +136,11 @@ export function Sidebar({ route, narrow, open, onClose, onHighlight }) {
             </li>;
           })}
         </ul>
-        {collapsed ? <div class="sidebar-rail-indicators">
-          {!!attentionTarget && <a href={sessionHref(undefined, attentionTarget.id)} class="rail-attention"
-            aria-label="Attention: operator attention needed" title="Attention: operator attention needed">
-            <ShellIcon name="attention" /></a>}
+        {collapsed && <div class="sidebar-rail-indicators">
           <a href={settingsHref('providers')} class={`rail-usage usage-band band-${worst || 'unknown'}`}
             aria-label={`Usage: ${bandLabel(worst) || 'unavailable'}`} title={`Usage: ${bandLabel(worst) || 'unavailable'}`}>
             <ShellIcon name="usage" /></a>
-        </div> : <>
-          <SidebarAttention />
-          <Activity />
-        </>}
+        </div>}
       </div>
       <footer class="sidebar-footer">
         <UsageMeters lineages={lineages} ceilings={ceilings} hidden={collapsed} />

@@ -188,9 +188,6 @@ export function SetupPage({ step, section }) {
             </PanelMotion>
             {!section && <StepActions state={state} current={current} advance={advance} />}
           </div>
-          {state.appliedOnce && !state.dirty && (
-            <p class="setup-applied" role="status"><Check done />Applied (synthetic, not saved)</p>
-          )}
           {section && state.dirty && <SaveBar state={state} />}
         </div>
         {!section && <Checklist state={state} step={current} />}

@@ -1,7 +1,6 @@
 // R3c coverage is synthetic prototype evidence, including the W3a sample display.
 import { test, expect } from '@playwright/test';
-import { snapshot, PID, shot } from './helpers.js';
-import { generateLargeSnapshot } from '../src/fixtures/large.js';
+import { PID, shot } from './helpers.js';
 const panel = (page) => page.locator('#app-sidebar');
 const handle = (page) => page.getByRole('separator', { name: 'Sidebar width' });
 const meter = (page, id) => page.locator(`[data-testid="usage-meter"][data-lineage-id="${id}"]`);
@@ -15,73 +14,8 @@ async function resizeKey(page, key, expected) {
   await expect(handle(page)).toHaveAttribute('aria-valuenow', `${expected}`);
   await expect.poll(() => width(page)).toBe(expected);
 }
-function expectedTokens(sessions) {
-  const known = sessions.filter((s) => s.tokens.basis !== 'unknown');
-  const n = known.reduce((a, s) => a + s.tokens.uncached_input + s.tokens.cache_write + s.tokens.output, 0);
-  const count = n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`;
-  const prefix = known.some((s) => s.tokens.basis === 'estimate') ? 'est. ' : '';
-  return `${prefix}${count} tok + ${sessions.length - known.length} unknown`;
-}
-
-test('attention links include role, project, clamped task and reason across the portfolio', async ({ page }) => {
-  await page.goto('/#/');
-  const attention = page.getByTestId('sidebar-attention');
-  await expect(attention.getByRole('heading', { name: 'Needs you', exact: true })).toHaveCount(1);
-  const list = attention.getByTestId('sidebar-attention-item');
-  await expect(list).toHaveCount(3);
-  for (const id of ['ses-review-exec', 'ses-pin-worker', 'ses-worker-a1']) {
-    const s = snapshot.sessions.find((s) => s.id === id);
-    const item = attention.locator(`[data-attention-session="${id}"]`);
-    await expect(item).toContainText(s.role);
-    await expect(item).toContainText(snapshot.projects.find((p) => p.id === s.project_id).name);
-    const a = snapshot.assignments.find((a) => a.id === s.assignment_id);
-    await expect(item.locator('.sidebar-attention-task')).toHaveText(a.summary);
-    expect(await item.locator('.sidebar-attention-task').evaluate((el) => getComputedStyle(el).textOverflow)).toBe('ellipsis');
-    await expect(item.getByRole('link')).toHaveAttribute('href', `#/sessions/${id}`);
-  }
-  await expect(attention).toContainText('Waiting for operator input');
-  await expect(attention).toContainText('Run recorded failed');
-  await attention.locator('[data-attention-session="ses-pin-worker"] a').click();
-  await expect(page.getByTestId('detail-panel')).toHaveAttribute('data-session-id', 'ses-pin-worker');
-});
-
-test('each attention group expands +N more in place and can fold again', async ({ page }) => {
-  await page.goto('/?dataset=large#/');
-  const large = generateLargeSnapshot();
-  const failed = new Set(large.runs.filter((r) => r.outcome === 'failed').map((r) => r.session_id));
-  const counts = {
-    'Needs you': large.sessions.filter((s) => s.lifecycle === 'waiting_for_input' || s.needs_operator_input).length,
-    Failed: large.sessions.filter((s) => s.lifecycle === 'ended' && failed.has(s.id)).length,
-  };
-  for (const [name, count] of Object.entries(counts)) {
-    const group = page.getByTestId('sidebar-attention').getByRole('region', { name, exact: true });
-    if (!count) { await expect(group).toHaveCount(0); continue; }
-    await expect(group.getByTestId('sidebar-attention-item')).toHaveCount(3);
-    const more = group.getByRole('button', { name: `+${count - 3} more`, exact: true });
-    await expect(more).toHaveAttribute('aria-expanded', 'false');
-    await more.click();
-    await expect(group.getByTestId('sidebar-attention-item')).toHaveCount(count);
-    await expect(page).toHaveURL(/#\/$/);
-    await group.getByRole('button', { name: 'Show less' }).click();
-    await expect(group.getByTestId('sidebar-attention-item')).toHaveCount(3);
-  }
-});
-
-test('activity totals count own tokens once, exclude cache reads and retain unknowns', async ({ page }) => {
-  for (const [url, data] of [['/#/', snapshot], ['/?dataset=large#/', generateLargeSnapshot()]]) {
-    await page.goto(url);
-    const activity = page.getByTestId('sidebar-activity');
-    const running = data.sessions.filter((s) => s.lifecycle === 'running').length;
-    const ended = data.sessions.filter((s) => ['ended', 'retired'].includes(s.lifecycle)).length;
-    await expect(activity).toContainText(`${running} running`);
-    await expect(activity).toContainText(`${ended} ended`);
-    await expect(activity).toContainText(expectedTokens(data.sessions));
-    await expect(activity).not.toContainText(/needs you|failed|0 tok/);
-  }
-});
-
 test('usage shows exact bands, thresholds, reset intervals, monograms and explicit unavailable probes', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await expect(page.getByTestId('usage-meter')).toHaveCount(3);
   const executive = meter(page, 'executive-login');
   await expect(executive.getByRole('img', { name: 'Anthropic' })).toBeVisible();
@@ -149,7 +83,7 @@ test('meters follow setup connection, disconnect, label edits and discard; new l
 });
 
 test('collapse and keyboard expand free space, retain rail tooltips and project highlighting', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const before = await page.locator('.page').boundingBox();
   await expect(collapse(page)).toHaveAttribute('aria-expanded', 'true');
   await expect(collapse(page)).toHaveAttribute('aria-controls', 'app-sidebar');
@@ -159,14 +93,14 @@ test('collapse and keyboard expand free space, retain rail tooltips and project 
   const after = await page.locator('.page').boundingBox();
   expect(after.width - before.width).toBe(264);
   expect(after.x).toBe(56);
-  const labels = ['Odin', 'Executive · Running', 'Attention: operator attention needed', 'Usage: ordinary stop',
+  const labels = ['Odin', 'Executive · Running', 'Dashboard, 9 items need attention', 'Usage: ordinary stop',
     'Setup', 'Settings', 'Theme: Dark', 'Expand sidebar'];
   for (const label of labels) {
     const el = panel(page).getByLabel(label, { exact: true });
     await expect(el).toHaveAttribute('title', new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     await expect(el).toBeVisible();
   }
-  for (const label of ['Attention: operator attention needed', 'Usage: ordinary stop', 'Setup', 'Settings', 'Theme: Dark']) {
+  for (const label of ['Dashboard, 9 items need attention', 'Usage: ordinary stop', 'Setup', 'Settings', 'Theme: Dark']) {
     const icon = panel(page).getByLabel(label, { exact: true }).locator('svg.shell-icon');
     await expect(icon).toHaveCount(1);
     await expect(icon).toHaveAttribute('aria-hidden', 'true');
@@ -194,7 +128,7 @@ test('collapse and keyboard expand free space, retain rail tooltips and project 
 });
 
 test('keyboard resize clamps to 220–440 and container queries reveal details by panel width', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await expect(handle(page)).toHaveAttribute('aria-orientation', 'vertical');
   await expect(handle(page)).toHaveAttribute('aria-valuemin', '220');
   await expect(handle(page)).toHaveAttribute('aria-valuemax', '440');
@@ -208,20 +142,18 @@ test('keyboard resize clamps to 220–440 and container queries reveal details b
   for (const entry of await bottom.locator('a, button').all()) {
     expect(await entry.evaluate((el) => getComputedStyle(el).whiteSpace)).toBe('nowrap');
   }
-  expect(await panel(page).locator('.activity-values').evaluate((el) => getComputedStyle(el).display)).toBe('flex');
   await expect(panel(page).locator('.executive-label > .sidebar-detail')).not.toBeVisible();
   await resizeKey(page, 'End', 440);
   await resizeKey(page, 'ArrowRight', 440);
   await expect(bar).toBeVisible();
   await expect(bar).toHaveAttribute('aria-label', /\d+ running, \d+ needs you, \d+ failed, \d+ done/);
   await expect(panel(page).locator('.executive-label > .sidebar-detail')).toContainText(/tok.*\d+m/);
-  expect(await panel(page).locator('.activity-values').evaluate((el) => getComputedStyle(el).display)).toBe('grid');
   await resizeKey(page, 'ArrowLeft', 424);
   await shot(page, 'sidebar-dashboard-wide');
 });
 
 test('pointer resize tracks movement, clamps both ends and preserves width through collapse and reload', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const box = await handle(page).boundingBox();
   await page.mouse.move(box.x + box.width / 2, 200);
   await page.mouse.down();
@@ -249,7 +181,7 @@ test('pointer resize tracks movement, clamps both ends and preserves width throu
 });
 
 test('invalid persisted widths and collapse values fall back without losing other preferences', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   for (const sidebarWidth of [219, 441, 300.5, '400', null]) {
     await page.evaluate((sidebarWidth) => localStorage.setItem('odin-web-prefs:v1', JSON.stringify({
       sidebarWidth, sidebarCollapsed: 'true', theme: 'light', mode: 'list',
@@ -263,7 +195,7 @@ test('invalid persisted widths and collapse values fall back without losing othe
 });
 
 test('collapse uses the shared 280ms easing and becomes instant with reduced motion', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const css = await panel(page).evaluate((el) => ({
     duration: getComputedStyle(el).transitionDuration, easing: getComputedStyle(el).transitionTimingFunction,
   }));
@@ -278,7 +210,7 @@ test('collapse uses the shared 280ms easing and becomes instant with reduced mot
 });
 
 test('800px drawer always expands independently of stored desktop collapse and width', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await resizeKey(page, 'End', 440);
   await collapse(page).click();
   await page.setViewportSize({ width: 800, height: 900 });
@@ -290,7 +222,7 @@ test('800px drawer always expands independently of stored desktop collapse and w
   await expect(drawer.getByTestId('usage-meter')).toHaveCount(3);
   await expect(drawer.getByRole('button', { name: /Collapse sidebar|Expand sidebar/ })).toHaveCount(0);
   await expect(handle(page)).toHaveCount(0);
-  await expect(drawer.getByTestId('sidebar-attention')).toBeVisible();
+  await expect(drawer.getByTestId('sidebar-dashboard')).toBeVisible();
   expect(await width(page)).toBe(280);
   await page.keyboard.press('Escape');
   await expect(menu).toBeFocused();
@@ -304,7 +236,7 @@ test('800px drawer always expands independently of stored desktop collapse and w
 });
 
 for (const theme of ['dark', 'light']) test(`usage colour rules in ${theme}: neutral bars and band text`, async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   if (theme === 'light') await page.getByTestId('theme-toggle').click();
   const colors = await panel(page).evaluate((el) => {
     const token = (name) => {
@@ -332,10 +264,10 @@ for (const theme of ['dark', 'light']) test(`usage colour rules in ${theme}: neu
 
 test('compact usage is pinned above setup at 1440×1000 and remains visible while the dashboard scrolls', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const usage = page.getByTestId('sidebar-usage');
   expect(await usage.evaluate((el) => el.closest('.sidebar-scroll'))).toBeNull();
-  await expect(panel(page).locator('.sidebar-scroll').getByTestId('sidebar-activity')).toHaveCount(1);
+  await expect(panel(page).getByTestId('sidebar-activity')).toHaveCount(0);
   const assertPinned = async () => {
     await expect(usage).toBeInViewport({ ratio: 1 });
     await expect(page.getByTestId('setup-progress-card')).toBeInViewport({ ratio: 1 });
@@ -355,7 +287,7 @@ test('compact usage is pinned above setup at 1440×1000 and remains visible whil
 
 test('per-sign-in disclosure keeps details bounded, preserves controls and resets only on reload', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const executive = meter(page, 'executive-login');
   const toggle = executive.getByRole('button', { name: 'Usage details for Executive login', exact: true });
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -385,7 +317,7 @@ test('per-sign-in disclosure keeps details bounded, preserves controls and reset
 });
 
 test('resize feedback is one neutral pixel idle and two accent pixels on hover, focus and drag', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const line = () => handle(page).evaluate((el) => {
     const pseudo = getComputedStyle(el, '::before');
     const resolve = (token) => {
@@ -426,7 +358,7 @@ test('a sign-in with only unavailable probes has an explicit compact summary and
       return result;
     };
   });
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const executive = meter(page, 'executive-login');
   await expect(executive.locator('.usage-summary-empty')).toHaveText('Probe unavailable');
   await expect(executive.getByRole('meter')).toHaveCount(0);

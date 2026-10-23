@@ -10,7 +10,7 @@ const FRAMES = 8;
 const FRAME_MS = 70;
 
 // Steps the displayed integer toward `target` (or null for unknown).
-function useAnimatedNumber(target) {
+export function useAnimatedNumber(target) {
   const [shown, setShown] = useState(target);
   useEffect(() => {
     if (target == null || shown == null || target === shown || prefersReducedMotion()) {
@@ -30,7 +30,8 @@ function useAnimatedNumber(target) {
     }, FRAME_MS);
     return () => clearInterval(timer);
   }, [target]); // shown is intentionally read latest inside the interval
-  return shown;
+  // Reduced motion and unknown transitions must not wait for another paint.
+  return target == null || shown == null || prefersReducedMotion() ? target : shown;
 }
 
 // One session's headline figure (cache reads excluded), animated.

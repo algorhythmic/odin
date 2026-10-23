@@ -1,6 +1,6 @@
 import { getAssignment, getProjects, lineageLabel, observedLabel, sessionStatus, sessionsFor } from './data.js';
 import { StatusChip } from './status.jsx';
-import { projectHref, sessionHref } from './route.js';
+import { agentsHref, projectHref, sessionHref } from './route.js';
 
 const ENDED = new Set(['ended', 'retired']);
 
@@ -10,7 +10,7 @@ const ENDED = new Set(['ended', 'retired']);
 export function History({ project, grouped = false }) {
   if (!project) return (
     <div class="portfolio-history" data-testid="portfolio-history">
-      <p><a href="#/">All projects</a></p>
+      <p><a href={agentsHref()}>All projects</a></p>
       <h1>History — Portfolio</h1>
       {getProjects().map((p) => <section key={p.id} data-project-id={p.id}><History project={p} grouped /></section>)}
     </div>

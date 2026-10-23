@@ -28,7 +28,7 @@ async function assertLabelsClear(page) {
 for (const [width, mode] of [[1440, 'adaptive'], [1100, 'adaptive'], [800, 'adaptive']]) {
   test(`load fits at ${width}px by rearranging before shrinking`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto('/#/');
+    await page.goto('/#/agents');
     await expect(canvas(page)).toHaveAttribute('data-mode', mode);
     await settled(page);
     expect(await scale(page)).toBeGreaterThanOrEqual(0.75);
@@ -60,7 +60,7 @@ for (const [width, mode] of [[1440, 'adaptive'], [1100, 'adaptive'], [800, 'adap
 }
 
 test('automatic fitting follows resize, sidebar, drawer and content changes', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await expect(canvas(page)).toHaveAttribute('data-mode', 'adaptive');
   const initialWidth = await canvas(page).evaluate((el) => el.clientWidth);
   const separator = page.getByRole('separator', { name: 'Sidebar width' });
@@ -97,7 +97,7 @@ test('automatic fitting follows resize, sidebar, drawer and content changes', as
 });
 
 test('wheel zoom anchors the pointer, plain wheel scrolls, keyboard clamps and resets', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await settled(page);
   const c = canvas(page);
   const b = await c.boundingBox();
@@ -137,7 +137,7 @@ test('wheel zoom anchors the pointer, plain wheel scrolls, keyboard clamps and r
 });
 
 test('background drag pans after 4px, while card, chip and link clicks still work', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await settled(page);
   const b = await canvas(page).boundingBox();
   const before = await transform(page);
@@ -178,7 +178,7 @@ test('background drag pans after 4px, while card, chip and link clicks still wor
 test.describe('native touch', () => {
   test.use({ hasTouch: true });
   test('one-finger drag and two-finger pinch move the canvas and cancel cleanly', async ({ page }) => {
-    await page.goto('/#/');
+    await page.goto('/#/agents');
     const c = canvas(page);
     const b = await c.boundingBox();
     const client = await page.context().newCDPSession(page);
@@ -202,7 +202,7 @@ test.describe('native touch', () => {
 });
 
 test('external selection reveals its card while preserving a manual zoom', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await canvas(page).focus();
   await page.keyboard.press('+');
   const zoom = await scale(page);
@@ -214,7 +214,7 @@ test('external selection reveals its card while preserving a manual zoom', async
   expect(await scale(page)).toBe(zoom);
 });
 
-for (const [url, width] of [['/#/', 1440], [`/#/projects/${PID}`, 1440], ['/#/', 800]]) {
+for (const [url, width] of [['/#/agents', 1440], [`/#/projects/${PID}`, 1440], ['/#/agents', 800]]) {
   test(`legend and unobstructed labels: ${url} at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(url);
@@ -251,7 +251,7 @@ for (const [url, width] of [['/#/', 1440], [`/#/projects/${PID}`, 1440], ['/#/',
 }
 
 test('arrangement motion uses the shared curve and becomes instant with reduced motion', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   const duration = await card(page, 'ses-exec-01').evaluate((el) => getComputedStyle(el).transitionDuration);
   expect(duration).toContain('0.42s');
   expect(await card(page, 'ses-exec-01').evaluate((el) => getComputedStyle(el).transitionTimingFunction))

@@ -134,7 +134,7 @@ test('collapse hides descendants and automatic fit keeps their widths readable',
 });
 
 test('portfolio attention chips link to sessions and keep offline observations visible', async ({ page }) => {
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await expect(page.getByTestId('synthetic-badge')).toBeVisible();
   await page.getByTestId('chip-needs').click();
   await page.getByTestId('attention-popover').getByRole('link').first().click();

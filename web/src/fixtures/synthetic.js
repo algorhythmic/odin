@@ -14,6 +14,7 @@
 //   "unknown") means unknown. Token budget values are arbitrary synthetic
 //   values, not real limits.
 // - A resumption keeps the same session; a new attempt is a distinct one.
+import empty from '../../fixtures/empty-snapshot.json';
 import snapshot from '../../fixtures/default-snapshot.json';
 import details from '../../fixtures/default-details.json';
 import eventFile from '../../fixtures/default-events.json';
@@ -23,6 +24,7 @@ export const synthetic = true;
 
 // The large dataset is opt-in through ?dataset=large and has no update events.
 export function loadDataset(name) {
+  if (name === 'empty') return { snapshot: structuredClone(empty), events: [] };
   if (name === 'large') return { snapshot: generateLargeSnapshot(), events: [] };
   return { snapshot: structuredClone(snapshot), events: structuredClone(eventFile.events) };
 }

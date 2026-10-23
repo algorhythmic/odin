@@ -19,7 +19,7 @@ test('stale and host-offline sessions show their last observed time', async ({ p
   await expect(observed).toContainText('2026-10-21T06:05:00Z (06:05 UTC)');
   await expect(observed).toContainText('Stale observation');
   await expect(observed).toContainText('host not reporting');
-  await page.goto('/#/');
+  await page.goto('/#/agents');
   await page.getByRole('button', { name: 'Tree', exact: true }).click();
   await expect(page.locator('[data-testid="session-card"][data-session-id="ses-ops-01"]').getByTestId('last-observed'))
     .toHaveText('Last observed 06:05 UTC');
