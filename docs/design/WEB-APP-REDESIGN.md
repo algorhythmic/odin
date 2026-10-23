@@ -123,6 +123,17 @@ section conflicts with later sections, this section wins.
    shared motion. The zoom icons stay for keyboard and accessibility use,
    and the project grouping line is coloured with its own token.
 
+10. **No line over a card; a smaller header** (operator, after R3e).
+    Connectors and relationship lines must not run over or be hidden
+    behind cards: every line is routed through the gaps between cards.
+    The tree header is cut to one compact row; the relationship key
+    becomes a small collapsible element inside the canvas; the
+    synthetic driver shrinks to a compact control. The scoped header
+    ("All projects · Executive · Fable 5.1 · Running") is replaced by a
+    breadcrumb ("Portfolio / <project>"), and the executive appears in
+    the scoped canvas as a compact card above the project node, so it is
+    clear who oversees the project and what it is doing.
+
 ADR-037 records its layout (an overview page, a planning conversation or
 activity area) as default design rather than accepted direction; this
 revision replaces that layout for the prototype. Its accepted parts (the
@@ -337,6 +348,7 @@ Playwright specs for what it adds.
 | R3c | Sidebar dashboard (revised direction 7): overview content, provider usage meters, Setup and Settings at the bottom, collapse to a rail, drag to resize | R3a |
 | R3d | Canvas (revised direction 8): fit to viewport, responsive vertical stacking, zoom and pan, stacked legend with distinct line styles, unobstructed relationship labels | R3c |
 | R3e | Viewport-filling layout and state-sized cards (revised direction 9) | R3d |
+| R3f | Collision-free routing, compact header, in-canvas key, breadcrumb scope (revised direction 10) | R3e |
 | R3b | Live simulation (revised direction 6): continuous create, work, finish and remove through the event rules, with the observed Agent Tree motion; card presentation pass (harness tag, fold to one line) | R3a |
 | Deferred | Decision Tree, Agent Queue and Delegate Board, Agent Lanes, Agent Graph (formerly R4–R7) | operator decision |
 
